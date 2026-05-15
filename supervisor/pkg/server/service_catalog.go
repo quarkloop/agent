@@ -21,7 +21,6 @@ import (
 const runtimeServiceCatalogEnv = "QUARK_RUNTIME_SERVICE_CATALOG"
 const runtimePluginCatalogEnv = "QUARK_RUNTIME_PLUGIN_CATALOG"
 
-type runtimePluginCatalog = plugin.RuntimeCatalog
 type runtimePluginCatalogEntry = plugin.RuntimeCatalogPlugin
 
 func (s *Server) runtimePluginCatalogEnv(ctx context.Context, space string) ([]string, error) {

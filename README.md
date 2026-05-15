@@ -139,6 +139,9 @@ make proto           # regenerate protobuf/gRPC stubs
 make test            # unit tests across workspace modules
 make test-e2e-local  # local deterministic E2E subset, no provider key
 make test-e2e        # real E2E tests, requires provider credentials
+make arch-check      # import ownership and dependency boundary checks
+make dead-code-check # staticcheck U1000 across modules and E2E tags
+make check           # fmt-check, vet, test, arch-check, dead-code-check
 make vet
 make fmt
 ```
@@ -162,6 +165,13 @@ go test -count=1 -tags e2e -v -timeout 10m ./e2e
 The local deterministic subset covers prompt contracts, supervisor-to-runtime
 session mirroring, indexer service storage against Dgraph, and standard
 supervisor/runtime/service startup with local hashing embeddings.
+
+Architecture checks are intentionally lightweight and enforce
+`architecture/ownership.json`. A failure means a package crossed an ownership
+boundary and should be moved behind the correct API or recorded as a temporary
+exception with a follow-up task. `dead-code-check` runs staticcheck's U1000 pass
+with the required plugin and E2E build tags so unused helpers are caught without
+flagging generated code paths unnecessarily.
 
 Provider-backed E2E tests include ask mode, bash tool use, build-release agent
 flow, Markdown indexing, PDF indexing, and OpenRouter embedding coverage. The

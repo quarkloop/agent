@@ -239,35 +239,6 @@ func (m *Manager) Shutdown() {
 
 // --- internal helpers (must be called with m.mu held where noted) ---
 
-func (m *Manager) loadToolsLocked(ctx context.Context) error {
-	toolsDir := filepath.Join(m.pluginsDir, "tools")
-	entries, err := os.ReadDir(toolsDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		pluginDir := filepath.Join(toolsDir, e.Name())
-		manifest, err := plugin.ParseManifest(filepath.Join(pluginDir, "manifest.yaml"))
-		if err != nil {
-			fmt.Printf("pluginmanager: skip %s: %v\n", e.Name(), err)
-			continue
-		}
-		if manifest.Type != plugin.TypeTool {
-			continue
-		}
-		if err := m.loadToolLocked(ctx, manifest, pluginDir); err != nil {
-			fmt.Printf("pluginmanager: failed to load tool %s: %v\n", manifest.Name, err)
-		}
-	}
-	return nil
-}
-
 func (m *Manager) loadProvidersLocked(ctx context.Context) error {
 	providersDir := filepath.Join(m.pluginsDir, "providers")
 	entries, err := os.ReadDir(providersDir)

@@ -15,11 +15,6 @@ type Handler interface {
 	Handle(ctx context.Context, msg Message) error
 }
 
-// handlerAdapter wraps a Handler to produce a HandlerFunc.
-func handlerAdapter(h Handler) HandlerFunc {
-	return h.Handle
-}
-
 // TypedHandler creates a Handler from a type string and HandlerFunc.
 type TypedHandler struct {
 	MsgType  string

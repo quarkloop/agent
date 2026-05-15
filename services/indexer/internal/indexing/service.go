@@ -406,23 +406,6 @@ func primaryEntities(cmd IndexCommand) []indexer.Entity {
 	return entities
 }
 
-func linkedEntityIDs(entities []indexer.Entity) []string {
-	out := make([]string, 0, len(entities))
-	seen := make(map[string]struct{}, len(entities))
-	for _, entity := range entities {
-		entityID := normalizedEntityID(entity)
-		if entityID == "" {
-			continue
-		}
-		if _, ok := seen[entityID]; ok {
-			continue
-		}
-		seen[entityID] = struct{}{}
-		out = append(out, entityID)
-	}
-	return out
-}
-
 func uniqueRelations(relations []indexer.Relation) []indexer.Relation {
 	out := make([]indexer.Relation, 0, len(relations))
 	seen := make(map[string]struct{}, len(relations))
@@ -458,13 +441,6 @@ func normalizeEntityForWrite(entity indexer.Entity) indexer.Entity {
 
 func completeRelation(relation indexer.Relation) bool {
 	return relation.FromID != "" && relation.ToID != "" && relation.Relation != ""
-}
-
-func normalizedEntityID(entity indexer.Entity) string {
-	if entity.ID != "" {
-		return entity.ID
-	}
-	return indexer.EntityIDFromName(entity.Name)
 }
 
 func firstMetadata(metadata map[string]string, keys ...string) string {
@@ -606,24 +582,5 @@ func cloneGraphFragment(in *indexer.GraphFragment) *indexer.GraphFragment {
 	}
 	copy(out.Nodes, in.Nodes)
 	copy(out.Edges, in.Edges)
-	return out
-}
-
-func cloneContextPackage(in indexer.ContextPackage) indexer.ContextPackage {
-	return indexer.ContextPackage{
-		Chunks:     cloneChunks(in.Chunks),
-		Facts:      cloneFacts(in.Facts),
-		Citations:  cloneCitations(in.Citations),
-		Provenance: cloneProvenanceList(in.Provenance),
-		Graph:      cloneGraphFragment(in.Graph),
-		Confidence: in.Confidence,
-	}
-}
-
-func cloneProvenanceList(in []indexer.Provenance) []indexer.Provenance {
-	out := make([]indexer.Provenance, len(in))
-	for i, provenance := range in {
-		out[i] = cloneProvenance(provenance)
-	}
 	return out
 }

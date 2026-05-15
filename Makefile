@@ -31,7 +31,7 @@ MODULES := \
 		plugins/providers/openai \
 		plugins/providers/anthropic
 
-.PHONY: all build clean test test-e2e test-e2e-local vet fmt fmt-check tidy proto arch-check \
+.PHONY: all build clean test test-e2e test-e2e-local vet fmt fmt-check tidy proto arch-check boundary-check dead-code-check check \
 		build-supervisor build-runtime build-cli \
 		build-plugins build-tools build-tools-lib build-providers build-services
 
@@ -115,6 +115,23 @@ test-e2e:
 ## Check coarse package ownership and import boundaries
 arch-check:
 		python3 scripts/check-architecture.py
+
+boundary-check: arch-check
+
+## Run focused dead-code/import hygiene checks across modules and E2E build tags
+dead-code-check:
+		@command -v staticcheck >/dev/null || { echo "staticcheck is required for dead-code-check"; exit 1; }
+		@set -e; for mod in $(MODULES); do \
+			echo "--- Dead-code check $$mod ---"; \
+			case $$mod in \
+				plugins/providers/*) (cd $$mod && staticcheck -tags plugin -checks=U1000 ./...);; \
+				*) (cd $$mod && staticcheck -checks=U1000 ./...);; \
+			esac; \
+		done
+		@echo "--- Dead-code check e2e ---"
+		@(cd e2e && staticcheck -tags e2e -checks=U1000 ./...)
+
+check: fmt-check vet test arch-check dead-code-check
 
 ## Run vet across all modules (providers are vetted under the `plugin` build
 ## tag since all their sources are gated on it)
