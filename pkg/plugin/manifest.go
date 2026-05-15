@@ -58,8 +58,39 @@ type ServiceConfig struct {
 	DefaultAddress string `yaml:"default_address,omitempty"`
 	// Skill names the service skill file relative to the plugin directory.
 	Skill string `yaml:"skill,omitempty"`
+	// Readme names the service README file relative to the plugin directory.
+	Readme string `yaml:"readme,omitempty"`
 	// ProtoServices lists protobuf service names exposed by this service.
 	ProtoServices []string `yaml:"proto_services,omitempty"`
+	// Functions declares the agent-facing service functions exposed by the
+	// service plugin. These map to transport-level gRPC RPC methods.
+	Functions []ServiceFunctionConfig `yaml:"functions,omitempty"`
+}
+
+// ServiceFunctionConfig declares one agent-facing callable service function.
+type ServiceFunctionConfig struct {
+	// Name is the generated runtime tool-call name, such as indexer_GetContext.
+	Name string `yaml:"name"`
+	// Service is the protobuf service name, such as quark.indexer.v1.IndexerService.
+	Service string `yaml:"service"`
+	// Method is the protobuf RPC method name.
+	Method string `yaml:"method"`
+	// Request is the protobuf request message name.
+	Request string `yaml:"request"`
+	// Response is the protobuf response message name.
+	Response string `yaml:"response"`
+	// Description is the agent-facing service function description.
+	Description string `yaml:"description"`
+	// RiskLevel is a coarse execution risk label: read, write, or admin.
+	RiskLevel string `yaml:"risk_level,omitempty"`
+	// ApprovalRequired declares whether the function needs explicit approval.
+	ApprovalRequired bool `yaml:"approval_required,omitempty"`
+	// ApprovalRequirements names approval reasons or scopes when approval is required.
+	ApprovalRequirements []string `yaml:"approval_requirements,omitempty"`
+	// Streaming declares whether the function streams responses.
+	Streaming bool `yaml:"streaming,omitempty"`
+	// Idempotent declares whether repeating the call with the same request is safe.
+	Idempotent bool `yaml:"idempotent,omitempty"`
 }
 
 // ParseManifest reads and parses a manifest.yaml file.
@@ -144,9 +175,48 @@ func (m *Manifest) Validate() error {
 		if m.Service.Skill == "" {
 			m.Service.Skill = "SKILL.md"
 		}
+		if m.Service.Readme == "" {
+			m.Service.Readme = "README.md"
+		}
+		if len(m.Service.Functions) == 0 {
+			return fmt.Errorf("service.functions is required for service plugins")
+		}
+		for i, function := range m.Service.Functions {
+			if err := function.Validate(); err != nil {
+				return fmt.Errorf("service.functions[%d]: %w", i, err)
+			}
+		}
 	}
 
 	return nil
+}
+
+// Validate checks that the service function contract is complete.
+func (f ServiceFunctionConfig) Validate() error {
+	if f.Name == "" {
+		return fmt.Errorf("name is required")
+	}
+	if f.Service == "" {
+		return fmt.Errorf("service is required")
+	}
+	if f.Method == "" {
+		return fmt.Errorf("method is required")
+	}
+	if f.Request == "" {
+		return fmt.Errorf("request is required")
+	}
+	if f.Response == "" {
+		return fmt.Errorf("response is required")
+	}
+	if f.Description == "" {
+		return fmt.Errorf("description is required")
+	}
+	switch f.RiskLevel {
+	case "", "read", "write", "admin":
+		return nil
+	default:
+		return fmt.Errorf("risk_level must be read, write, or admin")
+	}
 }
 
 // LibTargetPath returns the path to the .so file for lib-mode plugins.

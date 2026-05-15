@@ -85,6 +85,21 @@ func TestServiceFunctionSchemaUsesRuntimeEmbeddingReferences(t *testing.T) {
 	}
 }
 
+func TestToolNameForIsDeterministicAndSafe(t *testing.T) {
+	t.Parallel()
+
+	got := ToolNameFor("build-release", "Dry Run")
+	if got != "build_release_Dry_Run" {
+		t.Fatalf("tool name = %q, want build_release_Dry_Run", got)
+	}
+	if again := ToolNameFor("build-release", "Dry Run"); again != got {
+		t.Fatalf("tool name not deterministic: %q then %q", got, again)
+	}
+	if empty := ToolNameFor("", ""); empty != "service_call" {
+		t.Fatalf("empty tool name = %q, want service_call", empty)
+	}
+}
+
 func TestExecutorExpandsEmbeddingReferences(t *testing.T) {
 	t.Parallel()
 

@@ -126,6 +126,9 @@ func (s *Server) resolveServicePluginCatalog(ctx context.Context, space string) 
 			if desc.GetName() == "" {
 				desc.Name = item.Manifest.Name
 			}
+			if err := applyServiceFunctionMetadata(desc, item.Manifest); err != nil {
+				return nil, fmt.Errorf("service plugin %s metadata: %w", item.Manifest.Name, err)
+			}
 			if skill != nil {
 				desc.Skills = replaceSkill(desc.GetSkills(), skill)
 			}
@@ -133,6 +136,35 @@ func (s *Server) resolveServicePluginCatalog(ctx context.Context, space string) 
 		}
 	}
 	return descriptors, nil
+}
+
+func applyServiceFunctionMetadata(desc *servicev1.ServiceDescriptor, manifest *plugin.Manifest) error {
+	if desc == nil || manifest == nil || manifest.Service == nil {
+		return nil
+	}
+	functions := manifest.Service.Functions
+	if len(functions) == 0 {
+		return nil
+	}
+	byRPC := make(map[string]plugin.ServiceFunctionConfig, len(functions))
+	for _, function := range functions {
+		key := serviceFunctionKey(function.Service, function.Method)
+		byRPC[key] = function
+	}
+	for _, rpc := range desc.GetRpcs() {
+		function, ok := byRPC[serviceFunctionKey(rpc.GetService(), rpc.GetMethod())]
+		if !ok {
+			return fmt.Errorf("missing manifest function for %s/%s", rpc.GetService(), rpc.GetMethod())
+		}
+		rpc.Request = function.Request
+		rpc.Response = function.Response
+		rpc.Description = function.Description
+	}
+	return nil
+}
+
+func serviceFunctionKey(service, method string) string {
+	return strings.TrimSpace(service) + "/" + strings.TrimSpace(method)
 }
 
 func (s *Server) serviceConfigByPluginName(space string) (map[string]spacemodel.ServiceRef, error) {

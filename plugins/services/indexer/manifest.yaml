@@ -9,5 +9,27 @@ license: Apache-2.0
 service:
   address_env: QUARK_INDEXER_ADDR
   skill: SKILL.md
+  readme: README.md
   proto_services:
     - quark.indexer.v1.IndexerService
+  functions:
+    - name: indexer_IndexDocument
+      service: quark.indexer.v1.IndexerService
+      method: IndexDocument
+      request: quark.indexer.v1.IndexRequest
+      response: quark.indexer.v1.IndexStatus
+      description: "Persist one canonical index record: document, chunk, embedding metadata, graph data, facts, citations, and provenance."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: indexer_GetContext
+      service: quark.indexer.v1.IndexerService
+      method: GetContext
+      request: quark.indexer.v1.QueryRequest
+      response: quark.indexer.v1.ContextResponse
+      description: "Retrieve vector and graph context for an agent-provided query embedding."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true

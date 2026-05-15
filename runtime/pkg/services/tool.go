@@ -156,6 +156,9 @@ var serviceToolUnsafeChars = regexp.MustCompile(`[^A-Za-z0-9_]+`)
 func ToolNameFor(serviceName, method string) string {
 	serviceName = strings.TrimSpace(serviceName)
 	method = strings.TrimSpace(method)
+	if serviceName == "" && method == "" {
+		return "service_call"
+	}
 	if serviceName == "" {
 		serviceName = "service"
 	}

@@ -9,5 +9,17 @@ license: Apache-2.0
 service:
   address_env: QUARK_EMBEDDING_ADDR
   skill: SKILL.md
+  readme: README.md
   proto_services:
     - quark.embedding.v1.EmbeddingService
+  functions:
+    - name: embedding_Embed
+      service: quark.embedding.v1.EmbeddingService
+      method: Embed
+      request: quark.embedding.v1.EmbedRequest
+      response: quark.embedding.v1.EmbedResponse
+      description: "Create a deterministic local embedding for the supplied text."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true

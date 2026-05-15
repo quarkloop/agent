@@ -9,5 +9,103 @@ license: Apache-2.0
 service:
   address_env: QUARK_SPACE_SERVICE_ADDR
   skill: SKILL.md
+  readme: README.md
   proto_services:
     - quark.space.v1.SpaceService
+  functions:
+    - name: space_CreateSpace
+      service: quark.space.v1.SpaceService
+      method: CreateSpace
+      request: quark.space.v1.CreateSpaceRequest
+      response: quark.space.v1.Space
+      description: "Create a space and persist its initial Quarkfile."
+      risk_level: write
+      approval_required: true
+      approval_requirements:
+        - space-create
+      streaming: false
+      idempotent: false
+    - name: space_UpdateQuarkfile
+      service: quark.space.v1.SpaceService
+      method: UpdateQuarkfile
+      request: quark.space.v1.UpdateQuarkfileRequest
+      response: quark.space.v1.Space
+      description: "Replace the latest Quarkfile for a space."
+      risk_level: write
+      approval_required: true
+      approval_requirements:
+        - quarkfile-write
+      streaming: false
+      idempotent: false
+    - name: space_GetSpace
+      service: quark.space.v1.SpaceService
+      method: GetSpace
+      request: quark.space.v1.GetSpaceRequest
+      response: quark.space.v1.Space
+      description: "Return persisted space metadata."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: space_ListSpaces
+      service: quark.space.v1.SpaceService
+      method: ListSpaces
+      request: google.protobuf.Empty
+      response: quark.space.v1.ListSpacesResponse
+      description: "List registered spaces."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: space_DeleteSpace
+      service: quark.space.v1.SpaceService
+      method: DeleteSpace
+      request: quark.space.v1.DeleteSpaceRequest
+      response: google.protobuf.Empty
+      description: "Delete a space and its service-owned data."
+      risk_level: admin
+      approval_required: true
+      approval_requirements:
+        - space-delete
+      streaming: false
+      idempotent: false
+    - name: space_GetQuarkfile
+      service: quark.space.v1.SpaceService
+      method: GetQuarkfile
+      request: quark.space.v1.GetQuarkfileRequest
+      response: quark.space.v1.QuarkfileResponse
+      description: "Return the authoritative Quarkfile bytes."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: space_GetAgentEnvironment
+      service: quark.space.v1.SpaceService
+      method: GetAgentEnvironment
+      request: quark.space.v1.GetAgentEnvironmentRequest
+      response: quark.space.v1.AgentEnvironmentResponse
+      description: "Resolve model environment entries for runtime launch."
+      risk_level: admin
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: space_GetSpacePaths
+      service: quark.space.v1.SpaceService
+      method: GetSpacePaths
+      request: quark.space.v1.GetSpacePathsRequest
+      response: quark.space.v1.SpacePaths
+      description: "Return derived storage paths for a space."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: space_Doctor
+      service: quark.space.v1.SpaceService
+      method: Doctor
+      request: quark.space.v1.DoctorRequest
+      response: quark.space.v1.DoctorResponse
+      description: "Run Quarkfile and installed-plugin diagnostics."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
