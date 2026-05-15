@@ -46,27 +46,10 @@ func (r *Runtime) Status() api.RuntimeStatus { return r.status }
 func (r *Runtime) PID() int                  { return r.pid }
 func (r *Runtime) Port() int                 { return r.port }
 func (r *Runtime) StartedAt() time.Time      { return r.startedAt }
-func (r *Runtime) Cmd() *exec.Cmd            { return r.cmd }
 
 // Mutator methods
 
-func (r *Runtime) SetCmd(cmd *exec.Cmd)               { r.cmd = cmd }
-func (r *Runtime) SetPID(pid int)                     { r.pid = pid }
-func (r *Runtime) SetStatus(status api.RuntimeStatus) { r.status = status }
-func (r *Runtime) SetPort(port int)                   { r.port = port }
-func (r *Runtime) SetStartedAt(t time.Time)           { r.startedAt = t }
-
-// RuntimeInfo returns an api.RuntimeInfo for API responses.
-func (r *Runtime) RuntimeInfo() api.RuntimeInfo {
-	return api.RuntimeInfo{
-		ID:        r.id,
-		Space:     r.space,
-		Status:    r.status,
-		PID:       r.pid,
-		Port:      r.port,
-		StartedAt: r.startedAt,
-	}
-}
+func (r *Runtime) SetPort(port int) { r.port = port }
 
 // Registry tracks running processes keyed by runtime ID.
 type Registry struct {
@@ -129,14 +112,31 @@ func (r *Registry) Remove(id string) {
 }
 
 // SetStatus updates the status of a runtime.
-func (r *Registry) SetStatus(id string, status api.RuntimeStatus) error {
+func (r *Registry) MarkRunning(id string, handle ProcessHandle) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	rt, ok := r.runtimes[id]
 	if !ok {
 		return fmt.Errorf("runtime %q not found", id)
 	}
-	rt.SetStatus(status)
+	rt.cmd = handle.Cmd
+	rt.pid = handle.PID
+	rt.startedAt = handle.StartedAt
+	rt.status = api.RuntimeRunning
+	return nil
+}
+
+func (r *Registry) MarkStopping(id string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	rt, ok := r.runtimes[id]
+	if !ok {
+		return fmt.Errorf("runtime %q not found", id)
+	}
+	if rt.status != api.RuntimeRunning && rt.status != api.RuntimeStarting {
+		return fmt.Errorf("runtime %s is not running (status: %s)", id, rt.status)
+	}
+	rt.status = api.RuntimeStopping
 	return nil
 }
 
@@ -147,8 +147,8 @@ func (r *Registry) SetStopped(id string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if rt, ok := r.runtimes[id]; ok {
-		rt.SetStatus(api.RuntimeStopped)
-		rt.SetPID(0)
-		rt.SetCmd(nil)
+		rt.status = api.RuntimeStopped
+		rt.pid = 0
+		rt.cmd = nil
 	}
 }

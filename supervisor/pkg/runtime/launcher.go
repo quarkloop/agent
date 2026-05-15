@@ -10,7 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/quarkloop/supervisor/pkg/api"
 	"github.com/quarkloop/supervisor/pkg/runtime/launchenv"
 )
 
@@ -23,6 +22,12 @@ type Launcher struct {
 	onStop     StopCallback
 }
 
+type ProcessHandle struct {
+	Cmd       *exec.Cmd
+	PID       int
+	StartedAt time.Time
+}
+
 // NewLauncher creates a Launcher that spawns the given runtime binary.
 // onStop is called under the registry lock when a runtime process exits.
 func NewLauncher(runtimeBin string, onStop StopCallback) *Launcher {
@@ -32,9 +37,9 @@ func NewLauncher(runtimeBin string, onStop StopCallback) *Launcher {
 // Start launches a runtime process for the registry entry. On success it
 // sets entry.Cmd, entry.PID, entry.Status = RuntimeRunning. When the
 // process exits the status is transitioned to RuntimeStopped.
-func (l *Launcher) Start(ctx context.Context, rt *Runtime, spec launchenv.ProcessSpec) error {
+func (l *Launcher) Start(ctx context.Context, runtimeID string, spec launchenv.ProcessSpec) (ProcessHandle, error) {
 	if spec.Port == 0 {
-		return fmt.Errorf("launch runtime %s: port not assigned", rt.ID())
+		return ProcessHandle{}, fmt.Errorf("launch runtime %s: port not assigned", runtimeID)
 	}
 	// Use a detached context: the child runtime's lifetime is owned by the
 	// registry, not by the HTTP request that spawned it.
@@ -49,34 +54,30 @@ func (l *Launcher) Start(ctx context.Context, rt *Runtime, spec launchenv.Proces
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("launch runtime %s: %w", rt.ID(), err)
+		return ProcessHandle{}, fmt.Errorf("launch runtime %s: %w", runtimeID, err)
 	}
 
-	rt.SetCmd(cmd)
-	rt.SetPID(cmd.Process.Pid)
-	rt.SetStartedAt(time.Now().UTC())
-	rt.SetStatus(api.RuntimeRunning)
+	started := time.Now().UTC()
 
 	go func() {
 		if err := cmd.Wait(); err != nil {
-			slog.Error("runtime exited with error", "runtime_id", rt.ID(), "error", err)
+			slog.Error("runtime exited with error", "runtime_id", runtimeID, "error", err)
 		}
 		if l.onStop != nil {
-			l.onStop(rt.ID())
+			l.onStop(runtimeID)
 		}
 	}()
 
-	return nil
+	return ProcessHandle{Cmd: cmd, PID: cmd.Process.Pid, StartedAt: started}, nil
 }
 
 // Stop sends SIGTERM to the runtime process. The caller must hold the registry
 // write lock for the duration of this call to avoid a data race on rt.Status.
 func (l *Launcher) Stop(rt *Runtime) error {
-	if rt.Cmd() == nil || rt.Cmd().Process == nil {
+	if rt.cmd == nil || rt.cmd.Process == nil {
 		return fmt.Errorf("runtime %s is not running", rt.ID())
 	}
-	rt.SetStatus(api.RuntimeStopping)
-	if err := rt.Cmd().Process.Signal(syscall.SIGTERM); err != nil {
+	if err := rt.cmd.Process.Signal(syscall.SIGTERM); err != nil {
 		return fmt.Errorf("signal runtime %s: %w", rt.ID(), err)
 	}
 	return nil
