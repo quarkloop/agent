@@ -12,6 +12,7 @@ import (
 	plancmd "github.com/quarkloop/cli/pkg/commands/plan"
 	plugincmd "github.com/quarkloop/cli/pkg/commands/plugin"
 	runtimecmd "github.com/quarkloop/cli/pkg/commands/runtime"
+	servicescmd "github.com/quarkloop/cli/pkg/commands/services"
 	sessioncmd "github.com/quarkloop/cli/pkg/commands/session"
 	versioncmd "github.com/quarkloop/cli/pkg/commands/version"
 )
@@ -41,6 +42,7 @@ func RegisterCommands(root *cobra.Command) {
 	// Management Commands — plugin manager and validation.
 	addGroup(root, "management",
 		plugincmd.NewCommand(),
+		servicescmd.NewCommand(),
 	)
 }
 

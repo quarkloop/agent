@@ -34,6 +34,13 @@ func (s *Server) routes() {
 	app.Get("/v1/spaces/:name/plugins/:plugin", s.handleGetPlugin)
 	app.Delete("/v1/spaces/:name/plugins/:plugin", s.handleUninstallPlugin)
 
+	// Services
+	app.Get("/v1/spaces/:name/services", s.handleListServices)
+	app.Post("/v1/spaces/:name/services/doctor", s.handleServiceDoctor)
+	app.Get("/v1/spaces/:name/services/:service", s.handleInspectService)
+	app.Get("/v1/spaces/:name/services/:service/logs", s.handleServiceLogs)
+	app.Post("/v1/spaces/:name/services/:service/restart", s.handleRestartService)
+
 	// Sessions
 	app.Get("/v1/spaces/:name/sessions", s.handleListSessions)
 	app.Post("/v1/spaces/:name/sessions", s.handleCreateSession)

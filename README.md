@@ -142,6 +142,14 @@ make vet
 make fmt
 ```
 
+Service manager:
+
+```bash
+quark services list
+quark services inspect indexer
+quark services doctor
+```
+
 Focused E2E:
 
 ```bash

@@ -324,6 +324,66 @@ type HubPluginInfo struct {
 	Versions    []string `json:"versions"`
 }
 
+// --- Service manager types ---
+
+type ServiceStatus string
+
+const (
+	ServiceStatusReady        ServiceStatus = "ready"
+	ServiceStatusUnavailable  ServiceStatus = "unavailable"
+	ServiceStatusMissing      ServiceStatus = "missing"
+	ServiceStatusUnconfigured ServiceStatus = "unconfigured"
+)
+
+type ServiceFunctionInfo struct {
+	Name        string `json:"name"`
+	Service     string `json:"service"`
+	Method      string `json:"method"`
+	Request     string `json:"request"`
+	Response    string `json:"response"`
+	Description string `json:"description"`
+	RiskLevel   string `json:"risk_level,omitempty"`
+	Approval    bool   `json:"approval_required,omitempty"`
+	Idempotent  bool   `json:"idempotent,omitempty"`
+}
+
+type ServiceInfo struct {
+	Name          string                `json:"name"`
+	Type          string                `json:"type"`
+	Version       string                `json:"version"`
+	Mode          string                `json:"mode"`
+	Description   string                `json:"description"`
+	Status        ServiceStatus         `json:"status"`
+	Endpoint      string                `json:"endpoint,omitempty"`
+	AddressEnv    string                `json:"address_env,omitempty"`
+	HealthService string                `json:"health_service,omitempty"`
+	MinVersion    string                `json:"min_version,omitempty"`
+	FunctionCount int                   `json:"function_count"`
+	Functions     []ServiceFunctionInfo `json:"functions,omitempty"`
+	Diagnostics   []string              `json:"diagnostics,omitempty"`
+}
+
+type ListServicesResponse struct {
+	Services []ServiceInfo `json:"services"`
+}
+
+type ServiceLogsResponse struct {
+	Name      string `json:"name"`
+	Supported bool   `json:"supported"`
+	Message   string `json:"message"`
+}
+
+type ServiceRestartResponse struct {
+	Name      string `json:"name"`
+	Supported bool   `json:"supported"`
+	Message   string `json:"message"`
+}
+
+type ServiceDoctorResponse struct {
+	Services []ServiceInfo `json:"services"`
+	Issues   []string      `json:"issues,omitempty"`
+}
+
 // --- KB types ---
 
 // KBSetRequest is the body for PUT /v1/spaces/{name}/kb/{namespace}/{key}.

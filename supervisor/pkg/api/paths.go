@@ -42,6 +42,11 @@ const (
 	routeSpacePlugin     = "/v1/spaces/%s/plugins/%s"
 	routeSpacePluginSrch = "/v1/spaces/%s/plugins/search"
 	routeSpaceHubPlugin  = "/v1/spaces/%s/plugins/hub/%s"
+	routeSpaceServices   = "/v1/spaces/%s/services"
+	routeSpaceService    = "/v1/spaces/%s/services/%s"
+	routeServiceLogs     = "/v1/spaces/%s/services/%s/logs"
+	routeServiceRestart  = "/v1/spaces/%s/services/%s/restart"
+	routeServiceDoctor   = "/v1/spaces/%s/services/doctor"
 	routeSpaceSessions   = "/v1/spaces/%s/sessions"
 	routeSpaceSession    = "/v1/spaces/%s/sessions/%s"
 	routeSpaceEventsStrm = "/v1/spaces/%s/events/stream"
@@ -72,7 +77,18 @@ func (RouteBuilder) SpacePluginSearch(n string) string { return fmt.Sprintf(rout
 func (RouteBuilder) SpaceHubPlugin(n, name string) string {
 	return fmt.Sprintf(routeSpaceHubPlugin, n, name)
 }
-func (RouteBuilder) SpaceSessions(n string) string { return fmt.Sprintf(routeSpaceSessions, n) }
+func (RouteBuilder) SpaceServices(n string) string { return fmt.Sprintf(routeSpaceServices, n) }
+func (RouteBuilder) SpaceService(n, service string) string {
+	return fmt.Sprintf(routeSpaceService, n, service)
+}
+func (RouteBuilder) SpaceServiceLogs(n, service string) string {
+	return fmt.Sprintf(routeServiceLogs, n, service)
+}
+func (RouteBuilder) SpaceServiceRestart(n, service string) string {
+	return fmt.Sprintf(routeServiceRestart, n, service)
+}
+func (RouteBuilder) SpaceServiceDoctor(n string) string { return fmt.Sprintf(routeServiceDoctor, n) }
+func (RouteBuilder) SpaceSessions(n string) string      { return fmt.Sprintf(routeSpaceSessions, n) }
 func (RouteBuilder) SpaceSession(n, id string) string {
 	return fmt.Sprintf(routeSpaceSession, n, id)
 }
