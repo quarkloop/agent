@@ -1,0 +1,204 @@
+{
+  "version": 1,
+  "terms": {
+    "supervisor": "Control plane. Owns persistent state, space registry, plugin/service discovery, catalog generation, service readiness, runtime launch, and process supervision.",
+    "runtime": "Execution engine. Owns sessions, prompt assembly, LLM/tool loop, service function dispatch through tool calls, events, and agent profile execution.",
+    "agent_plugin": "Installable definition of an agent role, prompts, skills, default permissions, handoff rules, and evaluation requirements.",
+    "agent_profile": "Resolved runtime contract produced from an agent plugin plus Quarkfile/session overrides.",
+    "service_plugin": "Installable descriptor for a gRPC service and its exported service functions.",
+    "service_function": "Agent-facing callable service capability exposed through the runtime tool-call envelope.",
+    "tool_plugin": "Installable tool implementation with schema, execution code, and SKILL.md guidance.",
+    "provider_plugin": "Model provider adapter. Long-term provider dispatch moves behind the model service.",
+    "space": "Isolated workspace identity and persistent state boundary.",
+    "catalog": "Supervisor-resolved startup input consumed by runtime.",
+    "quarkfile_override": "Space-level configuration overlay that supervisor validates before runtime launch."
+  },
+  "ownership": [
+    {
+      "area": "runtime",
+      "path": "runtime",
+      "module": "github.com/quarkloop/runtime",
+      "owns": [
+        "agent execution loop",
+        "session routing",
+        "prompt assembly",
+        "tool-call execution envelope",
+        "service function dispatch from resolved catalog",
+        "runtime events and activity",
+        "workspace mutation policy enforcement"
+      ],
+      "forbidden_import_prefixes": [
+        "github.com/quarkloop/supervisor",
+        "github.com/quarkloop/cli",
+        "github.com/quarkloop/e2e",
+        "github.com/quarkloop/services/",
+        "github.com/quarkloop/plugins/tools/",
+        "github.com/quarkloop/plugins/providers/"
+      ]
+    },
+    {
+      "area": "supervisor",
+      "path": "supervisor",
+      "module": "github.com/quarkloop/supervisor",
+      "owns": [
+        "persistent state",
+        "space registry",
+        "plugin and service discovery",
+        "runtime catalog generation",
+        "service readiness",
+        "runtime lifecycle",
+        "process supervision"
+      ],
+      "forbidden_import_prefixes": [
+        "github.com/quarkloop/runtime",
+        "github.com/quarkloop/cli",
+        "github.com/quarkloop/e2e",
+        "github.com/quarkloop/services/",
+        "github.com/quarkloop/plugins/tools/",
+        "github.com/quarkloop/plugins/providers/"
+      ]
+    },
+    {
+      "area": "cli",
+      "path": "cli",
+      "module": "github.com/quarkloop/cli",
+      "owns": [
+        "user-facing command surface",
+        "Quarkfile read/write in current working directory",
+        "HTTP calls to supervisor",
+        "direct runtime client calls after supervisor resolution"
+      ],
+      "allowed_import_prefixes": [
+        "github.com/quarkloop/supervisor/pkg/client",
+        "github.com/quarkloop/runtime/pkg/client"
+      ],
+      "forbidden_import_prefixes": [
+        "github.com/quarkloop/supervisor/pkg/server",
+        "github.com/quarkloop/supervisor/pkg/runtime",
+        "github.com/quarkloop/supervisor/pkg/space",
+        "github.com/quarkloop/runtime/pkg/agent",
+        "github.com/quarkloop/runtime/pkg/api",
+        "github.com/quarkloop/runtime/pkg/commands",
+        "github.com/quarkloop/runtime/pkg/services",
+        "github.com/quarkloop/e2e",
+        "github.com/quarkloop/services/",
+        "github.com/quarkloop/plugins/"
+      ]
+    },
+    {
+      "area": "shared-packages",
+      "path": "pkg",
+      "module": "github.com/quarkloop/pkg",
+      "owns": [
+        "shared contracts",
+        "plugin manifest types",
+        "service API stubs",
+        "space schema",
+        "toolkit helpers",
+        "event primitives"
+      ],
+      "forbidden_import_prefixes": [
+        "github.com/quarkloop/runtime",
+        "github.com/quarkloop/supervisor",
+        "github.com/quarkloop/cli",
+        "github.com/quarkloop/e2e",
+        "github.com/quarkloop/services/",
+        "github.com/quarkloop/plugins/"
+      ]
+    },
+    {
+      "area": "services",
+      "path": "services",
+      "module": "github.com/quarkloop/services",
+      "owns": [
+        "typed domain execution behind gRPC",
+        "service-local transport adapters",
+        "service-local persistence where the service owns the durable domain"
+      ],
+      "forbidden_import_prefixes": [
+        "github.com/quarkloop/runtime",
+        "github.com/quarkloop/supervisor",
+        "github.com/quarkloop/cli",
+        "github.com/quarkloop/e2e",
+        "github.com/quarkloop/plugins/"
+      ],
+      "forbid_sibling_service_imports": true
+    },
+    {
+      "area": "plugins",
+      "path": "plugins",
+      "module": "github.com/quarkloop/plugins",
+      "owns": [
+        "installable tool/provider/service/agent definitions",
+        "plugin-local implementations",
+        "SKILL.md guidance"
+      ],
+      "forbidden_import_prefixes": [
+        "github.com/quarkloop/runtime",
+        "github.com/quarkloop/supervisor",
+        "github.com/quarkloop/cli",
+        "github.com/quarkloop/e2e",
+        "github.com/quarkloop/services/"
+      ]
+    },
+    {
+      "area": "e2e",
+      "path": "e2e",
+      "module": "github.com/quarkloop/e2e",
+      "owns": [
+        "product-flow tests",
+        "process lifecycle fixtures",
+        "manual verification artifacts",
+        "external dependency orchestration for tests"
+      ],
+      "forbidden_import_prefixes": []
+    }
+  ],
+  "audit_focus": {
+    "runtime": [
+      "split prompt, session, inference, service function dispatch, handoff, and event ownership",
+      "prevent fallback runtime discovery when supervisor catalog is present"
+    ],
+    "supervisor": [
+      "split HTTP handlers, runtime lifecycle, registry mutation, launch environment, and catalog generation",
+      "move environment assembly out of runtime launcher"
+    ],
+    "services_and_plugins": [
+      "separate transport, domain, persistence, config, and service function description ownership",
+      "keep services from calling each other"
+    ],
+    "e2e": [
+      "separate process lifecycle, fixtures, prompts, assertions, artifacts, and external dependencies"
+    ]
+  },
+  "known_import_exceptions": [
+    {
+      "area": "runtime",
+      "file": "runtime/pkg/agent/agent.go",
+      "import": "github.com/quarkloop/supervisor/pkg/client",
+      "task": "Task 11 / Task 30",
+      "reason": "Runtime still imports supervisor client directly for space-scoped data operations. This should move behind a shared client contract or runtime boundary adapter."
+    },
+    {
+      "area": "runtime",
+      "file": "runtime/pkg/client/client.go",
+      "import": "github.com/quarkloop/supervisor/pkg/api",
+      "task": "Task 30",
+      "reason": "Runtime client reuses supervisor API DTOs and paths. This is a DTO boundary violation to remove when API/DTO mapper boundaries are finalized."
+    },
+    {
+      "area": "supervisor",
+      "file": "supervisor/pkg/server/server.go",
+      "import": "github.com/quarkloop/services/space/pkg/spacesvc",
+      "task": "Task 9 / Task 20",
+      "reason": "Supervisor embeds the space service directly during bootstrap. This needs a cleaner service lifecycle boundary when supervisor runtime lifecycle and Core services are split."
+    },
+    {
+      "area": "plugins",
+      "file": "plugins/tools/build-release/pkg/buildrelease/tool.go",
+      "import": "github.com/quarkloop/services/build-release/pkg/buildrelease",
+      "task": "Task 13",
+      "reason": "Legacy build-release tool imports service domain code as a compatibility adapter. Task 13 migrates build-release to service functions and removes duplicated tool ownership."
+    }
+  ]
+}

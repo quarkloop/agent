@@ -30,7 +30,7 @@ MODULES := \
 		plugins/providers/openai \
 		plugins/providers/anthropic
 
-.PHONY: all build clean test test-e2e vet fmt fmt-check tidy proto \
+.PHONY: all build clean test test-e2e vet fmt fmt-check tidy proto arch-check \
 		build-supervisor build-runtime build-cli \
 		build-plugins build-tools build-tools-lib build-providers build-services
 
@@ -106,6 +106,10 @@ test:
 ## Run E2E tests (requires OPENROUTER_API_KEY or ZHIPU_API_KEY; loads quark/.env when present)
 test-e2e:
 		go test -tags e2e -v -timeout 20m ./e2e
+
+## Check coarse package ownership and import boundaries
+arch-check:
+		python3 scripts/check-architecture.py
 
 ## Run vet across all modules (providers are vetted under the `plugin` build
 ## tag since all their sources are gated on it)
