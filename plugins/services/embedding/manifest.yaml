@@ -2,7 +2,7 @@ name: embedding
 version: "1.0.0"
 type: service
 mode: api
-description: "Local deterministic text embeddings over gRPC"
+description: "Local deterministic text embeddings over gRPC with provider/model/dimension/content-hash metadata"
 author: quarkloop
 license: Apache-2.0
 
@@ -25,7 +25,7 @@ service:
       method: Embed
       request: quark.embedding.v1.EmbedRequest
       response: quark.embedding.v1.EmbedResponse
-      description: "Create a deterministic local embedding for the supplied text."
+      description: "Create a deterministic local embedding for the supplied text and return provider, model, dimensions, and content hash."
       risk_level: read
       approval_required: false
       streaming: false

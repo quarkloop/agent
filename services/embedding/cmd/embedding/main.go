@@ -19,14 +19,21 @@ func main() {
 	var provider string
 	var model string
 	var dimensions int
+	var fallbacks string
 	var openRouterBaseURL string
 	flag.StringVar(&addr, "addr", "127.0.0.1:7304", "gRPC listen address")
 	flag.StringVar(&skillDir, "skill-dir", "", "directory containing the service SKILL.md")
 	flag.StringVar(&provider, "provider", envOrDefault("QUARK_EMBEDDING_PROVIDER", "local"), "embedding provider: local or openrouter")
 	flag.StringVar(&model, "model", os.Getenv("QUARK_EMBEDDING_MODEL"), "embedding model name")
 	flag.IntVar(&dimensions, "dimensions", envInt("QUARK_EMBEDDING_DIMENSIONS"), "expected embedding dimensions")
+	flag.StringVar(&fallbacks, "fallbacks", os.Getenv("QUARK_EMBEDDING_FALLBACKS"), "ordered fallback providers: provider|model|dimensions,provider|model|dimensions")
 	flag.StringVar(&openRouterBaseURL, "openrouter-base-url", os.Getenv("OPENROUTER_BASE_URL"), "OpenRouter API base URL")
 	flag.Parse()
+	fallbackSpecs, err := app.ParseProviderSpecs(fallbacks)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -38,6 +45,7 @@ func main() {
 		Provider:          provider,
 		Model:             model,
 		Dimensions:        dimensions,
+		Fallbacks:         fallbackSpecs,
 		OpenRouterAPIKey:  os.Getenv("OPENROUTER_API_KEY"),
 		OpenRouterBaseURL: openRouterBaseURL,
 		Logger:            logger,
