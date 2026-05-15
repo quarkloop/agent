@@ -17,6 +17,7 @@ import (
 )
 
 const defaultPDFMaxChars = 30000
+const mutationApprovalRequired = "workspace mutation requires explicit user approval"
 
 // Tool implements filesystem operations.
 type Tool struct {
@@ -98,6 +99,10 @@ func (t *Tool) Schema() plugin.ToolSchema {
 					"type":        "boolean",
 					"description": "For list/stat, include sha256 for regular files",
 				},
+				"approved": map[string]any{
+					"type":        "boolean",
+					"description": "Required true for write, append, replace, and rm after explicit user approval",
+				},
 			},
 			"required": []string{"command", "path"},
 		},
@@ -141,7 +146,13 @@ func (t *Tool) Commands() []toolkit.Command {
 				{Name: "path", Description: "File path", Required: true},
 				{Name: "content", Description: "Content to write", Required: true},
 			},
+			Flags: []toolkit.Flag{
+				{Name: "approved", Type: "bool", Description: "Must be true after explicit user approval", Default: false},
+			},
 			Handler: func(ctx context.Context, input toolkit.Input) (toolkit.Output, error) {
+				if out, blocked := requireMutationApproval(input); blocked {
+					return out, nil
+				}
 				err := os.WriteFile(input.Args["path"], []byte(input.Args["content"]), 0644)
 				if err != nil {
 					return toolkit.Output{Error: err.Error()}, nil
@@ -156,7 +167,13 @@ func (t *Tool) Commands() []toolkit.Command {
 				{Name: "path", Description: "File path", Required: true},
 				{Name: "content", Description: "Content to append", Required: true},
 			},
+			Flags: []toolkit.Flag{
+				{Name: "approved", Type: "bool", Description: "Must be true after explicit user approval", Default: false},
+			},
 			Handler: func(ctx context.Context, input toolkit.Input) (toolkit.Output, error) {
+				if out, blocked := requireMutationApproval(input); blocked {
+					return out, nil
+				}
 				f, err := os.OpenFile(input.Args["path"], os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 				if err != nil {
 					return toolkit.Output{Error: err.Error()}, nil
@@ -177,7 +194,13 @@ func (t *Tool) Commands() []toolkit.Command {
 				{Name: "find", Description: "Text to find", Required: true},
 				{Name: "replace-with", Description: "Replacement text", Required: true},
 			},
+			Flags: []toolkit.Flag{
+				{Name: "approved", Type: "bool", Description: "Must be true after explicit user approval", Default: false},
+			},
 			Handler: func(ctx context.Context, input toolkit.Input) (toolkit.Output, error) {
+				if out, blocked := requireMutationApproval(input); blocked {
+					return out, nil
+				}
 				data, err := os.ReadFile(input.Args["path"])
 				if err != nil {
 					return toolkit.Output{Error: err.Error()}, nil
@@ -223,7 +246,13 @@ func (t *Tool) Commands() []toolkit.Command {
 			Args: []toolkit.Arg{
 				{Name: "path", Description: "File or directory path", Required: true},
 			},
+			Flags: []toolkit.Flag{
+				{Name: "approved", Type: "bool", Description: "Must be true after explicit user approval", Default: false},
+			},
 			Handler: func(ctx context.Context, input toolkit.Input) (toolkit.Output, error) {
+				if out, blocked := requireMutationApproval(input); blocked {
+					return out, nil
+				}
 				err := os.RemoveAll(input.Args["path"])
 				if err != nil {
 					return toolkit.Output{Error: err.Error()}, nil
@@ -464,6 +493,17 @@ func handleRead(input toolkit.Input) (toolkit.Output, error) {
 		}}, nil
 	}
 	return toolkit.Output{Data: map[string]any{"content": content}}, nil
+}
+
+func requireMutationApproval(input toolkit.Input) (toolkit.Output, bool) {
+	approved, err := boolFlag(input.Flags, "approved", false)
+	if err != nil {
+		return toolkit.Output{Error: err.Error()}, true
+	}
+	if !approved {
+		return toolkit.Output{Error: mutationApprovalRequired}, true
+	}
+	return toolkit.Output{}, false
 }
 
 func intFlag(flags map[string]any, name string, fallback int) (int, error) {

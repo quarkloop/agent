@@ -44,6 +44,9 @@ tool:
         include_hash:
           type: boolean
           description: "For list/stat, include sha256 for regular files"
+        approved:
+          type: boolean
+          description: "Required true for write, append, replace, and rm after explicit user approval"
       required: [command, path]
   permissions:
     filesystem: ["*"]

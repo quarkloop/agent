@@ -6,12 +6,12 @@ Filesystem operations for agent use. Replaces the legacy `read` and `write` tool
 
 - `fs read <path> [--start-line N] [--end-line N] --json` — Read file contents, optionally with line range
 - `fs extract_pdf <path> [--max-chars N] --json` — Extract text from a PDF file with `pdftotext`
-- `fs write <path> <content> --json` — Write content to file (overwrite)
-- `fs append <path> <content> --json` — Append content to file
-- `fs replace <path> <find> <replace-with> --json` — Replace all occurrences of text
+- `fs write <path> <content> --approved --json` — Write content to file (overwrite) after explicit user approval
+- `fs append <path> <content> --approved --json` — Append content to file after explicit user approval
+- `fs replace <path> <find> <replace-with> --approved --json` — Replace all occurrences of text after explicit user approval
 - `fs list [path] [--recursive] [--include-hash] --json` — List directory (default: current directory)
 - `fs stat <path> [--include-hash] --json` — Get file metadata and optional sha256
-- `fs rm <path> --json` — Remove file or directory
+- `fs rm <path> --approved --json` — Remove file or directory after explicit user approval
 
 ## HTTP
 
@@ -19,8 +19,9 @@ All commands map to `POST /<command>` with JSON body.
 
 ## Important
 
-- `write` overwrites existing files without warning
-- `rm` removes files and directories permanently
+- `write`, `append`, `replace`, and `rm` require `approved=true` after explicit user approval
+- `write` overwrites existing files when approved
+- `rm` removes files and directories permanently when approved
 - `read` supports `--start-line` and `--end-line` for partial reads (1-based, inclusive)
 - `extract_pdf` requires the `pdftotext` binary on `PATH`; set `--max-chars 0` when the agent needs the full extracted text
 - Use absolute paths when possible
