@@ -39,7 +39,8 @@ The workspace modules are listed in `go.work`:
 - `supervisor`
 - `runtime`
 - `e2e`
-- `pkg/event`, `pkg/plugin`, `pkg/serviceapi`, `pkg/space`, `pkg/toolkit`
+- `pkg/boundary`, `pkg/event`, `pkg/plugin`, `pkg/serviceapi`, `pkg/space`,
+  `pkg/toolkit`
 - `services/build-release`, `services/embedding`, `services/indexer`,
   `services/space`
 - `plugins/tools/bash`, `plugins/tools/build-release`, `plugins/tools/fs`,
@@ -71,7 +72,7 @@ Important runtime packages:
 
 Formal terms:
 
-- `service function`: agent-facing callable service capability.
+- `service function`: agent-facing callable service operation.
 - `RPC method`: transport-level gRPC method implementing a service function.
 - `tool call`: runtime execution envelope used by the LLM/function-calling loop.
 
@@ -128,6 +129,9 @@ make proto
 make test
 make vet
 make fmt
+make arch-check
+make dead-code-check
+make test-e2e-local
 ```
 
 Common focused commands:
