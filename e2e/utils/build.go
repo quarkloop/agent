@@ -15,12 +15,13 @@ import (
 // BuiltBinaries collects the paths of subprocesses the suite compiles once
 // per `go test` invocation.
 type BuiltBinaries struct {
-	Supervisor string
-	Agent      string
-	Bash       string
-	FS         string
-	Indexer    string
-	Embedding  string
+	Supervisor   string
+	Agent        string
+	Bash         string
+	FS           string
+	Indexer      string
+	Embedding    string
+	BuildRelease string
 
 	// Lib-mode tool .so paths. Empty if the build failed (e.g. no CGO);
 	// callers should fall back to api-mode installation.
@@ -97,6 +98,7 @@ func BuildAllOnce(t *testing.T) BuiltBinaries {
 		buildRes.FS = build("./plugins/tools/fs/cmd/fs", "fs")
 		buildRes.Indexer = build("./services/indexer/cmd/indexer", "indexer")
 		buildRes.Embedding = build("./services/embedding/cmd/embedding", "embedding")
+		buildRes.BuildRelease = build("./services/build-release/cmd/build-release", "build-release")
 
 		buildRes.BashLib = buildLib("./plugins/tools/bash", "bash")
 		buildRes.FSLib = buildLib("./plugins/tools/fs", "fs")

@@ -2,7 +2,7 @@ name: build-release
 version: "1.0.0"
 type: tool
 mode: cli
-description: "Cross-compile Go binaries and package releases"
+description: "Compatibility adapter for the build-release service runner"
 author: quarkloop
 license: Apache-2.0
 
@@ -13,7 +13,7 @@ build:
 tool:
   schema:
     name: build-release
-    description: "Build Go release artifacts with cross-compilation, checksums, and install scripts"
+    description: "Compatibility adapter for build-release service functions"
     parameters:
       type: object
       properties:

@@ -24,6 +24,9 @@ func New(runner *buildrelease.Runner) (*Server, error) {
 }
 
 func (s *Server) Release(ctx context.Context, req *buildreleasev1.ReleaseRequest) (*buildreleasev1.ReleaseResponse, error) {
+	if err := validateWorkingDir(req.GetWorkingDir()); err != nil {
+		return nil, grpcError(err)
+	}
 	result, err := s.runner.Release(ctx, buildrelease.ReleaseRequest{
 		WorkingDir:  req.GetWorkingDir(),
 		ConfigPath:  req.GetConfigPath(),
@@ -44,6 +47,9 @@ func (s *Server) Release(ctx context.Context, req *buildreleasev1.ReleaseRequest
 }
 
 func (s *Server) DryRun(ctx context.Context, req *buildreleasev1.DryRunRequest) (*buildreleasev1.DryRunResponse, error) {
+	if err := validateWorkingDir(req.GetWorkingDir()); err != nil {
+		return nil, grpcError(err)
+	}
 	result, err := s.runner.DryRun(ctx, buildrelease.DryRunRequest{
 		WorkingDir:  req.GetWorkingDir(),
 		ConfigPath:  req.GetConfigPath(),
@@ -60,6 +66,9 @@ func (s *Server) DryRun(ctx context.Context, req *buildreleasev1.DryRunRequest) 
 }
 
 func (s *Server) Init(ctx context.Context, req *buildreleasev1.InitRequest) (*buildreleasev1.InitResponse, error) {
+	if err := validateWorkingDir(req.GetWorkingDir()); err != nil {
+		return nil, grpcError(err)
+	}
 	result, err := s.runner.Init(ctx, buildrelease.InitRequest{
 		WorkingDir: req.GetWorkingDir(),
 		Overwrite:  req.GetOverwrite(),
@@ -71,6 +80,13 @@ func (s *Server) Init(ctx context.Context, req *buildreleasev1.InitRequest) (*bu
 		ConfigPath: result.ConfigPath,
 		Created:    result.Created,
 	}, nil
+}
+
+func validateWorkingDir(workingDir string) error {
+	if workingDir == "" {
+		return fmt.Errorf("working_dir is required")
+	}
+	return nil
 }
 
 func artifactsToProto(in []buildrelease.Artifact) []*buildreleasev1.Artifact {

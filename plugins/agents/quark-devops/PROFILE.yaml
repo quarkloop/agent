@@ -21,6 +21,9 @@ permissions:
     - deploy.*
     - policy.*
     - build-release.*
+    - build_release_Release
+    - build_release_DryRun
+    - build_release_Init
 memory:
   scope: space
   collections:

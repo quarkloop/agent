@@ -37,7 +37,7 @@ func (t *Tool) Version() string {
 
 func (t *Tool) Description() string {
 	if t.manifest == nil {
-		return "Build Go release artifacts with cross-compilation, checksums, and install scripts"
+		return "Compatibility adapter for build-release service functions"
 	}
 	return t.manifest.Description
 }
@@ -48,7 +48,7 @@ func (t *Tool) Schema() plugin.ToolSchema {
 	}
 	return plugin.ToolSchema{
 		Name:        "build-release",
-		Description: "Build Go release artifacts with cross-compilation, checksums, and install scripts",
+		Description: "Compatibility adapter for build-release service functions",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

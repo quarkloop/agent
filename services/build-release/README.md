@@ -12,6 +12,10 @@ thin compatibility adapter and must not own release business logic.
 | `build_release_DryRun` | `quark.buildrelease.v1.BuildReleaseService/DryRun` | `DryRunRequest` | `DryRunResponse` | Preview release version and artifact matrix without compiling. |
 | `build_release_Init` | `quark.buildrelease.v1.BuildReleaseService/Init` | `InitRequest` | `InitResponse` | Create a default `build_release.json` in a working directory. |
 
+These are the canonical launch function names. Separate build, test, and
+package functions are intentionally deferred until Quark DevOps workflows need
+smaller operations; today they remain internal runner stages.
+
 ## Ownership Boundaries
 
 - Quark DevOps coordinates release intent and approval.
@@ -27,6 +31,31 @@ thin compatibility adapter and must not own release business logic.
 - `--skill-dir`: directory containing the service plugin `SKILL.md`.
 - Release behavior is configured through `build_release.json` in the requested
   working directory.
+
+## Examples
+
+Dry run:
+
+```json
+{
+  "workingDir": "/workspace/project",
+  "configPath": "build_release.json",
+  "version": "v1.2.3",
+  "parallelism": 4
+}
+```
+
+Release:
+
+```json
+{
+  "workingDir": "/workspace/project",
+  "configPath": "build_release.json",
+  "version": "v1.2.3",
+  "parallelism": 4,
+  "skipTests": false
+}
+```
 
 ## Health And Readiness
 

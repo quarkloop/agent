@@ -9,20 +9,27 @@ run as a service instead of as a local tool plugin.
 ## RPCs
 
 - `Release(ReleaseRequest) -> ReleaseResponse`
+  - Generated service function: `build_release_Release`
   - Required: `working_dir`
   - Optional: `config_path`, `version`, `parallelism`, `skip_tests`
   - Runs config loading, version resolution, optional tests, cross-compilation,
     archive generation, checksums, signing, README, and metadata output.
+  - Requires approval because it can execute commands and write release
+    artifacts.
 
 - `DryRun(DryRunRequest) -> DryRunResponse`
+  - Generated service function: `build_release_DryRun`
   - Required: `working_dir`
   - Optional: `config_path`, `version`, `parallelism`
   - Returns the artifact matrix without compiling or writing release files.
+  - Does not require approval.
 
 - `Init(InitRequest) -> InitResponse`
+  - Generated service function: `build_release_Init`
   - Required: `working_dir`
   - Optional: `overwrite`
   - Creates `build_release.json` when it does not already exist.
+  - Requires approval because it writes to the workspace.
 
 ## Contract Notes
 
@@ -31,3 +38,6 @@ run as a service instead of as a local tool plugin.
   and `gpg`.
 - The service owns the release pipeline; the legacy plugin is a compatibility
   adapter and should not contain release business logic.
+- Keep build/test/package internals inside this service for now. Future DevOps
+  service functions can expose narrower build, test, or package operations when
+  Quark DevOps workflows need them.

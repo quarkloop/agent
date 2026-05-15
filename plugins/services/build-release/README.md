@@ -13,6 +13,32 @@ compatibility adapter and should not own release business logic.
 | `build_release_Init` | `quark.buildrelease.v1.BuildReleaseService/Init` | write | yes | no | Create a default `build_release.json` in a working directory. |
 
 Approval is required for functions that write files or execute release builds.
+These are the launch function names. Narrower build, test, and package
+functions are intentionally deferred until Quark DevOps workflows need them;
+for now they remain internal stages of `build_release_Release` and
+`build_release_DryRun`.
+
+## Examples
+
+Preview a release:
+
+```json
+{
+  "workingDir": "/workspace/project",
+  "configPath": "build_release.json",
+  "version": "v1.2.3",
+  "parallelism": 4
+}
+```
+
+Initialize release config after approval:
+
+```json
+{
+  "workingDir": "/workspace/project",
+  "overwrite": false
+}
+```
 
 ## Health And Readiness
 

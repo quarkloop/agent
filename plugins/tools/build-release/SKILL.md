@@ -1,6 +1,8 @@
 # tool-build-release
 
-Cross-compile Go binaries, generate checksums, and produce install scripts.
+Compatibility adapter for the Quark DevOps build-release service runner.
+Prefer the service functions `build_release_DryRun`, `build_release_Init`, and
+`build_release_Release` when the service plugin is available.
 
 ## Commands
 
@@ -10,6 +12,8 @@ Cross-compile Go binaries, generate checksums, and produce install scripts.
 
 ## Important
 
+- This tool does not own release business logic; it delegates to
+  `services/build-release/pkg/buildrelease`.
 - Requires `go` in PATH
 - `release` runs: config → version → validate → test → build → archive → checksum → sign → readme → metadata
 - `dryrun` only runs: config → version → validate → build (dry)

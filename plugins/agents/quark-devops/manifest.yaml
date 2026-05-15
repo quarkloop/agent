@@ -22,5 +22,8 @@ agent:
     - deploy.*
     - policy.*
     - build-release.*
+    - build_release_Release
+    - build_release_DryRun
+    - build_release_Init
   skills:
     - SKILL.md

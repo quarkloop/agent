@@ -12,7 +12,9 @@ import (
 	buildreleasev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/buildrelease/v1"
 	"github.com/quarkloop/services/build-release/pkg/buildrelease"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 )
 
@@ -58,6 +60,67 @@ func TestBuildReleaseServiceDryRunAndInit(t *testing.T) {
 	}
 	if got := len(dryResp.GetPlanned()); got != 1 {
 		t.Fatalf("planned = %d, want 1", got)
+	}
+}
+
+func TestBuildReleaseServiceRequiresWorkingDir(t *testing.T) {
+	t.Parallel()
+
+	server, err := New(buildrelease.NewRunner())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = server.Init(context.Background(), &buildreleasev1.InitRequest{})
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("init error = %v, code %s", err, status.Code(err))
+	}
+	_, err = server.DryRun(context.Background(), &buildreleasev1.DryRunRequest{})
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("dry run error = %v, code %s", err, status.Code(err))
+	}
+	_, err = server.Release(context.Background(), &buildreleasev1.ReleaseRequest{})
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("release error = %v, code %s", err, status.Code(err))
+	}
+}
+
+func TestBuildReleaseServiceMapsCancellation(t *testing.T) {
+	t.Parallel()
+
+	server, err := New(buildrelease.NewRunner())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err = server.Init(ctx, &buildreleasev1.InitRequest{WorkingDir: t.TempDir()})
+	if status.Code(err) != codes.Canceled {
+		t.Fatalf("cancel error = %v, code %s", err, status.Code(err))
+	}
+}
+
+func TestArtifactsToProtoMapsReleaseArtifacts(t *testing.T) {
+	t.Parallel()
+
+	got := artifactsToProto([]buildrelease.Artifact{{
+		BuildName:   "quark",
+		Target:      buildrelease.Target{OS: "linux", Arch: "amd64"},
+		Filename:    "quark",
+		ArchiveName: "quark_linux_amd64.tar.gz",
+		Checksum:    "abc123",
+		Size:        12,
+		Duration:    1500 * time.Millisecond,
+		Error:       "compile failed",
+	}})
+
+	if len(got) != 1 {
+		t.Fatalf("artifacts = %d, want 1", len(got))
+	}
+	artifact := got[0]
+	if artifact.GetBuildName() != "quark" || artifact.GetOs() != "linux" || artifact.GetArch() != "amd64" || artifact.GetDurationMillis() != 1500 || artifact.GetError() != "compile failed" {
+		t.Fatalf("artifact = %+v", artifact)
 	}
 }
 

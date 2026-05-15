@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -26,6 +27,7 @@ type E2EEnv struct {
 	AgentURL  string
 	HTTPC     *http.Client
 	Embedding EmbeddingOptions
+	Services  []ServicePlugin
 }
 
 // RuntimeSetup is the read-only setup state exposed to a StartOptions hook
@@ -84,6 +86,9 @@ func installSpacePlugins(t *testing.T, env *E2EEnv, bins BuiltBinaries) {
 		embeddingPlugin = "embedding"
 	}
 	installService(embeddingPlugin)
+	for _, service := range env.Services {
+		installService(service.withDefaults().Plugin)
+	}
 
 	providerSrc := filepath.Join(srcRoot, "providers", "openrouter")
 	providerLib := bins.OpenRouterLib
@@ -112,7 +117,7 @@ func copyFile(t *testing.T, src, dst string, mode os.FileMode) {
 }
 
 // quarkfileFor returns the raw bytes of a minimal Quarkfile for a space.
-func quarkfileFor(name, provider, model string, embedding EmbeddingOptions) []byte {
+func quarkfileFor(name, provider, model string, embedding EmbeddingOptions, services []ServicePlugin, includeKnowledgeServices bool) []byte {
 	env := ""
 	if provider != "noop" {
 		env = `  env:
@@ -120,6 +125,40 @@ func quarkfileFor(name, provider, model string, embedding EmbeddingOptions) []by
 `
 	}
 	embedding = embedding.withDefaults()
+	pluginRefs := fmt.Sprintf(`  - ref: quark/tool-bash
+  - ref: quark/tool-fs
+`)
+	serviceBlocks := ""
+	embeddingBlock := ""
+	if includeKnowledgeServices {
+		pluginRefs += fmt.Sprintf(`  - ref: quark/service-indexer
+  - ref: quark/service-%s
+`, embedding.Plugin)
+		serviceBlocks += fmt.Sprintf(`  - name: indexer
+    ref: quark/service-indexer
+    mode: local
+    address_env: QUARK_INDEXER_ADDR
+  - name: embedding
+    ref: quark/service-%s
+    mode: %s
+    address_env: QUARK_EMBEDDING_ADDR
+`, embedding.Plugin, embedding.Mode)
+		embeddingBlock = fmt.Sprintf(`embedding:
+  service: embedding
+  provider: %s
+  model: %s
+  dimensions: %d
+`, embedding.Provider, embedding.Model, embedding.Dimensions)
+	}
+	for _, service := range services {
+		service = service.withDefaults()
+		pluginRefs += fmt.Sprintf("  - ref: quark/service-%s\n", service.Plugin)
+		serviceBlocks += fmt.Sprintf(`  - name: %s
+    ref: quark/service-%s
+    mode: %s
+    address_env: %s
+`, service.Name, service.Plugin, service.Mode, service.AddressEnv)
+	}
 	qf := fmt.Sprintf(`quark: "1.0"
 meta:
   name: %s
@@ -129,26 +168,32 @@ model:
   name: %s
 %s
 plugins:
-  - ref: quark/tool-bash
-  - ref: quark/tool-fs
-  - ref: quark/service-indexer
-  - ref: quark/service-%s
+%s
 services:
-  - name: indexer
-    ref: quark/service-indexer
-    mode: local
-    address_env: QUARK_INDEXER_ADDR
-  - name: embedding
-    ref: quark/service-%s
-    mode: %s
-    address_env: QUARK_EMBEDDING_ADDR
-embedding:
-  service: embedding
-  provider: %s
-  model: %s
-  dimensions: %d
-`, name, provider, model, env, embedding.Plugin, embedding.Plugin, embedding.Mode, embedding.Provider, embedding.Model, embedding.Dimensions)
+%s
+%s`, name, provider, model, env, pluginRefs, serviceBlocks, embeddingBlock)
 	return []byte(qf)
+}
+
+// ServicePlugin declares an additional service plugin for an e2e space.
+type ServicePlugin struct {
+	Name       string
+	Plugin     string
+	Mode       string
+	AddressEnv string
+}
+
+func (s ServicePlugin) withDefaults() ServicePlugin {
+	if s.Plugin == "" {
+		s.Plugin = s.Name
+	}
+	if s.Mode == "" {
+		s.Mode = "local"
+	}
+	if s.AddressEnv == "" && s.Name != "" {
+		s.AddressEnv = "QUARK_" + strings.ToUpper(strings.ReplaceAll(s.Name, "-", "_")) + "_ADDR"
+	}
+	return s
 }
 
 // EmbeddingOptions selects which embedding service plugin/profile the e2e
@@ -232,6 +277,9 @@ type StartOptions struct {
 	// behavior instead of adding generated service functions from the runtime
 	// service catalog.
 	DisableServiceDiscovery bool
+	// DisableKnowledgeServices omits the default indexer and embedding service
+	// declarations for non-Knowledge e2e flows.
+	DisableKnowledgeServices bool
 	// SupervisorEnv is appended to the supervisor process environment. Runtime
 	// children inherit these values, so service discovery addresses should be
 	// supplied here before StartRuntime is called.
@@ -242,6 +290,9 @@ type StartOptions struct {
 	// Embedding declares the embedding service plugin/profile that the test
 	// space should expose to the runtime catalog.
 	Embedding EmbeddingOptions
+	// Services declares additional service plugins that should be installed in
+	// the e2e space and exposed to runtime via supervisor discovery.
+	Services []ServicePlugin
 	// BeforeRuntime runs after the space and plugins are ready, but before the
 	// runtime child is started. Use it to start external services whose
 	// addresses were already supplied through SupervisorEnv.
@@ -296,7 +347,7 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 	}
 	createCtx, createCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer createCancel()
-	if _, err := sup.CreateSpace(createCtx, spaceName, quarkfileFor(spaceName, provider, model, embedding), workingDir); err != nil {
+	if _, err := sup.CreateSpace(createCtx, spaceName, quarkfileFor(spaceName, provider, model, embedding, opt.Services, !opt.DisableKnowledgeServices), workingDir); err != nil {
 		t.Fatalf("create space: %v", err)
 	}
 
@@ -308,6 +359,7 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 		Sup:       sup,
 		HTTPC:     &http.Client{Timeout: 30 * time.Second},
 		Embedding: embedding,
+		Services:  append([]ServicePlugin(nil), opt.Services...),
 	}
 
 	installSpacePlugins(t, env, bins)
