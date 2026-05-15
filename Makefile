@@ -31,7 +31,7 @@ MODULES := \
 		plugins/providers/openai \
 		plugins/providers/anthropic
 
-.PHONY: all build clean test test-e2e vet fmt fmt-check tidy proto arch-check \
+.PHONY: all build clean test test-e2e test-e2e-local vet fmt fmt-check tidy proto arch-check \
 		build-supervisor build-runtime build-cli \
 		build-plugins build-tools build-tools-lib build-providers build-services
 
@@ -103,6 +103,10 @@ test:
 				*) (cd $$mod && go test ./...);; \
 			esac; \
 		done
+
+## Run local deterministic E2E tests that do not require provider credentials
+test-e2e-local:
+		go test -tags e2e -v -timeout 12m -run '^(TestLongE2EPromptsAreOwnedByBuilders|TestPDFPromptBuildersExposeAgentWorkflowContract|TestMarkdownPromptBuildersExposeAgentWorkflowContract|TestBuildReleasePromptBuilderUsesServiceFunctionContract|TestSupervisorSessionEventReachesAgent|TestLocalDeterministicSupervisorRuntimeAndServices|TestIndexerServiceWithRealDgraph)$$' ./e2e
 
 ## Run E2E tests (requires OPENROUTER_API_KEY or ZHIPU_API_KEY; loads quark/.env when present)
 test-e2e:

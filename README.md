@@ -137,6 +137,7 @@ make build           # binaries for cli, supervisor, runtime, tools, services
 make build-plugins   # tool .so files and provider .so files
 make proto           # regenerate protobuf/gRPC stubs
 make test            # unit tests across workspace modules
+make test-e2e-local  # local deterministic E2E subset, no provider key
 make test-e2e        # real E2E tests, requires provider credentials
 make vet
 make fmt
@@ -153,11 +154,18 @@ quark services doctor
 Focused E2E:
 
 ```bash
+make test-e2e-local
 go test -tags e2e -v -timeout 10m ./e2e
 go test -count=1 -tags e2e -v -timeout 10m ./e2e
 ```
 
-The PDF dataset E2E requires `pdftotext`, Dgraph from the E2E helper, and a
+The local deterministic subset covers prompt contracts, supervisor-to-runtime
+session mirroring, indexer service storage against Dgraph, and standard
+supervisor/runtime/service startup with local hashing embeddings.
+
+Provider-backed E2E tests include ask mode, bash tool use, build-release agent
+flow, Markdown indexing, PDF indexing, and OpenRouter embedding coverage. The
+PDF dataset E2E requires `pdftotext`, Dgraph from the E2E helper, and a
 tool-calling provider. OpenRouter embedding coverage uses:
 
 ```bash
