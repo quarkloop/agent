@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/quarkloop/pkg/boundary"
 	"github.com/quarkloop/pkg/plugin"
 	"github.com/quarkloop/runtime/pkg/hierarchy"
 	"github.com/quarkloop/runtime/pkg/message"
@@ -182,6 +183,34 @@ func TestRecordModelUsageStoresRedactedSessionActivity(t *testing.T) {
 	}
 	if strings.Contains(string(records[0].Data), "prompt") || strings.Contains(string(records[0].Data), "arguments") {
 		t.Fatalf("usage data leaked non-accounting payload: %s", records[0].Data)
+	}
+}
+
+func TestEmitMessageErrorPropagatesBoundaryCategory(t *testing.T) {
+	a := newTestAgent(t)
+	response := make(chan message.StreamMessage, 1)
+	err := plugin.NewProviderError(plugin.ProviderErrorRateLimit, "openrouter", "model-a", 429, nil)
+
+	a.emitMessageError(context.Background(), "session-1", response, err)
+
+	select {
+	case msg := <-response:
+		if msg.Type != "error" {
+			t.Fatalf("stream message = %+v", msg)
+		}
+		payload, ok := msg.Data.(map[string]any)
+		if !ok {
+			t.Fatalf("stream payload type = %T", msg.Data)
+		}
+		if payload["boundary"] != string(boundary.Provider) || payload["category"] != string(boundary.RateLimit) {
+			t.Fatalf("stream payload = %+v", payload)
+		}
+	default:
+		t.Fatal("expected stream error payload")
+	}
+	records := a.Activity.List(10)
+	if len(records) != 1 || records[0].Type != "message.error" {
+		t.Fatalf("activity records = %+v", records)
 	}
 }
 

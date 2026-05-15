@@ -5,6 +5,7 @@ go 1.26.2
 require (
 	github.com/gofiber/fiber/v2 v2.52.13
 	github.com/google/uuid v1.6.0
+	github.com/quarkloop/pkg/boundary v0.0.0
 	github.com/quarkloop/pkg/event v0.0.0
 	github.com/quarkloop/pkg/plugin v0.0.0
 	github.com/quarkloop/pkg/serviceapi v0.0.0
@@ -36,6 +37,7 @@ require (
 
 replace (
 	github.com/quarkloop/cli v0.0.0 => ../cli
+	github.com/quarkloop/pkg/boundary v0.0.0 => ../pkg/boundary
 	github.com/quarkloop/supervisor v0.0.0 => ../supervisor
 )
 

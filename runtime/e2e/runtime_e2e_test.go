@@ -243,7 +243,14 @@ func sendMessage(t *testing.T, baseURL, sessionID, content string, timeout time.
 			if err := json.Unmarshal(msg.Data, &errMsg); err == nil {
 				agentErr = errMsg
 			} else {
-				agentErr = string(msg.Data)
+				var payload struct {
+					Message string `json:"message"`
+				}
+				if err := json.Unmarshal(msg.Data, &payload); err == nil && payload.Message != "" {
+					agentErr = payload.Message
+				} else {
+					agentErr = string(msg.Data)
+				}
 			}
 		}
 	}

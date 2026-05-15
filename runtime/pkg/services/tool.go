@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/quarkloop/pkg/boundary"
 	"github.com/quarkloop/pkg/plugin"
 	buildreleasev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/buildrelease/v1"
 	citationv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/citation/v1"
@@ -134,13 +135,13 @@ func (e *Executor) Execute(ctx context.Context, functionName, arguments string) 
 
 	conn, err := servicekit.Dial(ctx, resolved.address)
 	if err != nil {
-		return "", fmt.Errorf("dial %s: %w", resolved.address, err)
+		return "", boundary.Wrap(boundary.Service, boundary.Transport, "dial "+resolved.address, err)
 	}
 	defer conn.Close()
 
 	fullMethod := "/" + rpc.GetService() + "/" + rpc.GetMethod()
 	if err := conn.Invoke(ctx, fullMethod, in, out); err != nil {
-		return "", fmt.Errorf("call %s: %w", fullMethod, err)
+		return "", boundary.Wrap(boundary.Service, boundary.Unavailable, "call "+fullMethod, err)
 	}
 	if rpc.GetResponse() == "quark.embedding.v1.EmbedResponse" {
 		return e.embeddingToolResult(out)

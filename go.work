@@ -4,6 +4,7 @@ use (
 	./cli
 	./e2e
 	./pkg/event
+	./pkg/boundary
 	./pkg/plugin
 	./pkg/serviceapi
 	./pkg/space
@@ -26,6 +27,7 @@ use (
 replace (
 	github.com/quarkloop/cli v0.0.0 => ./cli
 	github.com/quarkloop/pkg/event v0.0.0 => ./pkg/event
+	github.com/quarkloop/pkg/boundary v0.0.0 => ./pkg/boundary
 	github.com/quarkloop/pkg/plugin v0.0.0 => ./pkg/plugin
 	github.com/quarkloop/pkg/serviceapi v0.0.0 => ./pkg/serviceapi
 	github.com/quarkloop/pkg/space v0.0.0 => ./pkg/space

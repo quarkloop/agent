@@ -142,7 +142,19 @@ func printEvent(out, errOut io.Writer, event agentclient.SSEEvent, showTools boo
 	case "error":
 		var message string
 		if err := json.Unmarshal(event.Data, &message); err != nil {
-			message = strings.TrimSpace(string(event.Data))
+			var payload struct {
+				Message  string `json:"message"`
+				Boundary string `json:"boundary"`
+				Category string `json:"category"`
+			}
+			if err := json.Unmarshal(event.Data, &payload); err == nil && payload.Message != "" {
+				message = payload.Message
+				if payload.Category != "" {
+					message = fmt.Sprintf("%s [%s/%s]", message, payload.Boundary, payload.Category)
+				}
+			} else {
+				message = strings.TrimSpace(string(event.Data))
+			}
 		}
 		return fmt.Errorf("agent error: %s", message)
 	}

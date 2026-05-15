@@ -49,6 +49,7 @@ require (
 )
 
 require (
+	github.com/quarkloop/pkg/boundary v0.0.0
 	github.com/quarkloop/pkg/event v0.0.0
 	github.com/quarkloop/pkg/plugin v0.0.0
 	github.com/quarkloop/pkg/serviceapi v0.0.0
@@ -57,6 +58,7 @@ require (
 )
 
 replace (
+	github.com/quarkloop/pkg/boundary => ../pkg/boundary
 	github.com/quarkloop/pkg/event => ../pkg/event
 	github.com/quarkloop/pkg/plugin => ../pkg/plugin
 	github.com/quarkloop/pkg/serviceapi => ../pkg/serviceapi

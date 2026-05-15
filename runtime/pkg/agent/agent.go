@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/quarkloop/pkg/boundary"
 	event "github.com/quarkloop/pkg/event"
 	"github.com/quarkloop/pkg/plugin"
 	"github.com/quarkloop/runtime/pkg/activity"
@@ -332,29 +333,13 @@ func (a *Agent) handleUserMessage(ctx context.Context, msg loop.Message) error {
 		guard.CombineFinalGuards(a.finalGuard(), toolRequirements.FinalGuard),
 	)
 	if err != nil {
-		if a.Activity != nil {
-			a.Activity.Add(userMsg.SessionID, "message.error", map[string]any{
-				"error": err.Error(),
-			})
-		}
-		message.Emit(requestCtx, response, message.StreamMessage{
-			Type: "error",
-			Data: fmt.Sprintf("Agent Error: %v", err),
-		})
+		a.emitMessageError(requestCtx, userMsg.SessionID, response, err)
 		return err
 	}
 	if a.config.PendingRefs != nil {
 		if refs := a.config.PendingRefs(); len(refs) > 0 {
 			err := guard.UnconsumedPendingRefsError(refs)
-			if a.Activity != nil {
-				a.Activity.Add(userMsg.SessionID, "message.error", map[string]any{
-					"error": err.Error(),
-				})
-			}
-			message.Emit(requestCtx, response, message.StreamMessage{
-				Type: "error",
-				Data: fmt.Sprintf("Agent Error: %v", err),
-			})
+			a.emitMessageError(requestCtx, userMsg.SessionID, response, err)
 			return err
 		}
 	}
@@ -396,6 +381,20 @@ func (a *Agent) recordStreamActivity(sessionID string, msg message.StreamMessage
 	case "error":
 		a.Activity.Add(sessionID, "message.error", map[string]any{"error": fmt.Sprint(msg.Data)})
 	}
+}
+
+func (a *Agent) emitMessageError(ctx context.Context, sessionID string, response chan message.StreamMessage, err error) {
+	payload := boundary.StreamPayload(err, boundary.Runtime, "message")
+	if messageText, ok := payload["message"].(string); ok {
+		payload["message"] = fmt.Sprintf("Agent Error: %s", messageText)
+	}
+	if a.Activity != nil {
+		a.Activity.Add(sessionID, "message.error", payload)
+	}
+	message.Emit(ctx, response, message.StreamMessage{
+		Type: "error",
+		Data: payload,
+	})
 }
 
 // handleInitLLM initializes or reinitializes LLM models.

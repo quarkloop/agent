@@ -20,6 +20,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/quarkloop/pkg/boundary"
 	"github.com/quarkloop/supervisor/pkg/api"
 )
 
@@ -101,7 +102,7 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return fmt.Errorf("supervisor %s %s: %w", method, path, err)
+		return boundary.Wrap(boundary.Supervisor, boundary.Transport, method+" "+path, err)
 	}
 	defer resp.Body.Close()
 
@@ -111,6 +112,7 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 			Method:     method,
 			Path:       path,
 			StatusCode: resp.StatusCode,
+			Category:   boundary.FromHTTPStatus(boundary.Supervisor, method+" "+path, resp.StatusCode, string(data)).Category,
 			Body:       string(data),
 		}
 	}
@@ -126,6 +128,7 @@ type HTTPError struct {
 	Method     string
 	Path       string
 	StatusCode int
+	Category   boundary.Category
 	Body       string
 }
 
@@ -133,8 +136,15 @@ func (e *HTTPError) Error() string {
 	return fmt.Sprintf("supervisor %s %s returned %d: %s", e.Method, e.Path, e.StatusCode, e.Body)
 }
 
+func (e *HTTPError) Unwrap() error {
+	return boundary.FromHTTPStatus(boundary.Supervisor, e.Method+" "+e.Path, e.StatusCode, e.Body)
+}
+
 // IsNotFound reports whether err is a 404.
 func IsNotFound(err error) bool {
+	if boundary.IsCategory(err, boundary.NotFound) {
+		return true
+	}
 	var he *HTTPError
 	if !errors.As(err, &he) {
 		return false
@@ -144,6 +154,9 @@ func IsNotFound(err error) bool {
 
 // IsConflict reports whether err is a 409.
 func IsConflict(err error) bool {
+	if boundary.IsCategory(err, boundary.Conflict) {
+		return true
+	}
 	var he *HTTPError
 	if !errors.As(err, &he) {
 		return false
