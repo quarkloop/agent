@@ -119,9 +119,11 @@ func runStart(port int, channels []string) error {
 	}
 	agentName := "Main Agent"
 	agentDescription := ""
+	resolvedProfile := agent.Profile{}
 	if agentPlugin.AgentProfile != nil {
 		agentName = agentPlugin.AgentProfile.Name
 		agentDescription = agentPlugin.AgentProfile.Description
+		resolvedProfile = runtimeAgentProfile(agentPlugin)
 		slog.Info("using agent profile", "id", agentPlugin.AgentProfile.ID, "name", agentPlugin.AgentProfile.Name)
 	}
 
@@ -133,6 +135,7 @@ func runStart(port int, channels []string) error {
 		ModelProvider: modelProvider,
 		Model:         modelName,
 		ModelListURL:  os.Getenv("MODEL_LIST_URL"),
+		Profile:       resolvedProfile,
 		SystemPrompt:  agentPlugin.SystemPrompt,
 		PluginsDir:    os.Getenv("QUARK_PLUGINS_DIR"),
 		PluginCatalog: pluginCatalog,
@@ -185,6 +188,19 @@ func runStart(port int, channels []string) error {
 	slog.Info("runtime server is running, press Ctrl+C to exit")
 	// Start all channels via ChannelBus and block
 	return srv.Run(ctx)
+}
+
+func runtimeAgentProfile(item pluginmanager.CatalogPlugin) agent.Profile {
+	if item.AgentProfile == nil {
+		return agent.Profile{SystemPrompt: item.SystemPrompt}
+	}
+	return agent.Profile{
+		ID:             item.AgentProfile.ID,
+		Name:           item.AgentProfile.Name,
+		Description:    item.AgentProfile.Description,
+		SystemPrompt:   item.SystemPrompt,
+		HandoffTargets: append([]string(nil), item.AgentProfile.Handoff.CanDelegateTo...),
+	}
 }
 
 func resolveAgentPlugin(catalog *pluginmanager.Catalog, requested string) (pluginmanager.CatalogPlugin, error) {

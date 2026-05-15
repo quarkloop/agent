@@ -1,4 +1,4 @@
-package agent
+package guard
 
 import (
 	"context"
@@ -7,22 +7,26 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/quarkloop/runtime/pkg/llm"
+	"github.com/quarkloop/pkg/plugin"
 )
 
 var toolRequirementPattern = regexp.MustCompile(`(?i)until\s+there\s+are\s+(\d+)\s+successful\s+([A-Za-z0-9_]+)\s+results?`)
 
-type toolRequirementTracker struct {
+// ToolRequirementTracker observes tool results required by a user prompt and
+// blocks finalization until the declared successful result counts are reached.
+type ToolRequirementTracker struct {
 	required map[string]int
 	observed map[string]int
 }
 
-func newToolRequirementTracker(prompt string) *toolRequirementTracker {
+// NewToolRequirementTracker creates a tracker from natural-language completion
+// requirements in the user prompt.
+func NewToolRequirementTracker(prompt string) *ToolRequirementTracker {
 	matches := toolRequirementPattern.FindAllStringSubmatch(prompt, -1)
 	if len(matches) == 0 {
 		return nil
 	}
-	tracker := &toolRequirementTracker{
+	tracker := &ToolRequirementTracker{
 		required: make(map[string]int),
 		observed: make(map[string]int),
 	}
@@ -50,7 +54,9 @@ func parsePositiveCount(value string) int {
 	return count
 }
 
-func (t *toolRequirementTracker) wrapToolHandler(next func(context.Context, string, string) (string, error)) func(context.Context, string, string) (string, error) {
+// WrapToolHandler records successful tool calls before returning the underlying
+// tool result to the LLM loop.
+func (t *ToolRequirementTracker) WrapToolHandler(next plugin.ToolHandler) plugin.ToolHandler {
 	if t == nil {
 		return next
 	}
@@ -61,7 +67,7 @@ func (t *toolRequirementTracker) wrapToolHandler(next func(context.Context, stri
 	}
 }
 
-func (t *toolRequirementTracker) record(name, result string, err error) {
+func (t *ToolRequirementTracker) record(name, result string, err error) {
 	if t == nil || !toolResultSucceeded(result, err) {
 		return
 	}
@@ -88,7 +94,9 @@ func toolResultSucceeded(result string, err error) bool {
 	return true
 }
 
-func (t *toolRequirementTracker) finalGuard(content string) (string, bool) {
+// FinalGuard returns a retry instruction when required tool completions are
+// still missing.
+func (t *ToolRequirementTracker) FinalGuard(content string) (string, bool) {
 	if t == nil {
 		return "", false
 	}
@@ -99,7 +107,7 @@ func (t *toolRequirementTracker) finalGuard(content string) (string, bool) {
 	return "Runtime validation blocked finalization. " + strings.Join(missing, " ") + " Continue using the existing tool context and do not produce a final answer until these tool completion requirements are satisfied.", true
 }
 
-func (t *toolRequirementTracker) missing() []string {
+func (t *ToolRequirementTracker) missing() []string {
 	missing := make([]string, 0)
 	for tool, required := range t.required {
 		observed := t.observed[tool]
@@ -109,24 +117,4 @@ func (t *toolRequirementTracker) missing() []string {
 		missing = append(missing, fmt.Sprintf("%s has %d successful result(s), but %d are required.", tool, observed, required))
 	}
 	return missing
-}
-
-func combineFinalGuards(guards ...llm.FinalGuard) llm.FinalGuard {
-	active := make([]llm.FinalGuard, 0, len(guards))
-	for _, guard := range guards {
-		if guard != nil {
-			active = append(active, guard)
-		}
-	}
-	if len(active) == 0 {
-		return nil
-	}
-	return func(content string) (string, bool) {
-		for _, guard := range active {
-			if instruction, retry := guard(content); retry {
-				return instruction, true
-			}
-		}
-		return "", false
-	}
 }

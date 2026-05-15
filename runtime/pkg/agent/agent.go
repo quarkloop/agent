@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	event "github.com/quarkloop/pkg/event"
@@ -14,7 +13,8 @@ import (
 	"github.com/quarkloop/runtime/pkg/activity"
 	"github.com/quarkloop/runtime/pkg/channel"
 	"github.com/quarkloop/runtime/pkg/execution"
-	"github.com/quarkloop/runtime/pkg/extraction"
+	"github.com/quarkloop/runtime/pkg/guard"
+	"github.com/quarkloop/runtime/pkg/handoff"
 	"github.com/quarkloop/runtime/pkg/hierarchy"
 	"github.com/quarkloop/runtime/pkg/llm"
 	"github.com/quarkloop/runtime/pkg/loop"
@@ -24,7 +24,6 @@ import (
 	"github.com/quarkloop/runtime/pkg/pluginmanager"
 	"github.com/quarkloop/runtime/pkg/prompt"
 	"github.com/quarkloop/runtime/pkg/session"
-	"github.com/quarkloop/runtime/pkg/workspace"
 	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
@@ -36,6 +35,7 @@ type Config struct {
 	ModelProvider string
 	Model         string
 	ModelListURL  string
+	Profile       Profile
 	SystemPrompt  string
 	PluginsDir    string
 	PluginCatalog *pluginmanager.Catalog
@@ -70,6 +70,8 @@ type Agent struct {
 	identity  *hierarchy.Identity
 	agents    *hierarchy.Registry
 	delegator *hierarchy.Delegator
+	profile   Profile
+	handoff   handoff.Policy
 
 	// Execution runtime
 	execution *execution.ExecutionRuntime
@@ -108,6 +110,8 @@ func NewAgent(cfg Config) (*Agent, error) {
 
 	// Create hierarchy registry
 	agentRegistry := hierarchy.NewRegistry()
+	profile := cfg.Profile.normalize(cfg.ID, cfg.Name, cfg.Description, cfg.SystemPrompt)
+	handoffPolicy := handoff.NewPolicy(profile.ID, profile.HandoffTargets)
 
 	// Determine plugins directory
 	pluginsDir := cfg.PluginsDir
@@ -126,6 +130,8 @@ func NewAgent(cfg Config) (*Agent, error) {
 		config:      cfg,
 		agents:      agentRegistry,
 		delegator:   hierarchy.NewDelegator(agentRegistry),
+		profile:     profile,
+		handoff:     handoffPolicy,
 		execution:   execRuntime,
 		permissions: permissions.NewChecker(cfg.PermissionPolicy),
 	}
@@ -138,11 +144,11 @@ func NewAgent(cfg Config) (*Agent, error) {
 	}
 
 	// Register as main agent
-	name := cfg.Name
+	name := profile.Name
 	if name == "" {
 		name = "Main Agent"
 	}
-	entry, err := agentRegistry.RegisterMain(cfg.ID, name, cfg.Description, hierarchy.DefaultPermissions())
+	entry, err := agentRegistry.RegisterMainWithProfile(cfg.ID, name, profile.Description, profile.ID, hierarchy.DefaultPermissions())
 	if err != nil {
 		return nil, fmt.Errorf("register main agent: %w", err)
 	}
@@ -189,8 +195,8 @@ func (a *Agent) registerHandlers() {
 }
 
 // Post sends a user message to the agent.
-func (a *Agent) Post(ctx context.Context, sessionID, content string, resp chan message.StreamMessage) {
-	a.loop.Send(NewUserMessage(ctx, sessionID, content, resp))
+func (a *Agent) Post(ctx context.Context, request message.PostRequest, resp chan message.StreamMessage) {
+	a.loop.Send(NewUserMessage(ctx, request, resp))
 }
 
 // Send sends a typed message to the agent loop.
@@ -310,7 +316,7 @@ func (a *Agent) handleUserMessage(ctx context.Context, msg loop.Message) error {
 	}
 
 	history := s.GetMessages()
-	toolRequirements := newToolRequirementTracker(userMsg.Content)
+	toolRequirements := guard.NewToolRequirementTracker(userMsg.Content)
 	fullResponse, err := message.Handle(
 		requestCtx,
 		history,
@@ -318,9 +324,9 @@ func (a *Agent) handleUserMessage(ctx context.Context, msg loop.Message) error {
 		a.systemPrompt(),
 		a.Plan.GetSummary(),
 		a.defaultTools(),
-		toolRequirements.wrapToolHandler(a.executeTool),
+		toolRequirements.WrapToolHandler(a.executeTool),
 		response,
-		combineFinalGuards(a.finalGuard(), toolRequirements.finalGuard),
+		guard.CombineFinalGuards(a.finalGuard(), toolRequirements.FinalGuard),
 	)
 	if err != nil {
 		if a.Activity != nil {
@@ -336,7 +342,7 @@ func (a *Agent) handleUserMessage(ctx context.Context, msg loop.Message) error {
 	}
 	if a.config.PendingRefs != nil {
 		if refs := a.config.PendingRefs(); len(refs) > 0 {
-			err := fmt.Errorf("runtime validation failed: pending embeddingRef values were not consumed: %s", strings.Join(refs, ", "))
+			err := guard.UnconsumedPendingRefsError(refs)
 			if a.Activity != nil {
 				a.Activity.Add(userMsg.SessionID, "message.error", map[string]any{
 					"error": err.Error(),
@@ -495,50 +501,16 @@ func (a *Agent) defaultTools() []plugin.ToolSchema {
 }
 
 func (a *Agent) systemPrompt() string {
-	var b strings.Builder
-	basePrompt := strings.TrimSpace(a.config.SystemPrompt)
-	if basePrompt == "" {
-		basePrompt = prompt.GetSystemPrompt()
+	addenda := make([]string, 0, len(a.config.PromptAddenda)+1)
+	addenda = append(addenda, a.config.PromptAddenda...)
+	if block := a.handoff.PromptBlock(); block != "" {
+		addenda = append(addenda, block)
 	}
-	b.WriteString(basePrompt)
-	if block := extraction.DefaultRegistry().PromptBlock(); block != "" {
-		b.WriteString("\n\n")
-		b.WriteString(block)
-	}
-	if block := workspace.PromptBlock(); block != "" {
-		b.WriteString("\n\n")
-		b.WriteString(block)
-	}
-	for _, value := range a.config.PromptAddenda {
-		addendum := strings.TrimSpace(value)
-		if addendum == "" {
-			continue
-		}
-		b.WriteString("\n\n")
-		b.WriteString(addendum)
-	}
-	return b.String()
+	return prompt.BuildRuntimeSystemPrompt(a.profile.SystemPrompt, addenda)
 }
 
 func (a *Agent) finalGuard() llm.FinalGuard {
-	if a.config.PendingRefs == nil {
-		return nil
-	}
-	attempts := 0
-	return func(content string) (string, bool) {
-		refs := a.config.PendingRefs()
-		if len(refs) == 0 {
-			return "", false
-		}
-		attempts++
-		if attempts > 8 {
-			return "", false
-		}
-		return fmt.Sprintf(
-			"Runtime validation blocked finalization. The following embeddingRef values are pending and must be consumed before a final answer: %s. Continue using the existing tool context. If this is an indexing task, call indexer_IndexDocument for each pending document embedding. If this is a retrieval task, call indexer_GetContext with the pending query embedding. Do not produce a final answer until no pending embeddingRef remains.",
-			strings.Join(refs, ", "),
-		), true
-	}
+	return guard.PendingEmbeddingRefs(a.config.PendingRefs, 8)
 }
 
 // executeTool executes a requested tool through the runtime tool manager.
@@ -577,6 +549,11 @@ func (a *Agent) Permissions() *permissions.Checker {
 
 // SpawnSubAgent spawns a new sub-agent with the given configuration.
 func (a *Agent) SpawnSubAgent(config *hierarchy.SpawnConfig) (*hierarchy.AgentEntry, error) {
+	if config != nil && config.ProfileID != "" {
+		if err := a.handoff.ValidateTarget(config.ProfileID); err != nil {
+			return nil, err
+		}
+	}
 	return a.agents.Spawn(a.ID, config)
 }
 

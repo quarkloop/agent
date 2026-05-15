@@ -20,6 +20,13 @@ type sendMessageRequest struct {
 	Content string `json:"content"`
 }
 
+func mapSendMessageRequest(sessionID string, req sendMessageRequest) message.PostRequest {
+	return message.PostRequest{
+		SessionID: sessionID,
+		Content:   req.Content,
+	}
+}
+
 type messageResponse struct {
 	ID        string `json:"id,omitempty"`
 	Role      string `json:"role"`

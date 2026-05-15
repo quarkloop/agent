@@ -153,3 +153,24 @@ func TestResolveModelSelectionFallsBackToEnvironment(t *testing.T) {
 		t.Fatalf("model = %s/%s", provider, model)
 	}
 }
+
+func TestRuntimeAgentProfileMapsResolvedProfileWithoutAliasing(t *testing.T) {
+	targets := []string{"quark-devops"}
+	got := runtimeAgentProfile(pluginmanager.CatalogPlugin{
+		SystemPrompt: "system",
+		AgentProfile: &plugin.AgentProfile{
+			ID:          "quark-knowledge",
+			Name:        "Quark Knowledge",
+			Description: "Knowledge profile",
+			Handoff:     plugin.AgentProfileHandoff{CanDelegateTo: targets},
+		},
+	})
+	targets[0] = "mutated"
+
+	if got.ID != "quark-knowledge" || got.Name != "Quark Knowledge" || got.Description != "Knowledge profile" || got.SystemPrompt != "system" {
+		t.Fatalf("runtime profile = %+v", got)
+	}
+	if len(got.HandoffTargets) != 1 || got.HandoffTargets[0] != "quark-devops" {
+		t.Fatalf("handoff targets = %+v", got.HandoffTargets)
+	}
+}

@@ -51,6 +51,11 @@ func NewRegistry() *Registry {
 
 // RegisterMain registers the main agent.
 func (r *Registry) RegisterMain(id, name, description string, perms *Permissions) (*AgentEntry, error) {
+	return r.RegisterMainWithProfile(id, name, description, "", perms)
+}
+
+// RegisterMainWithProfile registers the main agent with its resolved profile ID.
+func (r *Registry) RegisterMainWithProfile(id, name, description, profileID string, perms *Permissions) (*AgentEntry, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -59,7 +64,7 @@ func (r *Registry) RegisterMain(id, name, description string, perms *Permissions
 	}
 
 	entry := &AgentEntry{
-		Identity:    NewMainIdentity(id, name, description),
+		Identity:    NewMainIdentity(id, name, description).WithProfile(profileID),
 		Permissions: perms,
 		Status:      StatusPending,
 		CreatedAt:   time.Now(),
@@ -120,7 +125,7 @@ func (r *Registry) Spawn(parentID string, config *SpawnConfig) (*AgentEntry, err
 	}
 
 	entry := &AgentEntry{
-		Identity:    NewSubIdentity(id, parentID, config.Name, config.Description),
+		Identity:    NewSubIdentity(id, parentID, config.Name, config.Description).WithProfile(config.ProfileID),
 		Permissions: perms,
 		Status:      StatusPending,
 		Task:        config.Task,

@@ -31,6 +31,13 @@ func TestMapMessageResponsesCopiesBoundaryShape(t *testing.T) {
 	}
 }
 
+func TestMapSendMessageRequestMapsIngressDTOToRuntimeRequest(t *testing.T) {
+	got := mapSendMessageRequest("session-1", sendMessageRequest{Content: "hello"})
+	if got.SessionID != "session-1" || got.Content != "hello" {
+		t.Fatalf("post request = %+v", got)
+	}
+}
+
 func TestMapActivityResponseCopiesBoundaryShape(t *testing.T) {
 	in := activity.Record{
 		ID:        "a1",

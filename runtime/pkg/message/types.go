@@ -4,7 +4,14 @@ import "context"
 
 // Poster posts messages to the agent inbox.
 type Poster interface {
-	Post(ctx context.Context, sessionID, content string, resp chan StreamMessage)
+	Post(ctx context.Context, request PostRequest, resp chan StreamMessage)
+}
+
+// PostRequest is the runtime-owned request to post a user message into a
+// session. Transport DTOs must be mapped to this type at channel/API edges.
+type PostRequest struct {
+	SessionID string
+	Content   string
 }
 
 // SessionAccess provides session state for message handlers.

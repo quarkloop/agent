@@ -17,6 +17,9 @@ type SpawnConfig struct {
 	// Description describes what this agent will do.
 	Description string
 
+	// ProfileID is the resolved agent profile used by this sub-agent.
+	ProfileID string
+
 	// Task is the initial task or prompt for the agent.
 	Task string
 

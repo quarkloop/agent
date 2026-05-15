@@ -102,7 +102,7 @@ func (c *TelegramChannel) handleUpdate(ctx context.Context, u update) {
 	c.ensureSn(incoming.SessionID, "telegram", incoming.Title)
 
 	resp := make(chan message.StreamMessage, 64)
-	c.poster.Post(ctx, incoming.SessionID, incoming.Text, resp)
+	c.poster.Post(ctx, mapIncomingPostRequest(incoming), resp)
 
 	// Collect full response
 	var sb strings.Builder
@@ -234,4 +234,11 @@ func mapUpdate(u update) (incomingMessage, bool) {
 		Title:     title,
 		Text:      u.Message.Text,
 	}, true
+}
+
+func mapIncomingPostRequest(incoming incomingMessage) message.PostRequest {
+	return message.PostRequest{
+		SessionID: incoming.SessionID,
+		Content:   incoming.Text,
+	}
 }

@@ -31,6 +31,18 @@ func TestRegistryMain(t *testing.T) {
 	}
 }
 
+func TestRegistryMainProfile(t *testing.T) {
+	r := hierarchy.NewRegistry()
+
+	entry, err := r.RegisterMainWithProfile("main-1", "Main Agent", "The supervisor", "quark-knowledge", nil)
+	if err != nil {
+		t.Fatalf("failed to register main: %v", err)
+	}
+	if entry.Identity.ProfileID != "quark-knowledge" {
+		t.Fatalf("profile id = %q", entry.Identity.ProfileID)
+	}
+}
+
 func TestRegistrySpawn(t *testing.T) {
 	r := hierarchy.NewRegistry()
 	r.RegisterMain("main", "Main", "desc", hierarchy.DefaultPermissions())
@@ -57,6 +69,23 @@ func TestRegistrySpawn(t *testing.T) {
 	children := r.Children("main")
 	if len(children) != 1 {
 		t.Errorf("expected 1 child, got %d", len(children))
+	}
+}
+
+func TestRegistrySpawnProfile(t *testing.T) {
+	r := hierarchy.NewRegistry()
+	r.RegisterMain("main", "Main", "desc", hierarchy.DefaultPermissions())
+
+	entry, err := r.Spawn("main", &hierarchy.SpawnConfig{
+		Name:      "Worker",
+		Task:      "Do something",
+		ProfileID: "quark-devops",
+	})
+	if err != nil {
+		t.Fatalf("spawn: %v", err)
+	}
+	if entry.Identity.ProfileID != "quark-devops" {
+		t.Fatalf("profile id = %q", entry.Identity.ProfileID)
 	}
 }
 

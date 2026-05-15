@@ -30,15 +30,15 @@ type UserMessageMsg struct {
 }
 
 // NewUserMessage creates a new user message.
-func NewUserMessage(ctx context.Context, sessionID, content string, resp chan message.StreamMessage) UserMessageMsg {
+func NewUserMessage(ctx context.Context, request message.PostRequest, resp chan message.StreamMessage) UserMessageMsg {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	return UserMessageMsg{
 		BaseMessage: loop.NewMessage(MsgTypeUserMessage),
 		Context:     ctx,
-		SessionID:   sessionID,
-		Content:     content,
+		SessionID:   request.SessionID,
+		Content:     request.Content,
 		Response:    resp,
 	}
 }

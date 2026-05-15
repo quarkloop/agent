@@ -23,6 +23,13 @@ func TestMapUpdateBuildsInternalMessage(t *testing.T) {
 	}
 }
 
+func TestMapIncomingPostRequestMapsChannelIngress(t *testing.T) {
+	got := mapIncomingPostRequest(incomingMessage{SessionID: "telegram-1", Text: "hello"})
+	if got.SessionID != "telegram-1" || got.Content != "hello" {
+		t.Fatalf("post request = %+v", got)
+	}
+}
+
 func TestMapUpdateRejectsEmptyMessages(t *testing.T) {
 	if _, ok := mapUpdate(update{UpdateID: 1}); ok {
 		t.Fatal("nil message should not map")
@@ -78,9 +85,9 @@ type fakePoster struct {
 	content       string
 }
 
-func (p *fakePoster) Post(ctx context.Context, sessionID, content string, resp chan message.StreamMessage) {
-	p.sessionID = sessionID
-	p.content = content
+func (p *fakePoster) Post(ctx context.Context, request message.PostRequest, resp chan message.StreamMessage) {
+	p.sessionID = request.SessionID
+	p.content = request.Content
 	if p.closeResponse {
 		close(resp)
 	}

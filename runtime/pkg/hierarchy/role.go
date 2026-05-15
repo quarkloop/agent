@@ -44,6 +44,9 @@ type Identity struct {
 
 	// Description describes what this agent does.
 	Description string
+
+	// ProfileID identifies the resolved agent profile this hierarchy entry uses.
+	ProfileID string
 }
 
 // IsRoot returns true if this agent has no parent (is the main agent).
@@ -71,4 +74,14 @@ func NewSubIdentity(id, parentID, name, description string) *Identity {
 		Name:        name,
 		Description: description,
 	}
+}
+
+// WithProfile returns a copy of the identity with its resolved profile ID set.
+func (id *Identity) WithProfile(profileID string) *Identity {
+	if id == nil {
+		return nil
+	}
+	next := *id
+	next.ProfileID = profileID
+	return &next
 }

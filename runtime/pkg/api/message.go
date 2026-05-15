@@ -58,7 +58,7 @@ func (h *MessageHandler) Send(c *fiber.Ctx) error {
 
 	resp := make(chan message.StreamMessage, 64)
 	postCtx, cancelPost := context.WithCancel(context.Background())
-	h.poster.Post(postCtx, sessionID, req.Content, resp)
+	h.poster.Post(postCtx, mapSendMessageRequest(sessionID, req), resp)
 
 	c.Set("Content-Type", "text/event-stream")
 	c.Set("Cache-Control", "no-cache")
