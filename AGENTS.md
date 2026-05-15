@@ -57,6 +57,8 @@ Important runtime packages:
 - `runtime/pkg/llm`: bounded LLM/tool loop and streamed tool-call trace events.
 - `runtime/pkg/services`: supervisor-resolved gRPC service catalog and generic
   service-backed tool executor.
+- `supervisor/pkg/runtime/launchenv`: process environment builder for runtime
+  launch specifications.
 - `runtime/pkg/extraction`: runtime-owned extraction profiles and open-schema
   validation.
 - `runtime/pkg/workspace`: approval-gated sidecar and directory mutation policy.

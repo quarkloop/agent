@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/quarkloop/supervisor/pkg/api"
 	"github.com/quarkloop/supervisor/pkg/runtime"
+	"github.com/quarkloop/supervisor/pkg/runtime/launchenv"
 	"github.com/quarkloop/supervisor/pkg/space/store"
 )
 
@@ -78,9 +79,21 @@ func (s *Server) handleStartRuntime(c *fiber.Ctx) error {
 		s.registry.Remove(agent.ID())
 		return writeError(c, fiber.StatusBadRequest, err.Error())
 	}
-	env = append(env, catalogEnv...)
+	spec, err := s.launchEnv.Build(launchenv.Inputs{
+		RuntimeID:  agent.ID(),
+		Space:      agent.Space(),
+		WorkingDir: agent.WorkingDir(),
+		Port:       agent.Port(),
+		PluginsDir: agent.PluginsDir(),
+		RuntimeEnv: env,
+		CatalogEnv: append(pluginCatalogEnv, catalogEnv...),
+	})
+	if err != nil {
+		s.registry.Remove(agent.ID())
+		return writeError(c, fiber.StatusBadRequest, err.Error())
+	}
 
-	if err := s.launcher.Start(c.Context(), agent, env); err != nil {
+	if err := s.launcher.Start(c.Context(), agent, spec); err != nil {
 		s.registry.Remove(agent.ID())
 		return writeError(c, fiber.StatusInternalServerError, err.Error())
 	}

@@ -24,6 +24,7 @@ import (
 	"github.com/quarkloop/supervisor/pkg/api"
 	"github.com/quarkloop/supervisor/pkg/events"
 	"github.com/quarkloop/supervisor/pkg/runtime"
+	"github.com/quarkloop/supervisor/pkg/runtime/launchenv"
 	"github.com/quarkloop/supervisor/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/space/grpcstore"
 	"google.golang.org/grpc"
@@ -49,10 +50,11 @@ type Server struct {
 	cfg Config
 	app *fiber.App
 
-	store    space.Store
-	registry *runtime.Registry
-	launcher *runtime.Launcher
-	events   *events.Bus
+	store     space.Store
+	registry  *runtime.Registry
+	launcher  *runtime.Launcher
+	launchEnv launchenv.Builder
+	events    *events.Bus
 
 	spaceConn        *grpcstore.Store
 	spaceServiceGRPC *grpc.Server
@@ -98,16 +100,18 @@ func New(cfg Config) (*Server, error) {
 
 	supervisorURL := fmt.Sprintf("http://127.0.0.1:%d", cfg.Port)
 	runtimesReg := runtime.NewRegistry()
-	runtimesLauncher := runtime.NewLauncher(cfg.RuntimeBin, supervisorURL, []string{
-		"QUARK_SPACE_SERVICE_ADDR=" + spaceServiceAddr,
-	}, func(id string) {
+	runtimesLauncher := runtime.NewLauncher(cfg.RuntimeBin, func(id string) {
 		runtimesReg.SetStopped(id)
+	})
+	runtimeEnvBuilder := launchenv.New(supervisorURL, []string{
+		"QUARK_SPACE_SERVICE_ADDR=" + spaceServiceAddr,
 	})
 	s := &Server{
 		cfg:              cfg,
 		store:            store,
 		registry:         runtimesReg,
 		launcher:         runtimesLauncher,
+		launchEnv:        runtimeEnvBuilder,
 		events:           events.NewBus(),
 		spaceConn:        store,
 		spaceServiceGRPC: spaceGRPC,
