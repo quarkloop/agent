@@ -180,13 +180,6 @@
       "reason": "Runtime still imports supervisor client directly for space-scoped data operations. This should move behind a shared client contract or runtime boundary adapter."
     },
     {
-      "area": "runtime",
-      "file": "runtime/pkg/client/client.go",
-      "import": "github.com/quarkloop/supervisor/pkg/api",
-      "task": "Task 30",
-      "reason": "Runtime client reuses supervisor API DTOs and paths. This is a DTO boundary violation to remove when API/DTO mapper boundaries are finalized."
-    },
-    {
       "area": "supervisor",
       "file": "supervisor/pkg/server/server.go",
       "import": "github.com/quarkloop/services/space/pkg/spacesvc",
