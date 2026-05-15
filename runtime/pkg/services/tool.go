@@ -288,6 +288,8 @@ func requiredJSONFields(typeName string) []string {
 		return []string{"chunkId", "textContent", "embeddingRef"}
 	case "quark.indexer.v1.QueryRequest":
 		return []string{"queryVectorRef"}
+	case "quark.indexer.v1.DeleteChunkRequest":
+		return []string{"chunkId"}
 	default:
 		return nil
 	}

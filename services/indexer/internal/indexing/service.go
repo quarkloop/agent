@@ -16,11 +16,9 @@ const (
 )
 
 type Store interface {
-	InsertChunk(ctx context.Context, chunk indexer.Chunk) error
+	UpsertRecord(ctx context.Context, record indexer.KnowledgeRecord) error
+	DeleteChunk(ctx context.Context, chunkID string) error
 	VectorSearch(ctx context.Context, queryVector []float32, limit int, filters map[string]string) ([]indexer.Chunk, error)
-	UpsertEntity(ctx context.Context, entity indexer.Entity) error
-	LinkChunkEntity(ctx context.Context, chunkID, entityID string) error
-	RelateNodes(ctx context.Context, relation indexer.Relation) error
 	GetNeighborhood(ctx context.Context, nodeID string, depth int) (*indexer.GraphFragment, error)
 }
 
@@ -41,11 +39,19 @@ func (s *Service) IndexDocument(ctx context.Context, cmd IndexCommand) error {
 		return err
 	}
 
-	if err := s.writePrimaryRecords(ctx, cmd); err != nil {
-		return err
+	if err := s.store.UpsertRecord(ctx, knowledgeRecord(cmd)); err != nil {
+		return fmt.Errorf("upsert canonical index record: %w", err)
 	}
-	if err := s.writeGraphEdges(ctx, cmd); err != nil {
-		return err
+	return nil
+}
+
+func (s *Service) DeleteChunk(ctx context.Context, chunkID string) error {
+	chunkID = strings.TrimSpace(chunkID)
+	if chunkID == "" {
+		return invalid("chunk_id", "is required")
+	}
+	if err := s.store.DeleteChunk(ctx, chunkID); err != nil {
+		return fmt.Errorf("delete chunk: %w", err)
 	}
 	return nil
 }
@@ -78,40 +84,22 @@ func (s *Service) GetContext(ctx context.Context, query ContextQuery) (*ContextR
 	}, nil
 }
 
-func (s *Service) writePrimaryRecords(ctx context.Context, cmd IndexCommand) error {
-	if err := s.store.InsertChunk(ctx, indexer.Chunk{
-		ID:                cmd.ChunkID,
-		Text:              cmd.Text,
-		Vector:            cloneVector(cmd.Vector),
-		Metadata:          cloneMetadata(cmd.Metadata),
-		Document:          cloneDocument(cmd.Document),
-		EmbeddingMetadata: cmd.EmbeddingMetadata,
-		Facts:             cloneFacts(cmd.Facts),
-		Citations:         cloneCitations(cmd.Citations),
-		Provenance:        cloneProvenance(cmd.Provenance),
-	}); err != nil {
-		return fmt.Errorf("write index records: %w", err)
+func knowledgeRecord(cmd IndexCommand) indexer.KnowledgeRecord {
+	return indexer.KnowledgeRecord{
+		Chunk: indexer.Chunk{
+			ID:                cmd.ChunkID,
+			Text:              cmd.Text,
+			Vector:            cloneVector(cmd.Vector),
+			Metadata:          cloneMetadata(cmd.Metadata),
+			Document:          cloneDocument(cmd.Document),
+			EmbeddingMetadata: cmd.EmbeddingMetadata,
+			Facts:             cloneFacts(cmd.Facts),
+			Citations:         cloneCitations(cmd.Citations),
+			Provenance:        cloneProvenance(cmd.Provenance),
+		},
+		Entities:  primaryEntities(cmd),
+		Relations: uniqueRelations(cmd.Relations),
 	}
-	for _, entity := range primaryEntities(cmd) {
-		if err := s.store.UpsertEntity(ctx, entity); err != nil {
-			return fmt.Errorf("write index records: %w", err)
-		}
-	}
-	return nil
-}
-
-func (s *Service) writeGraphEdges(ctx context.Context, cmd IndexCommand) error {
-	for _, entityID := range linkedEntityIDs(cmd.Entities) {
-		if err := s.store.LinkChunkEntity(ctx, cmd.ChunkID, entityID); err != nil {
-			return fmt.Errorf("write graph edges: %w", err)
-		}
-	}
-	for _, relation := range uniqueRelations(cmd.Relations) {
-		if err := s.store.RelateNodes(ctx, relation); err != nil {
-			return fmt.Errorf("write graph edges: %w", err)
-		}
-	}
-	return nil
 }
 
 func normalizeIndexCommand(cmd IndexCommand) IndexCommand {
@@ -123,7 +111,7 @@ func normalizeIndexCommand(cmd IndexCommand) IndexCommand {
 	cmd.EmbeddingMetadata = normalizeEmbeddingMetadata(cmd.EmbeddingMetadata, cmd.Metadata, len(cmd.Vector))
 	cmd.Entities = normalizeEntities(cmd.Entities)
 	cmd.Relations = normalizeRelations(cmd.Relations)
-	cmd.Provenance = normalizeProvenance(cmd.Provenance, cmd.Metadata, cmd.Document.SourceURI)
+	cmd.Provenance = normalizeProvenance(cmd.Provenance, cmd.Metadata, cmd.Document.SourceURI, cmd.Text)
 	cmd.Citations = normalizeCitations(cmd.Citations, cmd.ChunkID, cmd.Provenance.SourceURI)
 	cmd.Facts = normalizeFacts(cmd.Facts, cmd.ChunkID, cmd.Provenance.SourceURI)
 	return cmd
@@ -266,7 +254,7 @@ func normalizeEmbeddingMetadata(embedding indexer.EmbeddingMetadata, metadata ma
 	return embedding
 }
 
-func normalizeProvenance(provenance indexer.Provenance, metadata map[string]string, sourceURI string) indexer.Provenance {
+func normalizeProvenance(provenance indexer.Provenance, metadata map[string]string, sourceURI, sourceText string) indexer.Provenance {
 	provenance.SourceURI = strings.TrimSpace(provenance.SourceURI)
 	provenance.SourceHash = strings.TrimSpace(provenance.SourceHash)
 	provenance.IngestedAt = strings.TrimSpace(provenance.IngestedAt)
@@ -278,6 +266,9 @@ func normalizeProvenance(provenance indexer.Provenance, metadata map[string]stri
 	}
 	if provenance.SourceHash == "" {
 		provenance.SourceHash = firstMetadata(metadata, "source_hash", "content_hash")
+	}
+	if provenance.SourceHash == "" {
+		provenance.SourceHash = indexer.SourceHashFromText(sourceText)
 	}
 	if provenance.TraceID == "" {
 		provenance.TraceID = firstMetadata(metadata, "trace_id", "session_id")

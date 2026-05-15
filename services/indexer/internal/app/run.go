@@ -66,6 +66,7 @@ func Run(ctx context.Context, cfg Config) error {
 		Rpcs: []*servicev1.RpcDescriptor{
 			{Service: indexerv1.IndexerService_ServiceDesc.ServiceName, Method: "IndexDocument", Request: "quark.indexer.v1.IndexRequest", Response: "quark.indexer.v1.IndexStatus", Description: "Persist one canonical index record: document, chunk, embedding metadata, graph data, facts, citations, and provenance."},
 			{Service: indexerv1.IndexerService_ServiceDesc.ServiceName, Method: "GetContext", Request: "quark.indexer.v1.QueryRequest", Response: "quark.indexer.v1.ContextResponse", Description: "Retrieve vector and graph context for an agent-provided query embedding."},
+			{Service: indexerv1.IndexerService_ServiceDesc.ServiceName, Method: "DeleteChunk", Request: "quark.indexer.v1.DeleteChunkRequest", Response: "quark.indexer.v1.DeleteChunkResponse", Description: "Delete one indexed chunk and its chunk-owned edges by canonical chunk ID."},
 		},
 		Skills: []*servicev1.SkillDescriptor{skill},
 	}); err != nil {

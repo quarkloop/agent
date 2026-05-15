@@ -11,6 +11,7 @@ create embeddings, or call other services.
 | --- | --- | --- | --- | --- |
 | `indexer_IndexDocument` | `quark.indexer.v1.IndexerService/IndexDocument` | `IndexRequest` | `IndexStatus` | Persist one canonical knowledge record with chunk text, embedding vector or runtime embedding reference, graph data, facts, citations, and provenance. |
 | `indexer_GetContext` | `quark.indexer.v1.IndexerService/GetContext` | `QueryRequest` | `ContextResponse` | Return vector and graph context packages for an agent-provided query embedding. |
+| `indexer_DeleteChunk` | `quark.indexer.v1.IndexerService/DeleteChunk` | `DeleteChunkRequest` | `DeleteChunkResponse` | Delete one canonical chunk and chunk-owned graph edges by chunk ID. |
 
 ## Ownership Boundaries
 
@@ -21,6 +22,10 @@ create embeddings, or call other services.
   context package construction, and storage-level validation.
 - The service API layer maps protobuf DTOs into indexer domain commands before
   calling indexing logic.
+- `IndexDocument` intentionally remains one atomic canonical record upsert. It
+  is not an ingestion pipeline; it is the storage boundary for one agent-
+  produced record. Splitting document/chunk/fact/entity/citation writes before
+  the store can guarantee one transaction would create partial-state risk.
 
 ## Configuration
 
@@ -38,7 +43,6 @@ create embeddings, or call other services.
 ## Audit Notes
 
 - The service boundary already rejects raw PDF/document parsing and LLM work.
-- Mapper tests cover protobuf-to-domain copying; storage tests cover canonical
-  normalization, dimension validation, duplicate graph writes, and owned copies.
-- Follow-up: Task 15 will decide whether `IndexDocument` should split into
-  smaller document, chunk, fact, entity, relation, and citation functions.
+- Mapper tests cover protobuf-to-domain and domain-to-proto copying; storage
+  tests cover canonical normalization, dimension validation, updates,
+  duplicate chunks, deletes, graph/vector consistency, and owned copies.

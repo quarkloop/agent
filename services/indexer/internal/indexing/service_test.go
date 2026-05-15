@@ -105,9 +105,9 @@ func TestIndexDocumentNormalizesCanonicalRecord(t *testing.T) {
 		t.Fatalf("index document: %v", err)
 	}
 	if len(store.inserted) != 1 {
-		t.Fatalf("inserted chunks = %d, want 1", len(store.inserted))
+		t.Fatalf("upserted records = %d, want 1", len(store.inserted))
 	}
-	chunk := store.inserted[0]
+	chunk := store.inserted[0].Chunk
 	if chunk.Document.SourceURI != "/tmp/source.pdf" || chunk.Document.Name != "source.pdf" || chunk.Document.Type != "paper" {
 		t.Fatalf("document normalization failed: %+v", chunk.Document)
 	}
@@ -116,6 +116,9 @@ func TestIndexDocumentNormalizesCanonicalRecord(t *testing.T) {
 	}
 	if chunk.Provenance.SourceURI != "/tmp/source.pdf" || chunk.Provenance.TraceID != "trace-1" {
 		t.Fatalf("provenance normalization failed: %+v", chunk.Provenance)
+	}
+	if chunk.Provenance.SourceHash == "" {
+		t.Fatalf("provenance source hash was not defined: %+v", chunk.Provenance)
 	}
 	if len(chunk.Citations) != 1 || chunk.Citations[0].SourceURI != "/tmp/source.pdf" || chunk.Citations[0].ChunkID != "chunk-1" {
 		t.Fatalf("citation normalization failed: %+v", chunk.Citations)
@@ -166,14 +169,91 @@ func TestIndexDocumentDeduplicatesPrimaryGraphWrites(t *testing.T) {
 		t.Fatalf("index document: %v", err)
 	}
 
-	if len(store.upserted) != 2 {
-		t.Fatalf("upserted entities = %d, want 2: %+v", len(store.upserted), store.upserted)
+	if len(store.inserted) != 1 {
+		t.Fatalf("upserted records = %d, want 1: %+v", len(store.inserted), store.inserted)
 	}
-	if len(store.linked) != 2 {
-		t.Fatalf("linked entities = %d, want 2: %+v", len(store.linked), store.linked)
+	record := store.inserted[0]
+	if len(record.Entities) != 2 {
+		t.Fatalf("record entities = %d, want 2: %+v", len(record.Entities), record.Entities)
 	}
-	if len(store.related) != 1 {
-		t.Fatalf("relations = %d, want 1: %+v", len(store.related), store.related)
+	if len(record.Relations) != 1 {
+		t.Fatalf("record relations = %d, want 1: %+v", len(record.Relations), record.Relations)
+	}
+}
+
+func TestIndexDocumentUpsertsDuplicateChunkAsOneCanonicalRecord(t *testing.T) {
+	store := &fakeStore{}
+	svc, err := New(store)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	for _, text := range []string{"first", "updated"} {
+		if err := svc.IndexDocument(context.Background(), IndexCommand{
+			ChunkID: "chunk-1",
+			Text:    text,
+			Vector:  []float32{0.1, 0.2},
+		}); err != nil {
+			t.Fatalf("index document %q: %v", text, err)
+		}
+	}
+
+	if len(store.inserted) != 2 {
+		t.Fatalf("upsert calls = %d, want 2", len(store.inserted))
+	}
+	if got := store.inserted[1].Chunk.Text; got != "updated" {
+		t.Fatalf("latest upsert text = %q, want updated", got)
+	}
+	if store.inserted[0].Chunk.ID != store.inserted[1].Chunk.ID {
+		t.Fatalf("duplicate chunk changed canonical ID: %+v", store.inserted)
+	}
+}
+
+func TestDeleteChunkValidatesAndUsesStoreBoundary(t *testing.T) {
+	store := &fakeStore{}
+	svc, err := New(store)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if err := svc.DeleteChunk(context.Background(), " "); err == nil {
+		t.Fatal("expected blank chunk delete to fail")
+	}
+	if err := svc.DeleteChunk(context.Background(), " chunk-1 "); err != nil {
+		t.Fatalf("delete chunk: %v", err)
+	}
+	if len(store.deleted) != 1 || store.deleted[0] != "chunk-1" {
+		t.Fatalf("deleted chunks = %+v, want chunk-1", store.deleted)
+	}
+}
+
+func TestIndexDocumentPreservesGraphVectorConsistencyInOneStoreRecord(t *testing.T) {
+	store := &fakeStore{}
+	svc, err := New(store)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	vector := []float32{0.4, 0.6}
+	err = svc.IndexDocument(context.Background(), IndexCommand{
+		ChunkID: "chunk-graph",
+		Text:    "Transformer uses attention.",
+		Vector:  vector,
+		Entities: []indexer.Entity{
+			{ID: "transformer", Name: "Transformer", Type: "MODEL"},
+			{ID: "attention", Name: "Attention", Type: "METHOD"},
+		},
+		Relations: []indexer.Relation{{FromID: "transformer", ToID: "attention", Relation: "USES"}},
+	})
+	if err != nil {
+		t.Fatalf("index document: %v", err)
+	}
+	record := store.inserted[0]
+	if record.Chunk.ID == "" || len(record.Chunk.Vector) != 2 || len(record.Entities) != 2 || len(record.Relations) != 1 {
+		t.Fatalf("record did not keep vector and graph state together: %+v", record)
+	}
+	vector[0] = 99
+	if store.inserted[0].Chunk.Vector[0] != 0.4 {
+		t.Fatalf("store record leaked vector backing slice: %+v", store.inserted[0].Chunk.Vector)
 	}
 }
 
@@ -217,36 +297,27 @@ func TestBuildContextPackageDeduplicatesEvidence(t *testing.T) {
 }
 
 type fakeStore struct {
-	inserted []indexer.Chunk
-	upserted []indexer.Entity
-	linked   []string
-	related  []indexer.Relation
+	inserted []indexer.KnowledgeRecord
+	deleted  []string
 	chunks   []indexer.Chunk
 	graph    *indexer.GraphFragment
 }
 
-func (s *fakeStore) InsertChunk(_ context.Context, chunk indexer.Chunk) error {
-	s.inserted = append(s.inserted, chunk)
+func (s *fakeStore) UpsertRecord(_ context.Context, record indexer.KnowledgeRecord) error {
+	record.Chunk = cloneChunks([]indexer.Chunk{record.Chunk})[0]
+	record.Entities = append([]indexer.Entity(nil), record.Entities...)
+	record.Relations = append([]indexer.Relation(nil), record.Relations...)
+	s.inserted = append(s.inserted, record)
+	return nil
+}
+
+func (s *fakeStore) DeleteChunk(_ context.Context, chunkID string) error {
+	s.deleted = append(s.deleted, chunkID)
 	return nil
 }
 
 func (s *fakeStore) VectorSearch(context.Context, []float32, int, map[string]string) ([]indexer.Chunk, error) {
 	return s.chunks, nil
-}
-
-func (s *fakeStore) UpsertEntity(_ context.Context, entity indexer.Entity) error {
-	s.upserted = append(s.upserted, entity)
-	return nil
-}
-
-func (s *fakeStore) LinkChunkEntity(_ context.Context, _, entityID string) error {
-	s.linked = append(s.linked, entityID)
-	return nil
-}
-
-func (s *fakeStore) RelateNodes(_ context.Context, relation indexer.Relation) error {
-	s.related = append(s.related, relation)
-	return nil
 }
 
 func (s *fakeStore) GetNeighborhood(context.Context, string, int) (*indexer.GraphFragment, error) {

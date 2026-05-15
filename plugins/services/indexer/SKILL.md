@@ -67,6 +67,12 @@ when the indexer service is available.
     `contextPackage`, and a flattened `reasoningContext` string suitable for an
     LLM context window.
 
+- `DeleteChunk(DeleteChunkRequest) -> DeleteChunkResponse`
+  - Generated service function: `indexer_DeleteChunk`
+  - Required JSON fields: `chunkId`
+  - Deletes one canonical chunk by ID. This is approval-gated because it removes
+    indexed knowledge.
+
 ## Contract Notes
 
 - The indexer owns the canonical storage/query schema. It does not parse files,
@@ -75,6 +81,10 @@ when the indexer service is available.
 - `IndexDocument` receives agent-produced chunks, facts, entities, relations,
   citations, embedding references/metadata, and provenance. It must not receive
   raw PDFs or prompt-only payloads as a substitute for extracted knowledge.
+- `IndexDocument` remains a single atomic canonical record upsert instead of a
+  collection of separate document/chunk/fact/entity/citation writes. Splitting
+  those writes would make graph and vector consistency harder unless the store
+  can guarantee one transaction across all record parts.
 - Query text must be embedded by the agent before `GetContext`.
 - Use `embeddingRef` and `queryVectorRef` from `embedding_Embed` instead of
   manually copying vectors through the LLM.

@@ -302,6 +302,7 @@ func TestQuarkKnowledgeProfileDeclaresConcreteServiceFunctions(t *testing.T) {
 		"embedding_Embed",
 		"indexer_IndexDocument",
 		"indexer_GetContext",
+		"indexer_DeleteChunk",
 		"citation_ResolveSpans",
 		"citation_VerifyGrounding",
 		"memory_Put",

@@ -45,6 +45,13 @@ func (s *Server) GetContext(ctx context.Context, req *indexerv1.QueryRequest) (*
 	}, nil
 }
 
+func (s *Server) DeleteChunk(ctx context.Context, req *indexerv1.DeleteChunkRequest) (*indexerv1.DeleteChunkResponse, error) {
+	if err := s.service.DeleteChunk(ctx, req.GetChunkId()); err != nil {
+		return nil, grpcError(err)
+	}
+	return &indexerv1.DeleteChunkResponse{Deleted: true}, nil
+}
+
 func toProtoChunks(chunks []indexer.Chunk) []*indexerv1.Chunk {
 	out := make([]*indexerv1.Chunk, 0, len(chunks))
 	for _, chunk := range chunks {

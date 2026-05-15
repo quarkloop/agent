@@ -15,6 +15,12 @@ type Chunk struct {
 	Score             float32           `json:"score,omitempty"`
 }
 
+type KnowledgeRecord struct {
+	Chunk     Chunk      `json:"chunk,omitempty"`
+	Entities  []Entity   `json:"entities,omitempty"`
+	Relations []Relation `json:"relations,omitempty"`
+}
+
 type Document struct {
 	ID        string            `json:"id,omitempty"`
 	Name      string            `json:"name,omitempty"`
@@ -101,11 +107,9 @@ type ContextPackage struct {
 // GraphVectorDriver is the storage seam for the indexer service. Implementors
 // own persistence, vector search, graph writes, lifecycle, and concurrency.
 type GraphVectorDriver interface {
-	InsertChunk(ctx context.Context, chunk Chunk) error
+	UpsertRecord(ctx context.Context, record KnowledgeRecord) error
+	DeleteChunk(ctx context.Context, chunkID string) error
 	VectorSearch(ctx context.Context, queryVector []float32, limit int, filters map[string]string) ([]Chunk, error)
-	UpsertEntity(ctx context.Context, entity Entity) error
-	LinkChunkEntity(ctx context.Context, chunkID, entityID string) error
-	RelateNodes(ctx context.Context, relation Relation) error
 	GetNeighborhood(ctx context.Context, nodeID string, depth int) (*GraphFragment, error)
 	Ping(ctx context.Context) error
 	Close() error

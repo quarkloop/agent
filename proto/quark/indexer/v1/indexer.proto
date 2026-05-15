@@ -11,6 +11,7 @@ option go_package = "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1;in
 service IndexerService {
   rpc IndexDocument(IndexRequest) returns (IndexStatus);
   rpc GetContext(QueryRequest) returns (ContextResponse);
+  rpc DeleteChunk(DeleteChunkRequest) returns (DeleteChunkResponse);
 }
 
 message IndexRequest {
@@ -140,4 +141,12 @@ message ContextPackage {
   repeated Provenance provenance = 4;
   GraphFragment graph = 5;
   float confidence = 6;
+}
+
+message DeleteChunkRequest {
+  string chunk_id = 1;
+}
+
+message DeleteChunkResponse {
+  bool deleted = 1;
 }

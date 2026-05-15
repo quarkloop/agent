@@ -27,6 +27,46 @@ func TestDgraphHelpersBuildVectorAndFilters(t *testing.T) {
 	}
 }
 
+func TestRecordUpsertPlanKeepsCanonicalVectorAndGraphTogether(t *testing.T) {
+	t.Parallel()
+
+	record := indexer.KnowledgeRecord{
+		Chunk: indexer.Chunk{
+			ID:       "chunk-1",
+			Text:     "Transformer uses attention.",
+			Vector:   []float32{0.1, 0.2},
+			Metadata: map[string]string{"filename": "paper.pdf"},
+		},
+		Entities: []indexer.Entity{
+			{ID: "transformer", Name: "Transformer", Type: "MODEL"},
+			{ID: "attention", Name: "Attention", Type: "METHOD"},
+		},
+		Relations: []indexer.Relation{{FromID: "transformer", ToID: "attention", Relation: "USES"}},
+	}
+
+	query, vars := recordUpsertQuery(record)
+	if !strings.Contains(query, "c as var(func: eq(quark.chunk_id, $chunk))") {
+		t.Fatalf("record query missing chunk upsert var: %s", query)
+	}
+	if vars["$chunk"] != "chunk-1" || vars["$entity0"] != "transformer" || vars["$relation0"] != "transformer|USES|attention" {
+		t.Fatalf("record query vars = %+v", vars)
+	}
+
+	nquads := recordMutationNQuads(record, `{"filename":"paper.pdf"}`, `{}`)
+	for _, want := range []string{
+		`uid(c) <quark.chunk_id> "chunk-1"`,
+		`uid(c) <quark.embedding> "[0.1,0.2]"`,
+		`uid(e0) <quark.entity_id> "transformer"`,
+		`uid(c) <quark.chunk_entity> uid(e0)`,
+		`uid(r0) <quark.relation_from> uid(e0)`,
+		`uid(r0) <quark.relation_to> uid(e1)`,
+	} {
+		if !strings.Contains(nquads, want) {
+			t.Fatalf("record nquads missing %q:\n%s", want, nquads)
+		}
+	}
+}
+
 func TestVectorSearchPayloadRestoresCanonicalRecord(t *testing.T) {
 	t.Parallel()
 

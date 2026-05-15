@@ -32,6 +32,7 @@ permissions:
     - indexer.*
     - indexer_IndexDocument
     - indexer_GetContext
+    - indexer_DeleteChunk
     - citation.*
     - citation_ResolveSpans
     - citation_VerifyGrounding

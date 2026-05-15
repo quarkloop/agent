@@ -121,6 +121,12 @@ func TestServiceFunctionSchemaUsesRuntimeEmbeddingReferences(t *testing.T) {
 			t.Fatalf("required missing %q: %+v", want, required)
 		}
 	}
+
+	deleteParams := requestParameters("quark.indexer.v1.DeleteChunkRequest")
+	deleteRequired, ok := deleteParams["required"].([]string)
+	if !ok || !containsString(deleteRequired, "chunkId") {
+		t.Fatalf("DeleteChunk required fields missing chunkId: %+v", deleteParams)
+	}
 }
 
 func TestServiceFunctionSchemasIncludeKnowledgeContracts(t *testing.T) {

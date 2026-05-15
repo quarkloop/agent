@@ -32,3 +32,7 @@ func (c *Client) IndexDocument(ctx context.Context, req *indexerv1.IndexRequest,
 func (c *Client) GetContext(ctx context.Context, req *indexerv1.QueryRequest, opts ...grpc.CallOption) (*indexerv1.ContextResponse, error) {
 	return c.api.GetContext(ctx, req, opts...)
 }
+
+func (c *Client) DeleteChunk(ctx context.Context, req *indexerv1.DeleteChunkRequest, opts ...grpc.CallOption) (*indexerv1.DeleteChunkResponse, error) {
+	return c.api.DeleteChunk(ctx, req, opts...)
+}

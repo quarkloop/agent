@@ -10,7 +10,8 @@ import (
 	"github.com/quarkloop/services/indexer/pkg/indexer"
 )
 
-func (d *Driver) InsertChunk(ctx context.Context, chunk indexer.Chunk) error {
+func (d *Driver) UpsertRecord(ctx context.Context, record indexer.KnowledgeRecord) error {
+	chunk := record.Chunk
 	if err := d.ensureMetadataPredicates(ctx, chunk.Metadata); err != nil {
 		return err
 	}
@@ -29,73 +30,90 @@ func (d *Driver) InsertChunk(ctx context.Context, chunk indexer.Chunk) error {
 		return fmt.Errorf("marshal canonical chunk: %w", err)
 	}
 
-	nquads := []byte(chunkMutationNQuads(chunk, string(metaJSON), string(canonicalJSON)))
-	return d.doMutation(ctx, fmt.Sprintf("insert chunk %s", chunk.ID), func() *api.Request {
+	query, vars := recordUpsertQuery(record)
+	nquads := []byte(recordMutationNQuads(record, string(metaJSON), string(canonicalJSON)))
+	return d.doMutation(ctx, fmt.Sprintf("upsert canonical record %s", chunk.ID), func() *api.Request {
+		return &api.Request{
+			Query: query,
+			Vars:  vars,
+			Mutations: []*api.Mutation{{
+				SetNquads: nquads,
+			}},
+			CommitNow: true,
+		}
+	})
+}
+
+func (d *Driver) DeleteChunk(ctx context.Context, chunkID string) error {
+	if chunkID == "" {
+		return nil
+	}
+	return d.doMutation(ctx, fmt.Sprintf("delete chunk %s", chunkID), func() *api.Request {
 		return &api.Request{
 			Query: `query chunk($id: string) { c as var(func: eq(quark.chunk_id, $id)) }`,
-			Vars:  map[string]string{"$id": chunk.ID},
+			Vars:  map[string]string{"$id": chunkID},
 			Mutations: []*api.Mutation{{
-				SetNquads: nquads,
+				DelNquads: []byte("uid(c) * * .\n"),
 			}},
 			CommitNow: true,
 		}
 	})
 }
 
-func (d *Driver) UpsertEntity(ctx context.Context, entity indexer.Entity) error {
-	normalized := normalizeEntity(entity)
-	nquads := []byte(entityMutationNQuads(normalized))
-	return d.doMutation(ctx, fmt.Sprintf("upsert entity %s", normalized.ID), func() *api.Request {
-		return &api.Request{
-			Query: `query entity($id: string) { e as var(func: eq(quark.entity_id, $id)) }`,
-			Vars:  map[string]string{"$id": normalized.ID},
-			Mutations: []*api.Mutation{{
-				SetNquads: nquads,
-			}},
-			CommitNow: true,
-		}
-	})
-}
-
-func (d *Driver) LinkChunkEntity(ctx context.Context, chunkID, entityID string) error {
-	if chunkID == "" || entityID == "" {
-		return nil
+func recordUpsertQuery(record indexer.KnowledgeRecord) (string, map[string]string) {
+	var query strings.Builder
+	vars := map[string]string{"$chunk": record.Chunk.ID}
+	query.WriteString("query record($chunk: string")
+	for i, entity := range record.Entities {
+		name := fmt.Sprintf("$entity%d", i)
+		vars[name] = entity.ID
+		fmt.Fprintf(&query, ", %s: string", name)
 	}
-	return d.doMutation(ctx, fmt.Sprintf("link chunk %s to entity %s", chunkID, entityID), func() *api.Request {
-		return &api.Request{
-			Query: `query link($chunk: string, $entity: string) {
+	for i, relation := range record.Relations {
+		name := fmt.Sprintf("$relation%d", i)
+		vars[name] = relationID(relation)
+		fmt.Fprintf(&query, ", %s: string", name)
+	}
+	query.WriteString(`) {
   c as var(func: eq(quark.chunk_id, $chunk))
-  e as var(func: eq(quark.entity_id, $entity))
-}`,
-			Vars: map[string]string{"$chunk": chunkID, "$entity": entityID},
-			Mutations: []*api.Mutation{{
-				SetNquads: []byte("uid(c) <quark.chunk_entity> uid(e) .\n"),
-			}},
-			CommitNow: true,
-		}
-	})
+`)
+	for i := range record.Entities {
+		fmt.Fprintf(&query, "  e%d as var(func: eq(quark.entity_id, $entity%d))\n", i, i)
+	}
+	for i := range record.Relations {
+		fmt.Fprintf(&query, "  r%d as var(func: eq(quark.relation_id, $relation%d))\n", i, i)
+	}
+	query.WriteString("}")
+	return query.String(), vars
 }
 
-func (d *Driver) RelateNodes(ctx context.Context, relation indexer.Relation) error {
-	if relation.FromID == "" || relation.ToID == "" || relation.Relation == "" {
-		return nil
-	}
-	relationID := relation.FromID + "|" + relation.Relation + "|" + relation.ToID
-	nquads := []byte(relationMutationNQuads(relationID, relation.Relation))
-	return d.doMutation(ctx, fmt.Sprintf("relate %s -> %s", relation.FromID, relation.ToID), func() *api.Request {
-		return &api.Request{
-			Query: `query relation($id: string, $from: string, $to: string) {
-  r as var(func: eq(quark.relation_id, $id))
-  f as var(func: eq(quark.entity_id, $from))
-  t as var(func: eq(quark.entity_id, $to))
-}`,
-			Vars: map[string]string{"$id": relationID, "$from": relation.FromID, "$to": relation.ToID},
-			Mutations: []*api.Mutation{{
-				SetNquads: nquads,
-			}},
-			CommitNow: true,
+func recordMutationNQuads(record indexer.KnowledgeRecord, metaJSON, canonicalJSON string) string {
+	var nquads strings.Builder
+	nquads.WriteString(chunkMutationNQuads(record.Chunk, metaJSON, canonicalJSON))
+	entityVars := make(map[string]string, len(record.Entities))
+	for i, entity := range record.Entities {
+		entity = normalizeEntity(entity)
+		if entity.ID == "" {
+			continue
 		}
-	})
+		varName := fmt.Sprintf("e%d", i)
+		entityVars[entity.ID] = varName
+		nquads.WriteString(entityMutationNQuads(varName, entity))
+		fmt.Fprintf(&nquads, "uid(c) <quark.chunk_entity> uid(%s) .\n", varName)
+	}
+	for i, relation := range record.Relations {
+		fromVar := entityVars[relation.FromID]
+		toVar := entityVars[relation.ToID]
+		if fromVar == "" || toVar == "" {
+			continue
+		}
+		nquads.WriteString(relationMutationNQuads(fmt.Sprintf("r%d", i), relationID(relation), relation.Relation, fromVar, toVar))
+	}
+	return nquads.String()
+}
+
+func relationID(relation indexer.Relation) string {
+	return relation.FromID + "|" + relation.Relation + "|" + relation.ToID
 }
 
 func normalizeEntity(entity indexer.Entity) indexer.Entity {
@@ -133,19 +151,19 @@ func chunkMutationNQuads(chunk indexer.Chunk, metaJSON, canonicalJSON string) st
 	return nquads.String()
 }
 
-func entityMutationNQuads(entity indexer.Entity) string {
-	return fmt.Sprintf(`uid(e) <dgraph.type> "QuarkEntity" .
-uid(e) <quark.entity_id> %s .
-uid(e) <quark.entity_name> %s .
-uid(e) <quark.entity_type> %s .
-`, quote(entity.ID), quote(entity.Name), quote(entity.Type))
+func entityMutationNQuads(uidVar string, entity indexer.Entity) string {
+	return fmt.Sprintf(`uid(%s) <dgraph.type> "QuarkEntity" .
+uid(%s) <quark.entity_id> %s .
+uid(%s) <quark.entity_name> %s .
+uid(%s) <quark.entity_type> %s .
+`, uidVar, uidVar, quote(entity.ID), uidVar, quote(entity.Name), uidVar, quote(entity.Type))
 }
 
-func relationMutationNQuads(relationID, name string) string {
-	return fmt.Sprintf(`uid(r) <dgraph.type> "QuarkRelation" .
-uid(r) <quark.relation_id> %s .
-uid(r) <quark.relation_name> %s .
-uid(r) <quark.relation_from> uid(f) .
-uid(r) <quark.relation_to> uid(t) .
-`, quote(relationID), quote(name))
+func relationMutationNQuads(uidVar, relationID, name, fromVar, toVar string) string {
+	return fmt.Sprintf(`uid(%s) <dgraph.type> "QuarkRelation" .
+uid(%s) <quark.relation_id> %s .
+uid(%s) <quark.relation_name> %s .
+uid(%s) <quark.relation_from> uid(%s) .
+uid(%s) <quark.relation_to> uid(%s) .
+`, uidVar, uidVar, quote(relationID), uidVar, quote(name), uidVar, fromVar, uidVar, toVar)
 }

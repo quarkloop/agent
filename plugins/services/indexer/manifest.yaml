@@ -40,3 +40,15 @@ service:
       approval_required: false
       streaming: false
       idempotent: true
+    - name: indexer_DeleteChunk
+      service: quark.indexer.v1.IndexerService
+      method: DeleteChunk
+      request: quark.indexer.v1.DeleteChunkRequest
+      response: quark.indexer.v1.DeleteChunkResponse
+      description: "Delete one indexed chunk and its chunk-owned edges by canonical chunk ID."
+      risk_level: admin
+      approval_required: true
+      approval_requirements:
+        - index-delete
+      streaming: false
+      idempotent: false

@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	IndexerService_IndexDocument_FullMethodName = "/quark.indexer.v1.IndexerService/IndexDocument"
 	IndexerService_GetContext_FullMethodName    = "/quark.indexer.v1.IndexerService/GetContext"
+	IndexerService_DeleteChunk_FullMethodName   = "/quark.indexer.v1.IndexerService/DeleteChunk"
 )
 
 // IndexerServiceClient is the client API for IndexerService service.
@@ -34,6 +35,7 @@ const (
 type IndexerServiceClient interface {
 	IndexDocument(ctx context.Context, in *IndexRequest, opts ...grpc.CallOption) (*IndexStatus, error)
 	GetContext(ctx context.Context, in *QueryRequest, opts ...grpc.CallOption) (*ContextResponse, error)
+	DeleteChunk(ctx context.Context, in *DeleteChunkRequest, opts ...grpc.CallOption) (*DeleteChunkResponse, error)
 }
 
 type indexerServiceClient struct {
@@ -64,6 +66,16 @@ func (c *indexerServiceClient) GetContext(ctx context.Context, in *QueryRequest,
 	return out, nil
 }
 
+func (c *indexerServiceClient) DeleteChunk(ctx context.Context, in *DeleteChunkRequest, opts ...grpc.CallOption) (*DeleteChunkResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteChunkResponse)
+	err := c.cc.Invoke(ctx, IndexerService_DeleteChunk_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // IndexerServiceServer is the server API for IndexerService service.
 // All implementations must embed UnimplementedIndexerServiceServer
 // for forward compatibility.
@@ -75,6 +87,7 @@ func (c *indexerServiceClient) GetContext(ctx context.Context, in *QueryRequest,
 type IndexerServiceServer interface {
 	IndexDocument(context.Context, *IndexRequest) (*IndexStatus, error)
 	GetContext(context.Context, *QueryRequest) (*ContextResponse, error)
+	DeleteChunk(context.Context, *DeleteChunkRequest) (*DeleteChunkResponse, error)
 	mustEmbedUnimplementedIndexerServiceServer()
 }
 
@@ -90,6 +103,9 @@ func (UnimplementedIndexerServiceServer) IndexDocument(context.Context, *IndexRe
 }
 func (UnimplementedIndexerServiceServer) GetContext(context.Context, *QueryRequest) (*ContextResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetContext not implemented")
+}
+func (UnimplementedIndexerServiceServer) DeleteChunk(context.Context, *DeleteChunkRequest) (*DeleteChunkResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteChunk not implemented")
 }
 func (UnimplementedIndexerServiceServer) mustEmbedUnimplementedIndexerServiceServer() {}
 func (UnimplementedIndexerServiceServer) testEmbeddedByValue()                        {}
@@ -148,6 +164,24 @@ func _IndexerService_GetContext_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _IndexerService_DeleteChunk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteChunkRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IndexerServiceServer).DeleteChunk(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IndexerService_DeleteChunk_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IndexerServiceServer).DeleteChunk(ctx, req.(*DeleteChunkRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // IndexerService_ServiceDesc is the grpc.ServiceDesc for IndexerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -162,6 +196,10 @@ var IndexerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetContext",
 			Handler:    _IndexerService_GetContext_Handler,
+		},
+		{
+			MethodName: "DeleteChunk",
+			Handler:    _IndexerService_DeleteChunk_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
