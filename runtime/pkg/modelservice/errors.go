@@ -38,3 +38,11 @@ func canFallbackAfter(err error) bool {
 		return false
 	}
 }
+
+func canRetryAfter(err error) bool {
+	var providerErr *plugin.ProviderError
+	if !errors.As(err, &providerErr) {
+		return false
+	}
+	return providerErr.Category == plugin.ProviderErrorTransport
+}

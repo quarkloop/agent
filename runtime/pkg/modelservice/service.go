@@ -18,6 +18,46 @@ type Sink func(context.Context, Usage)
 
 type Option func(*Service)
 
+// RetryPolicy bounds same-provider retries for transient provider transport
+// failures. Fallbacks, when configured, are attempted after this policy is
+// exhausted for the primary provider.
+type RetryPolicy struct {
+	MaxAttempts int
+	BaseDelay   time.Duration
+	MaxDelay    time.Duration
+}
+
+func defaultRetryPolicy() RetryPolicy {
+	return RetryPolicy{
+		MaxAttempts: 3,
+		BaseDelay:   500 * time.Millisecond,
+		MaxDelay:    2 * time.Second,
+	}
+}
+
+func normalizeRetryPolicy(policy RetryPolicy) RetryPolicy {
+	defaults := defaultRetryPolicy()
+	if policy.MaxAttempts <= 0 {
+		policy.MaxAttempts = defaults.MaxAttempts
+	}
+	if policy.BaseDelay < 0 {
+		policy.BaseDelay = 0
+	}
+	if policy.BaseDelay == 0 {
+		policy.MaxDelay = 0
+	} else if policy.MaxDelay <= 0 {
+		policy.MaxDelay = defaults.MaxDelay
+	}
+	return policy
+}
+
+// WithRetryPolicy configures retry for transient same-provider failures.
+func WithRetryPolicy(policy RetryPolicy) Option {
+	return func(s *Service) {
+		s.retryPolicy = normalizeRetryPolicy(policy)
+	}
+}
+
 // WithFallbacks configures explicit provider fallback order by primary
 // provider ID. The order is copied during construction.
 func WithFallbacks(fallbacks map[string][]string) Option {
@@ -38,20 +78,22 @@ func (realClock) Now() time.Time { return time.Now() }
 // adapters behind this boundary; runtime code asks the service for a provider
 // adapter and receives usage through Sink.
 type Service struct {
-	mu        sync.RWMutex
-	providers map[string]plugin.Provider
-	fallbacks map[string][]string
-	sink      Sink
-	clock     clock
+	mu          sync.RWMutex
+	providers   map[string]plugin.Provider
+	fallbacks   map[string][]string
+	sink        Sink
+	clock       clock
+	retryPolicy RetryPolicy
 }
 
 // New creates a model service with copied provider and fallback maps.
 func New(providers map[string]plugin.Provider, sink Sink, opts ...Option) *Service {
 	svc := &Service{
-		providers: cloneProviders(providers),
-		fallbacks: make(map[string][]string),
-		sink:      sink,
-		clock:     realClock{},
+		providers:   cloneProviders(providers),
+		fallbacks:   make(map[string][]string),
+		sink:        sink,
+		clock:       realClock{},
+		retryPolicy: defaultRetryPolicy(),
 	}
 	for _, opt := range opts {
 		opt(svc)
@@ -159,6 +201,37 @@ func contains(items []string, item string) bool {
 	return false
 }
 
+func retryDelay(policy RetryPolicy, failedAttempt int) time.Duration {
+	if policy.BaseDelay <= 0 {
+		return 0
+	}
+	delay := policy.BaseDelay
+	for i := 1; i < failedAttempt; i++ {
+		delay *= 2
+		if policy.MaxDelay > 0 && delay >= policy.MaxDelay {
+			return policy.MaxDelay
+		}
+	}
+	if policy.MaxDelay > 0 && delay > policy.MaxDelay {
+		return policy.MaxDelay
+	}
+	return delay
+}
+
+func sleepRetryDelay(ctx context.Context, delay time.Duration) error {
+	if delay <= 0 {
+		return nil
+	}
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
 type adapter struct {
 	service *Service
 	primary string
@@ -176,8 +249,8 @@ func (a *adapter) ChatCompletionStream(ctx context.Context, req *plugin.ChatRequ
 	for _, providerID := range chain {
 		attempted = append(attempted, providerID)
 		provider, ok := a.service.provider(providerID)
-		started := a.service.now()
 		if !ok {
+			started := a.service.now()
 			err := plugin.NewProviderError(plugin.ProviderErrorModelUnavailable, providerID, modelName(req), 0, fmt.Errorf("provider unavailable"))
 			failures = append(failures, err)
 			a.service.emit(ctx, Usage{
@@ -191,28 +264,49 @@ func (a *adapter) ChatCompletionStream(ctx context.Context, req *plugin.ChatRequ
 			})
 			continue
 		}
-		stream, err := provider.ChatCompletionStream(ctx, req)
+		stream, err := a.chatCompletionStreamWithRetry(ctx, providerID, provider, req, inputTokens, attempted)
 		if err != nil {
-			failure := providerFailureInfo(err)
 			failures = append(failures, fmt.Errorf("%s: %w", providerID, err))
-			a.service.emit(ctx, Usage{
-				Provider:        providerID,
-				Model:           modelName(req),
-				InputTokens:     inputTokens,
-				LatencyMillis:   elapsedMillis(started, a.service.now()),
-				FallbackChain:   append([]string(nil), attempted...),
-				FailureCategory: failure.category,
-				FailureResetAt:  failure.resetAt,
-				FinishReason:    "error",
-			})
 			if !canFallbackAfter(err) {
 				return nil, err
 			}
 			continue
 		}
-		return a.wrapStream(ctx, providerID, req, stream, started, attempted, inputTokens), nil
+		return stream, nil
 	}
 	return nil, plugin.NewProviderError(plugin.ProviderErrorExhausted, a.primary, modelName(req), 0, fmt.Errorf("model service has no available provider for %q: %w", a.primary, errors.Join(failures...)))
+}
+
+func (a *adapter) chatCompletionStreamWithRetry(ctx context.Context, providerID string, provider plugin.Provider, req *plugin.ChatRequest, inputTokens int64, attempted []string) (<-chan plugin.StreamEvent, error) {
+	policy := normalizeRetryPolicy(a.service.retryPolicy)
+	var lastErr error
+	for attempt := 1; attempt <= policy.MaxAttempts; attempt++ {
+		started := a.service.now()
+		stream, err := provider.ChatCompletionStream(ctx, req)
+		if err == nil {
+			return a.wrapStream(ctx, providerID, req, stream, started, attempted, inputTokens), nil
+		}
+
+		lastErr = err
+		failure := providerFailureInfo(err)
+		a.service.emit(ctx, Usage{
+			Provider:        providerID,
+			Model:           modelName(req),
+			InputTokens:     inputTokens,
+			LatencyMillis:   elapsedMillis(started, a.service.now()),
+			FallbackChain:   append([]string(nil), attempted...),
+			FailureCategory: failure.category,
+			FailureResetAt:  failure.resetAt,
+			FinishReason:    "error",
+		})
+		if attempt == policy.MaxAttempts || !canRetryAfter(err) {
+			return nil, err
+		}
+		if err := sleepRetryDelay(ctx, retryDelay(policy, attempt)); err != nil {
+			return nil, err
+		}
+	}
+	return nil, lastErr
 }
 
 func (a *adapter) ParseToolCalls(content string) ([]plugin.ToolCall, string) {

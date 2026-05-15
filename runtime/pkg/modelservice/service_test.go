@@ -111,6 +111,42 @@ func TestAdapterRecordsFallbackUsage(t *testing.T) {
 	}
 }
 
+func TestAdapterRetriesTransientTransportErrors(t *testing.T) {
+	transient := plugin.NewProviderError(plugin.ProviderErrorTransport, "openrouter", "model-a", 502, errors.New("upstream 502"))
+	var calls int
+	var records []Usage
+	svc := New(map[string]plugin.Provider{
+		"openrouter": fakeProvider{stream: func(context.Context, *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+			calls++
+			if calls == 1 {
+				return nil, transient
+			}
+			return streamEvents(plugin.StreamEvent{Delta: "ok"}, plugin.StreamEvent{Done: true})(context.Background(), nil)
+		}},
+	}, func(_ context.Context, usage Usage) {
+		records = append(records, usage)
+	}, WithRetryPolicy(RetryPolicy{MaxAttempts: 2}))
+
+	stream, err := svc.Adapter("openrouter").ChatCompletionStream(context.Background(), &plugin.ChatRequest{Model: "model-a"})
+	if err != nil {
+		t.Fatalf("chat completion after retry: %v", err)
+	}
+	for range stream {
+	}
+	if calls != 2 {
+		t.Fatalf("provider calls = %d, want 2", calls)
+	}
+	if len(records) != 2 {
+		t.Fatalf("usage records = %+v, want failure and success", records)
+	}
+	if records[0].FailureCategory != string(plugin.ProviderErrorTransport) || records[0].FinishReason != "error" {
+		t.Fatalf("retry failure usage = %+v", records[0])
+	}
+	if records[1].Provider != "openrouter" || records[1].FinishReason != "stop" {
+		t.Fatalf("retry success usage = %+v", records[1])
+	}
+}
+
 func TestAdapterDoesNotFallbackForInvalidRequest(t *testing.T) {
 	primaryErr := plugin.NewProviderError(plugin.ProviderErrorInvalidRequest, "primary", "model-a", 400, errors.New("bad request"))
 	var records []Usage
