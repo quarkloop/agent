@@ -121,12 +121,12 @@ func runStart(port int, channels []string) error {
 		SupervisorURL: os.Getenv("QUARK_SUPERVISOR_URL"),
 		SpaceID:       os.Getenv("QUARK_SPACE"),
 		PromptAddenda: promptAddenda,
-		PendingRefs:   servicePendingRefs(serviceCatalog),
+		PendingRefs:   serviceFunctionPendingRefs(serviceCatalog),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create agent: %w", err)
 	}
-	registerServiceTools(a, serviceCatalog)
+	registerServiceFunctions(a, serviceCatalog)
 
 	// Create server with ChannelBus
 	srv := runtime.NewServer()
@@ -176,7 +176,7 @@ func servicePromptAddenda(catalog *runtimeservices.Catalog) []string {
 	return []string{catalog.Prompt()}
 }
 
-func registerServiceTools(a *agent.Agent, catalog *runtimeservices.Catalog) {
+func registerServiceFunctions(a *agent.Agent, catalog *runtimeservices.Catalog) {
 	if catalog == nil || catalog.Empty() {
 		return
 	}
@@ -191,7 +191,7 @@ func registerServiceTools(a *agent.Agent, catalog *runtimeservices.Catalog) {
 	}
 }
 
-func servicePendingRefs(catalog *runtimeservices.Catalog) func() []string {
+func serviceFunctionPendingRefs(catalog *runtimeservices.Catalog) func() []string {
 	if catalog == nil || catalog.Empty() {
 		return nil
 	}

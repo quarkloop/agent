@@ -11,10 +11,10 @@ import (
 
 func TestSystemPromptIncludesConfiguredAddenda(t *testing.T) {
 	a := newTestAgent(t)
-	a.config.PromptAddenda = []string{"", "Use service-backed tools for indexing."}
+	a.config.PromptAddenda = []string{"", "Use service functions for indexing."}
 
 	got := a.systemPrompt()
-	if !strings.Contains(got, "Use service-backed tools for indexing.") {
+	if !strings.Contains(got, "Use service functions for indexing.") {
 		t.Fatalf("system prompt missing addendum:\n%s", got)
 	}
 }

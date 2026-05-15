@@ -15,18 +15,19 @@ unrelated scopes.
 - `cli` is an HTTP client. It reads/writes only the local `Quarkfile` and
   delegates all other operations to supervisor or the resolved runtime.
 - `services/*` own durable domain behavior behind protobuf/gRPC contracts.
-  Services must not call each other.
+  Services expose agent-facing service functions and must not call each other.
 - `plugins/tools/*` expose agent-callable tool plugins in lib and/or api mode.
 - `plugins/services/*` contain service plugin manifests and `SKILL.md`
-  guidance for gRPC services.
+  guidance for gRPC services and their exported service functions.
 - `pkg/serviceapi` owns protobuf/gRPC generated contracts.
 - `pkg/plugin`, `pkg/space`, `pkg/toolkit`, and `pkg/event` are shared support
   packages.
 
-The agent is the coordinator. For document ingestion it reads files, extracts
-structure, embeds chunks, sends canonical records to the indexer, and verifies
-retrieval. The indexer stores/query canonical knowledge records only; it does
-not parse files, call LLMs, embed text, select schemas, or call another service.
+The agent is the coordinator. For document ingestion it reads files, uses LLM
+reasoning for semantic structure, calls service functions for mechanical work,
+sends canonical records to the indexer, and verifies retrieval. The indexer
+stores/query canonical knowledge records only; it does not parse files, call
+LLMs, embed text, select schemas, or call another service.
 
 ## Modules
 
@@ -62,10 +63,16 @@ Important runtime packages:
 
 ## Plugins And Services
 
-Everything agent-callable is exposed as a tool surface. Tool plugins own their
-schema, implementation, and `SKILL.md`. Service plugins describe gRPC services;
-runtime turns their RPC descriptors into generated service tools such as
-`embedding_Embed` and `indexer_GetContext`.
+Formal terms:
+
+- `service function`: agent-facing callable service capability.
+- `RPC method`: transport-level gRPC method implementing a service function.
+- `tool call`: runtime execution envelope used by the LLM/function-calling loop.
+
+Everything agent-callable flows through the runtime tool-call surface. Tool
+plugins own their schema, implementation, and `SKILL.md`. Service plugins
+describe gRPC services; runtime turns their RPC descriptors into generated
+service functions such as `embedding_Embed` and `indexer_GetContext`.
 
 Supervisor-owned discovery passes runtime catalogs through:
 
@@ -84,8 +91,9 @@ runtime filesystem discovery for supervisor-launched agents.
 - Do not mutate user directories during indexing unless the user explicitly
   approves a separate workspace-organization action.
 - Do not make services call each other.
-- Do not reintroduce a runtime "capability" abstraction. Tools are the only
-  agent-callable units.
+- Do not reintroduce a runtime "capability" abstraction. Tool calls are the
+  only agent-callable execution envelope; services are exposed as service
+  functions through that path.
 - Do not hide failures in prompts, tests, or timeout bumps.
 - Do not commit changes under `docs/`. The local task tracker and docs drafts
   can change in the workspace, but they must stay out of commits.

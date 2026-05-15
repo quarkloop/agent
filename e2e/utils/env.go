@@ -229,7 +229,8 @@ type StartOptions struct {
 	// api-mode loading. Used to test binary fallback end-to-end.
 	ForceBinaryTools bool
 	// DisableServiceDiscovery keeps legacy provider/tool E2Es focused on plugin
-	// behavior instead of adding the runtime service catalog tool.
+	// behavior instead of adding generated service functions from the runtime
+	// service catalog.
 	DisableServiceDiscovery bool
 	// SupervisorEnv is appended to the supervisor process environment. Runtime
 	// children inherit these values, so service discovery addresses should be

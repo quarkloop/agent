@@ -16,8 +16,8 @@ designed to coordinate tools rather than hide shortcuts inside services.
 - Local-first spaces with a single `Quarkfile` in your working directory.
 - Supervisor-owned discovery for tools, providers, service plugins, skills, and
   runtime catalogs.
-- Tool-only agent invocation: filesystem, shell, web search, and service-backed
-  functions all flow through one callable tool surface.
+- Tool-call-only invocation: filesystem, shell, web search, and service
+  functions all flow through one runtime execution envelope.
 - gRPC services for durable platform behavior such as indexing, embeddings,
   release automation, and space metadata.
 - Agent-led document ingestion: read files, extract structure, embed chunks,
@@ -67,7 +67,7 @@ supervisor
 runtime
   |  owns agent loop, sessions, prompts, tool execution, extraction profiles
   |
-  | tools and service-backed tools
+  | tool calls and service functions
   v
 plugins/tools/*       services/* over gRPC       providers/* over lib plugins
 ```
@@ -77,6 +77,8 @@ Important boundaries:
 - The supervisor owns discovery. Runtime consumes resolved catalogs and does
   not infer installed state for supervisor-launched agents.
 - Services do not call each other. The agent is the coordinator.
+- Service functions are the agent-facing callable service capabilities; RPC
+  methods are only the gRPC transport implementation.
 - The indexer owns canonical storage/query records only; it does not parse
   files, call LLMs, generate embeddings, or choose extraction schemas.
 - Embeddings are service plugins. Local deterministic and OpenRouter-backed
@@ -110,8 +112,9 @@ The indexer service stores canonical GraphRAG records:
 - entities, relations, facts, and citations
 - normalized retrieval scores and structured context packages
 
-The runtime agent coordinates ingestion by calling tools and services in order.
-For PDFs, the expected flow is: `fs extract_pdf`, runtime extraction profile,
+The runtime agent coordinates ingestion by calling tools, LLM reasoning, and
+service functions in order. For PDFs, the expected flow is: read/extract file
+content, use the LLM to classify and structure facts/entities/relations,
 `embedding_Embed`, `indexer_IndexDocument`, then `embedding_Embed` plus
 `indexer_GetContext` to answer questions from indexed evidence.
 
