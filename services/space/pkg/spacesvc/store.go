@@ -16,6 +16,7 @@ import (
 
 type Store struct {
 	root string
+	env  map[string]string
 
 	mu    sync.Mutex
 	locks map[string]*sync.Mutex
@@ -51,6 +52,10 @@ func DefaultRoot() (string, error) {
 }
 
 func NewStore(root string) (*Store, error) {
+	return NewStoreWithEnvironment(root, nil)
+}
+
+func NewStoreWithEnvironment(root string, environment []string) (*Store, error) {
 	if root == "" {
 		r, err := DefaultRoot()
 		if err != nil {
@@ -61,7 +66,11 @@ func NewStore(root string) (*Store, error) {
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return nil, fmt.Errorf("create spaces root: %w", err)
 	}
-	return &Store{root: root, locks: make(map[string]*sync.Mutex)}, nil
+	return &Store{
+		root:  root,
+		env:   environmentMap(environment),
+		locks: make(map[string]*sync.Mutex),
+	}, nil
 }
 
 func (s *Store) Root() string { return s.root }
@@ -224,13 +233,26 @@ func (s *Store) AgentEnvironment(name string) ([]string, error) {
 		"QUARK_MODEL_NAME=" + model.Name,
 	}
 	for _, key := range qf.EnvironmentVariables() {
-		value, ok := os.LookupEnv(key)
+		value, ok := s.env[key]
 		if !ok {
 			return nil, fmt.Errorf("quarkfile model.env declares %s but it is not set in space service environment", key)
 		}
 		env = append(env, key+"="+value)
 	}
 	return env, nil
+}
+
+func environmentMap(entries []string) map[string]string {
+	out := make(map[string]string, len(entries))
+	for _, entry := range entries {
+		key, value, ok := strings.Cut(entry, "=")
+		key = strings.TrimSpace(key)
+		if !ok || key == "" {
+			continue
+		}
+		out[key] = value
+	}
+	return out
 }
 
 func (s *Store) Paths(name string) (Paths, error) {

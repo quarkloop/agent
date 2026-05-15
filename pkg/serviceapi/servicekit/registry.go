@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"sync"
 
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
@@ -30,8 +31,8 @@ func (r *Registry) Register(desc *servicev1.ServiceDescriptor) error {
 	if desc == nil {
 		return fmt.Errorf("service descriptor is required")
 	}
-	if desc.Name == "" {
-		return fmt.Errorf("service descriptor name is required")
+	if err := ValidateRuntimeServiceCatalog([]*servicev1.ServiceDescriptor{desc}); err != nil {
+		return err
 	}
 	cp := CloneDescriptor(desc)
 	r.mu.Lock()
@@ -47,6 +48,9 @@ func (r *Registry) ListServices(context.Context, *emptypb.Empty) (*servicev1.Lis
 	for _, desc := range r.services {
 		out.Services = append(out.Services, CloneDescriptor(desc))
 	}
+	sort.Slice(out.Services, func(i, j int) bool {
+		return out.Services[i].GetName() < out.Services[j].GetName()
+	})
 	return out, nil
 }
 

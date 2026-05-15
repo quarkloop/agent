@@ -173,7 +173,7 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func startEmbeddedSpaceService(root string) (string, *grpc.Server, error) {
-	store, err := spacesvc.NewStore(root)
+	store, err := spacesvc.NewStoreWithEnvironment(root, os.Environ())
 	if err != nil {
 		return "", nil, fmt.Errorf("open space service store: %w", err)
 	}

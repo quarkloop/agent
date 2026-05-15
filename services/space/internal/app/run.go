@@ -18,10 +18,11 @@ import (
 )
 
 type Config struct {
-	Address  string
-	RootDir  string
-	SkillDir string
-	Logger   *slog.Logger
+	Address     string
+	RootDir     string
+	SkillDir    string
+	Environment []string
+	Logger      *slog.Logger
 }
 
 func Run(ctx context.Context, cfg Config) error {
@@ -31,7 +32,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
-	store, err := spacesvc.NewStore(cfg.RootDir)
+	store, err := spacesvc.NewStoreWithEnvironment(cfg.RootDir, cfg.Environment)
 	if err != nil {
 		return err
 	}

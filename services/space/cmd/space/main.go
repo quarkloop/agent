@@ -26,10 +26,11 @@ func main() {
 	defer stop()
 
 	if err := app.Run(ctx, app.Config{
-		Address:  addr,
-		RootDir:  rootDir,
-		SkillDir: skillDir,
-		Logger:   logger,
+		Address:     addr,
+		RootDir:     rootDir,
+		SkillDir:    skillDir,
+		Environment: os.Environ(),
+		Logger:      logger,
 	}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
