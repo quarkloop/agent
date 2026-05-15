@@ -26,11 +26,13 @@ type runtimePluginCatalog struct {
 }
 
 type runtimePluginCatalogEntry struct {
-	Name   string             `json:"name"`
-	Type   string             `json:"type"`
-	Path   string             `json:"path"`
-	Schema *plugin.ToolSchema `json:"schema,omitempty"`
-	Skill  string             `json:"skill,omitempty"`
+	Name         string               `json:"name"`
+	Type         string               `json:"type"`
+	Path         string               `json:"path"`
+	Schema       *plugin.ToolSchema   `json:"schema,omitempty"`
+	Skill        string               `json:"skill,omitempty"`
+	AgentProfile *plugin.AgentProfile `json:"agent_profile,omitempty"`
+	SystemPrompt string               `json:"system_prompt,omitempty"`
 }
 
 func (s *Server) runtimePluginCatalogEnv(ctx context.Context, space string) ([]string, error) {
@@ -46,8 +48,12 @@ func (s *Server) runtimePluginCatalogEnv(ctx context.Context, space string) ([]s
 	catalog := runtimePluginCatalog{Plugins: make([]runtimePluginCatalogEntry, 0, len(installed))}
 	for _, item := range installed {
 		switch item.Manifest.Type {
-		case plugin.TypeTool, plugin.TypeProvider:
-			catalog.Plugins = append(catalog.Plugins, runtimePluginCatalogEntryFromInstalled(item))
+		case plugin.TypeTool, plugin.TypeProvider, plugin.TypeAgent:
+			entry, err := runtimePluginCatalogEntryFromInstalled(item)
+			if err != nil {
+				return nil, fmt.Errorf("build runtime plugin catalog entry %s: %w", item.Manifest.Name, err)
+			}
+			catalog.Plugins = append(catalog.Plugins, entry)
 		}
 	}
 	payload, err := json.Marshal(catalog)
@@ -57,7 +63,7 @@ func (s *Server) runtimePluginCatalogEnv(ctx context.Context, space string) ([]s
 	return []string{runtimePluginCatalogEnv + "=" + string(payload)}, nil
 }
 
-func runtimePluginCatalogEntryFromInstalled(item pluginmanager.InstalledPlugin) runtimePluginCatalogEntry {
+func runtimePluginCatalogEntryFromInstalled(item pluginmanager.InstalledPlugin) (runtimePluginCatalogEntry, error) {
 	entry := runtimePluginCatalogEntry{
 		Name:  item.Manifest.Name,
 		Type:  string(item.Manifest.Type),
@@ -68,11 +74,24 @@ func runtimePluginCatalogEntryFromInstalled(item pluginmanager.InstalledPlugin) 
 		schema := item.Manifest.Tool.Schema
 		entry.Schema = &schema
 	}
-	return entry
+	if item.Manifest.Type == plugin.TypeAgent {
+		profile, err := plugin.ParseAgentProfile(filepath.Join(item.Path, item.Manifest.Agent.Profile))
+		if err != nil {
+			return runtimePluginCatalogEntry{}, err
+		}
+		entry.AgentProfile = profile
+		entry.SystemPrompt = readPluginFile(item.Path, item.Manifest.Agent.System)
+		entry.Skill = readPluginFile(item.Path, item.Manifest.Agent.Skill)
+	}
+	return entry, nil
 }
 
 func readPluginSkill(pluginDir string) string {
-	data, err := os.ReadFile(filepath.Join(pluginDir, "SKILL.md"))
+	return readPluginFile(pluginDir, "SKILL.md")
+}
+
+func readPluginFile(pluginDir, name string) string {
+	data, err := os.ReadFile(filepath.Join(pluginDir, name))
 	if err != nil {
 		return ""
 	}

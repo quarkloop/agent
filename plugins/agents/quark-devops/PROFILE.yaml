@@ -1,0 +1,42 @@
+id: quark-devops
+name: Quark DevOps
+description: Builds, tests, packages, releases, and inspects delivery workflows.
+model:
+  provider: ""
+  model: ""
+prompt:
+  system: SYSTEM.md
+  skills:
+    - SKILL.md
+permissions:
+  tools:
+    - bash
+    - fs
+  services:
+    - repo.*
+    - build.*
+    - test.*
+    - container.*
+    - release.*
+    - deploy.*
+    - policy.*
+    - build-release.*
+memory:
+  scope: space
+  collections:
+    - release_history
+    - build_facts
+approval:
+  required_for:
+    - workspace.write
+    - command.execute
+    - release.publish
+    - deploy.apply
+handoff:
+  can_delegate_to:
+    - quark-knowledge
+    - quark-system
+evaluation:
+  required_checks:
+    - test_result_grounding
+    - artifact_traceability

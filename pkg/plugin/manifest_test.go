@@ -80,6 +80,73 @@ func TestServiceManifestDefaultsSkillAndReadme(t *testing.T) {
 	}
 }
 
+func TestAgentManifestDefaultsProfileSystemAndSkill(t *testing.T) {
+	manifest := &Manifest{
+		Name:    "quark-knowledge",
+		Version: "1.0.0",
+		Type:    TypeAgent,
+		Mode:    ModeAPI,
+		Agent:   &AgentConfig{},
+	}
+	if err := manifest.Validate(); err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	if manifest.Agent.Profile != "PROFILE.yaml" {
+		t.Fatalf("profile = %q, want PROFILE.yaml", manifest.Agent.Profile)
+	}
+	if manifest.Agent.System != "SYSTEM.md" {
+		t.Fatalf("system = %q, want SYSTEM.md", manifest.Agent.System)
+	}
+	if manifest.Agent.Skill != "SKILL.md" {
+		t.Fatalf("skill = %q, want SKILL.md", manifest.Agent.Skill)
+	}
+}
+
+func TestParseAgentProfile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "PROFILE.yaml")
+	if err := os.WriteFile(path, []byte(`id: quark-knowledge
+name: Quark Knowledge
+description: Reads and indexes workspace knowledge.
+model:
+  provider: openrouter
+  model: anthropic/claude-sonnet-4.5
+prompt:
+  system: SYSTEM.md
+  skills:
+    - SKILL.md
+permissions:
+  tools:
+    - fs.read
+  services:
+    - indexer.*
+memory:
+  scope: space
+approval:
+  required_for:
+    - workspace.write
+handoff:
+  can_delegate_to:
+    - quark-devops
+evaluation:
+  required_checks:
+    - citation_coverage
+`), 0o644); err != nil {
+		t.Fatalf("write profile: %v", err)
+	}
+
+	profile, err := ParseAgentProfile(path)
+	if err != nil {
+		t.Fatalf("parse profile: %v", err)
+	}
+	if profile.ID != "quark-knowledge" || profile.Name != "Quark Knowledge" {
+		t.Fatalf("profile identity = %+v", profile)
+	}
+	if len(profile.Permissions.Services) != 1 || profile.Permissions.Services[0] != "indexer.*" {
+		t.Fatalf("profile permissions = %+v", profile.Permissions)
+	}
+}
+
 func TestServiceManifestRequiresFunctions(t *testing.T) {
 	manifest := &Manifest{
 		Name:    "embedding",
@@ -143,3 +210,37 @@ func TestRepositoryServiceManifestsDeclareFunctionsAndReadmes(t *testing.T) {
 }
 
 var serviceFunctionUnsafeChars = regexp.MustCompile(`[^A-Za-z0-9_]+`)
+
+func TestRepositoryAgentManifestsDeclareProfiles(t *testing.T) {
+	manifests, err := filepath.Glob(filepath.Join("..", "..", "plugins", "agents", "*", "manifest.yaml"))
+	if err != nil {
+		t.Fatalf("glob agent manifests: %v", err)
+	}
+	if len(manifests) == 0 {
+		t.Skip("repository agent manifests not present")
+	}
+	for _, manifestPath := range manifests {
+		manifestPath := manifestPath
+		t.Run(filepath.Base(filepath.Dir(manifestPath)), func(t *testing.T) {
+			manifest, err := ParseManifest(manifestPath)
+			if err != nil {
+				t.Fatalf("parse manifest: %v", err)
+			}
+			if manifest.Type != TypeAgent {
+				t.Fatalf("manifest type = %s, want agent", manifest.Type)
+			}
+			profile, err := ParseAgentProfile(filepath.Join(filepath.Dir(manifestPath), manifest.Agent.Profile))
+			if err != nil {
+				t.Fatalf("parse agent profile: %v", err)
+			}
+			if profile.ID != manifest.Name {
+				t.Fatalf("profile id = %q, want manifest name %q", profile.ID, manifest.Name)
+			}
+			for _, name := range []string{manifest.Agent.System, manifest.Agent.Skill} {
+				if _, err := os.Stat(filepath.Join(filepath.Dir(manifestPath), name)); err != nil {
+					t.Fatalf("agent file %s missing: %v", name, err)
+				}
+			}
+		})
+	}
+}

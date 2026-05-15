@@ -16,7 +16,7 @@ func TestRuntimePluginCatalogEntryIncludesToolSchemaAndSkill(t *testing.T) {
 		t.Fatalf("write skill: %v", err)
 	}
 
-	entry := runtimePluginCatalogEntryFromInstalled(pluginmanager.InstalledPlugin{
+	entry, err := runtimePluginCatalogEntryFromInstalled(pluginmanager.InstalledPlugin{
 		Path: dir,
 		Manifest: &plugin.Manifest{
 			Name: "fs",
@@ -29,6 +29,9 @@ func TestRuntimePluginCatalogEntryIncludesToolSchemaAndSkill(t *testing.T) {
 			},
 		},
 	})
+	if err != nil {
+		t.Fatalf("catalog entry: %v", err)
+	}
 
 	if entry.Name != "fs" || entry.Type != string(plugin.TypeTool) || entry.Path != dir {
 		t.Fatalf("unexpected entry identity: %+v", entry)
@@ -37,6 +40,45 @@ func TestRuntimePluginCatalogEntryIncludesToolSchemaAndSkill(t *testing.T) {
 		t.Fatalf("tool schema missing: %+v", entry)
 	}
 	if entry.Skill != "Use the tool carefully." {
+		t.Fatalf("skill = %q", entry.Skill)
+	}
+}
+
+func TestRuntimePluginCatalogEntryIncludesAgentProfile(t *testing.T) {
+	dir := t.TempDir()
+	for name, content := range map[string]string{
+		"PROFILE.yaml": "id: quark-knowledge\nname: Quark Knowledge\n",
+		"SYSTEM.md":    "You are Quark Knowledge.\n",
+		"SKILL.md":     "Use Knowledge services.\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+
+	manifest := &plugin.Manifest{
+		Name: "quark-knowledge",
+		Type: plugin.TypeAgent,
+		Agent: &plugin.AgentConfig{
+			Profile: "PROFILE.yaml",
+			System:  "SYSTEM.md",
+			Skill:   "SKILL.md",
+		},
+	}
+	entry, err := runtimePluginCatalogEntryFromInstalled(pluginmanager.InstalledPlugin{
+		Path:     dir,
+		Manifest: manifest,
+	})
+	if err != nil {
+		t.Fatalf("catalog entry: %v", err)
+	}
+	if entry.AgentProfile == nil || entry.AgentProfile.ID != "quark-knowledge" {
+		t.Fatalf("agent profile missing: %+v", entry.AgentProfile)
+	}
+	if entry.SystemPrompt != "You are Quark Knowledge." {
+		t.Fatalf("system prompt = %q", entry.SystemPrompt)
+	}
+	if entry.Skill != "Use Knowledge services." {
 		t.Fatalf("skill = %q", entry.Skill)
 	}
 }

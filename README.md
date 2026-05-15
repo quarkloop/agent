@@ -16,6 +16,8 @@ designed to coordinate tools rather than hide shortcuts inside services.
 - Local-first spaces with a single `Quarkfile` in your working directory.
 - Supervisor-owned discovery for tools, providers, service plugins, skills, and
   runtime catalogs.
+- Agent plugins for launch profiles such as Quark Knowledge, Quark DevOps, and
+  Quark System.
 - Tool-call-only invocation: filesystem, shell, web search, and service
   functions all flow through one runtime execution envelope.
 - gRPC services for durable platform behavior such as indexing, embeddings,
@@ -79,6 +81,8 @@ Important boundaries:
 - Services do not call each other. The agent is the coordinator.
 - Service functions are the agent-facing callable service capabilities; RPC
   methods are only the gRPC transport implementation.
+- Agent prompts and personalities live in agent plugins. Runtime executes the
+  supervisor-resolved profile instead of owning launch-agent identities.
 - The indexer owns canonical storage/query records only; it does not parse
   files, call LLMs, generate embeddings, or choose extraction schemas.
 - Embeddings are service plugins. Local deterministic and OpenRouter-backed
@@ -98,6 +102,7 @@ Important boundaries:
 | `pkg/space` | shared Quarkfile schema and space model |
 | `pkg/toolkit` | common toolkit for tool plugin CLI/API/lib modes |
 | `plugins/tools/*` | bash, fs, web-search, build-release tool plugins |
+| `plugins/agents/*` | Quark Knowledge, Quark DevOps, and Quark System agent profiles |
 | `plugins/providers/*` | OpenRouter, OpenAI, Anthropic provider plugins |
 | `plugins/services/*` | service plugin manifests and `SKILL.md` files |
 | `services/*` | gRPC services: indexer, embedding, build-release, space |

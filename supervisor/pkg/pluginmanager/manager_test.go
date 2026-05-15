@@ -22,6 +22,16 @@ description: Indexer service
 service:
   address_env: QUARK_INDEXER_ADDR
   skill: SKILL.md
+  readme: README.md
+  functions:
+    - name: indexer_GetContext
+      service: quark.indexer.v1.IndexerService
+      method: GetContext
+      request: quark.indexer.v1.QueryRequest
+      response: quark.indexer.v1.ContextResponse
+      description: Retrieve context.
+      risk_level: read
+      idempotent: true
 `), 0o644); err != nil {
 		t.Fatalf("write manifest: %v", err)
 	}

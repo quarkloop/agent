@@ -39,9 +39,21 @@ type BuildConfig struct {
 
 // AgentConfig holds agent-specific configuration from the manifest.
 type AgentConfig struct {
-	Prompt string   `yaml:"prompt,omitempty"` // Path to agent prompt file
-	Tools  []string `yaml:"tools,omitempty"`  // Required tool plugins
-	Skills []string `yaml:"skills,omitempty"` // Required skill plugins
+	// Profile names the PROFILE.yaml file relative to the plugin directory.
+	Profile string `yaml:"profile,omitempty"`
+	// System names the SYSTEM.md file relative to the plugin directory.
+	System string `yaml:"system,omitempty"`
+	// Skill names the SKILL.md file relative to the plugin directory.
+	Skill string `yaml:"skill,omitempty"`
+	// Prompt is kept for compatibility with early agent manifests. New agent
+	// plugins should use System and Profile.
+	Prompt string `yaml:"prompt,omitempty"`
+	// Tools declares required tool plugin names or patterns.
+	Tools []string `yaml:"tools,omitempty"`
+	// Services declares required service plugin names, functions, or patterns.
+	Services []string `yaml:"services,omitempty"`
+	// Skills declares required skill plugin names or files.
+	Skills []string `yaml:"skills,omitempty"`
 }
 
 // SkillConfig holds skill-specific configuration from the manifest.
@@ -165,6 +177,19 @@ func (m *Manifest) Validate() error {
 	case TypeAgent:
 		if m.Agent == nil {
 			return fmt.Errorf("agent config is required for agent plugins")
+		}
+		if m.Agent.Profile == "" {
+			m.Agent.Profile = "PROFILE.yaml"
+		}
+		if m.Agent.System == "" {
+			if m.Agent.Prompt != "" {
+				m.Agent.System = m.Agent.Prompt
+			} else {
+				m.Agent.System = "SYSTEM.md"
+			}
+		}
+		if m.Agent.Skill == "" {
+			m.Agent.Skill = "SKILL.md"
 		}
 	case TypeSkill:
 		// Skill config is optional

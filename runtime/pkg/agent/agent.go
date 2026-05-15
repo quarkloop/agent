@@ -36,6 +36,7 @@ type Config struct {
 	ModelProvider string
 	Model         string
 	ModelListURL  string
+	SystemPrompt  string
 	PluginsDir    string
 	PluginCatalog *pluginmanager.Catalog
 	PromptAddenda []string
@@ -495,7 +496,11 @@ func (a *Agent) defaultTools() []plugin.ToolSchema {
 
 func (a *Agent) systemPrompt() string {
 	var b strings.Builder
-	b.WriteString(prompt.GetSystemPrompt())
+	basePrompt := strings.TrimSpace(a.config.SystemPrompt)
+	if basePrompt == "" {
+		basePrompt = prompt.GetSystemPrompt()
+	}
+	b.WriteString(basePrompt)
 	if block := extraction.DefaultRegistry().PromptBlock(); block != "" {
 		b.WriteString("\n\n")
 		b.WriteString(block)

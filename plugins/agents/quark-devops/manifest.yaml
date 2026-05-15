@@ -1,0 +1,26 @@
+name: quark-devops
+version: "1.0.0"
+type: agent
+mode: api
+description: "Quark DevOps agent profile"
+author: quarkloop
+license: Apache-2.0
+
+agent:
+  profile: PROFILE.yaml
+  system: SYSTEM.md
+  skill: SKILL.md
+  tools:
+    - bash
+    - fs
+  services:
+    - repo.*
+    - build.*
+    - test.*
+    - container.*
+    - release.*
+    - deploy.*
+    - policy.*
+    - build-release.*
+  skills:
+    - SKILL.md

@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/quarkloop/pkg/plugin"
 	"github.com/quarkloop/runtime/pkg/agent"
 	"github.com/quarkloop/runtime/pkg/channel/telegram"
 	"github.com/quarkloop/runtime/pkg/channel/web"
@@ -92,13 +94,6 @@ func runStart(port int, channels []string) error {
 	slog.Info("starting runtime")
 	slog.Info("enabled channels", "channels", fmt.Sprintf("%v", validChannels))
 
-	modelProvider := os.Getenv("QUARK_MODEL_PROVIDER")
-	modelName := os.Getenv("QUARK_MODEL_NAME")
-	if modelProvider == "" || modelName == "" {
-		return fmt.Errorf("model provider and name are required")
-	}
-	slog.Info("using model", "provider", modelProvider, "model", modelName)
-
 	serviceCatalog, err := loadServiceCatalog()
 	if err != nil {
 		return err
@@ -107,15 +102,47 @@ func runStart(port int, channels []string) error {
 	if err != nil {
 		return err
 	}
+	agentPlugin, err := resolveAgentPlugin(pluginCatalog, os.Getenv("QUARK_AGENT_PROFILE"))
+	if err != nil {
+		return err
+	}
+
+	modelProvider := os.Getenv("QUARK_MODEL_PROVIDER")
+	modelName := os.Getenv("QUARK_MODEL_NAME")
+	if agentPlugin.AgentProfile != nil {
+		if modelProvider == "" {
+			modelProvider = agentPlugin.AgentProfile.Model.Provider
+		}
+		if modelName == "" {
+			modelName = agentPlugin.AgentProfile.Model.Model
+		}
+	}
+	if modelProvider == "" || modelName == "" {
+		return fmt.Errorf("model provider and name are required")
+	}
+	slog.Info("using model", "provider", modelProvider, "model", modelName)
+
 	promptAddenda := servicePromptAddenda(serviceCatalog)
+	if strings.TrimSpace(agentPlugin.Skill) != "" {
+		promptAddenda = append(promptAddenda, strings.TrimSpace(agentPlugin.Skill))
+	}
+	agentName := "Main Agent"
+	agentDescription := ""
+	if agentPlugin.AgentProfile != nil {
+		agentName = agentPlugin.AgentProfile.Name
+		agentDescription = agentPlugin.AgentProfile.Description
+		slog.Info("using agent profile", "id", agentPlugin.AgentProfile.ID, "name", agentPlugin.AgentProfile.Name)
+	}
 
 	// Create agent
 	a, err := agent.NewAgent(agent.Config{
 		ID:            "main",
-		Name:          "Main Agent",
+		Name:          agentName,
+		Description:   agentDescription,
 		ModelProvider: modelProvider,
 		Model:         modelName,
 		ModelListURL:  os.Getenv("MODEL_LIST_URL"),
+		SystemPrompt:  agentPlugin.SystemPrompt,
 		PluginsDir:    os.Getenv("QUARK_PLUGINS_DIR"),
 		PluginCatalog: pluginCatalog,
 		SupervisorURL: os.Getenv("QUARK_SUPERVISOR_URL"),
@@ -167,6 +194,34 @@ func runStart(port int, channels []string) error {
 	slog.Info("runtime server is running, press Ctrl+C to exit")
 	// Start all channels via ChannelBus and block
 	return srv.Run(ctx)
+}
+
+func resolveAgentPlugin(catalog *pluginmanager.Catalog, requested string) (pluginmanager.CatalogPlugin, error) {
+	if catalog == nil || catalog.Empty() {
+		return pluginmanager.CatalogPlugin{}, nil
+	}
+	agents := make([]pluginmanager.CatalogPlugin, 0)
+	for _, item := range catalog.Plugins {
+		if item.Type == plugin.TypeAgent && item.AgentProfile != nil {
+			agents = append(agents, item)
+		}
+	}
+	if len(agents) == 0 {
+		return pluginmanager.CatalogPlugin{}, nil
+	}
+	requested = strings.TrimSpace(requested)
+	if requested != "" {
+		for _, item := range agents {
+			if item.Name == requested || item.AgentProfile.ID == requested {
+				return item, nil
+			}
+		}
+		return pluginmanager.CatalogPlugin{}, fmt.Errorf("agent profile %q not found in supervisor-resolved catalog", requested)
+	}
+	sort.Slice(agents, func(i, j int) bool {
+		return agents[i].AgentProfile.ID < agents[j].AgentProfile.ID
+	})
+	return agents[0], nil
 }
 
 func servicePromptAddenda(catalog *runtimeservices.Catalog) []string {

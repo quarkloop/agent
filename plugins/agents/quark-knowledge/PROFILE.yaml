@@ -1,0 +1,38 @@
+id: quark-knowledge
+name: Quark Knowledge
+description: Reads, structures, indexes, retrieves, and answers from workspace knowledge.
+model:
+  provider: ""
+  model: ""
+prompt:
+  system: SYSTEM.md
+  skills:
+    - SKILL.md
+permissions:
+  tools:
+    - fs
+  services:
+    - document.*
+    - ingestion.*
+    - embedding.*
+    - indexer.*
+    - citation.*
+    - memory.*
+memory:
+  scope: space
+  collections:
+    - indexed_sources
+    - project_facts
+approval:
+  required_for:
+    - workspace.write
+    - source.delete
+    - index.delete
+handoff:
+  can_delegate_to:
+    - quark-devops
+    - quark-system
+evaluation:
+  required_checks:
+    - citation_coverage
+    - answer_grounding

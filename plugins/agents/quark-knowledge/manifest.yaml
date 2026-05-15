@@ -1,0 +1,23 @@
+name: quark-knowledge
+version: "1.0.0"
+type: agent
+mode: api
+description: "Quark Knowledge agent profile"
+author: quarkloop
+license: Apache-2.0
+
+agent:
+  profile: PROFILE.yaml
+  system: SYSTEM.md
+  skill: SKILL.md
+  tools:
+    - fs
+  services:
+    - document.*
+    - ingestion.*
+    - embedding.*
+    - indexer.*
+    - citation.*
+    - memory.*
+  skills:
+    - SKILL.md

@@ -3,8 +3,10 @@ package commands
 import (
 	"testing"
 
+	"github.com/quarkloop/pkg/plugin"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	"github.com/quarkloop/runtime/pkg/agent"
+	"github.com/quarkloop/runtime/pkg/pluginmanager"
 	runtimeservices "github.com/quarkloop/runtime/pkg/services"
 )
 
@@ -50,5 +52,71 @@ func TestRegisterServiceFunctionsUsesRuntimeToolPath(t *testing.T) {
 	}
 	if !a.Plugins.IsLoaded("indexer_GetContext") {
 		t.Fatalf("service function was not registered as a runtime tool")
+	}
+}
+
+func TestResolveAgentPluginSelectsRequestedProfile(t *testing.T) {
+	catalog := &pluginmanager.Catalog{Plugins: []pluginmanager.CatalogPlugin{
+		{
+			Name: "quark-devops",
+			Type: plugin.TypeAgent,
+			AgentProfile: &plugin.AgentProfile{
+				ID:   "quark-devops",
+				Name: "Quark DevOps",
+			},
+			SystemPrompt: "devops",
+		},
+		{
+			Name: "quark-knowledge",
+			Type: plugin.TypeAgent,
+			AgentProfile: &plugin.AgentProfile{
+				ID:   "quark-knowledge",
+				Name: "Quark Knowledge",
+			},
+			SystemPrompt: "knowledge",
+		},
+	}}
+
+	got, err := resolveAgentPlugin(catalog, "quark-knowledge")
+	if err != nil {
+		t.Fatalf("resolve agent profile: %v", err)
+	}
+	if got.AgentProfile == nil || got.AgentProfile.ID != "quark-knowledge" || got.SystemPrompt != "knowledge" {
+		t.Fatalf("selected profile = %+v", got)
+	}
+}
+
+func TestResolveAgentPluginDefaultsDeterministically(t *testing.T) {
+	catalog := &pluginmanager.Catalog{Plugins: []pluginmanager.CatalogPlugin{
+		{
+			Name:         "quark-system",
+			Type:         plugin.TypeAgent,
+			AgentProfile: &plugin.AgentProfile{ID: "quark-system", Name: "Quark System"},
+		},
+		{
+			Name:         "quark-devops",
+			Type:         plugin.TypeAgent,
+			AgentProfile: &plugin.AgentProfile{ID: "quark-devops", Name: "Quark DevOps"},
+		},
+	}}
+
+	got, err := resolveAgentPlugin(catalog, "")
+	if err != nil {
+		t.Fatalf("resolve agent profile: %v", err)
+	}
+	if got.AgentProfile == nil || got.AgentProfile.ID != "quark-devops" {
+		t.Fatalf("default profile = %+v", got)
+	}
+}
+
+func TestResolveAgentPluginRejectsUnknownRequestedProfile(t *testing.T) {
+	catalog := &pluginmanager.Catalog{Plugins: []pluginmanager.CatalogPlugin{{
+		Name:         "quark-system",
+		Type:         plugin.TypeAgent,
+		AgentProfile: &plugin.AgentProfile{ID: "quark-system", Name: "Quark System"},
+	}}}
+
+	if _, err := resolveAgentPlugin(catalog, "missing"); err == nil {
+		t.Fatal("resolve agent profile unexpectedly succeeded")
 	}
 }

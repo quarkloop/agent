@@ -19,6 +19,19 @@ func TestSystemPromptIncludesConfiguredAddenda(t *testing.T) {
 	}
 }
 
+func TestSystemPromptUsesResolvedAgentProfilePrompt(t *testing.T) {
+	a := newTestAgent(t)
+	a.config.SystemPrompt = "You are Quark Knowledge."
+
+	got := a.systemPrompt()
+	if !strings.Contains(got, "You are Quark Knowledge.") {
+		t.Fatalf("system prompt missing profile prompt:\n%s", got)
+	}
+	if strings.Contains(got, "Main Agent") {
+		t.Fatalf("system prompt appears to use hardcoded main identity:\n%s", got)
+	}
+}
+
 func TestSystemPromptIncludesRuntimeExtractionProfiles(t *testing.T) {
 	a := newTestAgent(t)
 

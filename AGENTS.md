@@ -19,6 +19,8 @@ unrelated scopes.
 - `plugins/tools/*` expose agent-callable tool plugins in lib and/or api mode.
 - `plugins/services/*` contain service plugin manifests and `SKILL.md`
   guidance for gRPC services and their exported service functions.
+- `plugins/agents/*` contain agent plugin manifests, PROFILE.yaml, SYSTEM.md,
+  and SKILL.md files.
 - `pkg/serviceapi` owns protobuf/gRPC generated contracts.
 - `pkg/plugin`, `pkg/space`, `pkg/toolkit`, and `pkg/event` are shared support
   packages.
@@ -42,6 +44,8 @@ The workspace modules are listed in `go.work`:
   `services/space`
 - `plugins/tools/bash`, `plugins/tools/build-release`, `plugins/tools/fs`,
   `plugins/tools/web-search`
+- `plugins/agents/quark-knowledge`, `plugins/agents/quark-devops`,
+  `plugins/agents/quark-system`
 - `plugins/providers/anthropic`, `plugins/providers/openai`,
   `plugins/providers/openrouter`
 
@@ -69,10 +73,12 @@ Formal terms:
 - `RPC method`: transport-level gRPC method implementing a service function.
 - `tool call`: runtime execution envelope used by the LLM/function-calling loop.
 
-Everything agent-callable flows through the runtime tool-call surface. Tool
-plugins own their schema, implementation, and `SKILL.md`. Service plugins
-describe gRPC services; runtime turns their RPC descriptors into generated
-service functions such as `embedding_Embed` and `indexer_GetContext`.
+Agent plugins own profile identity, SYSTEM.md, SKILL.md, default permissions,
+handoff rules, and evaluation requirements. Everything agent-callable flows
+through the runtime tool-call surface. Tool plugins own their schema,
+implementation, and `SKILL.md`. Service plugins describe gRPC services; runtime
+turns their RPC descriptors into generated service functions such as
+`embedding_Embed` and `indexer_GetContext`.
 
 Supervisor-owned discovery passes runtime catalogs through:
 

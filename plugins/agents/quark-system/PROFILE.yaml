@@ -1,0 +1,38 @@
+id: quark-system
+name: Quark System
+description: Inspects and explains local system state through typed service functions.
+model:
+  provider: ""
+  model: ""
+prompt:
+  system: SYSTEM.md
+  skills:
+    - SKILL.md
+permissions:
+  tools:
+    - bash
+  services:
+    - system.*
+    - process.*
+    - network.*
+    - logs.*
+    - metrics.*
+    - scheduler.*
+    - policy.*
+memory:
+  scope: space
+  collections:
+    - system_observations
+approval:
+  required_for:
+    - process.kill
+    - service.restart
+    - system.mutate
+handoff:
+  can_delegate_to:
+    - quark-knowledge
+    - quark-devops
+evaluation:
+  required_checks:
+    - observation_grounding
+    - approval_for_mutation
