@@ -14,26 +14,14 @@ import (
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	spacemodel "github.com/quarkloop/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/pluginmanager"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 const runtimeServiceCatalogEnv = "QUARK_RUNTIME_SERVICE_CATALOG"
 const runtimePluginCatalogEnv = "QUARK_RUNTIME_PLUGIN_CATALOG"
 
-type runtimePluginCatalog struct {
-	Plugins []runtimePluginCatalogEntry `json:"plugins"`
-}
-
-type runtimePluginCatalogEntry struct {
-	Name         string               `json:"name"`
-	Type         string               `json:"type"`
-	Path         string               `json:"path"`
-	Schema       *plugin.ToolSchema   `json:"schema,omitempty"`
-	Skill        string               `json:"skill,omitempty"`
-	AgentProfile *plugin.AgentProfile `json:"agent_profile,omitempty"`
-	SystemPrompt string               `json:"system_prompt,omitempty"`
-}
+type runtimePluginCatalog = plugin.RuntimeCatalog
+type runtimePluginCatalogEntry = plugin.RuntimeCatalogPlugin
 
 func (s *Server) runtimePluginCatalogEnv(ctx context.Context, space string) ([]string, error) {
 	_ = ctx
@@ -53,7 +41,7 @@ func (s *Server) runtimePluginCatalogEnv(ctx context.Context, space string) ([]s
 	if err != nil {
 		return nil, fmt.Errorf("list plugins: %w", err)
 	}
-	catalog := runtimePluginCatalog{Plugins: make([]runtimePluginCatalogEntry, 0, len(installed))}
+	catalog := plugin.NewRuntimeCatalog(make([]plugin.RuntimeCatalogPlugin, 0, len(installed)))
 	for _, item := range installed {
 		switch item.Manifest.Type {
 		case plugin.TypeTool, plugin.TypeProvider, plugin.TypeAgent:
@@ -69,6 +57,9 @@ func (s *Server) runtimePluginCatalogEnv(ctx context.Context, space string) ([]s
 		return nil, err
 	}
 	catalog.Plugins = plugins
+	if err := catalog.Validate(); err != nil {
+		return nil, fmt.Errorf("validate runtime plugin catalog: %w", err)
+	}
 	payload, err := json.Marshal(catalog)
 	if err != nil {
 		return nil, fmt.Errorf("marshal runtime plugin catalog: %w", err)
@@ -83,7 +74,7 @@ func (s *Server) runtimePluginCatalogEnv(ctx context.Context, space string) ([]s
 func runtimePluginCatalogEntryFromInstalled(item pluginmanager.InstalledPlugin) (runtimePluginCatalogEntry, error) {
 	entry := runtimePluginCatalogEntry{
 		Name:  item.Manifest.Name,
-		Type:  string(item.Manifest.Type),
+		Type:  item.Manifest.Type,
 		Path:  item.Path,
 		Skill: readPluginSkill(item.Path),
 	}
@@ -123,7 +114,7 @@ func (s *Server) runtimeServiceCatalogEnv(ctx context.Context, space string) ([]
 	if len(descriptors) == 0 {
 		return nil, nil
 	}
-	payload, err := protojson.Marshal(&servicev1.ListServicesResponse{Services: descriptors})
+	payload, err := servicekit.MarshalRuntimeServiceCatalog(descriptors)
 	if err != nil {
 		return nil, fmt.Errorf("marshal runtime service catalog: %w", err)
 	}

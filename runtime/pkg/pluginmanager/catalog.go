@@ -11,23 +11,9 @@ import (
 // Catalog is the runtime-consumable plugin catalog resolved by the supervisor.
 // Runtime loads exactly the plugin directories listed here and does not infer
 // installed plugin state when a catalog is present.
-type Catalog struct {
-	Plugins []CatalogPlugin `json:"plugins"`
-}
+type Catalog = plugin.RuntimeCatalog
 
-type CatalogPlugin struct {
-	Name         string               `json:"name"`
-	Type         plugin.PluginType    `json:"type"`
-	Path         string               `json:"path"`
-	Schema       *plugin.ToolSchema   `json:"schema,omitempty"`
-	Skill        string               `json:"skill,omitempty"`
-	AgentProfile *plugin.AgentProfile `json:"agent_profile,omitempty"`
-	SystemPrompt string               `json:"system_prompt,omitempty"`
-}
-
-func (c Catalog) Empty() bool {
-	return len(c.Plugins) == 0
-}
+type CatalogPlugin = plugin.RuntimeCatalogPlugin
 
 func (m *Manager) SetCatalog(catalog *Catalog) {
 	m.mu.Lock()

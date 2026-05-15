@@ -91,8 +91,9 @@ Supervisor-owned discovery passes runtime catalogs through:
 - `QUARK_RUNTIME_PLUGIN_CATALOG`
 - `QUARK_RUNTIME_SERVICE_CATALOG`
 
-Runtime must consume those catalogs as explicit startup input. Do not add
-runtime filesystem discovery for supervisor-launched agents.
+Both catalogs are versioned startup contracts. Runtime must reject unsupported
+catalog versions with actionable errors and consume catalogs as explicit startup
+input. Do not add runtime filesystem discovery for supervisor-launched agents.
 
 ## Strict Redlines
 

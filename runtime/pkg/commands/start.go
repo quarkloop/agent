@@ -270,11 +270,15 @@ func loadPluginCatalog() (*pluginmanager.Catalog, error) {
 	raw := strings.TrimSpace(os.Getenv("QUARK_RUNTIME_PLUGIN_CATALOG"))
 	if raw == "" {
 		slog.Info("no supervisor-resolved plugin catalog provided; using empty catalog")
-		return &pluginmanager.Catalog{}, nil
+		catalog := plugin.NewRuntimeCatalog(nil)
+		return &catalog, nil
 	}
 	var catalog pluginmanager.Catalog
 	if err := json.Unmarshal([]byte(raw), &catalog); err != nil {
 		return nil, fmt.Errorf("parse runtime plugin catalog: %w", err)
+	}
+	if err := catalog.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid runtime plugin catalog: %w", err)
 	}
 	if catalog.Empty() {
 		slog.Info("supervisor-resolved plugin catalog is empty")

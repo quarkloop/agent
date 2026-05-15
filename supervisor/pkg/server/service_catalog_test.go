@@ -33,7 +33,7 @@ func TestRuntimePluginCatalogEntryIncludesToolSchemaAndSkill(t *testing.T) {
 		t.Fatalf("catalog entry: %v", err)
 	}
 
-	if entry.Name != "fs" || entry.Type != string(plugin.TypeTool) || entry.Path != dir {
+	if entry.Name != "fs" || entry.Type != plugin.TypeTool || entry.Path != dir {
 		t.Fatalf("unexpected entry identity: %+v", entry)
 	}
 	if entry.Schema == nil || entry.Schema.Name != "fs" {
@@ -80,6 +80,24 @@ func TestRuntimePluginCatalogEntryIncludesAgentProfile(t *testing.T) {
 	}
 	if entry.Skill != "Use Knowledge services." {
 		t.Fatalf("skill = %q", entry.Skill)
+	}
+}
+
+func TestRuntimePluginCatalogUsesVersionedContract(t *testing.T) {
+	catalog := plugin.NewRuntimeCatalog([]runtimePluginCatalogEntry{{
+		Name: "quark-knowledge",
+		Type: plugin.TypeAgent,
+		Path: "/plugins/quark-knowledge",
+		AgentProfile: &plugin.AgentProfile{
+			ID:   "quark-knowledge",
+			Name: "Quark Knowledge",
+		},
+	}})
+	if err := catalog.Validate(); err != nil {
+		t.Fatalf("catalog should validate: %v", err)
+	}
+	if catalog.Version != plugin.RuntimeCatalogVersion {
+		t.Fatalf("catalog version = %d", catalog.Version)
 	}
 }
 

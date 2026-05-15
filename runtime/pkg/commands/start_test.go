@@ -22,8 +22,19 @@ func TestLoadPluginCatalogUsesEmptyCatalogWithoutEnv(t *testing.T) {
 	if catalog == nil {
 		t.Fatal("expected empty supervisor-owned catalog, got nil")
 	}
+	if catalog.Version != plugin.RuntimeCatalogVersion {
+		t.Fatalf("catalog version = %d", catalog.Version)
+	}
 	if !catalog.Empty() {
 		t.Fatalf("expected empty catalog, got %+v", catalog)
+	}
+}
+
+func TestLoadPluginCatalogRejectsUnsupportedVersion(t *testing.T) {
+	t.Setenv("QUARK_RUNTIME_PLUGIN_CATALOG", `{"version":999,"plugins":[]}`)
+
+	if _, err := loadPluginCatalog(); err == nil {
+		t.Fatal("expected unsupported catalog version error")
 	}
 }
 

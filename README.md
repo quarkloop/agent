@@ -78,6 +78,8 @@ Important boundaries:
 
 - The supervisor owns discovery. Runtime consumes resolved catalogs and does
   not infer installed state for supervisor-launched agents.
+- Supervisor-to-runtime plugin and service catalogs are versioned startup
+  contracts and unsupported versions fail at runtime startup.
 - Services do not call each other. The agent is the coordinator.
 - Service functions are the agent-facing callable service capabilities; RPC
   methods are only the gRPC transport implementation.

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
-	"google.golang.org/protobuf/encoding/protojson"
+	"github.com/quarkloop/pkg/serviceapi/servicekit"
 )
 
 const (
@@ -18,11 +18,11 @@ func CatalogFromEnv() (*Catalog, error) {
 	if raw == "" {
 		return nil, nil
 	}
-	var resp servicev1.ListServicesResponse
-	if err := protojson.Unmarshal([]byte(raw), &resp); err != nil {
+	descriptors, err := servicekit.UnmarshalRuntimeServiceCatalog([]byte(raw))
+	if err != nil {
 		return nil, fmt.Errorf("parse %s: %w", EnvRuntimeCatalog, err)
 	}
-	return NewCatalog(resp.GetServices()), nil
+	return NewCatalog(descriptors), nil
 }
 
 func PromptBlock(descriptors []*servicev1.ServiceDescriptor) string {

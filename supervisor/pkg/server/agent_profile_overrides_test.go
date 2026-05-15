@@ -103,7 +103,7 @@ func TestAgentProfileOverrideResolverSelectsDefaultDeterministically(t *testing.
 func agentEntry(id string) runtimePluginCatalogEntry {
 	return runtimePluginCatalogEntry{
 		Name: id,
-		Type: string(plugin.TypeAgent),
+		Type: plugin.TypeAgent,
 		AgentProfile: &plugin.AgentProfile{
 			ID:   id,
 			Name: id,
