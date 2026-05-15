@@ -1,0 +1,214 @@
+name: devops
+version: "1.0.0"
+type: service
+mode: api
+description: "Selected repository, build, test, container, deploy, and policy service functions"
+author: quarkloop
+license: Apache-2.0
+
+service:
+  address_env: QUARK_DEVOPS_ADDR
+  health:
+    protocol: grpc_health_v1
+    service: quark.devops.v1.RepoService
+    timeout: 5s
+  readiness:
+    required: true
+    min_version: "1.0.0"
+  skill: SKILL.md
+  readme: README.md
+  proto_services:
+    - quark.devops.v1.RepoService
+    - quark.devops.v1.BuildService
+    - quark.devops.v1.TestService
+    - quark.devops.v1.ContainerService
+    - quark.devops.v1.DeployService
+    - quark.devops.v1.PolicyService
+  functions:
+    - name: repo_Status
+      service: quark.devops.v1.RepoService
+      method: Status
+      request: quark.devops.v1.StatusRequest
+      response: quark.devops.v1.StatusResponse
+      description: "Return repository branch, cleanliness, and changed-file status."
+      risk_level: read
+      idempotent: true
+    - name: repo_Diff
+      service: quark.devops.v1.RepoService
+      method: Diff
+      request: quark.devops.v1.DiffRequest
+      response: quark.devops.v1.DiffResponse
+      description: "Return a bounded diff for selected repository files."
+      risk_level: read
+      idempotent: true
+    - name: repo_GetBranch
+      service: quark.devops.v1.RepoService
+      method: GetBranch
+      request: quark.devops.v1.GetBranchRequest
+      response: quark.devops.v1.GetBranchResponse
+      description: "Return current and upstream branch information."
+      risk_level: read
+      idempotent: true
+    - name: repo_ListChangedFiles
+      service: quark.devops.v1.RepoService
+      method: ListChangedFiles
+      request: quark.devops.v1.ListChangedFilesRequest
+      response: quark.devops.v1.ListChangedFilesResponse
+      description: "List changed repository files with staged/untracked state."
+      risk_level: read
+      idempotent: true
+    - name: repo_ApplyPatch
+      service: quark.devops.v1.RepoService
+      method: ApplyPatch
+      request: quark.devops.v1.ApplyPatchRequest
+      response: quark.devops.v1.ApplyPatchResponse
+      description: "Prepare or validate an approval-gated repository patch application."
+      risk_level: write
+      approval_required: true
+      approval_requirements:
+        - workspace.write
+      idempotent: false
+    - name: repo_Commit
+      service: quark.devops.v1.RepoService
+      method: Commit
+      request: quark.devops.v1.CommitRequest
+      response: quark.devops.v1.CommitResponse
+      description: "Prepare an approval-gated scoped commit plan."
+      risk_level: write
+      approval_required: true
+      approval_requirements:
+        - repo.commit
+      idempotent: false
+    - name: repo_GenerateReleaseNotes
+      service: quark.devops.v1.RepoService
+      method: GenerateReleaseNotes
+      request: quark.devops.v1.GenerateReleaseNotesRequest
+      response: quark.devops.v1.GenerateReleaseNotesResponse
+      description: "Generate release-note markdown from repository history."
+      risk_level: read
+      idempotent: true
+    - name: build_DetectProject
+      service: quark.devops.v1.BuildService
+      method: DetectProject
+      request: quark.devops.v1.DetectProjectRequest
+      response: quark.devops.v1.DetectProjectResponse
+      description: "Detect project kind, root, build files, and known tasks."
+      risk_level: read
+      idempotent: true
+    - name: build_ResolveTask
+      service: quark.devops.v1.BuildService
+      method: ResolveTask
+      request: quark.devops.v1.ResolveTaskRequest
+      response: quark.devops.v1.ResolveTaskResponse
+      description: "Resolve one named build task into an executable plan."
+      risk_level: read
+      idempotent: true
+    - name: build_RunTask
+      service: quark.devops.v1.BuildService
+      method: RunTask
+      request: quark.devops.v1.RunTaskRequest
+      response: quark.devops.v1.RunTaskResponse
+      description: "Run or plan one approved build task."
+      risk_level: write
+      approval_required: true
+      approval_requirements:
+        - command.execute
+      idempotent: false
+    - name: build_CreateArtifact
+      service: quark.devops.v1.BuildService
+      method: CreateArtifact
+      request: quark.devops.v1.CreateArtifactRequest
+      response: quark.devops.v1.CreateArtifactResponse
+      description: "Create or plan build artifacts for an approved task."
+      risk_level: write
+      approval_required: true
+      approval_requirements:
+        - artifact.write
+      idempotent: false
+    - name: test_DiscoverTests
+      service: quark.devops.v1.TestService
+      method: DiscoverTests
+      request: quark.devops.v1.DiscoverTestsRequest
+      response: quark.devops.v1.DiscoverTestsResponse
+      description: "Discover test targets for a project."
+      risk_level: read
+      idempotent: true
+    - name: test_RunTests
+      service: quark.devops.v1.TestService
+      method: RunTests
+      request: quark.devops.v1.RunTestsRequest
+      response: quark.devops.v1.RunTestsResponse
+      description: "Run selected test targets or produce a dry-run test plan."
+      risk_level: write
+      approval_required: true
+      approval_requirements:
+        - command.execute
+      idempotent: false
+    - name: test_ExplainFailure
+      service: quark.devops.v1.TestService
+      method: ExplainFailure
+      request: quark.devops.v1.ExplainFailureRequest
+      response: quark.devops.v1.ExplainFailureResponse
+      description: "Summarize structured test failure evidence."
+      risk_level: read
+      idempotent: true
+    - name: container_BuildImage
+      service: quark.devops.v1.ContainerService
+      method: BuildImage
+      request: quark.devops.v1.BuildImageRequest
+      response: quark.devops.v1.BuildImageResponse
+      description: "Build or plan a container image from an approved Dockerfile."
+      risk_level: write
+      approval_required: true
+      approval_requirements:
+        - container.build
+      idempotent: false
+    - name: container_ListImages
+      service: quark.devops.v1.ContainerService
+      method: ListImages
+      request: quark.devops.v1.ListImagesRequest
+      response: quark.devops.v1.ListImagesResponse
+      description: "List local container images matching an optional filter."
+      risk_level: read
+      idempotent: true
+    - name: container_PlanRun
+      service: quark.devops.v1.ContainerService
+      method: PlanRun
+      request: quark.devops.v1.PlanRunRequest
+      response: quark.devops.v1.PlanRunResponse
+      description: "Prepare an approval-gated container run plan."
+      risk_level: write
+      approval_required: true
+      approval_requirements:
+        - container.run
+      idempotent: false
+    - name: deploy_Plan
+      service: quark.devops.v1.DeployService
+      method: Plan
+      request: quark.devops.v1.PlanRequest
+      response: quark.devops.v1.PlanResponse
+      description: "Prepare a deployment change plan for review."
+      risk_level: write
+      approval_required: true
+      approval_requirements:
+        - deploy.plan
+      idempotent: false
+    - name: deploy_Apply
+      service: quark.devops.v1.DeployService
+      method: Apply
+      request: quark.devops.v1.ApplyRequest
+      response: quark.devops.v1.ApplyResponse
+      description: "Apply an approved deployment plan."
+      risk_level: admin
+      approval_required: true
+      approval_requirements:
+        - deploy.apply
+      idempotent: false
+    - name: policy_EvaluateChange
+      service: quark.devops.v1.PolicyService
+      method: EvaluateChange
+      request: quark.devops.v1.EvaluateChangeRequest
+      response: quark.devops.v1.EvaluateChangeResponse
+      description: "Evaluate whether a proposed DevOps change is allowed and which approvals are required."
+      risk_level: read
+      idempotent: true

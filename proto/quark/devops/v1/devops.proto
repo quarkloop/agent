@@ -1,0 +1,319 @@
+syntax = "proto3";
+
+package quark.devops.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/quarkloop/pkg/serviceapi/gen/quark/devops/v1;devopsv1";
+
+service RepoService {
+  rpc Status(StatusRequest) returns (StatusResponse);
+  rpc Diff(DiffRequest) returns (DiffResponse);
+  rpc GetBranch(GetBranchRequest) returns (GetBranchResponse);
+  rpc ListChangedFiles(ListChangedFilesRequest) returns (ListChangedFilesResponse);
+  rpc ApplyPatch(ApplyPatchRequest) returns (ApplyPatchResponse);
+  rpc Commit(CommitRequest) returns (CommitResponse);
+  rpc GenerateReleaseNotes(GenerateReleaseNotesRequest) returns (GenerateReleaseNotesResponse);
+}
+
+service BuildService {
+  rpc DetectProject(DetectProjectRequest) returns (DetectProjectResponse);
+  rpc ResolveTask(ResolveTaskRequest) returns (ResolveTaskResponse);
+  rpc RunTask(RunTaskRequest) returns (RunTaskResponse);
+  rpc CreateArtifact(CreateArtifactRequest) returns (CreateArtifactResponse);
+}
+
+service TestService {
+  rpc DiscoverTests(DiscoverTestsRequest) returns (DiscoverTestsResponse);
+  rpc RunTests(RunTestsRequest) returns (RunTestsResponse);
+  rpc ExplainFailure(ExplainFailureRequest) returns (ExplainFailureResponse);
+}
+
+service ContainerService {
+  rpc BuildImage(BuildImageRequest) returns (BuildImageResponse);
+  rpc ListImages(ListImagesRequest) returns (ListImagesResponse);
+  rpc PlanRun(PlanRunRequest) returns (PlanRunResponse);
+}
+
+service DeployService {
+  rpc Plan(PlanRequest) returns (PlanResponse);
+  rpc Apply(ApplyRequest) returns (ApplyResponse);
+}
+
+service PolicyService {
+  rpc EvaluateChange(EvaluateChangeRequest) returns (EvaluateChangeResponse);
+}
+
+message StatusRequest {
+  string path = 1;
+}
+
+message StatusResponse {
+  string branch = 1;
+  bool clean = 2;
+  repeated FileChange changes = 3;
+  google.protobuf.Timestamp observed_at = 4;
+}
+
+message DiffRequest {
+  string path = 1;
+  repeated string files = 2;
+  bool staged = 3;
+}
+
+message DiffResponse {
+  string diff = 1;
+  repeated string files = 2;
+}
+
+message GetBranchRequest {
+  string path = 1;
+}
+
+message GetBranchResponse {
+  string current = 1;
+  string upstream = 2;
+}
+
+message ListChangedFilesRequest {
+  string path = 1;
+  bool include_untracked = 2;
+}
+
+message ListChangedFilesResponse {
+  repeated FileChange changes = 1;
+}
+
+message ApplyPatchRequest {
+  string path = 1;
+  string patch = 2;
+  bool dry_run = 3;
+  string reason = 4;
+}
+
+message ApplyPatchResponse {
+  MutationPlan plan = 1;
+  repeated FileChange expected_changes = 2;
+}
+
+message CommitRequest {
+  string path = 1;
+  repeated string files = 2;
+  string message = 3;
+  string reason = 4;
+}
+
+message CommitResponse {
+  MutationPlan plan = 1;
+}
+
+message GenerateReleaseNotesRequest {
+  string path = 1;
+  string from_ref = 2;
+  string to_ref = 3;
+}
+
+message GenerateReleaseNotesResponse {
+  string markdown = 1;
+  repeated string commits = 2;
+}
+
+message DetectProjectRequest {
+  string path = 1;
+}
+
+message DetectProjectResponse {
+  Project project = 1;
+}
+
+message ResolveTaskRequest {
+  string path = 1;
+  string task = 2;
+}
+
+message ResolveTaskResponse {
+  BuildTask task = 1;
+}
+
+message RunTaskRequest {
+  string path = 1;
+  string task = 2;
+  bool dry_run = 3;
+  string reason = 4;
+}
+
+message RunTaskResponse {
+  MutationPlan plan = 1;
+  TaskResult result = 2;
+}
+
+message CreateArtifactRequest {
+  string path = 1;
+  string task = 2;
+  string output_dir = 3;
+  string reason = 4;
+}
+
+message CreateArtifactResponse {
+  MutationPlan plan = 1;
+  repeated Artifact artifacts = 2;
+}
+
+message DiscoverTestsRequest {
+  string path = 1;
+}
+
+message DiscoverTestsResponse {
+  repeated TestTarget tests = 1;
+}
+
+message RunTestsRequest {
+  string path = 1;
+  repeated string targets = 2;
+  bool dry_run = 3;
+}
+
+message RunTestsResponse {
+  TaskResult result = 1;
+  repeated TestResult tests = 2;
+}
+
+message ExplainFailureRequest {
+  string path = 1;
+  string test_id = 2;
+  string logs = 3;
+}
+
+message ExplainFailureResponse {
+  string summary = 1;
+  repeated string evidence = 2;
+  repeated string suggested_next_steps = 3;
+}
+
+message BuildImageRequest {
+  string path = 1;
+  string dockerfile = 2;
+  string tag = 3;
+  bool dry_run = 4;
+  string reason = 5;
+}
+
+message BuildImageResponse {
+  MutationPlan plan = 1;
+  Artifact image = 2;
+}
+
+message ListImagesRequest {
+  string filter = 1;
+  int32 limit = 2;
+}
+
+message ListImagesResponse {
+  repeated ContainerImage images = 1;
+}
+
+message PlanRunRequest {
+  string image = 1;
+  repeated string args = 2;
+  repeated string env = 3;
+}
+
+message PlanRunResponse {
+  MutationPlan plan = 1;
+}
+
+message PlanRequest {
+  string path = 1;
+  string environment = 2;
+  string target = 3;
+}
+
+message PlanResponse {
+  MutationPlan plan = 1;
+  repeated string changes = 2;
+}
+
+message ApplyRequest {
+  string plan_id = 1;
+  string approval_id = 2;
+}
+
+message ApplyResponse {
+  TaskResult result = 1;
+}
+
+message EvaluateChangeRequest {
+  string path = 1;
+  string action = 2;
+  repeated string files = 3;
+}
+
+message EvaluateChangeResponse {
+  bool allowed = 1;
+  repeated string violations = 2;
+  repeated string required_approvals = 3;
+}
+
+message FileChange {
+  string path = 1;
+  string status = 2;
+  bool staged = 3;
+}
+
+message Project {
+  string kind = 1;
+  string root = 2;
+  repeated string build_files = 3;
+  repeated BuildTask tasks = 4;
+}
+
+message BuildTask {
+  string name = 1;
+  string command = 2;
+  repeated string inputs = 3;
+  repeated string outputs = 4;
+  bool mutates_workspace = 5;
+}
+
+message TaskResult {
+  string status = 1;
+  int32 exit_code = 2;
+  string summary = 3;
+  repeated string logs = 4;
+}
+
+message TestTarget {
+  string id = 1;
+  string kind = 2;
+  string path = 3;
+  string command = 4;
+}
+
+message TestResult {
+  string id = 1;
+  string status = 2;
+  string summary = 3;
+}
+
+message Artifact {
+  string name = 1;
+  string kind = 2;
+  string uri = 3;
+  string digest = 4;
+}
+
+message ContainerImage {
+  string id = 1;
+  string repository = 2;
+  string tag = 3;
+  string digest = 4;
+}
+
+message MutationPlan {
+  string id = 1;
+  string action = 2;
+  string target = 3;
+  string reason = 4;
+  bool approval_required = 5;
+  repeated string risks = 6;
+}

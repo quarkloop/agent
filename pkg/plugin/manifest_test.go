@@ -363,3 +363,48 @@ func TestQuarkSystemProfileDeclaresConcreteServiceFunctions(t *testing.T) {
 		}
 	}
 }
+
+func TestQuarkDevOpsProfileDeclaresConcreteServiceFunctions(t *testing.T) {
+	profile, err := ParseAgentProfile(filepath.Join("..", "..", "plugins", "agents", "quark-devops", "PROFILE.yaml"))
+	if err != nil {
+		t.Fatalf("parse quark devops profile: %v", err)
+	}
+	for _, tool := range profile.Permissions.Tools {
+		if tool == "bash" {
+			t.Fatal("quark devops profile should prefer typed services instead of bash fallback")
+		}
+	}
+	permissions := make(map[string]bool, len(profile.Permissions.Services))
+	for _, name := range profile.Permissions.Services {
+		permissions[name] = true
+	}
+	for _, want := range []string{
+		"repo_Status",
+		"repo_Diff",
+		"repo_GetBranch",
+		"repo_ListChangedFiles",
+		"repo_ApplyPatch",
+		"repo_Commit",
+		"repo_GenerateReleaseNotes",
+		"build_DetectProject",
+		"build_ResolveTask",
+		"build_RunTask",
+		"build_CreateArtifact",
+		"test_DiscoverTests",
+		"test_RunTests",
+		"test_ExplainFailure",
+		"container_BuildImage",
+		"container_ListImages",
+		"container_PlanRun",
+		"deploy_Plan",
+		"deploy_Apply",
+		"policy_EvaluateChange",
+		"build_release_DryRun",
+		"build_release_Init",
+		"build_release_Release",
+	} {
+		if !permissions[want] {
+			t.Fatalf("quark devops profile missing service function permission %q", want)
+		}
+	}
+}

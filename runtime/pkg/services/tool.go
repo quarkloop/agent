@@ -12,6 +12,7 @@ import (
 	"github.com/quarkloop/pkg/plugin"
 	buildreleasev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/buildrelease/v1"
 	citationv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/citation/v1"
+	devopsv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/devops/v1"
 	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
 	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
@@ -35,6 +36,7 @@ var _ = []any{
 	indexerv1.File_quark_indexer_v1_indexer_proto,
 	embeddingv1.File_quark_embedding_v1_embedding_proto,
 	buildreleasev1.File_quark_buildrelease_v1_build_release_proto,
+	devopsv1.File_quark_devops_v1_devops_proto,
 	documentv1.File_quark_document_v1_document_proto,
 	ingestionv1.File_quark_ingestion_v1_ingestion_proto,
 	citationv1.File_quark_citation_v1_citation_proto,
