@@ -51,11 +51,13 @@ func Key(usage modelservice.Usage, at time.Time) string {
 	if at.IsZero() {
 		at = time.Now().UTC()
 	}
-	return sanitize(sessionID) + "/" +
-		sanitize(runID) + "/" +
-		at.UTC().Format("20060102T150405.000000000Z") + "/" +
-		sanitize(provider) + "/" +
-		sanitize(model)
+	return strings.Join([]string{
+		sanitize(sessionID),
+		sanitize(runID),
+		at.UTC().Format("20060102T150405.000000000Z"),
+		sanitize(provider),
+		sanitize(model),
+	}, "__")
 }
 
 func sanitize(value string) string {

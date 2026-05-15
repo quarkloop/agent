@@ -28,7 +28,10 @@ func TestPersistWritesRedactedUsageToSpaceStorage(t *testing.T) {
 	if store.space != "space-1" || store.namespace != Namespace {
 		t.Fatalf("store target = %s/%s", store.space, store.namespace)
 	}
-	if !strings.Contains(store.key, "session_1/runless/20260515T101112.000000013Z/openrouter/openai_gpt-test") {
+	if strings.Contains(store.key, "/") {
+		t.Fatalf("usage key must be a single supervisor KB path segment, got: %s", store.key)
+	}
+	if !strings.Contains(store.key, "session_1__runless__20260515T101112.000000013Z__openrouter__openai_gpt-test") {
 		t.Fatalf("unexpected key: %s", store.key)
 	}
 	var got modelservice.Usage
