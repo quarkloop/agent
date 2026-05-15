@@ -1,0 +1,194 @@
+name: core
+version: "1.0.0"
+type: service
+mode: api
+description: "Operational backbone for health, audit, artifacts, approvals, config, secrets, events, policy, scheduler, and evaluation"
+author: quarkloop
+license: Apache-2.0
+
+service:
+  address_env: QUARK_CORE_ADDR
+  health:
+    protocol: grpc_health_v1
+    service: quark.core.v1.CoreService
+    timeout: 5s
+  readiness:
+    required: true
+    min_version: "1.0.0"
+  skill: SKILL.md
+  readme: README.md
+  proto_services:
+    - quark.core.v1.CoreService
+  functions:
+    - name: core_CheckHealth
+      service: quark.core.v1.CoreService
+      method: CheckHealth
+      request: quark.core.v1.CheckHealthRequest
+      response: quark.core.v1.CheckHealthResponse
+      description: "Return Core service health diagnostics."
+      risk_level: read
+      idempotent: true
+    - name: core_CheckReadiness
+      service: quark.core.v1.CoreService
+      method: CheckReadiness
+      request: quark.core.v1.CheckReadinessRequest
+      response: quark.core.v1.CheckReadinessResponse
+      description: "Return Core readiness diagnostics."
+      risk_level: read
+      idempotent: true
+    - name: core_RecordAuditEvent
+      service: quark.core.v1.CoreService
+      method: RecordAuditEvent
+      request: quark.core.v1.RecordAuditEventRequest
+      response: quark.core.v1.RecordAuditEventResponse
+      description: "Record a redacted audit event for a run or action."
+      risk_level: write
+      idempotent: false
+    - name: core_ListAuditEvents
+      service: quark.core.v1.CoreService
+      method: ListAuditEvents
+      request: quark.core.v1.ListAuditEventsRequest
+      response: quark.core.v1.ListAuditEventsResponse
+      description: "List redacted audit events for a run."
+      risk_level: read
+      idempotent: true
+    - name: core_PutArtifact
+      service: quark.core.v1.CoreService
+      method: PutArtifact
+      request: quark.core.v1.PutArtifactRequest
+      response: quark.core.v1.PutArtifactResponse
+      description: "Persist a redacted artifact reference and metadata."
+      risk_level: write
+      idempotent: false
+    - name: core_GetArtifact
+      service: quark.core.v1.CoreService
+      method: GetArtifact
+      request: quark.core.v1.GetArtifactRequest
+      response: quark.core.v1.GetArtifactResponse
+      description: "Return a redacted artifact reference by ID."
+      risk_level: read
+      idempotent: true
+    - name: core_RequestApproval
+      service: quark.core.v1.CoreService
+      method: RequestApproval
+      request: quark.core.v1.RequestApprovalRequest
+      response: quark.core.v1.RequestApprovalResponse
+      description: "Create an approval request for a risky action."
+      risk_level: write
+      idempotent: false
+    - name: core_RecordApprovalDecision
+      service: quark.core.v1.CoreService
+      method: RecordApprovalDecision
+      request: quark.core.v1.RecordApprovalDecisionRequest
+      response: quark.core.v1.RecordApprovalDecisionResponse
+      description: "Record an approval or denial decision."
+      risk_level: write
+      idempotent: false
+    - name: core_GetConfig
+      service: quark.core.v1.CoreService
+      method: GetConfig
+      request: quark.core.v1.GetConfigRequest
+      response: quark.core.v1.GetConfigResponse
+      description: "Read a scoped configuration value."
+      risk_level: read
+      idempotent: true
+    - name: core_SetConfig
+      service: quark.core.v1.CoreService
+      method: SetConfig
+      request: quark.core.v1.SetConfigRequest
+      response: quark.core.v1.SetConfigResponse
+      description: "Write a scoped configuration value with audit reason."
+      risk_level: write
+      approval_required: true
+      approval_requirements:
+        - config.write
+      idempotent: false
+    - name: core_GetSecretRef
+      service: quark.core.v1.CoreService
+      method: GetSecretRef
+      request: quark.core.v1.GetSecretRefRequest
+      response: quark.core.v1.GetSecretRefResponse
+      description: "Return a secret reference without revealing secret value."
+      risk_level: read
+      idempotent: true
+    - name: core_PublishEvent
+      service: quark.core.v1.CoreService
+      method: PublishEvent
+      request: quark.core.v1.PublishEventRequest
+      response: quark.core.v1.PublishEventResponse
+      description: "Publish a redacted ordered event."
+      risk_level: write
+      idempotent: false
+    - name: core_ListEvents
+      service: quark.core.v1.CoreService
+      method: ListEvents
+      request: quark.core.v1.ListEventsRequest
+      response: quark.core.v1.ListEventsResponse
+      description: "List ordered redacted events from a stream."
+      risk_level: read
+      idempotent: true
+    - name: core_EvaluatePolicy
+      service: quark.core.v1.CoreService
+      method: EvaluatePolicy
+      request: quark.core.v1.EvaluatePolicyRequest
+      response: quark.core.v1.EvaluatePolicyResponse
+      description: "Evaluate policy for an action and return denial reasons or required approvals."
+      risk_level: read
+      idempotent: true
+    - name: core_CreateWorkspaceMutationPlan
+      service: quark.core.v1.CoreService
+      method: CreateWorkspaceMutationPlan
+      request: quark.core.v1.CreateWorkspaceMutationPlanRequest
+      response: quark.core.v1.CreateWorkspaceMutationPlanResponse
+      description: "Create an approval-gated workspace mutation plan."
+      risk_level: write
+      approval_required: true
+      approval_requirements:
+        - workspace.write
+      idempotent: false
+    - name: core_ApproveWorkspaceMutationPlan
+      service: quark.core.v1.CoreService
+      method: ApproveWorkspaceMutationPlan
+      request: quark.core.v1.ApproveWorkspaceMutationPlanRequest
+      response: quark.core.v1.ApproveWorkspaceMutationPlanResponse
+      description: "Bind an approval decision to a workspace mutation plan."
+      risk_level: write
+      approval_required: true
+      approval_requirements:
+        - workspace.write
+      idempotent: false
+    - name: core_ScheduleRun
+      service: quark.core.v1.CoreService
+      method: ScheduleRun
+      request: quark.core.v1.ScheduleRunRequest
+      response: quark.core.v1.ScheduleRunResponse
+      description: "Create or update a scheduled run definition."
+      risk_level: write
+      approval_required: true
+      approval_requirements:
+        - scheduler.write
+      idempotent: false
+    - name: core_ListSchedules
+      service: quark.core.v1.CoreService
+      method: ListSchedules
+      request: quark.core.v1.ListSchedulesRequest
+      response: quark.core.v1.ListSchedulesResponse
+      description: "List scheduled runs for a scope."
+      risk_level: read
+      idempotent: true
+    - name: core_RecordEvaluation
+      service: quark.core.v1.CoreService
+      method: RecordEvaluation
+      request: quark.core.v1.RecordEvaluationRequest
+      response: quark.core.v1.RecordEvaluationResponse
+      description: "Record an evaluation result with evidence."
+      risk_level: write
+      idempotent: false
+    - name: core_GetEvaluation
+      service: quark.core.v1.CoreService
+      method: GetEvaluation
+      request: quark.core.v1.GetEvaluationRequest
+      response: quark.core.v1.GetEvaluationResponse
+      description: "Return an evaluation result by ID."
+      risk_level: read
+      idempotent: true

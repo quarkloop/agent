@@ -1,0 +1,300 @@
+syntax = "proto3";
+
+package quark.core.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/quarkloop/pkg/serviceapi/gen/quark/core/v1;corev1";
+
+service CoreService {
+  rpc CheckHealth(CheckHealthRequest) returns (CheckHealthResponse);
+  rpc CheckReadiness(CheckReadinessRequest) returns (CheckReadinessResponse);
+  rpc RecordAuditEvent(RecordAuditEventRequest) returns (RecordAuditEventResponse);
+  rpc ListAuditEvents(ListAuditEventsRequest) returns (ListAuditEventsResponse);
+  rpc PutArtifact(PutArtifactRequest) returns (PutArtifactResponse);
+  rpc GetArtifact(GetArtifactRequest) returns (GetArtifactResponse);
+  rpc RequestApproval(RequestApprovalRequest) returns (RequestApprovalResponse);
+  rpc RecordApprovalDecision(RecordApprovalDecisionRequest) returns (RecordApprovalDecisionResponse);
+  rpc GetConfig(GetConfigRequest) returns (GetConfigResponse);
+  rpc SetConfig(SetConfigRequest) returns (SetConfigResponse);
+  rpc GetSecretRef(GetSecretRefRequest) returns (GetSecretRefResponse);
+  rpc PublishEvent(PublishEventRequest) returns (PublishEventResponse);
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
+  rpc EvaluatePolicy(EvaluatePolicyRequest) returns (EvaluatePolicyResponse);
+  rpc CreateWorkspaceMutationPlan(CreateWorkspaceMutationPlanRequest) returns (CreateWorkspaceMutationPlanResponse);
+  rpc ApproveWorkspaceMutationPlan(ApproveWorkspaceMutationPlanRequest) returns (ApproveWorkspaceMutationPlanResponse);
+  rpc ScheduleRun(ScheduleRunRequest) returns (ScheduleRunResponse);
+  rpc ListSchedules(ListSchedulesRequest) returns (ListSchedulesResponse);
+  rpc RecordEvaluation(RecordEvaluationRequest) returns (RecordEvaluationResponse);
+  rpc GetEvaluation(GetEvaluationRequest) returns (GetEvaluationResponse);
+}
+
+message CheckHealthRequest {}
+
+message CheckHealthResponse {
+  bool ok = 1;
+  repeated Diagnostic diagnostics = 2;
+}
+
+message CheckReadinessRequest {}
+
+message CheckReadinessResponse {
+  bool ready = 1;
+  repeated Diagnostic diagnostics = 2;
+}
+
+message RecordAuditEventRequest {
+  AuditEvent event = 1;
+}
+
+message RecordAuditEventResponse {
+  AuditEvent event = 1;
+}
+
+message ListAuditEventsRequest {
+  string run_id = 1;
+  int32 limit = 2;
+}
+
+message ListAuditEventsResponse {
+  repeated AuditEvent events = 1;
+}
+
+message PutArtifactRequest {
+  Artifact artifact = 1;
+}
+
+message PutArtifactResponse {
+  Artifact artifact = 1;
+}
+
+message GetArtifactRequest {
+  string id = 1;
+}
+
+message GetArtifactResponse {
+  Artifact artifact = 1;
+}
+
+message RequestApprovalRequest {
+  ApprovalRequest approval = 1;
+}
+
+message RequestApprovalResponse {
+  ApprovalRequest approval = 1;
+}
+
+message RecordApprovalDecisionRequest {
+  string approval_id = 1;
+  ApprovalDecision decision = 2;
+}
+
+message RecordApprovalDecisionResponse {
+  ApprovalRequest approval = 1;
+}
+
+message GetConfigRequest {
+  string scope = 1;
+  string key = 2;
+}
+
+message GetConfigResponse {
+  ConfigValue value = 1;
+}
+
+message SetConfigRequest {
+  ConfigValue value = 1;
+  string reason = 2;
+}
+
+message SetConfigResponse {
+  ConfigValue value = 1;
+}
+
+message GetSecretRefRequest {
+  string scope = 1;
+  string name = 2;
+}
+
+message GetSecretRefResponse {
+  SecretRef secret = 1;
+}
+
+message PublishEventRequest {
+  Event event = 1;
+}
+
+message PublishEventResponse {
+  Event event = 1;
+}
+
+message ListEventsRequest {
+  string stream = 1;
+  uint64 after_sequence = 2;
+  int32 limit = 3;
+}
+
+message ListEventsResponse {
+  repeated Event events = 1;
+}
+
+message EvaluatePolicyRequest {
+  string action = 1;
+  string subject = 2;
+  map<string, string> attributes = 3;
+}
+
+message EvaluatePolicyResponse {
+  PolicyDecision decision = 1;
+}
+
+message CreateWorkspaceMutationPlanRequest {
+  WorkspaceMutationPlan plan = 1;
+}
+
+message CreateWorkspaceMutationPlanResponse {
+  WorkspaceMutationPlan plan = 1;
+}
+
+message ApproveWorkspaceMutationPlanRequest {
+  string plan_id = 1;
+  string approval_id = 2;
+}
+
+message ApproveWorkspaceMutationPlanResponse {
+  WorkspaceMutationPlan plan = 1;
+}
+
+message ScheduleRunRequest {
+  Schedule schedule = 1;
+}
+
+message ScheduleRunResponse {
+  Schedule schedule = 1;
+}
+
+message ListSchedulesRequest {
+  string scope = 1;
+}
+
+message ListSchedulesResponse {
+  repeated Schedule schedules = 1;
+}
+
+message RecordEvaluationRequest {
+  Evaluation evaluation = 1;
+}
+
+message RecordEvaluationResponse {
+  Evaluation evaluation = 1;
+}
+
+message GetEvaluationRequest {
+  string id = 1;
+}
+
+message GetEvaluationResponse {
+  Evaluation evaluation = 1;
+}
+
+message Diagnostic {
+  string severity = 1;
+  string message = 2;
+}
+
+message AuditEvent {
+  string id = 1;
+  string run_id = 2;
+  string actor = 3;
+  string action = 4;
+  string target = 5;
+  bool redacted = 6;
+  repeated string redaction_reasons = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message Artifact {
+  string id = 1;
+  string kind = 2;
+  string uri = 3;
+  string digest = 4;
+  bool redacted = 5;
+  repeated string redaction_reasons = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+message ApprovalRequest {
+  string id = 1;
+  string action = 2;
+  string subject = 3;
+  repeated string risks = 4;
+  string status = 5;
+  google.protobuf.Timestamp created_at = 6;
+  ApprovalDecision decision = 7;
+}
+
+message ApprovalDecision {
+  string actor = 1;
+  bool approved = 2;
+  string reason = 3;
+  google.protobuf.Timestamp decided_at = 4;
+}
+
+message ConfigValue {
+  string scope = 1;
+  string key = 2;
+  string value_json = 3;
+  bool redacted = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+message SecretRef {
+  string scope = 1;
+  string name = 2;
+  string ref = 3;
+  bool value_redacted = 4;
+}
+
+message Event {
+  string id = 1;
+  string stream = 2;
+  uint64 sequence = 3;
+  string kind = 4;
+  string payload_json = 5;
+  bool redacted = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+message PolicyDecision {
+  bool allowed = 1;
+  repeated string violations = 2;
+  repeated string required_approvals = 3;
+}
+
+message WorkspaceMutationPlan {
+  string id = 1;
+  string scope = 2;
+  string action = 3;
+  repeated string paths = 4;
+  repeated string risks = 5;
+  bool approval_required = 6;
+  string approval_id = 7;
+  string status = 8;
+}
+
+message Schedule {
+  string id = 1;
+  string scope = 2;
+  string cron = 3;
+  string action = 4;
+  bool enabled = 5;
+}
+
+message Evaluation {
+  string id = 1;
+  string run_id = 2;
+  string name = 3;
+  string status = 4;
+  repeated string evidence = 5;
+  google.protobuf.Timestamp created_at = 6;
+}

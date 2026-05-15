@@ -408,3 +408,52 @@ func TestQuarkDevOpsProfileDeclaresConcreteServiceFunctions(t *testing.T) {
 		}
 	}
 }
+
+func TestCoreServiceManifestDeclaresGovernanceContracts(t *testing.T) {
+	manifestPath := filepath.Join("..", "..", "plugins", "services", "core", "manifest.yaml")
+	manifest, err := ParseManifest(manifestPath)
+	if err != nil {
+		t.Fatalf("parse core manifest: %v", err)
+	}
+	functions := make(map[string]ServiceFunctionConfig, len(manifest.Service.Functions))
+	for _, function := range manifest.Service.Functions {
+		functions[function.Name] = function
+	}
+	for _, name := range []string{
+		"core_SetConfig",
+		"core_CreateWorkspaceMutationPlan",
+		"core_ApproveWorkspaceMutationPlan",
+		"core_ScheduleRun",
+	} {
+		function, ok := functions[name]
+		if !ok {
+			t.Fatalf("core service missing function %q", name)
+		}
+		if !function.ApprovalRequired {
+			t.Fatalf("core function %q must require approval", name)
+		}
+	}
+	for _, name := range []string{"core_GetSecretRef", "core_EvaluatePolicy", "core_PutArtifact", "core_ListEvents"} {
+		if _, ok := functions[name]; !ok {
+			t.Fatalf("core service missing function %q", name)
+		}
+	}
+
+	protoData, err := os.ReadFile(filepath.Join("..", "..", "proto", "quark", "core", "v1", "core.proto"))
+	if err != nil {
+		t.Fatalf("read core proto: %v", err)
+	}
+	protoText := string(protoData)
+	for _, want := range []string{
+		"bool redacted",
+		"repeated string redaction_reasons",
+		"uint64 sequence",
+		"bool allowed",
+		"repeated string violations",
+		"repeated string required_approvals",
+	} {
+		if !strings.Contains(protoText, want) {
+			t.Fatalf("core proto missing governance field %q", want)
+		}
+	}
+}
