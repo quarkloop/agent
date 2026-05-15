@@ -158,3 +158,249 @@ func TestInferStreamsTraceableToolEvents(t *testing.T) {
 		t.Fatalf("tool result event not traceable: %+v", events[1])
 	}
 }
+
+func TestInferNormalizesToolCallsBeforeExecutionAndHistory(t *testing.T) {
+	providerCalls := 0
+	var historyErr error
+	provider := fakeProvider{
+		stream: func(_ context.Context, req *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+			providerCalls++
+			switch providerCalls {
+			case 1:
+				return streamEvents(
+					plugin.StreamEvent{
+						ToolCalls: []plugin.ToolCall{
+							{
+								Index: 0,
+								Function: plugin.ToolCallFunction{
+									Name:      " indexer_IndexDocument ",
+									Arguments: `{"chunkId":"chunk-1"}`,
+								},
+							},
+							{
+								Index: 1,
+								ID:    "bad-call",
+								Type:  "function",
+								Function: plugin.ToolCallFunction{
+									Arguments: `{}`,
+								},
+							},
+							{
+								Index: 2,
+								ID:    "bad-args",
+								Type:  "function",
+								Function: plugin.ToolCallFunction{
+									Name:      "indexer_IndexDocument",
+									Arguments: `{"chunkId":`,
+								},
+							},
+						},
+					},
+					plugin.StreamEvent{Done: true},
+				), nil
+			case 2:
+				historyErr = assertSingleValidToolCallHistory(req.Messages)
+				return streamEvents(
+					plugin.StreamEvent{Delta: "indexed"},
+					plugin.StreamEvent{Done: true},
+				), nil
+			default:
+				return nil, fmt.Errorf("unexpected provider call %d", providerCalls)
+			}
+		},
+	}
+	client := NewClientWithLimits(provider, "test-model", 0, InferenceLimits{MaxTurns: 3, MaxFinalGuardRetries: 1})
+
+	var calledNames []string
+	result, err := client.Infer(
+		context.Background(),
+		[]plugin.Message{{Role: "user", Content: "index"}},
+		[]plugin.ToolSchema{{Name: "indexer_IndexDocument"}},
+		func(_ context.Context, name, arguments string) (string, error) {
+			calledNames = append(calledNames, name)
+			if arguments != `{"chunkId":"chunk-1"}` {
+				t.Fatalf("arguments = %q", arguments)
+			}
+			return `{"ok":true}`, nil
+		},
+		nil,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("Infer returned error: %v", err)
+	}
+	if historyErr != nil {
+		t.Fatal(historyErr)
+	}
+	if result != "indexed" {
+		t.Fatalf("result = %q", result)
+	}
+	if len(calledNames) != 1 || calledNames[0] != "indexer_IndexDocument" {
+		t.Fatalf("calledNames = %v", calledNames)
+	}
+}
+
+func TestInferRetriesAfterOnlyMalformedToolCalls(t *testing.T) {
+	providerCalls := 0
+	var retryPromptSeen bool
+	provider := fakeProvider{
+		stream: func(_ context.Context, req *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+			providerCalls++
+			switch providerCalls {
+			case 1:
+				return streamEvents(
+					plugin.StreamEvent{
+						ToolCalls: []plugin.ToolCall{{
+							Index: 0,
+							ID:    "missing-name",
+							Type:  "function",
+							Function: plugin.ToolCallFunction{
+								Arguments: `{}`,
+							},
+						}},
+					},
+					plugin.StreamEvent{Done: true},
+				), nil
+			case 2:
+				if len(req.Messages) == 0 {
+					return nil, errors.New("retry request has no messages")
+				}
+				last := req.Messages[len(req.Messages)-1]
+				retryPromptSeen = last.Role == "system" && strings.Contains(last.Content, "malformed tool calls")
+				return streamEvents(
+					plugin.StreamEvent{Delta: "answered without malformed history"},
+					plugin.StreamEvent{Done: true},
+				), nil
+			default:
+				return nil, fmt.Errorf("unexpected provider call %d", providerCalls)
+			}
+		},
+	}
+	client := NewClientWithLimits(provider, "test-model", 0, InferenceLimits{MaxTurns: 3, MaxFinalGuardRetries: 1})
+
+	result, err := client.Infer(
+		context.Background(),
+		[]plugin.Message{{Role: "user", Content: "start"}},
+		[]plugin.ToolSchema{{Name: "indexer_IndexDocument"}},
+		func(context.Context, string, string) (string, error) {
+			t.Fatal("malformed tool call should not execute")
+			return "", nil
+		},
+		nil,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("Infer returned error: %v", err)
+	}
+	if !retryPromptSeen {
+		t.Fatal("retry prompt for malformed tool call was not sent")
+	}
+	if result != "answered without malformed history" {
+		t.Fatalf("result = %q", result)
+	}
+}
+
+func TestInferRetriesAfterOnlyMalformedToolCallArguments(t *testing.T) {
+	providerCalls := 0
+	var retryPromptSeen bool
+	provider := fakeProvider{
+		stream: func(_ context.Context, req *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+			providerCalls++
+			switch providerCalls {
+			case 1:
+				return streamEvents(
+					plugin.StreamEvent{
+						ToolCalls: []plugin.ToolCall{{
+							Index: 0,
+							ID:    "bad-json",
+							Type:  "function",
+							Function: plugin.ToolCallFunction{
+								Name:      "build_release_DryRun",
+								Arguments: `{"projectRoot":`,
+							},
+						}},
+					},
+					plugin.StreamEvent{Done: true},
+				), nil
+			case 2:
+				if len(req.Messages) == 0 {
+					return nil, errors.New("retry request has no messages")
+				}
+				last := req.Messages[len(req.Messages)-1]
+				retryPromptSeen = last.Role == "system" && strings.Contains(last.Content, "complete valid JSON object")
+				return streamEvents(
+					plugin.StreamEvent{Delta: "retried without executing malformed call"},
+					plugin.StreamEvent{Done: true},
+				), nil
+			default:
+				return nil, fmt.Errorf("unexpected provider call %d", providerCalls)
+			}
+		},
+	}
+	client := NewClientWithLimits(provider, "test-model", 0, InferenceLimits{MaxTurns: 3, MaxFinalGuardRetries: 1})
+
+	result, err := client.Infer(
+		context.Background(),
+		[]plugin.Message{{Role: "user", Content: "dry run"}},
+		[]plugin.ToolSchema{{Name: "build_release_DryRun"}},
+		func(context.Context, string, string) (string, error) {
+			t.Fatal("malformed tool call arguments should not execute")
+			return "", nil
+		},
+		nil,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("Infer returned error: %v", err)
+	}
+	if !retryPromptSeen {
+		t.Fatal("retry prompt for malformed tool arguments was not sent")
+	}
+	if result != "retried without executing malformed call" {
+		t.Fatalf("result = %q", result)
+	}
+}
+
+func assertSingleValidToolCallHistory(messages []plugin.Message) error {
+	if len(messages) != 3 {
+		return fmt.Errorf("messages = %d, want user + assistant + tool", len(messages))
+	}
+	assistant := messages[1]
+	if assistant.Role != "assistant" {
+		return fmt.Errorf("assistant role = %q", assistant.Role)
+	}
+	if len(assistant.ToolCalls) != 1 {
+		return fmt.Errorf("assistant tool calls = %+v, want one valid call", assistant.ToolCalls)
+	}
+	call := assistant.ToolCalls[0]
+	if call.ID == "" {
+		return errors.New("normalized tool call has empty id")
+	}
+	if call.Type != "function" {
+		return fmt.Errorf("normalized tool call type = %q", call.Type)
+	}
+	if call.Index != 0 {
+		return fmt.Errorf("normalized tool call index = %d", call.Index)
+	}
+	if call.Function.Name != "indexer_IndexDocument" {
+		return fmt.Errorf("normalized tool call name = %q", call.Function.Name)
+	}
+
+	toolMessage := messages[2]
+	if toolMessage.Role != "tool" {
+		return fmt.Errorf("tool message role = %q", toolMessage.Role)
+	}
+	if toolMessage.ToolCallID != call.ID {
+		return fmt.Errorf("tool message id = %q, want %q", toolMessage.ToolCallID, call.ID)
+	}
+	return nil
+}
+
+func streamEvents(events ...plugin.StreamEvent) <-chan plugin.StreamEvent {
+	ch := make(chan plugin.StreamEvent, len(events))
+	for _, event := range events {
+		ch <- event
+	}
+	close(ch)
+	return ch
+}

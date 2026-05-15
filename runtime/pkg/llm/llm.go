@@ -9,6 +9,7 @@ package llm
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -117,9 +118,21 @@ func (c *Client) Infer(ctx context.Context, messages []plugin.Message, tools []p
 				fullContent = strings.TrimSpace(cleaned)
 			}
 		}
+		normalizedToolCalls, droppedToolCalls := normalizeToolCalls(toolCalls)
+		if droppedToolCalls > 0 {
+			slog.Warn("dropped malformed tool calls", "count", droppedToolCalls)
+		}
+		toolCalls = normalizedToolCalls
 
 		// No tool calls at all — we're done
 		if len(toolCalls) == 0 {
+			if droppedToolCalls > 0 {
+				messages = append(messages, plugin.Message{
+					Role:    "system",
+					Content: "The previous assistant response contained malformed tool calls. Retry with exactly one valid tool call using a known function name and one complete valid JSON object for arguments, or answer directly if no tool is needed.",
+				})
+				continue
+			}
 			if finalGuard != nil {
 				instruction, retry := finalGuard(fullContent)
 				if retry {
@@ -154,11 +167,8 @@ func (c *Client) Infer(ctx context.Context, messages []plugin.Message, tools []p
 		})
 
 		// Execute each tool and append results
-		for i, tc := range toolCalls {
-			callID := strings.TrimSpace(tc.ID)
-			if callID == "" {
-				callID = fmt.Sprintf("%s-%d", tc.Function.Name, i+1)
-			}
+		for _, tc := range toolCalls {
+			callID := tc.ID
 			if onMessage != nil {
 				onMessage("tool_start", map[string]any{
 					"id":        callID,
@@ -183,7 +193,7 @@ func (c *Client) Infer(ctx context.Context, messages []plugin.Message, tools []p
 			messages = append(messages, plugin.Message{
 				Role:       "tool",
 				Content:    result,
-				ToolCallID: tc.ID,
+				ToolCallID: callID,
 			})
 		}
 
@@ -216,6 +226,44 @@ func mergeToolCalls(existing []plugin.ToolCall, deltas []plugin.ToolCall) []plug
 		tc.Function.Arguments += d.Function.Arguments
 	}
 	return existing
+}
+
+func normalizeToolCalls(calls []plugin.ToolCall) ([]plugin.ToolCall, int) {
+	normalized := make([]plugin.ToolCall, 0, len(calls))
+	dropped := 0
+	for _, call := range calls {
+		name := strings.TrimSpace(call.Function.Name)
+		if name == "" {
+			dropped++
+			continue
+		}
+
+		call.Index = len(normalized)
+		call.Function.Name = name
+		call.ID = strings.TrimSpace(call.ID)
+		if call.ID == "" {
+			call.ID = fmt.Sprintf("call_%d", len(normalized)+1)
+		}
+		call.Type = strings.TrimSpace(call.Type)
+		if call.Type == "" {
+			call.Type = "function"
+		}
+		if strings.TrimSpace(call.Function.Arguments) == "" {
+			call.Function.Arguments = "{}"
+		}
+		call.Function.Arguments = strings.TrimSpace(call.Function.Arguments)
+		if !validToolCallArguments(call.Function.Arguments) {
+			dropped++
+			continue
+		}
+		normalized = append(normalized, call)
+	}
+	return normalized, dropped
+}
+
+func validToolCallArguments(arguments string) bool {
+	var payload map[string]json.RawMessage
+	return json.Unmarshal([]byte(arguments), &payload) == nil
 }
 
 func toolCallNames(calls []plugin.ToolCall) []string {
