@@ -17,6 +17,7 @@ import (
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
 	ingestionv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/ingestion/v1"
 	memoryv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/memory/v1"
+	modelv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/model/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	spacev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/space/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
@@ -37,6 +38,7 @@ var _ = []any{
 	ingestionv1.File_quark_ingestion_v1_ingestion_proto,
 	citationv1.File_quark_citation_v1_citation_proto,
 	memoryv1.File_quark_memory_v1_memory_proto,
+	modelv1.File_quark_model_v1_model_proto,
 	spacev1.File_quark_space_v1_space_proto,
 	emptypb.File_google_protobuf_empty_proto,
 }

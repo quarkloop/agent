@@ -1,0 +1,92 @@
+name: model
+version: "1.0.0"
+type: service
+mode: api
+description: "Model generation, embedding, reranking, model listing, health, and usage accounting"
+author: quarkloop
+license: Apache-2.0
+
+service:
+  address_env: QUARK_MODEL_SERVICE_ADDR
+  health:
+    protocol: grpc_health_v1
+    service: quark.model.v1.ModelService
+    timeout: 5s
+  readiness:
+    required: false
+    min_version: "1.0.0"
+  skill: SKILL.md
+  readme: README.md
+  proto_services:
+    - quark.model.v1.ModelService
+  functions:
+    - name: model_Generate
+      service: quark.model.v1.ModelService
+      method: Generate
+      request: quark.model.v1.GenerateRequest
+      response: quark.model.v1.GenerateResponse
+      description: "Run one non-streaming model generation request and return text, tool calls, and structured usage."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: model_StreamGenerate
+      service: quark.model.v1.ModelService
+      method: StreamGenerate
+      request: quark.model.v1.StreamGenerateRequest
+      response: quark.model.v1.StreamGenerateResponse
+      description: "Run one streaming model generation request and return deltas, tool calls, and final structured usage."
+      risk_level: read
+      approval_required: false
+      streaming: true
+      idempotent: false
+    - name: model_Embed
+      service: quark.model.v1.ModelService
+      method: Embed
+      request: quark.model.v1.EmbedRequest
+      response: quark.model.v1.EmbedResponse
+      description: "Create embeddings through the configured model provider adapter and return vectors with usage."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: model_Rerank
+      service: quark.model.v1.ModelService
+      method: Rerank
+      request: quark.model.v1.RerankRequest
+      response: quark.model.v1.RerankResponse
+      description: "Rerank candidate documents for a query through the configured model provider adapter."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: model_CountTokens
+      service: quark.model.v1.ModelService
+      method: CountTokens
+      request: quark.model.v1.CountTokensRequest
+      response: quark.model.v1.CountTokensResponse
+      description: "Estimate or count tokens for model messages and tool schemas without sending a generation request."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: model_ListModels
+      service: quark.model.v1.ModelService
+      method: ListModels
+      request: quark.model.v1.ListModelsRequest
+      response: quark.model.v1.ListModelsResponse
+      description: "List provider models visible through the model service."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: model_ProviderHealth
+      service: quark.model.v1.ModelService
+      method: ProviderHealth
+      request: quark.model.v1.ProviderHealthRequest
+      response: quark.model.v1.ProviderHealthResponse
+      description: "Check whether a configured model provider adapter is reachable and authorized."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true

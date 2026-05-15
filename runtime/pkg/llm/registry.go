@@ -9,14 +9,14 @@ import (
 	"sync"
 
 	"github.com/quarkloop/pkg/plugin"
+	"github.com/quarkloop/runtime/pkg/modelservice"
 )
 
 // Registry manages available LLM models and their clients.
 type Registry struct {
-	mu       sync.RWMutex
-	models   map[string]*Client // keyed by model ID
-	Default  string             // default model ID
-	provider Provider           // current provider
+	mu      sync.RWMutex
+	models  map[string]*Client // keyed by model ID
+	Default string             // default model ID
 }
 
 // NewRegistry creates a new empty model Registry.
@@ -28,6 +28,12 @@ func NewRegistry() *Registry {
 
 // LoadFromURL fetches a model list from a remote URL and initializes clients.
 func (r *Registry) LoadFromURL(url string, providers map[string]Provider) error {
+	return r.LoadFromURLWithModelService(url, modelservice.New(providers, nil))
+}
+
+// LoadFromURLWithModelService fetches a model list and initializes clients
+// through the model service boundary.
+func (r *Registry) LoadFromURLWithModelService(url string, service *modelservice.Service) error {
 	resp, err := http.Get(url)
 	if err != nil {
 		return fmt.Errorf("fetch model list: %w", err)
@@ -44,22 +50,27 @@ func (r *Registry) LoadFromURL(url string, providers map[string]Provider) error 
 		return fmt.Errorf("parse model list: %w", err)
 	}
 
-	return r.LoadEntries(entries, providers)
+	return r.LoadEntriesWithModelService(entries, service)
 }
 
 // LoadEntries initializes clients from a list of model entries.
 func (r *Registry) LoadEntries(entries []plugin.ModelEntry, providers map[string]Provider) error {
+	return r.LoadEntriesWithModelService(entries, modelservice.New(providers, nil))
+}
+
+// LoadEntriesWithModelService initializes clients from a list of model entries
+// and routes every provider call through the model service boundary.
+func (r *Registry) LoadEntriesWithModelService(entries []plugin.ModelEntry, service *modelservice.Service) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	for _, entry := range entries {
-		p, ok := providers[entry.Provider]
-		if !ok {
+		if service == nil || !service.HasProvider(entry.Provider) {
 			slog.Warn("provider not implemented, skipping model", "provider", entry.Provider, "model", entry.ID)
 			continue
 		}
 
-		r.models[entry.ID] = NewClient(p, entry.ID, entry.ContextWindow)
+		r.models[entry.ID] = NewClient(service.Adapter(entry.Provider), entry.ID, entry.ContextWindow)
 		slog.Info("model registered", "model", entry.ID, "provider", entry.Provider, "context_window", entry.ContextWindow)
 
 		if entry.Default || r.Default == "" {

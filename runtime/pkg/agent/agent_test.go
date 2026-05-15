@@ -2,12 +2,14 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 
 	"github.com/quarkloop/pkg/plugin"
 	"github.com/quarkloop/runtime/pkg/hierarchy"
 	"github.com/quarkloop/runtime/pkg/message"
+	"github.com/quarkloop/runtime/pkg/modelservice"
 	"github.com/quarkloop/runtime/pkg/pluginmanager"
 )
 
@@ -152,6 +154,34 @@ func TestInstrumentResponseRecordsToolActivity(t *testing.T) {
 		}
 	default:
 		t.Fatal("expected downstream tool event")
+	}
+}
+
+func TestRecordModelUsageStoresRedactedSessionActivity(t *testing.T) {
+	a := newTestAgent(t)
+	ctx := modelservice.WithSessionID(context.Background(), "session-1")
+	a.recordModelUsage(ctx, modelservice.Usage{
+		Provider:      "openrouter",
+		Model:         "openai/gpt-test",
+		InputTokens:   11,
+		OutputTokens:  7,
+		FinishReason:  "stop",
+		FallbackChain: []string{"openrouter"},
+	})
+
+	records := a.Activity.List(10)
+	if len(records) != 1 || records[0].Type != "model.usage" || records[0].SessionID != "session-1" {
+		t.Fatalf("activity records = %+v", records)
+	}
+	var usage modelservice.Usage
+	if err := json.Unmarshal(records[0].Data, &usage); err != nil {
+		t.Fatalf("decode usage: %v", err)
+	}
+	if usage.Provider != "openrouter" || usage.Model != "openai/gpt-test" || usage.InputTokens != 11 {
+		t.Fatalf("usage data = %+v", usage)
+	}
+	if strings.Contains(string(records[0].Data), "prompt") || strings.Contains(string(records[0].Data), "arguments") {
+		t.Fatalf("usage data leaked non-accounting payload: %s", records[0].Data)
 	}
 }
 

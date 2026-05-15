@@ -19,6 +19,8 @@ import (
 	"github.com/quarkloop/runtime/pkg/llm"
 	"github.com/quarkloop/runtime/pkg/loop"
 	"github.com/quarkloop/runtime/pkg/message"
+	"github.com/quarkloop/runtime/pkg/modelservice"
+	"github.com/quarkloop/runtime/pkg/modelusage"
 	"github.com/quarkloop/runtime/pkg/permissions"
 	"github.com/quarkloop/runtime/pkg/plan"
 	"github.com/quarkloop/runtime/pkg/pluginmanager"
@@ -290,6 +292,7 @@ func (a *Agent) handleUserMessage(ctx context.Context, msg loop.Message) error {
 	defer close(userMsg.Response)
 
 	requestCtx, cancel := context.WithCancel(ctx)
+	requestCtx = modelservice.WithSessionID(requestCtx, userMsg.SessionID)
 	defer cancel()
 	stopRequestCancel := context.AfterFunc(userMsg.Context, cancel)
 	defer stopRequestCancel()
@@ -401,9 +404,10 @@ func (a *Agent) handleInitLLM(ctx context.Context, msg loop.Message) error {
 	slog.Info("initializing LLM models")
 
 	providers := payload.Providers
+	models := modelservice.New(providers, a.recordModelUsage)
 
 	if payload.ModelListURL != "" {
-		if err := a.Models.LoadFromURL(payload.ModelListURL, providers); err != nil {
+		if err := a.Models.LoadFromURLWithModelService(payload.ModelListURL, models); err != nil {
 			slog.Warn("remote model list failed, using fallback", "error", err)
 		}
 	}
@@ -411,7 +415,7 @@ func (a *Agent) handleInitLLM(ctx context.Context, msg loop.Message) error {
 	// Fallback: load from config if registry is empty
 	if a.Models.GetDefault() == nil && len(payload.Fallback) > 0 {
 		if len(payload.Fallback) > 0 {
-			if err := a.Models.LoadEntries(payload.Fallback, providers); err != nil {
+			if err := a.Models.LoadEntriesWithModelService(payload.Fallback, models); err != nil {
 				slog.Error("fallback model init failed", "error", err)
 			}
 		}
@@ -424,6 +428,34 @@ func (a *Agent) handleInitLLM(ctx context.Context, msg loop.Message) error {
 	}
 
 	return nil
+}
+
+func (a *Agent) recordModelUsage(ctx context.Context, usage modelservice.Usage) {
+	sessionID := usage.SessionID
+	if sessionID == "" {
+		sessionID = modelservice.SessionID(ctx)
+		usage.SessionID = sessionID
+	}
+	if a.Activity == nil {
+		a.persistModelUsage(usage)
+		return
+	}
+	a.Activity.Add(sessionID, "model.usage", usage)
+	a.persistModelUsage(usage)
+}
+
+func (a *Agent) persistModelUsage(usage modelservice.Usage) {
+	if a.supervisorClient == nil || a.Space == "" {
+		return
+	}
+	usage.FallbackChain = append([]string(nil), usage.FallbackChain...)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		if err := modelusage.Persist(ctx, a.supervisorClient, a.Space, usage, time.Now().UTC()); err != nil {
+			slog.Warn("persist model usage failed", "error", err)
+		}
+	}()
 }
 
 // handleInitChannel processes channel state changes.

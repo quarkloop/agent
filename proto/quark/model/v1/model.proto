@@ -1,0 +1,160 @@
+syntax = "proto3";
+
+package quark.model.v1;
+
+option go_package = "github.com/quarkloop/pkg/serviceapi/gen/quark/model/v1;modelv1";
+
+// ModelService is the single agent-facing model boundary. Provider plugins are
+// adapters behind this service; runtime receives response text/tool deltas and
+// structured usage from this boundary.
+service ModelService {
+  rpc Generate(GenerateRequest) returns (GenerateResponse);
+  rpc StreamGenerate(StreamGenerateRequest) returns (stream StreamGenerateResponse);
+  rpc Embed(EmbedRequest) returns (EmbedResponse);
+  rpc Rerank(RerankRequest) returns (RerankResponse);
+  rpc CountTokens(CountTokensRequest) returns (CountTokensResponse);
+  rpc ListModels(ListModelsRequest) returns (ListModelsResponse);
+  rpc ProviderHealth(ProviderHealthRequest) returns (ProviderHealthResponse);
+}
+
+message GenerateRequest {
+  string provider = 1;
+  string model = 2;
+  repeated ModelMessage messages = 3;
+  repeated ToolSchema tools = 4;
+  map<string, string> options = 5;
+}
+
+message GenerateResponse {
+  string text = 1;
+  repeated ToolCall tool_calls = 2;
+  ModelUsage usage = 3;
+}
+
+message StreamGenerateRequest {
+  string provider = 1;
+  string model = 2;
+  repeated ModelMessage messages = 3;
+  repeated ToolSchema tools = 4;
+  map<string, string> options = 5;
+}
+
+message StreamGenerateResponse {
+  string delta = 1;
+  repeated ToolCall tool_calls = 2;
+  bool done = 3;
+  ModelUsage usage = 4;
+}
+
+message EmbedRequest {
+  string provider = 1;
+  string model = 2;
+  repeated string input = 3;
+  int32 dimensions = 4;
+  map<string, string> options = 5;
+}
+
+message EmbedResponse {
+  repeated Embedding embeddings = 1;
+  ModelUsage usage = 2;
+}
+
+message RerankRequest {
+  string provider = 1;
+  string model = 2;
+  string query = 3;
+  repeated string documents = 4;
+  map<string, string> options = 5;
+}
+
+message RerankResponse {
+  repeated RerankResult results = 1;
+  ModelUsage usage = 2;
+}
+
+message CountTokensRequest {
+  string provider = 1;
+  string model = 2;
+  repeated ModelMessage messages = 3;
+  repeated ToolSchema tools = 4;
+}
+
+message CountTokensResponse {
+  int64 tokens = 1;
+  ModelUsage usage = 2;
+}
+
+message ListModelsRequest {
+  string provider = 1;
+}
+
+message ListModelsResponse {
+  repeated ModelInfo models = 1;
+}
+
+message ProviderHealthRequest {
+  string provider = 1;
+}
+
+message ProviderHealthResponse {
+  string provider = 1;
+  bool healthy = 2;
+  string status = 3;
+}
+
+message ModelMessage {
+  string role = 1;
+  string content = 2;
+  repeated ToolCall tool_calls = 3;
+  string tool_call_id = 4;
+}
+
+message ToolSchema {
+  string name = 1;
+  string description = 2;
+  string parameters_json = 3;
+}
+
+message ToolCall {
+  int32 index = 1;
+  string id = 2;
+  string type = 3;
+  string name = 4;
+  string arguments_json = 5;
+}
+
+message Embedding {
+  repeated float vector = 1;
+  string provider = 2;
+  string model = 3;
+  int32 dimensions = 4;
+  string content_hash = 5;
+}
+
+message RerankResult {
+  int32 index = 1;
+  float score = 2;
+}
+
+message ModelInfo {
+  string id = 1;
+  string provider = 2;
+  string name = 3;
+  int32 context_window = 4;
+  bool default_model = 5;
+}
+
+message ModelUsage {
+  string provider = 1;
+  string model = 2;
+  int64 input_tokens = 3;
+  int64 output_tokens = 4;
+  int64 reasoning_tokens = 5;
+  int64 cached_tokens = 6;
+  int64 embedding_tokens = 7;
+  int64 latency_millis = 8;
+  double cost_estimate = 9;
+  repeated string fallback_chain = 10;
+  string request_id = 11;
+  string finish_reason = 12;
+}
