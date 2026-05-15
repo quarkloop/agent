@@ -30,6 +30,15 @@ type E2EEnv struct {
 	Model     string
 	Embedding EmbeddingOptions
 	Services  []ServicePlugin
+
+	ServiceAddresses map[string]string
+}
+
+func (e *E2EEnv) ServiceAddress(name string) string {
+	if e == nil || e.ServiceAddresses == nil {
+		return ""
+	}
+	return e.ServiceAddresses[name]
 }
 
 // RuntimeSetup is the read-only setup state exposed to a StartOptions hook
@@ -49,7 +58,7 @@ type RuntimeSetup struct {
 //
 // Pre-built artifacts come from BuildAllOnce (tool binaries) and the
 // repo-shipped provider .so (produced by `make build-providers`).
-func installSpacePlugins(t *testing.T, env *E2EEnv, bins BuiltBinaries) {
+func installSpacePlugins(t *testing.T, env *E2EEnv, bins BuiltBinaries, includeKnowledgeServices bool) {
 	t.Helper()
 	pluginsDir := filepath.Join(env.SpacesDir, env.Space, "plugins")
 	srcRoot := filepath.Join(QuarkRoot(t), "plugins")
@@ -83,12 +92,14 @@ func installSpacePlugins(t *testing.T, env *E2EEnv, bins BuiltBinaries) {
 		copyFile(t, filepath.Join(src, "SKILL.md"), filepath.Join(dst, "SKILL.md"), 0o644)
 		copyFile(t, filepath.Join(src, "README.md"), filepath.Join(dst, "README.md"), 0o644)
 	}
-	installService("indexer")
-	embeddingPlugin := env.Embedding.Plugin
-	if embeddingPlugin == "" {
-		embeddingPlugin = "embedding"
+	if includeKnowledgeServices {
+		installService("indexer")
+		embeddingPlugin := env.Embedding.Plugin
+		if embeddingPlugin == "" {
+			embeddingPlugin = "embedding"
+		}
+		installService(embeddingPlugin)
 	}
-	installService(embeddingPlugin)
 	for _, service := range env.Services {
 		installService(service.withDefaults().Plugin)
 	}
@@ -369,9 +380,11 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 		Model:     model,
 		Embedding: embedding,
 		Services:  append([]ServicePlugin(nil), opt.Services...),
+
+		ServiceAddresses: serviceAddressesFromOptions(embedding, opt.Services, supervisorEnv),
 	}
 
-	installSpacePlugins(t, env, bins)
+	installSpacePlugins(t, env, bins, !opt.DisableKnowledgeServices)
 	if opt.BeforeRuntime != nil {
 		opt.BeforeRuntime(t, RuntimeSetup{
 			Root:       env.Root,
@@ -399,4 +412,23 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 	proc.WaitForLog(t, "supervisor event stream ready", 10*time.Second)
 	Logf(t, "supervisor at %s, agent at %s (space=%s)", supURL, env.AgentURL, spaceName)
 	return env
+}
+
+func serviceAddressesFromOptions(embedding EmbeddingOptions, services []ServicePlugin, supervisorEnv map[string]string) map[string]string {
+	addresses := make(map[string]string)
+	if addr := supervisorEnv["QUARK_INDEXER_ADDR"]; addr != "" {
+		addresses["indexer"] = addr
+	}
+	if addr := supervisorEnv["QUARK_EMBEDDING_ADDR"]; addr != "" {
+		addresses["embedding"] = addr
+		addresses[embedding.withDefaults().Plugin] = addr
+	}
+	for _, service := range services {
+		service = service.withDefaults()
+		if addr := supervisorEnv[service.AddressEnv]; addr != "" {
+			addresses[service.Name] = addr
+			addresses[service.Plugin] = addr
+		}
+	}
+	return addresses
 }

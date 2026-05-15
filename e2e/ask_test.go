@@ -16,7 +16,9 @@ import (
 // a chat session (agent mirrors it via SSE), then the test POSTs a user
 // message to the agent's SSE endpoint and asserts a non-empty streamed reply.
 func TestAskMode(t *testing.T) {
-	env := utils.StartE2E(t, true)
+	env := utils.StartE2E(t, true, utils.StartOptions{
+		DisableKnowledgeServices: true,
+	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()

@@ -59,6 +59,9 @@ func TestAgentRunArtifactsAreRedactedAndStructured(t *testing.T) {
 		PromptSHA256    string           `json:"prompt_sha256"`
 		Model           map[string]any   `json:"model"`
 		Embedding       map[string]any   `json:"embedding"`
+		CatalogSnapshot map[string]any   `json:"catalog_snapshot"`
+		ProfileSnapshot map[string]any   `json:"profile_snapshot"`
+		ModelUsage      map[string]any   `json:"model_usage"`
 		ToolTimeline    []map[string]any `json:"tool_timeline"`
 		ServiceTimeline []map[string]any `json:"service_timeline"`
 		Artifacts       map[string]any   `json:"artifacts"`
@@ -75,6 +78,12 @@ func TestAgentRunArtifactsAreRedactedAndStructured(t *testing.T) {
 	}
 	if payload.Model["provider"] != "openrouter" || payload.Embedding["provider"] != "local" {
 		t.Fatalf("unexpected model/embedding snapshot: %+v %+v", payload.Model, payload.Embedding)
+	}
+	if payload.CatalogSnapshot["catalog_ref"] == "" || payload.ProfileSnapshot["model"] != "test/model" {
+		t.Fatalf("catalog/profile snapshots missing: %+v %+v", payload.CatalogSnapshot, payload.ProfileSnapshot)
+	}
+	if payload.ModelUsage["provider"] != "openrouter" || payload.ModelUsage["reported_by_model"] != false {
+		t.Fatalf("unexpected model usage snapshot: %+v", payload.ModelUsage)
 	}
 	if len(payload.ToolTimeline) != 2 {
 		t.Fatalf("tool timeline length = %d, want 2: %+v", len(payload.ToolTimeline), payload.ToolTimeline)

@@ -53,6 +53,9 @@ func writeAgentRunArtifacts(t *testing.T, dir, prefix string, env *utils.E2EEnv,
 			"model":      env.Embedding.Model,
 			"dimensions": env.Embedding.Dimensions,
 		},
+		"catalog_snapshot": catalogSnapshot(env, trace),
+		"profile_snapshot": profileSnapshot(env),
+		"model_usage":      modelUsageSnapshot(env, trace),
 		"services":         serviceSnapshot(env),
 		"tool_timeline":    toolTimeline(trace),
 		"service_timeline": serviceTimeline(trace),
@@ -126,6 +129,48 @@ func serviceSnapshot(env *utils.E2EEnv) []map[string]any {
 		})
 	}
 	return services
+}
+
+func catalogSnapshot(env *utils.E2EEnv, trace utils.MessageTrace) map[string]any {
+	return map[string]any{
+		"space":       env.Space,
+		"services":    serviceSnapshot(env),
+		"tool_names":  uniqueStrings(trace.ToolStarts),
+		"agent_url":   env.AgentURL,
+		"supervisor":  env.SupURL,
+		"catalog_ref": "supervisor-resolved-runtime-catalog",
+	}
+}
+
+func profileSnapshot(env *utils.E2EEnv) map[string]any {
+	return map[string]any{
+		"provider":         env.Provider,
+		"model":            env.Model,
+		"embedding_plugin": env.Embedding.Plugin,
+		"embedding_model":  env.Embedding.Model,
+	}
+}
+
+func modelUsageSnapshot(env *utils.E2EEnv, trace utils.MessageTrace) map[string]any {
+	return map[string]any{
+		"provider":          env.Provider,
+		"model":             env.Model,
+		"tool_calls":        len(trace.ToolStartEvents),
+		"reported_by_model": false,
+	}
+}
+
+func uniqueStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	unique := make([]string, 0, len(values))
+	for _, value := range values {
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		unique = append(unique, value)
+	}
+	return unique
 }
 
 func toolTimeline(trace utils.MessageTrace) []map[string]any {

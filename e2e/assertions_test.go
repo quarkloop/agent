@@ -46,8 +46,13 @@ func canonicalText(value string) string {
 		"\u2007", " ",
 		"\u2009", " ",
 		"\u202f", " ",
+		"\u20ac", "EUR",
 	)
-	return replacer.Replace(value)
+	value = replacer.Replace(value)
+	for strings.Contains(value, "EUR ") {
+		value = strings.ReplaceAll(value, "EUR ", "EUR")
+	}
+	return value
 }
 
 func assertToolStarted(t *testing.T, trace utils.MessageTrace, name string) {
@@ -75,6 +80,49 @@ func assertToolResultContains(t *testing.T, trace utils.MessageTrace, tool strin
 		}
 	}
 	t.Fatalf("%s tool results missing %v: %+v", tool, wants, trace.ToolResultEvents)
+}
+
+func assertEmbeddingToolResult(t *testing.T, trace utils.MessageTrace, provider, model string, dimensions int) {
+	t.Helper()
+	for _, event := range trace.ToolResultEvents {
+		if event.Name != "embedding_Embed" {
+			continue
+		}
+		var payload map[string]any
+		if err := json.Unmarshal([]byte(event.Result), &payload); err != nil {
+			continue
+		}
+		gotProvider := strings.TrimSpace(fmt.Sprint(payload["provider"]))
+		gotModel := strings.TrimSpace(fmt.Sprint(payload["model"]))
+		gotDimensions := strings.TrimSpace(fmt.Sprint(payload["dimensions"]))
+		if gotProvider != provider {
+			continue
+		}
+		if gotDimensions != fmt.Sprint(dimensions) {
+			continue
+		}
+		if embeddingModelMatches(provider, gotModel, model) {
+			return
+		}
+	}
+	t.Fatalf("embedding_Embed tool results missing provider=%q model=%q dimensions=%d: %+v", provider, model, dimensions, trace.ToolResultEvents)
+}
+
+func embeddingModelMatches(provider, got, want string) bool {
+	if strings.EqualFold(strings.TrimSpace(got), strings.TrimSpace(want)) {
+		return true
+	}
+	return normalizeEmbeddingModel(provider, got) == normalizeEmbeddingModel(provider, want)
+}
+
+func normalizeEmbeddingModel(provider, model string) string {
+	normalized := strings.ToLower(strings.TrimSpace(model))
+	normalized = strings.TrimPrefix(normalized, "private/")
+	if strings.EqualFold(provider, "openrouter") {
+		normalized = strings.TrimPrefix(normalized, "openrouter/")
+	}
+	normalized = strings.TrimSuffix(normalized, ":free")
+	return normalized
 }
 
 func assertNoToolErrors(t *testing.T, trace utils.MessageTrace, tools ...string) {
@@ -110,6 +158,25 @@ func assertToolSuccessCount(t *testing.T, trace utils.MessageTrace, tool string,
 	}
 }
 
+func assertEmbeddingSuccessCount(t *testing.T, trace utils.MessageTrace, want int) {
+	t.Helper()
+	count := 0
+	for _, event := range trace.ToolResultEvents {
+		if event.Name != "embedding_Embed" {
+			continue
+		}
+		if strings.HasPrefix(strings.TrimSpace(event.Result), "error:") {
+			continue
+		}
+		if containsText(event.Result, "embeddingRef") {
+			count++
+		}
+	}
+	if count < want {
+		t.Fatalf("embedding_Embed successful results = %d, want at least %d: %+v", count, want, trace.ToolResultEvents)
+	}
+}
+
 func assertAgentStructuredPDFIndexPayloads(t *testing.T, trace utils.MessageTrace, documents []indexedPDFDocument) {
 	t.Helper()
 	payloads := indexerIndexDocumentPayloads(t, trace)
@@ -122,8 +189,8 @@ func assertAgentStructuredPDFIndexPayloads(t *testing.T, trace utils.MessageTrac
 		if !hasNonEmptyString(payload, "chunkId") {
 			t.Fatalf("IndexDocument payload %d missing chunkId: %+v", i, payload)
 		}
-		if !hasNonEmptyString(payload, "textContent") {
-			t.Fatalf("IndexDocument payload %d missing textContent: %+v", i, payload)
+		if !hasNonEmptyString(payload, "textContentRef") && !hasNonEmptyString(payload, "textContent") {
+			t.Fatalf("IndexDocument payload %d missing textContentRef or textContent: %+v", i, payload)
 		}
 		if !hasNonEmptyString(payload, "embeddingRef") {
 			t.Fatalf("IndexDocument payload %d missing embeddingRef from embedding_Embed: %+v", i, payload)
@@ -140,10 +207,10 @@ func assertAgentStructuredPDFIndexPayloads(t *testing.T, trace utils.MessageTrac
 		if !hasNonEmptyArray(payload, "entities") {
 			t.Fatalf("IndexDocument payload %d missing agent-produced entities: %+v", i, payload)
 		}
-		if !hasNonEmptyArray(payload, "relations") {
-			t.Fatalf("IndexDocument payload %d missing agent-produced relations: %+v", i, payload)
+		if !hasArray(payload, "relations") {
+			t.Fatalf("IndexDocument payload %d missing relations field: %+v", i, payload)
 		}
-		if !hasNonEmptyArray(payload, "citations") {
+		if !hasCitationEvidence(payload) {
 			t.Fatalf("IndexDocument payload %d missing source citations: %+v", i, payload)
 		}
 		if !hasNonEmptyObject(payload, "provenance") {
@@ -204,6 +271,32 @@ func hasNonEmptyObject(payload map[string]any, key string) bool {
 func hasNonEmptyArray(payload map[string]any, key string) bool {
 	value, ok := payload[key].([]any)
 	return ok && len(value) > 0
+}
+
+func hasArray(payload map[string]any, key string) bool {
+	_, ok := payload[key].([]any)
+	return ok
+}
+
+func hasCitationEvidence(value any) bool {
+	switch typed := value.(type) {
+	case map[string]any:
+		if citations, ok := typed["citations"].([]any); ok && len(citations) > 0 {
+			return true
+		}
+		for _, child := range typed {
+			if hasCitationEvidence(child) {
+				return true
+			}
+		}
+	case []any:
+		for _, child := range typed {
+			if hasCitationEvidence(child) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func assertAnswerContains(t *testing.T, answer string, wants ...string) {

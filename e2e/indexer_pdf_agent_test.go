@@ -4,7 +4,6 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -46,8 +45,6 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOp
 		t.Skip("pdftotext is required by the fs extract_pdf tool")
 	}
 
-	indexerAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
-	embeddingAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
 	workingDir := t.TempDir()
 	documents := copyPDFDocuments(t, workingDir, []pdfDocumentFixture{
 		{
@@ -68,20 +65,7 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOp
 		},
 	})
 
-	env := utils.StartE2E(t, true, utils.StartOptions{
-		WorkingDir: workingDir,
-		Embedding:  embedding,
-		SupervisorEnv: map[string]string{
-			"QUARK_INDEXER_ADDR":   indexerAddr,
-			"QUARK_EMBEDDING_ADDR": embeddingAddr,
-		},
-		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
-			t.Helper()
-			dgraphAddr := utils.StartDgraph(t)
-			startIndexerServiceAt(t, bins.Indexer, dgraphAddr, indexerAddr)
-			startEmbeddingServiceAt(t, bins.Embedding, embeddingAddr, embedding)
-		},
-	})
+	env := utils.StartE2E(t, true, standardKnowledgeServicesStartOptions(t, embedding, workingDir))
 	writeJSONArtifact(t, workingDir, "embedding-profile.json", map[string]any{
 		"plugin":     env.Embedding.Plugin,
 		"mode":       env.Embedding.Mode,
@@ -114,7 +98,8 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOp
 	assertToolStarted(t, indexTrace, "fs")
 	assertToolStarted(t, indexTrace, "embedding_Embed")
 	assertToolStarted(t, indexTrace, "indexer_IndexDocument")
-	assertNoToolErrors(t, indexTrace, "embedding_Embed", "indexer_IndexDocument")
+	assertNoToolErrors(t, indexTrace, "indexer_IndexDocument")
+	assertEmbeddingSuccessCount(t, indexTrace, len(documents))
 	assertToolSuccessCount(t, indexTrace, "indexer_IndexDocument", len(documents))
 	assertAgentStructuredPDFIndexPayloads(t, indexTrace, documents)
 	for _, document := range documents {
@@ -122,7 +107,7 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOp
 			t.Fatalf("index confirmation missing filename %q:\n%s", document.Filename, indexTrace.Text)
 		}
 	}
-	verifyPersistedPDFIndexState(t, ctx, workingDir, indexerAddr, embeddingAddr, documents)
+	verifyPersistedPDFIndexState(t, ctx, workingDir, env.ServiceAddress("indexer"), env.ServiceAddress("embedding"), documents)
 
 	queryCases := []indexedPDFQueryCase{{
 		Title:    "dataset-summary",
@@ -165,7 +150,7 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOp
 			t.Fatalf("%s query re-read source files instead of using the index; starts=%v", queryCase.Title, queryTrace.ToolStarts)
 		}
 		assertToolResultContains(t, queryTrace, "indexer_GetContext", "reasoningContext")
-		assertToolResultContains(t, queryTrace, "indexer_GetContext", "embeddingMetadata", env.Embedding.Provider, env.Embedding.Model, fmt.Sprint(env.Embedding.Dimensions))
+		assertEmbeddingToolResult(t, queryTrace, env.Embedding.Provider, env.Embedding.Model, env.Embedding.Dimensions)
 		assertAnswerContains(t, queryTrace.Text, queryCase.Want...)
 		if len(queryCase.WantAny) > 0 {
 			assertAnswerContainsAny(t, queryTrace.Text, queryCase.WantAny...)

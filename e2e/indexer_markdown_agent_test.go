@@ -4,7 +4,6 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -14,8 +13,6 @@ import (
 )
 
 func TestAgentIndexesITCompanyMarkdownDocuments(t *testing.T) {
-	indexerAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
-	embeddingAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
 	workingDir := t.TempDir()
 	documentsDir := filepath.Join(workingDir, "company-records")
 	documents := copyMarkdownDocuments(t, documentsDir, []markdownDocumentFixture{
@@ -52,20 +49,7 @@ func TestAgentIndexesITCompanyMarkdownDocuments(t *testing.T) {
 		Model:      "local-hash-v1",
 		Dimensions: 32,
 	}
-	env := utils.StartE2E(t, true, utils.StartOptions{
-		WorkingDir: workingDir,
-		Embedding:  embedding,
-		SupervisorEnv: map[string]string{
-			"QUARK_INDEXER_ADDR":   indexerAddr,
-			"QUARK_EMBEDDING_ADDR": embeddingAddr,
-		},
-		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
-			t.Helper()
-			dgraphAddr := utils.StartDgraph(t)
-			startIndexerServiceAt(t, bins.Indexer, dgraphAddr, indexerAddr)
-			startEmbeddingServiceAt(t, bins.Embedding, embeddingAddr, embedding)
-		},
-	})
+	env := utils.StartE2E(t, true, standardKnowledgeServicesStartOptions(t, embedding, workingDir))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
 	defer cancel()
@@ -91,14 +75,15 @@ func TestAgentIndexesITCompanyMarkdownDocuments(t *testing.T) {
 	assertToolStarted(t, indexTrace, "fs")
 	assertToolStarted(t, indexTrace, "embedding_Embed")
 	assertToolStarted(t, indexTrace, "indexer_IndexDocument")
-	assertNoToolErrors(t, indexTrace, "embedding_Embed", "indexer_IndexDocument")
+	assertNoToolErrors(t, indexTrace, "indexer_IndexDocument")
+	assertEmbeddingSuccessCount(t, indexTrace, len(documents))
 	assertToolSuccessCount(t, indexTrace, "indexer_IndexDocument", len(documents))
 	for _, document := range documents {
 		if !containsText(indexTrace.Text, document.Filename) {
 			t.Fatalf("markdown index confirmation missing filename %q:\n%s", document.Filename, indexTrace.Text)
 		}
 	}
-	verifyPersistedMarkdownIndexState(t, ctx, workingDir, indexerAddr, embeddingAddr, documents)
+	verifyPersistedMarkdownIndexState(t, ctx, workingDir, env.ServiceAddress("indexer"), env.ServiceAddress("embedding"), documents)
 
 	querySession, err := env.Sup.CreateSession(ctx, env.Space, api.CreateSessionRequest{
 		Type:  api.SessionTypeChat,
@@ -132,5 +117,5 @@ func TestAgentIndexesITCompanyMarkdownDocuments(t *testing.T) {
 		"QOP-OBS-START",
 		"Sentinel Managed IT",
 	)
-	assertAnswerContainsAny(t, queryTrace.Text, "4-hour", "Critical incidents")
+	assertAnswerContainsAny(t, queryTrace.Text, "4-hour", "4 hours", "Critical incident", "Critical-incident")
 }

@@ -57,6 +57,26 @@ func startBuildReleaseServiceAt(t *testing.T, binary, addr string) {
 	waitForGRPCHealth(t, addr, buildreleasev1.BuildReleaseService_ServiceDesc.ServiceName, 10*time.Second, "build-release")
 }
 
+func standardKnowledgeServicesStartOptions(t *testing.T, embedding utils.EmbeddingOptions, workingDir string) utils.StartOptions {
+	t.Helper()
+	indexerAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
+	embeddingAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
+	return utils.StartOptions{
+		WorkingDir: workingDir,
+		Embedding:  embedding,
+		SupervisorEnv: map[string]string{
+			"QUARK_INDEXER_ADDR":   indexerAddr,
+			"QUARK_EMBEDDING_ADDR": embeddingAddr,
+		},
+		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
+			t.Helper()
+			dgraphAddr := utils.StartDgraph(t)
+			startIndexerServiceAt(t, bins.Indexer, dgraphAddr, indexerAddr)
+			startEmbeddingServiceAt(t, bins.Embedding, embeddingAddr, embedding)
+		},
+	}
+}
+
 func waitForGRPCHealth(t *testing.T, addr, service string, timeout time.Duration, label string) {
 	t.Helper()
 	deadline := time.Now().Add(timeout)

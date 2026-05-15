@@ -17,7 +17,13 @@ import (
 // child process to mirror it into its in-memory registry. This proves the
 // launcher forwards QUARK_SUPERVISOR_URL so the agent can subscribe.
 func TestSupervisorSessionEventReachesAgent(t *testing.T) {
-	env := utils.StartE2E(t, false)
+	env := utils.StartE2E(t, false, standardKnowledgeServicesStartOptions(t, utils.EmbeddingOptions{
+		Plugin:     "embedding",
+		Mode:       "local",
+		Provider:   "local",
+		Model:      "local-hash-v1",
+		Dimensions: 32,
+	}, ""))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

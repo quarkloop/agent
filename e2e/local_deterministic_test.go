@@ -4,7 +4,6 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -13,8 +12,6 @@ import (
 )
 
 func TestLocalDeterministicSupervisorRuntimeAndServices(t *testing.T) {
-	indexerAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
-	embeddingAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
 	embedding := utils.EmbeddingOptions{
 		Plugin:     "embedding",
 		Mode:       "local",
@@ -23,19 +20,7 @@ func TestLocalDeterministicSupervisorRuntimeAndServices(t *testing.T) {
 		Dimensions: 32,
 	}
 
-	env := utils.StartE2E(t, false, utils.StartOptions{
-		Embedding: embedding,
-		SupervisorEnv: map[string]string{
-			"QUARK_INDEXER_ADDR":   indexerAddr,
-			"QUARK_EMBEDDING_ADDR": embeddingAddr,
-		},
-		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
-			t.Helper()
-			dgraphAddr := utils.StartDgraph(t)
-			startIndexerServiceAt(t, bins.Indexer, dgraphAddr, indexerAddr)
-			startEmbeddingServiceAt(t, bins.Embedding, embeddingAddr, embedding)
-		},
-	})
+	env := utils.StartE2E(t, false, standardKnowledgeServicesStartOptions(t, embedding, ""))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

@@ -32,8 +32,9 @@ func TestBashToolBinaryMode(t *testing.T) {
 func runBashTool(t *testing.T, forceBinary bool) {
 	t.Helper()
 	env := utils.StartE2E(t, true, utils.StartOptions{
-		ForceBinaryTools:        forceBinary,
-		DisableServiceDiscovery: true,
+		ForceBinaryTools:         forceBinary,
+		DisableServiceDiscovery:  true,
+		DisableKnowledgeServices: true,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
