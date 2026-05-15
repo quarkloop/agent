@@ -1,0 +1,72 @@
+name: ingestion
+version: "1.0.0"
+type: service
+mode: api
+description: "Durable document ingestion run state over gRPC"
+author: quarkloop
+license: Apache-2.0
+
+service:
+  address_env: QUARK_INGESTION_ADDR
+  health:
+    protocol: grpc_health_v1
+    service: quark.ingestion.v1.IngestionService
+    timeout: 5s
+  readiness:
+    required: true
+    min_version: "1.0.0"
+  skill: SKILL.md
+  readme: README.md
+  proto_services:
+    - quark.ingestion.v1.IngestionService
+  functions:
+    - name: ingestion_StartRun
+      service: quark.ingestion.v1.IngestionService
+      method: StartRun
+      request: quark.ingestion.v1.StartRunRequest
+      response: quark.ingestion.v1.StartRunResponse
+      description: "Create a durable ingestion run with per-source state."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: ingestion_GetRun
+      service: quark.ingestion.v1.IngestionService
+      method: GetRun
+      request: quark.ingestion.v1.GetRunRequest
+      response: quark.ingestion.v1.GetRunResponse
+      description: "Return ingestion run status and per-source progress."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: ingestion_ResumeRun
+      service: quark.ingestion.v1.IngestionService
+      method: ResumeRun
+      request: quark.ingestion.v1.ResumeRunRequest
+      response: quark.ingestion.v1.ResumeRunResponse
+      description: "Mark an incomplete ingestion run as resumable for agent coordination."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: ingestion_UpdateSourceState
+      service: quark.ingestion.v1.IngestionService
+      method: UpdateSourceState
+      request: quark.ingestion.v1.UpdateSourceStateRequest
+      response: quark.ingestion.v1.UpdateSourceStateResponse
+      description: "Update one source phase, status, artifact reference, and last error."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: ingestion_ListArtifacts
+      service: quark.ingestion.v1.IngestionService
+      method: ListArtifacts
+      request: quark.ingestion.v1.ListArtifactsRequest
+      response: quark.ingestion.v1.ListArtifactsResponse
+      description: "List artifacts attached to an ingestion run or source."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true

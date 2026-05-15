@@ -212,15 +212,28 @@ func TestRepositoryServiceManifestsDeclareFunctionsAndReadmes(t *testing.T) {
 				t.Fatal("service readiness min_version is required")
 			}
 			readmePath := filepath.Join(filepath.Dir(manifestPath), manifest.Service.Readme)
-			if _, err := os.Stat(readmePath); err != nil {
+			readmeData, err := os.ReadFile(readmePath)
+			if err != nil {
 				t.Fatalf("service README missing at %s: %v", readmePath, err)
 			}
+			skillData, err := os.ReadFile(filepath.Join(filepath.Dir(manifestPath), manifest.Service.Skill))
+			if err != nil {
+				t.Fatalf("service SKILL missing at %s: %v", manifest.Service.Skill, err)
+			}
+			readme := string(readmeData)
+			skill := string(skillData)
 			for _, function := range manifest.Service.Functions {
 				if serviceFunctionUnsafeChars.MatchString(function.Name) {
 					t.Fatalf("function name contains unsafe characters: %q", function.Name)
 				}
 				if strings.TrimSpace(function.Name) == "" {
 					t.Fatal("function name is empty")
+				}
+				if !strings.Contains(readme, "`"+function.Name+"`") {
+					t.Fatalf("README does not list service function %q", function.Name)
+				}
+				if !strings.Contains(skill, "`"+function.Name+"`") {
+					t.Fatalf("SKILL does not describe service function %q", function.Name)
 				}
 			}
 		})
@@ -260,5 +273,44 @@ func TestRepositoryAgentManifestsDeclareProfiles(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestQuarkKnowledgeProfileDeclaresConcreteServiceFunctions(t *testing.T) {
+	profile, err := ParseAgentProfile(filepath.Join("..", "..", "plugins", "agents", "quark-knowledge", "PROFILE.yaml"))
+	if err != nil {
+		t.Fatalf("parse quark knowledge profile: %v", err)
+	}
+	permissions := make(map[string]bool, len(profile.Permissions.Services))
+	for _, name := range profile.Permissions.Services {
+		permissions[name] = true
+	}
+	for _, want := range []string{
+		"document_DetectType",
+		"document_ParseBytes",
+		"document_ExtractText",
+		"document_ExtractLayout",
+		"document_GetPages",
+		"document_ExtractTables",
+		"document_ExtractImages",
+		"document_RunOCR",
+		"ingestion_StartRun",
+		"ingestion_GetRun",
+		"ingestion_ResumeRun",
+		"ingestion_UpdateSourceState",
+		"ingestion_ListArtifacts",
+		"embedding_Embed",
+		"indexer_IndexDocument",
+		"indexer_GetContext",
+		"citation_ResolveSpans",
+		"citation_VerifyGrounding",
+		"memory_Put",
+		"memory_Get",
+		"memory_Search",
+		"memory_Delete",
+	} {
+		if !permissions[want] {
+			t.Fatalf("quark knowledge profile missing service function permission %q", want)
+		}
 	}
 }

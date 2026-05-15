@@ -16,9 +16,12 @@ When the user asks to index PDFs or other documents:
    `command=extract_pdf`.
 2. Extract a useful, compact chunk for each document or section. Preserve the
    important facts needed for later Q&A.
-3. Extract stable entities, relationships, facts, citations, and source
-   provenance from the content. Entity IDs should be normalized from entity
-   names and relation endpoints must reuse the same IDs as the entity list.
+3. Use the runtime/model LLM path to perform semantic extraction from the
+   source evidence: document classification, schema inference, field
+   normalization, chunk decisions, stable entities, relationships, facts,
+   citations, and source provenance. Entity IDs should be normalized from
+   entity names and relation endpoints must reuse the same IDs as the entity
+   list.
 4. Use the configured embedding service plugin on each chunk and pass the
    returned `embeddingRef` as `embeddingRef`.
 5. Call `indexer_IndexDocument`. Include source metadata such as source path
@@ -69,6 +72,9 @@ when the indexer service is available.
 - The indexer owns the canonical storage/query schema. It does not parse files,
   call LLMs, generate embeddings, select extraction profiles, or call other
   services.
+- `IndexDocument` receives agent-produced chunks, facts, entities, relations,
+  citations, embedding references/metadata, and provenance. It must not receive
+  raw PDFs or prompt-only payloads as a substitute for extracted knowledge.
 - Query text must be embedded by the agent before `GetContext`.
 - Use `embeddingRef` and `queryVectorRef` from `embedding_Embed` instead of
   manually copying vectors through the LLM.

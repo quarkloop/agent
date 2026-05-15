@@ -1,0 +1,42 @@
+name: citation
+version: "1.0.0"
+type: service
+mode: api
+description: "Source span resolution and grounding verification over gRPC"
+author: quarkloop
+license: Apache-2.0
+
+service:
+  address_env: QUARK_CITATION_ADDR
+  health:
+    protocol: grpc_health_v1
+    service: quark.citation.v1.CitationService
+    timeout: 5s
+  readiness:
+    required: true
+    min_version: "1.0.0"
+  skill: SKILL.md
+  readme: README.md
+  proto_services:
+    - quark.citation.v1.CitationService
+  functions:
+    - name: citation_ResolveSpans
+      service: quark.citation.v1.CitationService
+      method: ResolveSpans
+      request: quark.citation.v1.ResolveSpansRequest
+      response: quark.citation.v1.ResolveSpansResponse
+      description: "Resolve selected claim text into source spans with offsets and confidence."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: citation_VerifyGrounding
+      service: quark.citation.v1.CitationService
+      method: VerifyGrounding
+      request: quark.citation.v1.VerifyGroundingRequest
+      response: quark.citation.v1.VerifyGroundingResponse
+      description: "Mechanically verify that selected claims are grounded by provided citation spans."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true

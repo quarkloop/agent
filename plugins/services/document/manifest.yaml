@@ -1,0 +1,102 @@
+name: document
+version: "1.0.0"
+type: service
+mode: api
+description: "Mechanical document detection, parsing, layout, and OCR over gRPC"
+author: quarkloop
+license: Apache-2.0
+
+service:
+  address_env: QUARK_DOCUMENT_ADDR
+  health:
+    protocol: grpc_health_v1
+    service: quark.document.v1.DocumentService
+    timeout: 5s
+  readiness:
+    required: true
+    min_version: "1.0.0"
+  skill: SKILL.md
+  readme: README.md
+  proto_services:
+    - quark.document.v1.DocumentService
+  functions:
+    - name: document_DetectType
+      service: quark.document.v1.DocumentService
+      method: DetectType
+      request: quark.document.v1.DetectTypeRequest
+      response: quark.document.v1.DetectTypeResponse
+      description: "Detect MIME type, extension, and coarse document family from source metadata or bytes."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: document_ParseBytes
+      service: quark.document.v1.DocumentService
+      method: ParseBytes
+      request: quark.document.v1.ParseBytesRequest
+      response: quark.document.v1.ParseBytesResponse
+      description: "Parse document bytes into mechanical metadata such as source hash, page count, and text availability."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: document_ExtractText
+      service: quark.document.v1.DocumentService
+      method: ExtractText
+      request: quark.document.v1.ExtractTextRequest
+      response: quark.document.v1.ExtractTextResponse
+      description: "Extract raw text and per-page offsets without semantic interpretation."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: document_ExtractLayout
+      service: quark.document.v1.DocumentService
+      method: ExtractLayout
+      request: quark.document.v1.ExtractLayoutRequest
+      response: quark.document.v1.ExtractLayoutResponse
+      description: "Extract page layout blocks and bounding boxes without choosing semantic fields."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: document_GetPages
+      service: quark.document.v1.DocumentService
+      method: GetPages
+      request: quark.document.v1.GetPagesRequest
+      response: quark.document.v1.GetPagesResponse
+      description: "Return mechanical page records containing text, layout blocks, tables, and images."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: document_ExtractTables
+      service: quark.document.v1.DocumentService
+      method: ExtractTables
+      request: quark.document.v1.ExtractTablesRequest
+      response: quark.document.v1.ExtractTablesResponse
+      description: "Extract detected tables as headers and cells without deciding business meaning."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: document_ExtractImages
+      service: quark.document.v1.DocumentService
+      method: ExtractImages
+      request: quark.document.v1.ExtractImagesRequest
+      response: quark.document.v1.ExtractImagesResponse
+      description: "Extract image references, MIME types, page numbers, and bounding boxes."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: document_RunOCR
+      service: quark.document.v1.DocumentService
+      method: RunOCR
+      request: quark.document.v1.RunOCRRequest
+      response: quark.document.v1.RunOCRResponse
+      description: "Run OCR for selected pages and return raw text with confidence."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true

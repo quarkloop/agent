@@ -11,8 +11,12 @@ import (
 
 	"github.com/quarkloop/pkg/plugin"
 	buildreleasev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/buildrelease/v1"
+	citationv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/citation/v1"
+	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
 	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
+	ingestionv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/ingestion/v1"
+	memoryv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/memory/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	spacev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/space/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
@@ -29,6 +33,10 @@ var _ = []any{
 	indexerv1.File_quark_indexer_v1_indexer_proto,
 	embeddingv1.File_quark_embedding_v1_embedding_proto,
 	buildreleasev1.File_quark_buildrelease_v1_build_release_proto,
+	documentv1.File_quark_document_v1_document_proto,
+	ingestionv1.File_quark_ingestion_v1_ingestion_proto,
+	citationv1.File_quark_citation_v1_citation_proto,
+	memoryv1.File_quark_memory_v1_memory_proto,
 	spacev1.File_quark_space_v1_space_proto,
 	emptypb.File_google_protobuf_empty_proto,
 }

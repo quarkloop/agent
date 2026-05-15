@@ -14,10 +14,32 @@ agent:
     - fs
   services:
     - document.*
+    - document_DetectType
+    - document_ParseBytes
+    - document_ExtractText
+    - document_ExtractLayout
+    - document_GetPages
+    - document_ExtractTables
+    - document_ExtractImages
+    - document_RunOCR
     - ingestion.*
+    - ingestion_StartRun
+    - ingestion_GetRun
+    - ingestion_ResumeRun
+    - ingestion_UpdateSourceState
+    - ingestion_ListArtifacts
     - embedding.*
+    - embedding_Embed
     - indexer.*
+    - indexer_IndexDocument
+    - indexer_GetContext
     - citation.*
+    - citation_ResolveSpans
+    - citation_VerifyGrounding
     - memory.*
+    - memory_Put
+    - memory_Get
+    - memory_Search
+    - memory_Delete
   skills:
     - SKILL.md

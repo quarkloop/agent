@@ -2,6 +2,8 @@
 
 The indexer service stores and retrieves agent-produced Knowledge records. It
 does not parse documents, call LLMs, create embeddings, or call another service.
+The agent supplies chunks, facts, entities, relations, citations, embedding
+metadata, and provenance after semantic extraction in the runtime/model path.
 
 ## Service Functions
 

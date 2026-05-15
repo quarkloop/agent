@@ -50,7 +50,9 @@ func TestPromptBlockDescribesCanonicalMappingAndValidation(t *testing.T) {
 		"IndexRequest.facts",
 		"IndexRequest.citations",
 		"validate",
-		"Parser output is raw source text",
+		"Parser output is raw source evidence",
+		"document classification",
+		"Do not move this work",
 	} {
 		if !strings.Contains(block, want) {
 			t.Fatalf("prompt block missing %q:\n%s", want, block)

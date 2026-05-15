@@ -122,6 +122,7 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOp
 	assertToolStarted(t, indexTrace, "indexer_IndexDocument")
 	assertNoToolErrors(t, indexTrace, "embedding_Embed", "indexer_IndexDocument")
 	assertToolSuccessCount(t, indexTrace, "indexer_IndexDocument", len(documents))
+	assertAgentStructuredPDFIndexPayloads(t, indexTrace, documents)
 	for _, document := range documents {
 		if !containsText(indexTrace.Text, document.Filename) {
 			t.Fatalf("index confirmation missing filename %q:\n%s", document.Filename, indexTrace.Text)
@@ -306,7 +307,7 @@ func indexPDFDocumentsPrompt(documents []indexedPDFDocument) string {
 	for _, document := range documents {
 		fmt.Fprintf(&b, "- %s (%s)\n", document.Path, document.Name)
 	}
-	fmt.Fprintf(&b, "\nRequired workflow: use an extraction phase, then atomic per-document indexing. Phase 1: call fs extract_pdf once for every listed path, using max_chars 1400. After all PDF text is available, process the files in the listed order. For each file, create one compact searchable text chunk from its extracted text, call embedding_Embed without setting dimensions, then immediately call indexer_IndexDocument with that same file's embeddingRef before moving to the next file. In sourceMetadata include filename, path, embedding_provider, embedding_model, embedding_dimensions, and embedding_content_hash from the embedding result. Do not send a final answer until there are %d successful indexer_IndexDocument results, one for each listed file. Reply briefly with the filenames that are ready for questions.", len(documents))
+	fmt.Fprintf(&b, "\nRequired workflow: read each uploaded PDF through the available file/document extraction functions, then perform semantic extraction yourself through the runtime LLM context before indexing. Do not ask the user or the test for IDs, entities, facts, citations, or payload data. For every listed file, create one compact searchable chunk and agent-produced structured knowledge: document metadata, facts, entities, relations, citations, and provenance tied to source text. Call embedding_Embed without setting dimensions for that chunk, then immediately call indexer_IndexDocument for the same file using the returned embeddingRef. Each IndexDocument call must include first-class document, textContent, embeddingRef, facts, entities, relations, citations, provenance, and sourceMetadata with filename and path. Do not rename files, restructure directories, write sidecars, or finish until there are %d successful indexer_IndexDocument results, one for each listed file. Reply briefly with the filenames that are ready for questions.", len(documents))
 	return b.String()
 }
 
@@ -462,6 +463,102 @@ func assertToolSuccessCount(t *testing.T, trace utils.MessageTrace, tool string,
 	if count < want {
 		t.Fatalf("%s successful results = %d, want at least %d: %+v", tool, count, want, trace.ToolResultEvents)
 	}
+}
+
+func assertAgentStructuredPDFIndexPayloads(t *testing.T, trace utils.MessageTrace, documents []indexedPDFDocument) {
+	t.Helper()
+	payloads := indexerIndexDocumentPayloads(t, trace)
+	if len(payloads) < len(documents) {
+		t.Fatalf("indexer_IndexDocument payload count = %d, want at least %d", len(payloads), len(documents))
+	}
+
+	seen := make(map[string]bool, len(documents))
+	for i, payload := range payloads {
+		if !hasNonEmptyString(payload, "chunkId") {
+			t.Fatalf("IndexDocument payload %d missing chunkId: %+v", i, payload)
+		}
+		if !hasNonEmptyString(payload, "textContent") {
+			t.Fatalf("IndexDocument payload %d missing textContent: %+v", i, payload)
+		}
+		if !hasNonEmptyString(payload, "embeddingRef") {
+			t.Fatalf("IndexDocument payload %d missing embeddingRef from embedding_Embed: %+v", i, payload)
+		}
+		if !hasNonEmptyObject(payload, "document") {
+			t.Fatalf("IndexDocument payload %d missing first-class document metadata: %+v", i, payload)
+		}
+		if !hasNonEmptyObject(payload, "sourceMetadata") {
+			t.Fatalf("IndexDocument payload %d missing sourceMetadata: %+v", i, payload)
+		}
+		if !hasNonEmptyArray(payload, "facts") {
+			t.Fatalf("IndexDocument payload %d missing agent-produced facts: %+v", i, payload)
+		}
+		if !hasNonEmptyArray(payload, "entities") {
+			t.Fatalf("IndexDocument payload %d missing agent-produced entities: %+v", i, payload)
+		}
+		if !hasNonEmptyArray(payload, "relations") {
+			t.Fatalf("IndexDocument payload %d missing agent-produced relations: %+v", i, payload)
+		}
+		if !hasNonEmptyArray(payload, "citations") {
+			t.Fatalf("IndexDocument payload %d missing source citations: %+v", i, payload)
+		}
+		if !hasNonEmptyObject(payload, "provenance") {
+			t.Fatalf("IndexDocument payload %d missing provenance: %+v", i, payload)
+		}
+		for _, document := range documents {
+			if payloadMentionsFilename(payload, document.Filename) {
+				seen[document.Filename] = true
+			}
+		}
+	}
+	for _, document := range documents {
+		if !seen[document.Filename] {
+			t.Fatalf("no structured IndexDocument payload referenced %s: %+v", document.Filename, payloads)
+		}
+	}
+}
+
+func indexerIndexDocumentPayloads(t *testing.T, trace utils.MessageTrace) []map[string]any {
+	t.Helper()
+	payloads := make([]map[string]any, 0)
+	for _, event := range trace.ToolStartEvents {
+		if event.Name != "indexer_IndexDocument" {
+			continue
+		}
+		var payload map[string]any
+		if err := json.Unmarshal([]byte(event.Arguments), &payload); err != nil {
+			t.Fatalf("decode indexer_IndexDocument arguments: %v\n%s", err, event.Arguments)
+		}
+		payloads = append(payloads, payload)
+	}
+	return payloads
+}
+
+func payloadMentionsFilename(payload map[string]any, filename string) bool {
+	if containsText(fmt.Sprint(payload["sourceMetadata"]), filename) {
+		return true
+	}
+	if containsText(fmt.Sprint(payload["document"]), filename) {
+		return true
+	}
+	if containsText(fmt.Sprint(payload["provenance"]), filename) {
+		return true
+	}
+	return false
+}
+
+func hasNonEmptyString(payload map[string]any, key string) bool {
+	value, ok := payload[key].(string)
+	return ok && strings.TrimSpace(value) != ""
+}
+
+func hasNonEmptyObject(payload map[string]any, key string) bool {
+	value, ok := payload[key].(map[string]any)
+	return ok && len(value) > 0
+}
+
+func hasNonEmptyArray(payload map[string]any, key string) bool {
+	value, ok := payload[key].([]any)
+	return ok && len(value) > 0
 }
 
 func assertAnswerContains(t *testing.T, answer string, wants ...string) {

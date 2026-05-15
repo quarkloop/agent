@@ -79,6 +79,7 @@ func installSpacePlugins(t *testing.T, env *E2EEnv, bins BuiltBinaries) {
 		}
 		copyFile(t, filepath.Join(src, "manifest.yaml"), filepath.Join(dst, "manifest.yaml"), 0o644)
 		copyFile(t, filepath.Join(src, "SKILL.md"), filepath.Join(dst, "SKILL.md"), 0o644)
+		copyFile(t, filepath.Join(src, "README.md"), filepath.Join(dst, "README.md"), 0o644)
 	}
 	installService("indexer")
 	embeddingPlugin := env.Embedding.Plugin

@@ -123,6 +123,53 @@ func TestServiceFunctionSchemaUsesRuntimeEmbeddingReferences(t *testing.T) {
 	}
 }
 
+func TestServiceFunctionSchemasIncludeKnowledgeContracts(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		typeName string
+		fields   []string
+	}{
+		{
+			name:     "document extract text",
+			typeName: "quark.document.v1.ExtractTextRequest",
+			fields:   []string{"input", "maxChars"},
+		},
+		{
+			name:     "ingestion start run",
+			typeName: "quark.ingestion.v1.StartRunRequest",
+			fields:   []string{"space", "title", "sources", "metadata"},
+		},
+		{
+			name:     "citation verify grounding",
+			typeName: "quark.citation.v1.VerifyGroundingRequest",
+			fields:   []string{"claims"},
+		},
+		{
+			name:     "memory put",
+			typeName: "quark.memory.v1.PutRequest",
+			fields:   []string{"space", "collection", "key", "value", "metadata", "provenance"},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			params := requestParameters(tt.typeName)
+			properties, ok := params["properties"].(map[string]any)
+			if !ok {
+				t.Fatalf("properties missing: %+v", params)
+			}
+			for _, field := range tt.fields {
+				if _, ok := properties[field]; !ok {
+					t.Fatalf("field %q missing from %s schema: %+v", field, tt.typeName, properties)
+				}
+			}
+		})
+	}
+}
+
 func TestToolNameForIsDeterministicAndSafe(t *testing.T) {
 	t.Parallel()
 

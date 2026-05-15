@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package quark.citation.v1;
+
+option go_package = "github.com/quarkloop/pkg/serviceapi/gen/quark/citation/v1;citationv1";
+
+// CitationService resolves source spans and mechanically verifies grounding.
+//
+// It does not generate answers or decide which facts matter. The agent selects
+// claims and candidate citations, then asks this service to resolve or verify
+// evidence spans.
+service CitationService {
+  rpc ResolveSpans(ResolveSpansRequest) returns (ResolveSpansResponse);
+  rpc VerifyGrounding(VerifyGroundingRequest) returns (VerifyGroundingResponse);
+}
+
+message ResolveSpansRequest {
+  string source_uri = 1;
+  string source_text = 2;
+  repeated SpanQuery queries = 3;
+}
+
+message SpanQuery {
+  string id = 1;
+  string text = 2;
+  string hint = 3;
+}
+
+message ResolveSpansResponse {
+  repeated CitationSpan spans = 1;
+}
+
+message CitationSpan {
+  string id = 1;
+  string source_uri = 2;
+  string text_span = 3;
+  int32 start_offset = 4;
+  int32 end_offset = 5;
+  float confidence = 6;
+}
+
+message VerifyGroundingRequest {
+  repeated GroundedClaim claims = 1;
+}
+
+message GroundedClaim {
+  string id = 1;
+  string claim = 2;
+  repeated CitationSpan citations = 3;
+}
+
+message VerifyGroundingResponse {
+  repeated GroundingResult results = 1;
+}
+
+message GroundingResult {
+  string claim_id = 1;
+  bool grounded = 2;
+  float confidence = 3;
+  string reason = 4;
+}

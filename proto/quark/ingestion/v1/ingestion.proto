@@ -1,0 +1,124 @@
+syntax = "proto3";
+
+package quark.ingestion.v1;
+
+option go_package = "github.com/quarkloop/pkg/serviceapi/gen/quark/ingestion/v1;ingestionv1";
+
+// IngestionService stores durable run state for document ingestion batches.
+//
+// It does not parse documents, call an LLM, embed chunks, or write indexer
+// records. The agent coordinates those steps and updates run state here.
+service IngestionService {
+  rpc StartRun(StartRunRequest) returns (StartRunResponse);
+  rpc GetRun(GetRunRequest) returns (GetRunResponse);
+  rpc ResumeRun(ResumeRunRequest) returns (ResumeRunResponse);
+  rpc UpdateSourceState(UpdateSourceStateRequest) returns (UpdateSourceStateResponse);
+  rpc ListArtifacts(ListArtifactsRequest) returns (ListArtifactsResponse);
+}
+
+message StartRunRequest {
+  string space = 1;
+  string title = 2;
+  repeated SourceInput sources = 3;
+  map<string, string> metadata = 4;
+}
+
+message SourceInput {
+  string source_uri = 1;
+  string filename = 2;
+  string source_hash = 3;
+  map<string, string> metadata = 4;
+}
+
+message GetRunRequest {
+  string run_id = 1;
+}
+
+message ResumeRunRequest {
+  string run_id = 1;
+}
+
+message UpdateSourceStateRequest {
+  string run_id = 1;
+  string source_id = 2;
+  SourcePhase phase = 3;
+  SourceStatus status = 4;
+  string artifact_ref = 5;
+  string error = 6;
+  map<string, string> metadata = 7;
+}
+
+message ListArtifactsRequest {
+  string run_id = 1;
+  string source_id = 2;
+}
+
+message ListArtifactsResponse {
+  repeated IngestionArtifact artifacts = 1;
+}
+
+message StartRunResponse {
+  IngestionRun run = 1;
+}
+
+message GetRunResponse {
+  IngestionRun run = 1;
+}
+
+message ResumeRunResponse {
+  IngestionRun run = 1;
+}
+
+message UpdateSourceStateResponse {
+  SourceState source = 1;
+}
+
+message IngestionRun {
+  string id = 1;
+  string space = 2;
+  string title = 3;
+  SourceStatus status = 4;
+  repeated SourceState sources = 5;
+  string created_at = 6;
+  string updated_at = 7;
+  map<string, string> metadata = 8;
+}
+
+message SourceState {
+  string id = 1;
+  string source_uri = 2;
+  string filename = 3;
+  string source_hash = 4;
+  SourcePhase phase = 5;
+  SourceStatus status = 6;
+  string last_error = 7;
+  repeated IngestionArtifact artifacts = 8;
+  map<string, string> metadata = 9;
+}
+
+message IngestionArtifact {
+  string ref = 1;
+  string kind = 2;
+  string source_id = 3;
+  string created_at = 4;
+  map<string, string> metadata = 5;
+}
+
+enum SourcePhase {
+  SOURCE_PHASE_UNSPECIFIED = 0;
+  SOURCE_PHASE_REGISTERED = 1;
+  SOURCE_PHASE_PARSED = 2;
+  SOURCE_PHASE_STRUCTURED = 3;
+  SOURCE_PHASE_EMBEDDED = 4;
+  SOURCE_PHASE_INDEXED = 5;
+  SOURCE_PHASE_CITED = 6;
+}
+
+enum SourceStatus {
+  SOURCE_STATUS_UNSPECIFIED = 0;
+  SOURCE_STATUS_PENDING = 1;
+  SOURCE_STATUS_RUNNING = 2;
+  SOURCE_STATUS_SUCCEEDED = 3;
+  SOURCE_STATUS_FAILED = 4;
+  SOURCE_STATUS_SKIPPED = 5;
+}
