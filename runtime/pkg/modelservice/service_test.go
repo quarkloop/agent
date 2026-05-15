@@ -78,7 +78,8 @@ func TestAdapterRecordsStreamingUsageWithoutPromptLeak(t *testing.T) {
 }
 
 func TestAdapterRecordsFallbackUsage(t *testing.T) {
-	primaryErr := errors.New("primary quota exhausted")
+	primaryErr := plugin.NewProviderError(plugin.ProviderErrorRateLimit, "primary", "model-a", 429, errors.New("primary quota exhausted"))
+	primaryErr.ResetAt = "2026-05-15T12:00:00Z"
 	var records []Usage
 	svc := New(map[string]plugin.Provider{
 		"primary":  fakeProvider{stream: func(context.Context, *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) { return nil, primaryErr }},
@@ -99,11 +100,45 @@ func TestAdapterRecordsFallbackUsage(t *testing.T) {
 	if records[0].Provider != "primary" || records[0].FinishReason != "error" {
 		t.Fatalf("primary usage = %+v", records[0])
 	}
+	if records[0].FailureCategory != string(plugin.ProviderErrorRateLimit) || records[0].FailureResetAt != "2026-05-15T12:00:00Z" {
+		t.Fatalf("primary failure diagnostics = %+v", records[0])
+	}
 	if records[1].Provider != "fallback" || records[1].FinishReason != "stop" {
 		t.Fatalf("fallback usage = %+v", records[1])
 	}
 	if got := strings.Join(records[1].FallbackChain, ","); got != "primary,fallback" {
 		t.Fatalf("fallback chain = %q", got)
+	}
+}
+
+func TestAdapterDoesNotFallbackForInvalidRequest(t *testing.T) {
+	primaryErr := plugin.NewProviderError(plugin.ProviderErrorInvalidRequest, "primary", "model-a", 400, errors.New("bad request"))
+	var records []Usage
+	svc := New(map[string]plugin.Provider{
+		"primary":  fakeProvider{stream: func(context.Context, *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) { return nil, primaryErr }},
+		"fallback": fakeProvider{stream: streamEvents(plugin.StreamEvent{Delta: "should not run"}, plugin.StreamEvent{Done: true})},
+	}, func(_ context.Context, usage Usage) {
+		records = append(records, usage)
+	}, WithFallbacks(map[string][]string{"primary": {"fallback"}}))
+
+	_, err := svc.Adapter("primary").ChatCompletionStream(context.Background(), &plugin.ChatRequest{Model: "model-a"})
+	if !errors.Is(err, primaryErr) {
+		t.Fatalf("expected terminal primary error, got %v", err)
+	}
+	if len(records) != 1 || records[0].Provider != "primary" || records[0].FailureCategory != string(plugin.ProviderErrorInvalidRequest) {
+		t.Fatalf("records = %+v", records)
+	}
+}
+
+func TestAdapterReturnsExhaustedProviderError(t *testing.T) {
+	svc := New(map[string]plugin.Provider{}, nil, WithFallbacks(map[string][]string{"missing": {"also-missing"}}))
+	_, err := svc.Adapter("missing").ChatCompletionStream(context.Background(), &plugin.ChatRequest{Model: "model-a"})
+	var providerErr *plugin.ProviderError
+	if !errors.As(err, &providerErr) {
+		t.Fatalf("expected provider error, got %v", err)
+	}
+	if providerErr.Category != plugin.ProviderErrorExhausted {
+		t.Fatalf("category = %s, want %s", providerErr.Category, plugin.ProviderErrorExhausted)
 	}
 }
 

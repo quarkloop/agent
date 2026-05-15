@@ -79,25 +79,27 @@ func (p *OpenAIProvider) ChatCompletionStream(ctx context.Context, req *plugin.C
 
 	body, err := json.Marshal(oaiReq)
 	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
+		return nil, plugin.NewProviderError(plugin.ProviderErrorInvalidRequest, p.ProviderID(), req.Model, 0, fmt.Errorf("marshal request: %w", err))
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/chat/completions", bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
+		return nil, plugin.NewProviderError(plugin.ProviderErrorInvalidRequest, p.ProviderID(), req.Model, 0, fmt.Errorf("create request: %w", err))
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
 
 	resp, err := p.client.Do(httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("send request: %w", err)
+		return nil, plugin.NewProviderError(plugin.ProviderErrorTransport, p.ProviderID(), req.Model, 0, fmt.Errorf("send request: %w", err))
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		errBody, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		return nil, fmt.Errorf("openai: %d %s", resp.StatusCode, string(errBody))
+		providerErr := plugin.NewProviderError(plugin.ProviderErrorCategoryForHTTPStatus(resp.StatusCode), p.ProviderID(), req.Model, resp.StatusCode, fmt.Errorf("%s", strings.TrimSpace(string(errBody))))
+		providerErr.ResetAt = resp.Header.Get("X-RateLimit-Reset")
+		return nil, providerErr
 	}
 
 	ch := make(chan plugin.StreamEvent, 64)

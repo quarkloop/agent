@@ -90,12 +90,12 @@ func (p *AnthropicProvider) ChatCompletionStream(ctx context.Context, req *plugi
 
 	body, err := json.Marshal(antReq)
 	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
+		return nil, plugin.NewProviderError(plugin.ProviderErrorInvalidRequest, p.ProviderID(), req.Model, 0, fmt.Errorf("marshal request: %w", err))
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.baseURL+"/messages", bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
+		return nil, plugin.NewProviderError(plugin.ProviderErrorInvalidRequest, p.ProviderID(), req.Model, 0, fmt.Errorf("create request: %w", err))
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("x-api-key", p.apiKey)
@@ -103,13 +103,15 @@ func (p *AnthropicProvider) ChatCompletionStream(ctx context.Context, req *plugi
 
 	resp, err := p.client.Do(httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("send request: %w", err)
+		return nil, plugin.NewProviderError(plugin.ProviderErrorTransport, p.ProviderID(), req.Model, 0, fmt.Errorf("send request: %w", err))
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		errBody, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		return nil, fmt.Errorf("anthropic: %d %s", resp.StatusCode, string(errBody))
+		providerErr := plugin.NewProviderError(plugin.ProviderErrorCategoryForHTTPStatus(resp.StatusCode), p.ProviderID(), req.Model, resp.StatusCode, fmt.Errorf("%s", strings.TrimSpace(string(errBody))))
+		providerErr.ResetAt = resp.Header.Get("anthropic-ratelimit-tokens-reset")
+		return nil, providerErr
 	}
 
 	ch := make(chan plugin.StreamEvent, 64)

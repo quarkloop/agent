@@ -250,7 +250,7 @@ func sendMessage(t *testing.T, baseURL, sessionID, content string, timeout time.
 	if agentErr != "" && fullReply.Len() == 0 {
 		t.Logf("agent error: %s", agentErr)
 		// Surface rate limit errors so callers can retry.
-		if strings.Contains(agentErr, "429") || strings.Contains(strings.ToLower(agentErr), "rate") {
+		if isProviderRateLimited(agentErr) {
 			return "RATE_LIMITED"
 		}
 		return ""
@@ -285,7 +285,7 @@ func TestWriteToTmp(t *testing.T) {
 	var reply string
 	for attempt := 1; attempt <= 5; attempt++ {
 		reply = sendMessage(t, baseURL, sessionID, prompt, 2*time.Minute)
-		if !strings.Contains(reply, "429") && !strings.Contains(strings.ToLower(reply), "rate") {
+		if !isProviderRateLimited(reply) {
 			break
 		}
 		t.Logf("rate limited on attempt %d, retrying in 5s...", attempt)

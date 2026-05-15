@@ -12,7 +12,8 @@ accounting. Provider plugins are adapters behind this service boundary.
    response text, tool arguments, API keys, or provider credentials inside
    usage records.
 3. Preserve `provider`, `model`, token counts, latency, cost estimate,
-   fallback chain, request ID, and finish reason when reporting diagnostics.
+   fallback chain, request ID, failure category, reset time, and finish reason
+   when reporting diagnostics.
 4. If a fallback provider is used, explain the fallback chain without hiding the
    original provider failure.
 5. Services must not call this service directly. The agent/runtime coordinates
@@ -64,6 +65,8 @@ Every model response must include redacted usage:
 - `fallbackChain`
 - `requestId`
 - `finishReason`
+- `failureCategory`
+- `failureResetAt`
 
 ## Boundaries
 

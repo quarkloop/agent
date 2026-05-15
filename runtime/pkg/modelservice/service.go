@@ -178,33 +178,41 @@ func (a *adapter) ChatCompletionStream(ctx context.Context, req *plugin.ChatRequ
 		provider, ok := a.service.provider(providerID)
 		started := a.service.now()
 		if !ok {
-			failures = append(failures, fmt.Errorf("%s: provider unavailable", providerID))
+			err := plugin.NewProviderError(plugin.ProviderErrorModelUnavailable, providerID, modelName(req), 0, fmt.Errorf("provider unavailable"))
+			failures = append(failures, err)
 			a.service.emit(ctx, Usage{
-				Provider:      providerID,
-				Model:         modelName(req),
-				InputTokens:   inputTokens,
-				LatencyMillis: elapsedMillis(started, a.service.now()),
-				FallbackChain: append([]string(nil), attempted...),
-				FinishReason:  "provider_unavailable",
+				Provider:        providerID,
+				Model:           modelName(req),
+				InputTokens:     inputTokens,
+				LatencyMillis:   elapsedMillis(started, a.service.now()),
+				FallbackChain:   append([]string(nil), attempted...),
+				FailureCategory: string(plugin.ProviderErrorModelUnavailable),
+				FinishReason:    "provider_unavailable",
 			})
 			continue
 		}
 		stream, err := provider.ChatCompletionStream(ctx, req)
 		if err != nil {
+			failure := providerFailureInfo(err)
 			failures = append(failures, fmt.Errorf("%s: %w", providerID, err))
 			a.service.emit(ctx, Usage{
-				Provider:      providerID,
-				Model:         modelName(req),
-				InputTokens:   inputTokens,
-				LatencyMillis: elapsedMillis(started, a.service.now()),
-				FallbackChain: append([]string(nil), attempted...),
-				FinishReason:  "error",
+				Provider:        providerID,
+				Model:           modelName(req),
+				InputTokens:     inputTokens,
+				LatencyMillis:   elapsedMillis(started, a.service.now()),
+				FallbackChain:   append([]string(nil), attempted...),
+				FailureCategory: failure.category,
+				FailureResetAt:  failure.resetAt,
+				FinishReason:    "error",
 			})
+			if !canFallbackAfter(err) {
+				return nil, err
+			}
 			continue
 		}
 		return a.wrapStream(ctx, providerID, req, stream, started, attempted, inputTokens), nil
 	}
-	return nil, fmt.Errorf("model service has no available provider for %q: %w", a.primary, errors.Join(failures...))
+	return nil, plugin.NewProviderError(plugin.ProviderErrorExhausted, a.primary, modelName(req), 0, fmt.Errorf("model service has no available provider for %q: %w", a.primary, errors.Join(failures...)))
 }
 
 func (a *adapter) ParseToolCalls(content string) ([]plugin.ToolCall, string) {

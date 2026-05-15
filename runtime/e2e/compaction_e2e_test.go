@@ -68,7 +68,7 @@ func TestCompaction(t *testing.T) {
 	send := func(prompt string) string {
 		for attempt := 1; attempt <= 5; attempt++ {
 			reply := sendMessage(t, baseURL, sessionID, prompt, 30*time.Second)
-			isErr := reply == "" || reply == "RATE_LIMITED" || strings.Contains(reply, "429") || strings.Contains(reply, "Agent Error")
+			isErr := reply == "" || reply == "RATE_LIMITED" || isProviderRateLimited(reply) || strings.Contains(reply, "Agent Error")
 			if !isErr {
 				return reply
 			}

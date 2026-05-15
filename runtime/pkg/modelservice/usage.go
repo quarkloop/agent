@@ -17,6 +17,8 @@ type Usage struct {
 	CostEstimate    float64  `json:"cost_estimate,omitempty"`
 	FallbackChain   []string `json:"fallback_chain,omitempty"`
 	RequestID       string   `json:"request_id,omitempty"`
+	FailureCategory string   `json:"failure_category,omitempty"`
+	FailureResetAt  string   `json:"failure_reset_at,omitempty"`
 	FinishReason    string   `json:"finish_reason"`
 }
 

@@ -47,9 +47,31 @@ Every model response returns redacted usage:
 - `fallbackChain`
 - `requestId`
 - `finishReason`
+- `failureCategory`
+- `failureResetAt`
 
 Usage must never contain prompt text, response text, tool arguments, API keys,
 headers, or provider credentials.
+
+## Provider Errors And Fallback
+
+Provider adapters map failures into structured categories before returning them
+to the model service:
+
+- `auth`
+- `rate_limit`
+- `model_unavailable`
+- `context_overflow`
+- `transport`
+- `invalid_request`
+- `provider_response`
+- `providers_exhausted`
+
+Fallback is explicit and ordered. The model service may try a configured
+fallback for auth, rate-limit, model-unavailable, context-overflow, and
+transport failures. Invalid requests and malformed provider responses are
+terminal. Usage diagnostics record provider, model, fallback chain, failure
+category, and provider reset time when available.
 
 ## Ownership Boundaries
 
