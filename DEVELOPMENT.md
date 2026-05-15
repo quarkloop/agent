@@ -97,5 +97,11 @@ make build-plugins
 make test-e2e-local
 ```
 
+The canonical release gate is:
+
+```bash
+make release-check
+```
+
 Run provider-backed E2E before release candidates when provider credentials and
-quota are available.
+quota are available. See [RELEASE.md](RELEASE.md).

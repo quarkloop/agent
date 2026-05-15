@@ -89,6 +89,7 @@ make test            # unit tests across workspace modules
 make test-e2e-local  # deterministic E2E subset, no provider key
 make test-e2e        # provider-backed E2E suite
 make check           # fmt-check, vet, test, arch-check, dead-code-check
+make release-check   # release readiness gate with local deterministic E2E
 ```
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for setup, E2E requirements, provider
@@ -100,6 +101,7 @@ keys, troubleshooting, and release checks.
   catalogs, and strict boundaries.
 - [DEVELOPMENT.md](DEVELOPMENT.md) - build, test, E2E, provider keys, and
   debugging.
+- [RELEASE.md](RELEASE.md) - release readiness gates and manual checks.
 - [AGENTS.md](AGENTS.md) - coding-agent instructions and repository rules.
 - [CONTRIBUTING.md](CONTRIBUTING.md) - contribution expectations.
 - [SECURITY.md](SECURITY.md) - security policy.

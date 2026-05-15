@@ -31,7 +31,7 @@ MODULES := \
 		plugins/providers/openai \
 		plugins/providers/anthropic
 
-.PHONY: all build clean test test-e2e test-e2e-local vet fmt fmt-check tidy proto arch-check boundary-check dead-code-check check \
+.PHONY: all build clean test test-e2e test-e2e-local vet fmt fmt-check tidy proto arch-check boundary-check dead-code-check check release-check \
 		build-supervisor build-runtime build-cli \
 		build-plugins build-tools build-tools-lib build-providers build-services
 
@@ -132,6 +132,17 @@ dead-code-check:
 		@(cd e2e && staticcheck -tags e2e -checks=U1000 ./...)
 
 check: fmt-check vet test arch-check dead-code-check
+
+## Run the release readiness gate, including local deterministic E2E
+release-check:
+		@go version | grep -q 'go1\.26' || { echo "Go 1.26 is required"; go version; exit 1; }
+		$(MAKE) check
+		$(MAKE) proto
+		@git diff --exit-code -- proto pkg/serviceapi >/dev/null || { echo "generated protobuf/service API files are out of date"; exit 1; }
+		$(MAKE) build
+		$(MAKE) build-plugins
+		$(MAKE) test-e2e-local
+		@echo "release-check complete. Run provider-backed make test-e2e before release candidates when credentials/quota are available."
 
 ## Run vet across all modules (providers are vetted under the `plugin` build
 ## tag since all their sources are gated on it)
