@@ -80,6 +80,12 @@ implementation, and `SKILL.md`. Service plugins describe gRPC services; runtime
 turns their RPC descriptors into generated service functions such as
 `embedding_Embed` and `indexer_GetContext`.
 
+`Quarkfile` is the space-level override layer for installed agent profiles. It
+may select enabled profiles, model/provider overrides, service/tool narrowing,
+approval policy, and memory scope. Supervisor must validate those overrides
+against the installed profile maximum and pass only the resolved catalog to
+runtime.
+
 Supervisor-owned discovery passes runtime catalogs through:
 
 - `QUARK_RUNTIME_PLUGIN_CATALOG`

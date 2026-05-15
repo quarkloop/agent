@@ -78,6 +78,42 @@ func TestFSStoreAgentEnvironmentComesFromQuarkfileModel(t *testing.T) {
 	}
 }
 
+func TestFSStoreAgentEnvironmentAllowsAgentProfileModelWithoutTopLevelModel(t *testing.T) {
+	t.Setenv("OPENROUTER_API_KEY", "secret")
+	store, err := fsstore.NewFSStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	qf := []byte(`quark: "1.0"
+meta:
+  name: test-space
+  version: "0.1.0"
+plugins:
+  - ref: quark/agent-knowledge
+agents:
+  - profile: quark-knowledge
+    model:
+      provider: openrouter
+      name: openai/gpt-5-mini
+      env:
+        - OPENROUTER_API_KEY
+`)
+	if _, err := store.Create("test-space", qf, t.TempDir()); err != nil {
+		t.Fatal(err)
+	}
+
+	env, err := store.AgentEnvironment("test-space")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if slices.Contains(env, "QUARK_MODEL_PROVIDER=openrouter") {
+		t.Fatalf("agent-specific model should be carried in the resolved profile catalog, got env: %v", env)
+	}
+	if !slices.Contains(env, "OPENROUTER_API_KEY=secret") {
+		t.Fatalf("agent model credential missing: %v", env)
+	}
+}
+
 func TestFSStoreSessionsUseDirectory(t *testing.T) {
 	root := t.TempDir()
 	store, err := fsstore.NewFSStore(root)

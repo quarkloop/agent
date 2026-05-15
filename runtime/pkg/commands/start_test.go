@@ -120,3 +120,25 @@ func TestResolveAgentPluginRejectsUnknownRequestedProfile(t *testing.T) {
 		t.Fatal("resolve agent profile unexpectedly succeeded")
 	}
 }
+
+func TestResolveModelSelectionPrefersResolvedAgentProfile(t *testing.T) {
+	provider, model := resolveModelSelection(
+		&plugin.AgentProfile{Model: plugin.AgentProfileModel{Provider: "openrouter", Model: "openai/gpt-5-mini"}},
+		"anthropic",
+		"claude-sonnet-4",
+	)
+	if provider != "openrouter" || model != "openai/gpt-5-mini" {
+		t.Fatalf("model = %s/%s", provider, model)
+	}
+}
+
+func TestResolveModelSelectionFallsBackToEnvironment(t *testing.T) {
+	provider, model := resolveModelSelection(
+		&plugin.AgentProfile{Model: plugin.AgentProfileModel{Provider: "openrouter"}},
+		"anthropic",
+		"claude-sonnet-4",
+	)
+	if provider != "anthropic" || model != "claude-sonnet-4" {
+		t.Fatalf("model = %s/%s", provider, model)
+	}
+}

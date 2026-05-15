@@ -161,10 +161,63 @@ func TestValidateQuarkfileServicesAndEmbedding(t *testing.T) {
 	assertInvalid(t, qf, "embedding.dimensions")
 }
 
+func TestValidateQuarkfileAgentOverrides(t *testing.T) {
+	enabled := true
+	qf := base()
+	qf.Agents = []space.AgentRef{{
+		Profile:  "quark-knowledge",
+		Enabled:  &enabled,
+		Services: []string{"indexer.*", "embedding.*"},
+		Tools:    []string{"fs"},
+		Model: space.AgentModelOverride{
+			Provider: "openrouter",
+			Name:     "openai/gpt-5-mini",
+			Env:      []string{"OPENROUTER_API_KEY"},
+		},
+		Approval: space.AgentApprovalOverride{
+			Policy:      "required",
+			RequiredFor: []string{"workspace.write"},
+		},
+		Memory: space.AgentMemoryOverride{Scope: "space", Collections: []string{"project_facts"}},
+	}}
+	if err := space.ValidateQuarkfile(qf); err != nil {
+		t.Fatalf("expected valid agent override, got: %v", err)
+	}
+	env := qf.EnvironmentVariables()
+	if !contains(env, "ANTHROPIC_API_KEY") || !contains(env, "OPENROUTER_API_KEY") {
+		t.Fatalf("agent model env was not included: %v", env)
+	}
+
+	qf = base()
+	qf.Agents = []space.AgentRef{{Profile: "quark-knowledge"}, {Profile: "quark-knowledge"}}
+	assertInvalid(t, qf, "duplicate profile")
+
+	qf = base()
+	qf.Agents = []space.AgentRef{{Profile: "quark-knowledge", Approval: space.AgentApprovalOverride{Policy: "sometimes"}}}
+	assertInvalid(t, qf, "approval.policy")
+
+	qf = base()
+	qf.Agents = []space.AgentRef{{Profile: "quark-knowledge", Model: space.AgentModelOverride{Name: "model-without-provider"}}}
+	assertInvalid(t, qf, "missing provider")
+
+	qf = base()
+	qf.Agents = []space.AgentRef{{Profile: "quark-knowledge", Services: []string{""}}}
+	assertInvalid(t, qf, "empty pattern")
+}
+
 func TestValidateQuarkfileNegativeRetentionPolicy(t *testing.T) {
 	qf := base()
 	qf.Permissions.Audit.RetentionDays = -5
 	assertInvalid(t, qf, "retention_days")
+}
+
+func contains(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 func assertInvalid(t *testing.T, qf *space.Quarkfile, wantSubstring string) {

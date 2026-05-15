@@ -107,16 +107,7 @@ func runStart(port int, channels []string) error {
 		return err
 	}
 
-	modelProvider := os.Getenv("QUARK_MODEL_PROVIDER")
-	modelName := os.Getenv("QUARK_MODEL_NAME")
-	if agentPlugin.AgentProfile != nil {
-		if modelProvider == "" {
-			modelProvider = agentPlugin.AgentProfile.Model.Provider
-		}
-		if modelName == "" {
-			modelName = agentPlugin.AgentProfile.Model.Model
-		}
-	}
+	modelProvider, modelName := resolveModelSelection(agentPlugin.AgentProfile, os.Getenv("QUARK_MODEL_PROVIDER"), os.Getenv("QUARK_MODEL_NAME"))
 	if modelProvider == "" || modelName == "" {
 		return fmt.Errorf("model provider and name are required")
 	}
@@ -222,6 +213,13 @@ func resolveAgentPlugin(catalog *pluginmanager.Catalog, requested string) (plugi
 		return agents[i].AgentProfile.ID < agents[j].AgentProfile.ID
 	})
 	return agents[0], nil
+}
+
+func resolveModelSelection(profile *plugin.AgentProfile, envProvider, envModel string) (string, string) {
+	if profile != nil && profile.Model.Provider != "" && profile.Model.Model != "" {
+		return profile.Model.Provider, profile.Model.Model
+	}
+	return envProvider, envModel
 }
 
 func servicePromptAddenda(catalog *runtimeservices.Catalog) []string {

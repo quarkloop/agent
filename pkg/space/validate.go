@@ -32,6 +32,9 @@ func ValidateQuarkfile(qf *Quarkfile) error {
 			return fmt.Errorf("plugins[%d]: missing ref", i)
 		}
 	}
+	if err := validateAgents(qf.Agents); err != nil {
+		return err
+	}
 	if err := validateServices(qf.Services); err != nil {
 		return err
 	}
@@ -61,6 +64,13 @@ func ValidateQuarkfile(qf *Quarkfile) error {
 	if qf.Gateway.TokenBudgetPerHour < 0 {
 		return fmt.Errorf("gateway.token_budget_per_hour must be >= 0, got %d", qf.Gateway.TokenBudgetPerHour)
 	}
+	if qf.Capabilities.ApprovalPolicy != "" {
+		switch qf.Capabilities.ApprovalPolicy {
+		case "auto", "required":
+		default:
+			return fmt.Errorf("capabilities.approval_policy must be auto or required")
+		}
+	}
 
 	return validatePermissions(qf)
 }
@@ -82,6 +92,19 @@ func validateModel(model Model) error {
 	return nil
 }
 
+func validateAgentModel(model AgentModelOverride) error {
+	if model.IsZero() {
+		return nil
+	}
+	if model.Provider == "" {
+		return fmt.Errorf("agent model override present but missing provider")
+	}
+	if model.Name == "" {
+		return fmt.Errorf("agent model override present but missing name")
+	}
+	return validateModel(Model{Provider: model.Provider, Name: model.Name, Env: model.Env})
+}
+
 func validateEnvVars(names []string) error {
 	for _, name := range names {
 		if err := validateEnvVarName(name, false); err != nil {
@@ -98,6 +121,53 @@ func validateEnvVarName(name string, allowQuarkReserved bool) error {
 	}
 	if !allowQuarkReserved && strings.HasPrefix(name, "QUARK_") {
 		return fmt.Errorf("env: %s is reserved for quark runtime variables", name)
+	}
+	return nil
+}
+
+func validateAgents(agents []AgentRef) error {
+	seen := make(map[string]bool, len(agents))
+	for i, agent := range agents {
+		if agent.Profile == "" {
+			return fmt.Errorf("agents[%d]: missing profile", i)
+		}
+		if seen[agent.Profile] {
+			return fmt.Errorf("agents[%d]: duplicate profile %q", i, agent.Profile)
+		}
+		seen[agent.Profile] = true
+		if err := validateAgentModel(agent.Model); err != nil {
+			return fmt.Errorf("agents[%d].model: %w", i, err)
+		}
+		if err := validateEnvVars(agent.Model.Env); err != nil {
+			return fmt.Errorf("agents[%d].model: %w", i, err)
+		}
+		if err := validatePatterns(agent.Tools, fmt.Sprintf("agents[%d].tools", i)); err != nil {
+			return err
+		}
+		if err := validatePatterns(agent.Services, fmt.Sprintf("agents[%d].services", i)); err != nil {
+			return err
+		}
+		if agent.Approval.Policy != "" {
+			switch agent.Approval.Policy {
+			case "auto", "required":
+			default:
+				return fmt.Errorf("agents[%d].approval.policy must be auto or required", i)
+			}
+		}
+		switch agent.Memory.Scope {
+		case "", "session", "space", "none":
+		default:
+			return fmt.Errorf("agents[%d].memory.scope must be session, space, or none", i)
+		}
+	}
+	return nil
+}
+
+func validatePatterns(patterns []string, field string) error {
+	for i, pattern := range patterns {
+		if strings.TrimSpace(pattern) == "" {
+			return fmt.Errorf("%s[%d]: empty pattern", field, i)
+		}
 	}
 	return nil
 }

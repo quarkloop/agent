@@ -252,7 +252,7 @@ func (s *FSStore) Quarkfile(name string) ([]byte, error) {
 }
 
 // AgentEnvironment returns concrete environment entries derived from the
-// Quarkfile model declaration. Missing declared variables fail fast at launch
+// Quarkfile model declarations. Missing declared variables fail fast at launch
 // time so agents never inherit undeclared credentials accidentally.
 func (s *FSStore) AgentEnvironment(name string) ([]string, error) {
 	data, err := s.Quarkfile(name)
@@ -263,19 +263,18 @@ func (s *FSStore) AgentEnvironment(name string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	model, ok := qf.DefaultModel()
-	if !ok {
-		return nil, fmt.Errorf("quarkfile model is required to start an agent")
+	env := make([]string, 0, len(qf.EnvironmentVariables())+2)
+	if model, ok := qf.DefaultModel(); ok {
+		env = append(env,
+			"QUARK_MODEL_PROVIDER="+model.Provider,
+			"QUARK_MODEL_NAME="+model.Name,
+		)
 	}
 	names := qf.EnvironmentVariables()
-	env := []string{
-		"QUARK_MODEL_PROVIDER=" + model.Provider,
-		"QUARK_MODEL_NAME=" + model.Name,
-	}
 	for _, key := range names {
 		value, ok := os.LookupEnv(key)
 		if !ok {
-			return nil, fmt.Errorf("quarkfile model.env declares %s but it is not set in supervisor environment", key)
+			return nil, fmt.Errorf("quarkfile declares %s but it is not set in supervisor environment", key)
 		}
 		env = append(env, key+"="+value)
 	}

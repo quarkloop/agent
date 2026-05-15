@@ -83,6 +83,9 @@ Important boundaries:
   methods are only the gRPC transport implementation.
 - Agent prompts and personalities live in agent plugins. Runtime executes the
   supervisor-resolved profile instead of owning launch-agent identities.
+- `Quarkfile` may narrow installed agent profiles and override model,
+  provider, approval, memory, and enabled-agent selection; supervisor validates
+  those overrides before runtime launch.
 - The indexer owns canonical storage/query records only; it does not parse
   files, call LLMs, generate embeddings, or choose extraction schemas.
 - Embeddings are service plugins. Local deterministic and OpenRouter-backed

@@ -37,6 +37,14 @@ type runtimePluginCatalogEntry struct {
 
 func (s *Server) runtimePluginCatalogEnv(ctx context.Context, space string) ([]string, error) {
 	_ = ctx
+	qfBytes, err := s.store.Quarkfile(space)
+	if err != nil {
+		return nil, fmt.Errorf("read quarkfile: %w", err)
+	}
+	qf, err := spacemodel.ParseAndValidateQuarkfileForSpace(qfBytes, space)
+	if err != nil {
+		return nil, err
+	}
 	mgr, err := s.store.Plugins(space)
 	if err != nil {
 		return nil, fmt.Errorf("open plugin store: %w", err)
@@ -56,11 +64,20 @@ func (s *Server) runtimePluginCatalogEnv(ctx context.Context, space string) ([]s
 			catalog.Plugins = append(catalog.Plugins, entry)
 		}
 	}
+	plugins, selectedAgent, err := newAgentProfileOverrideResolver(qf).apply(catalog.Plugins)
+	if err != nil {
+		return nil, err
+	}
+	catalog.Plugins = plugins
 	payload, err := json.Marshal(catalog)
 	if err != nil {
 		return nil, fmt.Errorf("marshal runtime plugin catalog: %w", err)
 	}
-	return []string{runtimePluginCatalogEnv + "=" + string(payload)}, nil
+	env := []string{runtimePluginCatalogEnv + "=" + string(payload)}
+	if selectedAgent != "" {
+		env = append(env, runtimeAgentProfileEnv+"="+selectedAgent)
+	}
+	return env, nil
 }
 
 func runtimePluginCatalogEntryFromInstalled(item pluginmanager.InstalledPlugin) (runtimePluginCatalogEntry, error) {

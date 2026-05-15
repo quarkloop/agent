@@ -42,6 +42,7 @@ type AgentProfileMemory struct {
 }
 
 type AgentProfileApproval struct {
+	Policy      string   `json:"policy,omitempty" yaml:"policy,omitempty"`
 	RequiredFor []string `json:"required_for,omitempty" yaml:"required_for,omitempty"`
 }
 
@@ -78,4 +79,70 @@ func (p AgentProfile) Validate() error {
 		return fmt.Errorf("name is required")
 	}
 	return nil
+}
+
+// Clone returns a value copy with independent slices.
+func (p AgentProfile) Clone() AgentProfile {
+	p.Prompt.Skills = copyStrings(p.Prompt.Skills)
+	p.Permissions.Tools = copyStrings(p.Permissions.Tools)
+	p.Permissions.Services = copyStrings(p.Permissions.Services)
+	p.Memory.Collections = copyStrings(p.Memory.Collections)
+	p.Approval.RequiredFor = copyStrings(p.Approval.RequiredFor)
+	p.Handoff.CanDelegateTo = copyStrings(p.Handoff.CanDelegateTo)
+	p.Evaluation.RequiredChecks = copyStrings(p.Evaluation.RequiredChecks)
+	return p
+}
+
+// WithModel returns a copy with a resolved model selection.
+func (p AgentProfile) WithModel(provider, model string) AgentProfile {
+	next := p.Clone()
+	next.Model.Provider = provider
+	next.Model.Model = model
+	return next
+}
+
+// WithPermissions returns a copy with resolved maximum tool and service
+// permissions.
+func (p AgentProfile) WithPermissions(tools, services []string) AgentProfile {
+	next := p.Clone()
+	if tools != nil {
+		next.Permissions.Tools = copyStrings(tools)
+	}
+	if services != nil {
+		next.Permissions.Services = copyStrings(services)
+	}
+	return next
+}
+
+// WithApproval returns a copy with resolved approval policy.
+func (p AgentProfile) WithApproval(policy string, requiredFor []string) AgentProfile {
+	next := p.Clone()
+	if policy != "" {
+		next.Approval.Policy = policy
+	}
+	if requiredFor != nil {
+		next.Approval.RequiredFor = copyStrings(requiredFor)
+	}
+	return next
+}
+
+// WithMemory returns a copy with resolved memory scope.
+func (p AgentProfile) WithMemory(scope string, collections []string) AgentProfile {
+	next := p.Clone()
+	if scope != "" {
+		next.Memory.Scope = scope
+	}
+	if collections != nil {
+		next.Memory.Collections = copyStrings(collections)
+	}
+	return next
+}
+
+func copyStrings(in []string) []string {
+	if in == nil {
+		return nil
+	}
+	out := make([]string, len(in))
+	copy(out, in)
+	return out
 }

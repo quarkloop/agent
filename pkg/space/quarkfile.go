@@ -19,6 +19,7 @@ type Quarkfile struct {
 	Model        Model          `yaml:"model,omitempty"`
 	Routing      RoutingSection `yaml:"routing,omitempty"`
 	Plugins      []PluginRef    `yaml:"plugins"`
+	Agents       []AgentRef     `yaml:"agents,omitempty"`
 	Services     []ServiceRef   `yaml:"services,omitempty"`
 	Embedding    EmbeddingRef   `yaml:"embedding,omitempty"`
 	Permissions  Permissions    `yaml:"permissions,omitempty"`
@@ -65,6 +66,46 @@ type ModelRef struct {
 type PluginRef struct {
 	Ref    string         `yaml:"ref"`
 	Config map[string]any `yaml:"config,omitempty"`
+}
+
+// AgentRef declares space-level overrides for an installed agent profile.
+//
+// Quarkfile overrides are intentionally partial. Supervisor applies them over
+// the installed agent plugin profile and rejects overrides that exceed profile
+// maximum permissions.
+type AgentRef struct {
+	Profile  string                `yaml:"profile"`
+	Enabled  *bool                 `yaml:"enabled,omitempty"`
+	Model    AgentModelOverride    `yaml:"model,omitempty"`
+	Services []string              `yaml:"services,omitempty"`
+	Tools    []string              `yaml:"tools,omitempty"`
+	Approval AgentApprovalOverride `yaml:"approval,omitempty"`
+	Memory   AgentMemoryOverride   `yaml:"memory,omitempty"`
+}
+
+// AgentModelOverride narrows or replaces the default LLM selection for one
+// agent profile.
+type AgentModelOverride struct {
+	Provider string   `yaml:"provider,omitempty"`
+	Name     string   `yaml:"name,omitempty"`
+	Env      []string `yaml:"env,omitempty"`
+}
+
+func (m AgentModelOverride) IsZero() bool {
+	return m.Provider == "" && m.Name == "" && len(m.Env) == 0
+}
+
+// AgentApprovalOverride adjusts approval policy for one agent profile.
+type AgentApprovalOverride struct {
+	Policy      string   `yaml:"policy,omitempty"`
+	RequiredFor []string `yaml:"required_for,omitempty"`
+}
+
+// AgentMemoryOverride narrows the memory scope or collections visible to one
+// agent profile.
+type AgentMemoryOverride struct {
+	Scope       string   `yaml:"scope,omitempty"`
+	Collections []string `yaml:"collections,omitempty"`
 }
 
 // ServiceRef declares service intent. Supervisor resolves the concrete
@@ -283,19 +324,26 @@ func (qf *Quarkfile) DefaultModel() (Model, bool) {
 	return Model{}, false
 }
 
-// EnvironmentVariables returns env var names declared by model.env.
+// EnvironmentVariables returns env var names declared by Quarkfile model
+// sections. Runtime-owned QUARK_* variables are validated separately.
 func (qf *Quarkfile) EnvironmentVariables() []string {
 	if qf == nil {
 		return nil
 	}
 	seen := map[string]bool{}
 	out := make([]string, 0, len(qf.Model.Env))
-	for _, name := range qf.Model.Env {
-		if name == "" || seen[name] {
-			continue
+	add := func(names []string) {
+		for _, name := range names {
+			if name == "" || seen[name] {
+				continue
+			}
+			seen[name] = true
+			out = append(out, name)
 		}
-		seen[name] = true
-		out = append(out, name)
+	}
+	add(qf.Model.Env)
+	for _, agent := range qf.Agents {
+		add(agent.Model.Env)
 	}
 	return out
 }
