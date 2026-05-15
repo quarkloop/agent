@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -51,15 +50,14 @@ func TestAgentUsesBuildReleaseServiceFunction(t *testing.T) {
 	}
 	utils.WaitForAgentSession(t, env, session.ID, 10*time.Second)
 
-	trace := utils.PostMessageTraceWithOptions(t, ctx, env, session.ID, buildReleaseDryRunPrompt(workingDir), utils.MessageTraceOptions{
+	prompt := buildReleaseDryRunPrompt(workingDir)
+	trace := utils.PostMessageTraceWithOptions(t, ctx, env, session.ID, prompt, utils.MessageTraceOptions{
 		Label:          "build-release dry run through service function",
 		OverallTimeout: 3 * time.Minute,
 		IdleTimeout:    90 * time.Second,
 	})
 	utils.Logf(t, "build-release reply: %s", trace.Text)
-	writeArtifact(t, workingDir, "build-release-agent-reply.txt", trace.Text)
-	writeArtifact(t, workingDir, "build-release-agent-tools.txt", strings.Join(trace.ToolStarts, "\n"))
-	writeTraceArtifact(t, workingDir, "build-release-agent-tool-events.json", trace)
+	writeAgentRunArtifacts(t, workingDir, "build-release-agent", env, trace, prompt)
 
 	assertToolStarted(t, trace, "build_release_DryRun")
 	assertNoToolErrors(t, trace, "build_release_DryRun")

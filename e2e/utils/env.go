@@ -26,6 +26,8 @@ type E2EEnv struct {
 	Agent     api.RuntimeInfo
 	AgentURL  string
 	HTTPC     *http.Client
+	Provider  string
+	Model     string
 	Embedding EmbeddingOptions
 	Services  []ServicePlugin
 }
@@ -182,6 +184,10 @@ type ServicePlugin struct {
 	Plugin     string
 	Mode       string
 	AddressEnv string
+}
+
+func (s ServicePlugin) WithDefaults() ServicePlugin {
+	return s.withDefaults()
 }
 
 func (s ServicePlugin) withDefaults() ServicePlugin {
@@ -359,6 +365,8 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 		SupURL:    supURL,
 		Sup:       sup,
 		HTTPC:     &http.Client{Timeout: 30 * time.Second},
+		Provider:  provider,
+		Model:     model,
 		Embedding: embedding,
 		Services:  append([]ServicePlugin(nil), opt.Services...),
 	}

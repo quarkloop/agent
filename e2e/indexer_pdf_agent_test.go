@@ -102,15 +102,14 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOp
 	}
 	utils.WaitForAgentSession(t, env, indexSession.ID, 10*time.Second)
 
-	indexTrace := utils.PostMessageTraceWithOptions(t, ctx, env, indexSession.ID, indexPDFDocumentsPrompt(documents), utils.MessageTraceOptions{
+	indexPrompt := indexPDFDocumentsPrompt(documents)
+	indexTrace := utils.PostMessageTraceWithOptions(t, ctx, env, indexSession.ID, indexPrompt, utils.MessageTraceOptions{
 		Label:          "index uploaded PDF dataset",
 		OverallTimeout: 8 * time.Minute,
 		IdleTimeout:    90 * time.Second,
 	})
 	utils.Logf(t, "index reply: %s", indexTrace.Text)
-	writeArtifact(t, workingDir, "agent-index-reply.txt", indexTrace.Text)
-	writeArtifact(t, workingDir, "agent-index-tools.txt", strings.Join(indexTrace.ToolStarts, "\n"))
-	writeTraceArtifact(t, workingDir, "agent-index-tool-events.json", indexTrace)
+	writeAgentRunArtifacts(t, workingDir, "agent-index", env, indexTrace, indexPrompt)
 
 	assertToolStarted(t, indexTrace, "fs")
 	assertToolStarted(t, indexTrace, "embedding_Embed")
@@ -149,16 +148,15 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOp
 		}
 		utils.WaitForAgentSession(t, env, querySession.ID, 10*time.Second)
 
-		queryTrace := utils.PostMessageTraceWithOptions(t, ctx, env, querySession.ID, indexedPDFQuestionPrompt(queryCase.Question, len(documents)), utils.MessageTraceOptions{
+		queryPrompt := indexedPDFQuestionPrompt(queryCase.Question, len(documents))
+		queryTrace := utils.PostMessageTraceWithOptions(t, ctx, env, querySession.ID, queryPrompt, utils.MessageTraceOptions{
 			Label:          "query indexed PDF dataset: " + queryCase.Title,
 			OverallTimeout: 4 * time.Minute,
 			IdleTimeout:    90 * time.Second,
 		})
 		utils.Logf(t, "%s query reply: %s", queryCase.Title, queryTrace.Text)
 		artifactPrefix := "agent-query-" + queryCase.Title
-		writeArtifact(t, workingDir, artifactPrefix+"-reply.txt", queryTrace.Text)
-		writeArtifact(t, workingDir, artifactPrefix+"-tools.txt", strings.Join(queryTrace.ToolStarts, "\n"))
-		writeTraceArtifact(t, workingDir, artifactPrefix+"-tool-events.json", queryTrace)
+		writeAgentRunArtifacts(t, workingDir, artifactPrefix, env, queryTrace, queryPrompt)
 
 		assertToolStarted(t, queryTrace, "embedding_Embed")
 		assertToolStarted(t, queryTrace, "indexer_GetContext")

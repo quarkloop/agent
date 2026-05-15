@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -80,15 +79,14 @@ func TestAgentIndexesITCompanyMarkdownDocuments(t *testing.T) {
 	}
 	utils.WaitForAgentSession(t, env, indexSession.ID, 10*time.Second)
 
-	indexTrace := utils.PostMessageTraceWithOptions(t, ctx, env, indexSession.ID, indexMarkdownDirectoryPrompt(documentsDir, len(documents)), utils.MessageTraceOptions{
+	indexPrompt := indexMarkdownDirectoryPrompt(documentsDir, len(documents))
+	indexTrace := utils.PostMessageTraceWithOptions(t, ctx, env, indexSession.ID, indexPrompt, utils.MessageTraceOptions{
 		Label:          "index IT company markdown documents",
 		OverallTimeout: 6 * time.Minute,
 		IdleTimeout:    90 * time.Second,
 	})
 	utils.Logf(t, "markdown index reply: %s", indexTrace.Text)
-	writeArtifact(t, workingDir, "markdown-agent-index-reply.txt", indexTrace.Text)
-	writeArtifact(t, workingDir, "markdown-agent-index-tools.txt", strings.Join(indexTrace.ToolStarts, "\n"))
-	writeTraceArtifact(t, workingDir, "markdown-agent-index-tool-events.json", indexTrace)
+	writeAgentRunArtifacts(t, workingDir, "markdown-agent-index", env, indexTrace, indexPrompt)
 
 	assertToolStarted(t, indexTrace, "fs")
 	assertToolStarted(t, indexTrace, "embedding_Embed")
@@ -111,15 +109,14 @@ func TestAgentIndexesITCompanyMarkdownDocuments(t *testing.T) {
 	}
 	utils.WaitForAgentSession(t, env, querySession.ID, 10*time.Second)
 
-	queryTrace := utils.PostMessageTraceWithOptions(t, ctx, env, querySession.ID, indexedMarkdownQuestionPrompt(), utils.MessageTraceOptions{
+	queryPrompt := indexedMarkdownQuestionPrompt()
+	queryTrace := utils.PostMessageTraceWithOptions(t, ctx, env, querySession.ID, queryPrompt, utils.MessageTraceOptions{
 		Label:          "query IT company markdown index",
 		OverallTimeout: 4 * time.Minute,
 		IdleTimeout:    90 * time.Second,
 	})
 	utils.Logf(t, "markdown query reply: %s", queryTrace.Text)
-	writeArtifact(t, workingDir, "markdown-agent-query-reply.txt", queryTrace.Text)
-	writeArtifact(t, workingDir, "markdown-agent-query-tools.txt", strings.Join(queryTrace.ToolStarts, "\n"))
-	writeTraceArtifact(t, workingDir, "markdown-agent-query-tool-events.json", queryTrace)
+	writeAgentRunArtifacts(t, workingDir, "markdown-agent-query", env, queryTrace, queryPrompt)
 
 	assertToolStarted(t, queryTrace, "embedding_Embed")
 	assertToolStarted(t, queryTrace, "indexer_GetContext")

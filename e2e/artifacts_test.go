@@ -3,21 +3,77 @@
 package e2e
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/quarkloop/e2e/utils"
 )
 
-func writeArtifact(t *testing.T, dir, name, content string) {
+type agentRunArtifacts struct {
+	Reply         string
+	Tools         string
+	ToolEvents    string
+	Observability string
+}
+
+func writeAgentRunArtifacts(t *testing.T, dir, prefix string, env *utils.E2EEnv, trace utils.MessageTrace, prompt string) agentRunArtifacts {
+	t.Helper()
+	artifacts := agentRunArtifacts{
+		Reply:         filepath.Join(dir, prefix+"-reply.txt"),
+		Tools:         filepath.Join(dir, prefix+"-tools.txt"),
+		ToolEvents:    filepath.Join(dir, prefix+"-tool-events.json"),
+		Observability: filepath.Join(dir, prefix+"-observability.json"),
+	}
+	writeArtifact(t, dir, prefix+"-reply.txt", trace.Text)
+	writeArtifact(t, dir, prefix+"-tools.txt", strings.Join(trace.ToolStarts, "\n"))
+	writeTraceArtifact(t, dir, prefix+"-tool-events.json", trace)
+	writeJSONArtifact(t, dir, prefix+"-observability.json", map[string]any{
+		"space":         env.Space,
+		"agent_url":     env.AgentURL,
+		"supervisor":    env.SupURL,
+		"prompt_sha256": promptHash(prompt),
+		"prompt": map[string]any{
+			"preview": previewPrompt(prompt, 500),
+			"bytes":   len(prompt),
+		},
+		"model": map[string]any{
+			"provider": env.Provider,
+			"name":     env.Model,
+		},
+		"embedding": map[string]any{
+			"plugin":     env.Embedding.Plugin,
+			"mode":       env.Embedding.Mode,
+			"provider":   env.Embedding.Provider,
+			"model":      env.Embedding.Model,
+			"dimensions": env.Embedding.Dimensions,
+		},
+		"services":         serviceSnapshot(env),
+		"tool_timeline":    toolTimeline(trace),
+		"service_timeline": serviceTimeline(trace),
+		"artifacts": map[string]string{
+			"reply":         artifacts.Reply,
+			"tools":         artifacts.Tools,
+			"tool_events":   artifacts.ToolEvents,
+			"observability": artifacts.Observability,
+		},
+	})
+	return artifacts
+}
+
+func writeArtifact(t *testing.T, dir, name, content string) string {
 	t.Helper()
 	path := filepath.Join(dir, name)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(redactString(content)), 0o644); err != nil {
 		t.Fatalf("write artifact %s: %v", path, err)
 	}
 	utils.Logf(t, "manual verification artifact: %s", path)
+	return path
 }
 
 func writeTraceArtifact(t *testing.T, dir, name string, trace utils.MessageTrace) {
@@ -32,9 +88,173 @@ func writeTraceArtifact(t *testing.T, dir, name string, trace utils.MessageTrace
 
 func writeJSONArtifact(t *testing.T, dir, name string, payload any) {
 	t.Helper()
-	data, err := json.MarshalIndent(payload, "", "  ")
+	data, err := json.MarshalIndent(redactValue(payload), "", "  ")
 	if err != nil {
 		t.Fatalf("marshal artifact %s: %v", name, err)
 	}
 	writeArtifact(t, dir, name, string(data))
+}
+
+func promptHash(prompt string) string {
+	sum := sha256.Sum256([]byte(prompt))
+	return hex.EncodeToString(sum[:])
+}
+
+func previewPrompt(prompt string, limit int) string {
+	if len(prompt) <= limit {
+		return prompt
+	}
+	return prompt[:limit] + "...(truncated)"
+}
+
+func serviceSnapshot(env *utils.E2EEnv) []map[string]any {
+	services := []map[string]any{{
+		"name":       "embedding",
+		"plugin":     env.Embedding.Plugin,
+		"mode":       env.Embedding.Mode,
+		"provider":   env.Embedding.Provider,
+		"model":      env.Embedding.Model,
+		"dimensions": env.Embedding.Dimensions,
+	}}
+	for _, service := range env.Services {
+		service = service.WithDefaults()
+		services = append(services, map[string]any{
+			"name":        service.Name,
+			"plugin":      service.Plugin,
+			"mode":        service.Mode,
+			"address_env": service.AddressEnv,
+		})
+	}
+	return services
+}
+
+func toolTimeline(trace utils.MessageTrace) []map[string]any {
+	timeline := make([]map[string]any, 0, len(trace.ToolStartEvents)+len(trace.ToolResultEvents))
+	for i, event := range trace.ToolStartEvents {
+		timeline = append(timeline, map[string]any{
+			"sequence":  i,
+			"phase":     "start",
+			"call_id":   event.CallID,
+			"name":      event.Name,
+			"arguments": event.Arguments,
+		})
+	}
+	offset := len(timeline)
+	for i, event := range trace.ToolResultEvents {
+		timeline = append(timeline, map[string]any{
+			"sequence": offset + i,
+			"phase":    "result",
+			"call_id":  event.CallID,
+			"name":     event.Name,
+			"error":    event.Error,
+			"result":   event.Result,
+		})
+	}
+	return timeline
+}
+
+func serviceTimeline(trace utils.MessageTrace) []map[string]any {
+	timeline := make([]map[string]any, 0)
+	for _, event := range append(append([]utils.ToolEvent(nil), trace.ToolStartEvents...), trace.ToolResultEvents...) {
+		service, ok := serviceNameFromTool(event.Name)
+		if !ok {
+			continue
+		}
+		timeline = append(timeline, map[string]any{
+			"service": service,
+			"tool":    event.Name,
+			"call_id": event.CallID,
+			"error":   event.Error,
+		})
+	}
+	return timeline
+}
+
+func serviceNameFromTool(name string) (string, bool) {
+	if strings.HasPrefix(name, "build_release_") {
+		return "build-release", true
+	}
+	before, _, ok := strings.Cut(name, "_")
+	if !ok || before == "" {
+		return "", false
+	}
+	return before, true
+}
+
+func redactValue(value any) any {
+	switch typed := value.(type) {
+	case string:
+		return redactString(typed)
+	case map[string]any:
+		out := make(map[string]any, len(typed))
+		for key, nested := range typed {
+			out[key] = redactValue(nested)
+		}
+		return out
+	case map[string]string:
+		out := make(map[string]string, len(typed))
+		for key, nested := range typed {
+			out[key] = redactString(nested)
+		}
+		return out
+	case []map[string]any:
+		out := make([]map[string]any, 0, len(typed))
+		for _, nested := range typed {
+			out = append(out, redactValue(nested).(map[string]any))
+		}
+		return out
+	case []utils.ToolEvent:
+		out := make([]utils.ToolEvent, 0, len(typed))
+		for _, nested := range typed {
+			out = append(out, redactValue(nested).(utils.ToolEvent))
+		}
+		return out
+	case []any:
+		out := make([]any, 0, len(typed))
+		for _, nested := range typed {
+			out = append(out, redactValue(nested))
+		}
+		return out
+	case []string:
+		out := make([]string, 0, len(typed))
+		for _, nested := range typed {
+			out = append(out, redactString(nested))
+		}
+		return out
+	case utils.ToolEvent:
+		typed.Arguments = redactString(typed.Arguments)
+		typed.Result = redactString(typed.Result)
+		return typed
+	default:
+		return value
+	}
+}
+
+func redactString(value string) string {
+	redacted := value
+	for _, env := range os.Environ() {
+		key, secret, ok := strings.Cut(env, "=")
+		if !ok || len(secret) < 6 || !looksSensitiveKey(key) {
+			continue
+		}
+		redacted = strings.ReplaceAll(redacted, secret, "[redacted]")
+	}
+	for _, pattern := range secretPatterns {
+		redacted = pattern.ReplaceAllString(redacted, "${1}[redacted]")
+	}
+	return redacted
+}
+
+func looksSensitiveKey(key string) bool {
+	key = strings.ToUpper(key)
+	return strings.Contains(key, "KEY") ||
+		strings.Contains(key, "TOKEN") ||
+		strings.Contains(key, "SECRET") ||
+		strings.Contains(key, "PASSWORD")
+}
+
+var secretPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)(bearer\s+)[A-Za-z0-9._~+/=-]+`),
+	regexp.MustCompile(`(?i)(api[_-]?key["':=\s]+)[A-Za-z0-9._~+/=-]+`),
+	regexp.MustCompile(`(?i)(sk-(?:or-v1-)?)[A-Za-z0-9._~+/=-]+`),
 }
