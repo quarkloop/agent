@@ -48,7 +48,7 @@ func TestRecordUpsertPlanKeepsCanonicalVectorAndGraphTogether(t *testing.T) {
 	if !strings.Contains(query, "c as var(func: eq(quark.chunk_id, $chunk))") {
 		t.Fatalf("record query missing chunk upsert var: %s", query)
 	}
-	if vars["$chunk"] != "chunk-1" || vars["$entity0"] != "transformer" || vars["$relation0"] != "transformer|USES|attention" {
+	if vars["$chunk"] != "chunk-1" || vars["$entity0"] != "transformer" || vars["$relation0"] != "chunk-1|transformer|USES|attention" {
 		t.Fatalf("record query vars = %+v", vars)
 	}
 
@@ -58,11 +58,53 @@ func TestRecordUpsertPlanKeepsCanonicalVectorAndGraphTogether(t *testing.T) {
 		`uid(c) <quark.embedding> "[0.1,0.2]"`,
 		`uid(e0) <quark.entity_id> "transformer"`,
 		`uid(c) <quark.chunk_entity> uid(e0)`,
+		`uid(c) <quark.chunk_relation> uid(r0)`,
+		`uid(r0) <quark.relation_id> "chunk-1|transformer|USES|attention"`,
 		`uid(r0) <quark.relation_from> uid(e0)`,
 		`uid(r0) <quark.relation_to> uid(e1)`,
 	} {
 		if !strings.Contains(nquads, want) {
 			t.Fatalf("record nquads missing %q:\n%s", want, nquads)
+		}
+	}
+}
+
+func TestRecordCleanupPlanRemovesPreviousChunkOwnedState(t *testing.T) {
+	t.Parallel()
+
+	keys := make(metadataKeySet)
+	keys.addMap(map[string]string{"tenant": "acme", "old": "value"})
+
+	nquads := recordCleanupNQuads(keys)
+	for _, want := range []string{
+		`uid(c) <quark.chunk_entity> * .`,
+		`uid(c) <quark.chunk_relation> * .`,
+		`uid(oldRelations) * * .`,
+		`uid(c) <quark.text_content> * .`,
+		`uid(c) <quark.embedding> * .`,
+		`uid(c) <quark.metadata_json> * .`,
+		`uid(c) <quark.canonical_json> * .`,
+		`uid(c) <quark.meta_tenant_`,
+		`uid(c) <quark.meta_old_`,
+	} {
+		if !strings.Contains(nquads, want) {
+			t.Fatalf("cleanup nquads missing %q:\n%s", want, nquads)
+		}
+	}
+}
+
+func TestDeleteChunkPlanRemovesChunkAndOwnedRelations(t *testing.T) {
+	t.Parallel()
+
+	nquads := deleteChunkNQuads()
+	for _, want := range []string{
+		`uid(c) <quark.chunk_entity> * .`,
+		`uid(c) <quark.chunk_relation> * .`,
+		`uid(r) * * .`,
+		`uid(c) * * .`,
+	} {
+		if !strings.Contains(nquads, want) {
+			t.Fatalf("delete nquads missing %q:\n%s", want, nquads)
 		}
 	}
 }

@@ -168,22 +168,22 @@ func validateContextQuery(query ContextQuery) error {
 func normalizeEntities(entities []indexer.Entity) []indexer.Entity {
 	out := make([]indexer.Entity, 0, len(entities))
 	for _, entity := range entities {
-		entity.ID = strings.TrimSpace(entity.ID)
-		entity.Name = strings.TrimSpace(entity.Name)
-		entity.Type = strings.TrimSpace(entity.Type)
-		if entity.ID == "" {
-			entity.ID = indexer.EntityIDFromName(entity.Name)
+		id := strings.TrimSpace(entity.ID)
+		name := strings.TrimSpace(entity.Name)
+		typ := strings.TrimSpace(entity.Type)
+		if id == "" {
+			id = indexer.EntityIDFromName(name)
 		}
-		if entity.Name == "" {
-			entity.Name = entity.ID
+		if name == "" {
+			name = id
 		}
-		if entity.Type == "" {
-			entity.Type = unknownEntityType
+		if typ == "" {
+			typ = unknownEntityType
 		}
-		if entity.ID == "" {
+		if id == "" {
 			continue
 		}
-		out = append(out, entity)
+		out = append(out, indexer.Entity{ID: id, Name: name, Type: typ})
 	}
 	return out
 }
@@ -191,114 +191,141 @@ func normalizeEntities(entities []indexer.Entity) []indexer.Entity {
 func normalizeRelations(relations []indexer.Relation) []indexer.Relation {
 	out := make([]indexer.Relation, 0, len(relations))
 	for _, relation := range relations {
-		relation.FromID = strings.TrimSpace(relation.FromID)
-		relation.ToID = strings.TrimSpace(relation.ToID)
-		relation.Relation = strings.TrimSpace(relation.Relation)
-		if relation.FromID == "" || relation.ToID == "" || relation.Relation == "" {
+		fromID := strings.TrimSpace(relation.FromID)
+		toID := strings.TrimSpace(relation.ToID)
+		name := strings.TrimSpace(relation.Relation)
+		if fromID == "" || toID == "" || name == "" {
 			continue
 		}
-		out = append(out, relation)
+		out = append(out, indexer.Relation{FromID: fromID, ToID: toID, Relation: name})
 	}
 	return out
 }
 
 func normalizeDocument(document indexer.Document, metadata map[string]string, chunkID string) indexer.Document {
-	document.ID = strings.TrimSpace(document.ID)
-	document.Name = strings.TrimSpace(document.Name)
-	document.Type = strings.TrimSpace(document.Type)
-	document.SourceURI = strings.TrimSpace(document.SourceURI)
-	document.Metadata = cloneMetadata(document.Metadata)
-	if document.SourceURI == "" {
-		document.SourceURI = firstMetadata(metadata, "source_uri", "source", "path")
+	id := strings.TrimSpace(document.ID)
+	name := strings.TrimSpace(document.Name)
+	typ := strings.TrimSpace(document.Type)
+	sourceURI := strings.TrimSpace(document.SourceURI)
+	if sourceURI == "" {
+		sourceURI = firstMetadata(metadata, "source_uri", "source", "path")
 	}
-	if document.Name == "" {
-		document.Name = firstMetadata(metadata, "filename", "document_name", "source")
+	if name == "" {
+		name = firstMetadata(metadata, "filename", "document_name", "source")
 	}
-	if document.Type == "" {
-		document.Type = firstMetadata(metadata, "document_type", "type")
+	if typ == "" {
+		typ = firstMetadata(metadata, "document_type", "type")
 	}
-	if document.ID == "" {
-		document.ID = firstMetadata(metadata, "document_id")
+	if id == "" {
+		id = firstMetadata(metadata, "document_id")
 	}
-	if document.ID == "" {
-		document.ID = indexer.EntityIDFromName(firstNonEmpty(document.SourceURI, document.Name, chunkID))
+	if id == "" {
+		id = indexer.EntityIDFromName(firstNonEmpty(sourceURI, name, chunkID))
 	}
-	return document
+	return indexer.Document{
+		ID:        id,
+		Name:      name,
+		Type:      typ,
+		SourceURI: sourceURI,
+		Metadata:  cloneMetadata(document.Metadata),
+	}
 }
 
 func normalizeEmbeddingMetadata(embedding indexer.EmbeddingMetadata, metadata map[string]string, vectorLength int) indexer.EmbeddingMetadata {
-	embedding.Provider = strings.TrimSpace(embedding.Provider)
-	embedding.Model = strings.TrimSpace(embedding.Model)
-	embedding.ContentHash = strings.TrimSpace(embedding.ContentHash)
-	embedding.Version = strings.TrimSpace(embedding.Version)
-	if embedding.Provider == "" {
-		embedding.Provider = firstMetadata(metadata, "embedding_provider", "embeddingProvider")
+	provider := strings.TrimSpace(embedding.Provider)
+	model := strings.TrimSpace(embedding.Model)
+	contentHash := strings.TrimSpace(embedding.ContentHash)
+	version := strings.TrimSpace(embedding.Version)
+	dimensions := embedding.Dimensions
+	if provider == "" {
+		provider = firstMetadata(metadata, "embedding_provider", "embeddingProvider")
 	}
-	if embedding.Model == "" {
-		embedding.Model = firstMetadata(metadata, "embedding_model", "embeddingModel")
+	if model == "" {
+		model = firstMetadata(metadata, "embedding_model", "embeddingModel")
 	}
-	if embedding.ContentHash == "" {
-		embedding.ContentHash = firstMetadata(metadata, "embedding_content_hash", "embeddingContentHash", "content_hash", "contentHash")
+	if contentHash == "" {
+		contentHash = firstMetadata(metadata, "embedding_content_hash", "embeddingContentHash", "content_hash", "contentHash")
 	}
-	if embedding.Version == "" {
-		embedding.Version = firstMetadata(metadata, "embedding_version", "embeddingVersion")
+	if version == "" {
+		version = firstMetadata(metadata, "embedding_version", "embeddingVersion")
 	}
-	if embedding.Dimensions <= 0 {
+	if dimensions <= 0 {
 		if parsed, ok := parsePositiveInt(firstMetadata(metadata, "embedding_dimensions", "embeddingDimensions", "dimensions")); ok {
-			embedding.Dimensions = parsed
+			dimensions = parsed
 		}
 	}
-	if embedding.Dimensions <= 0 {
-		embedding.Dimensions = vectorLength
+	if dimensions <= 0 {
+		dimensions = vectorLength
 	}
-	return embedding
+	return indexer.EmbeddingMetadata{
+		Provider:    provider,
+		Model:       model,
+		Dimensions:  dimensions,
+		ContentHash: contentHash,
+		Version:     version,
+	}
 }
 
 func normalizeProvenance(provenance indexer.Provenance, metadata map[string]string, sourceURI, sourceText string) indexer.Provenance {
-	provenance.SourceURI = strings.TrimSpace(provenance.SourceURI)
-	provenance.SourceHash = strings.TrimSpace(provenance.SourceHash)
-	provenance.IngestedAt = strings.TrimSpace(provenance.IngestedAt)
-	provenance.ProducedBy = strings.TrimSpace(provenance.ProducedBy)
-	provenance.TraceID = strings.TrimSpace(provenance.TraceID)
-	provenance.Metadata = cloneMetadata(provenance.Metadata)
-	if provenance.SourceURI == "" {
-		provenance.SourceURI = firstNonEmpty(sourceURI, firstMetadata(metadata, "source_uri", "source", "path"))
+	resolvedSourceURI := strings.TrimSpace(provenance.SourceURI)
+	sourceHash := strings.TrimSpace(provenance.SourceHash)
+	ingestedAt := strings.TrimSpace(provenance.IngestedAt)
+	producedBy := strings.TrimSpace(provenance.ProducedBy)
+	traceID := strings.TrimSpace(provenance.TraceID)
+	if resolvedSourceURI == "" {
+		resolvedSourceURI = firstNonEmpty(sourceURI, firstMetadata(metadata, "source_uri", "source", "path"))
 	}
-	if provenance.SourceHash == "" {
-		provenance.SourceHash = firstMetadata(metadata, "source_hash", "content_hash")
+	if sourceHash == "" {
+		sourceHash = firstMetadata(metadata, "source_hash", "content_hash")
 	}
-	if provenance.SourceHash == "" {
-		provenance.SourceHash = indexer.SourceHashFromText(sourceText)
+	if sourceHash == "" {
+		sourceHash = indexer.SourceHashFromText(sourceText)
 	}
-	if provenance.TraceID == "" {
-		provenance.TraceID = firstMetadata(metadata, "trace_id", "session_id")
+	if traceID == "" {
+		traceID = firstMetadata(metadata, "trace_id", "session_id")
 	}
-	return provenance
+	return indexer.Provenance{
+		SourceURI:  resolvedSourceURI,
+		SourceHash: sourceHash,
+		IngestedAt: ingestedAt,
+		ProducedBy: producedBy,
+		TraceID:    traceID,
+		Metadata:   cloneMetadata(provenance.Metadata),
+	}
 }
 
 func normalizeCitations(citations []indexer.Citation, chunkID, sourceURI string) []indexer.Citation {
 	out := make([]indexer.Citation, 0, len(citations)+1)
 	for _, citation := range citations {
-		citation.ID = strings.TrimSpace(citation.ID)
-		citation.SourceURI = strings.TrimSpace(citation.SourceURI)
-		citation.ChunkID = strings.TrimSpace(citation.ChunkID)
-		citation.TextSpan = strings.TrimSpace(citation.TextSpan)
-		if citation.ChunkID == "" {
-			citation.ChunkID = chunkID
+		id := strings.TrimSpace(citation.ID)
+		resolvedSourceURI := strings.TrimSpace(citation.SourceURI)
+		resolvedChunkID := strings.TrimSpace(citation.ChunkID)
+		textSpan := strings.TrimSpace(citation.TextSpan)
+		confidence := citation.Confidence
+		if resolvedChunkID == "" {
+			resolvedChunkID = chunkID
 		}
-		if citation.SourceURI == "" {
-			citation.SourceURI = sourceURI
+		if resolvedSourceURI == "" {
+			resolvedSourceURI = sourceURI
 		}
-		if citation.ID == "" {
-			citation.ID = indexer.EntityIDFromName(firstNonEmpty(citation.SourceURI, citation.ChunkID, citation.TextSpan))
+		if id == "" {
+			id = indexer.EntityIDFromName(firstNonEmpty(resolvedSourceURI, resolvedChunkID, textSpan))
 		}
-		if citation.Confidence == 0 {
-			citation.Confidence = 1
+		if confidence == 0 {
+			confidence = 1
 		}
-		if citation.SourceURI == "" && citation.ChunkID == "" && citation.TextSpan == "" {
+		if resolvedSourceURI == "" && resolvedChunkID == "" && textSpan == "" {
 			continue
 		}
-		out = append(out, citation)
+		out = append(out, indexer.Citation{
+			ID:          id,
+			SourceURI:   resolvedSourceURI,
+			ChunkID:     resolvedChunkID,
+			TextSpan:    textSpan,
+			StartOffset: citation.StartOffset,
+			EndOffset:   citation.EndOffset,
+			Confidence:  confidence,
+		})
 	}
 	if len(out) == 0 && sourceURI != "" {
 		out = append(out, indexer.Citation{
@@ -314,22 +341,29 @@ func normalizeCitations(citations []indexer.Citation, chunkID, sourceURI string)
 func normalizeFacts(facts []indexer.Fact, chunkID, sourceURI string) []indexer.Fact {
 	out := make([]indexer.Fact, 0, len(facts))
 	for _, fact := range facts {
-		fact.ID = strings.TrimSpace(fact.ID)
-		fact.Subject = strings.TrimSpace(fact.Subject)
-		fact.Predicate = strings.TrimSpace(fact.Predicate)
-		fact.Object = strings.TrimSpace(fact.Object)
-		fact.Metadata = cloneMetadata(fact.Metadata)
-		if fact.Subject == "" || fact.Predicate == "" || fact.Object == "" {
+		id := strings.TrimSpace(fact.ID)
+		subject := strings.TrimSpace(fact.Subject)
+		predicate := strings.TrimSpace(fact.Predicate)
+		object := strings.TrimSpace(fact.Object)
+		confidence := fact.Confidence
+		if subject == "" || predicate == "" || object == "" {
 			continue
 		}
-		if fact.ID == "" {
-			fact.ID = indexer.EntityIDFromName(fact.Subject + "|" + fact.Predicate + "|" + fact.Object)
+		if id == "" {
+			id = indexer.EntityIDFromName(subject + "|" + predicate + "|" + object)
 		}
-		if fact.Confidence == 0 {
-			fact.Confidence = 1
+		if confidence == 0 {
+			confidence = 1
 		}
-		fact.Citations = normalizeCitations(fact.Citations, chunkID, sourceURI)
-		out = append(out, fact)
+		out = append(out, indexer.Fact{
+			ID:         id,
+			Subject:    subject,
+			Predicate:  predicate,
+			Object:     object,
+			Confidence: confidence,
+			Citations:  normalizeCitations(fact.Citations, chunkID, sourceURI),
+			Metadata:   cloneMetadata(fact.Metadata),
+		})
 	}
 	return out
 }
@@ -407,19 +441,19 @@ func uniqueRelations(relations []indexer.Relation) []indexer.Relation {
 }
 
 func normalizeEntityForWrite(entity indexer.Entity) indexer.Entity {
-	entity.ID = strings.TrimSpace(entity.ID)
-	entity.Name = strings.TrimSpace(entity.Name)
-	entity.Type = strings.TrimSpace(entity.Type)
-	if entity.ID == "" {
-		entity.ID = indexer.EntityIDFromName(entity.Name)
+	id := strings.TrimSpace(entity.ID)
+	name := strings.TrimSpace(entity.Name)
+	typ := strings.TrimSpace(entity.Type)
+	if id == "" {
+		id = indexer.EntityIDFromName(name)
 	}
-	if entity.Name == "" {
-		entity.Name = entity.ID
+	if name == "" {
+		name = id
 	}
-	if entity.Type == "" {
-		entity.Type = unknownEntityType
+	if typ == "" {
+		typ = unknownEntityType
 	}
-	return entity
+	return indexer.Entity{ID: id, Name: name, Type: typ}
 }
 
 func completeRelation(relation indexer.Relation) bool {
@@ -483,25 +517,50 @@ func cloneMetadata(in map[string]string) map[string]string {
 func cloneChunks(in []indexer.Chunk) []indexer.Chunk {
 	out := make([]indexer.Chunk, len(in))
 	for i, chunk := range in {
-		out[i] = indexer.Chunk{
-			ID:                chunk.ID,
-			Text:              chunk.Text,
-			Vector:            cloneVector(chunk.Vector),
-			Metadata:          cloneMetadata(chunk.Metadata),
-			Document:          cloneDocument(chunk.Document),
-			EmbeddingMetadata: chunk.EmbeddingMetadata,
-			Facts:             cloneFacts(chunk.Facts),
-			Citations:         cloneCitations(chunk.Citations),
-			Provenance:        cloneProvenance(chunk.Provenance),
-			Score:             chunk.Score,
-		}
+		out[i] = cloneChunk(chunk)
 	}
 	return out
 }
 
+func cloneChunk(chunk indexer.Chunk) indexer.Chunk {
+	return indexer.Chunk{
+		ID:                chunk.ID,
+		Text:              chunk.Text,
+		Vector:            cloneVector(chunk.Vector),
+		Metadata:          cloneMetadata(chunk.Metadata),
+		Document:          cloneDocument(chunk.Document),
+		EmbeddingMetadata: chunk.EmbeddingMetadata,
+		Facts:             cloneFacts(chunk.Facts),
+		Citations:         cloneCitations(chunk.Citations),
+		Provenance:        cloneProvenance(chunk.Provenance),
+		Score:             chunk.Score,
+	}
+}
+
+func cloneChunkWithScore(chunk indexer.Chunk, score float32) indexer.Chunk {
+	cloned := cloneChunk(chunk)
+	return indexer.Chunk{
+		ID:                cloned.ID,
+		Text:              cloned.Text,
+		Vector:            cloned.Vector,
+		Metadata:          cloned.Metadata,
+		Document:          cloned.Document,
+		EmbeddingMetadata: cloned.EmbeddingMetadata,
+		Facts:             cloned.Facts,
+		Citations:         cloned.Citations,
+		Provenance:        cloned.Provenance,
+		Score:             score,
+	}
+}
+
 func cloneDocument(in indexer.Document) indexer.Document {
-	in.Metadata = cloneMetadata(in.Metadata)
-	return in
+	return indexer.Document{
+		ID:        in.ID,
+		Name:      in.Name,
+		Type:      in.Type,
+		SourceURI: in.SourceURI,
+		Metadata:  cloneMetadata(in.Metadata),
+	}
 }
 
 func cloneFacts(in []indexer.Fact) []indexer.Fact {
@@ -527,8 +586,14 @@ func cloneCitations(in []indexer.Citation) []indexer.Citation {
 }
 
 func cloneProvenance(in indexer.Provenance) indexer.Provenance {
-	in.Metadata = cloneMetadata(in.Metadata)
-	return in
+	return indexer.Provenance{
+		SourceURI:  in.SourceURI,
+		SourceHash: in.SourceHash,
+		IngestedAt: in.IngestedAt,
+		ProducedBy: in.ProducedBy,
+		TraceID:    in.TraceID,
+		Metadata:   cloneMetadata(in.Metadata),
+	}
 }
 
 func cloneGraphFragment(in *indexer.GraphFragment) *indexer.GraphFragment {

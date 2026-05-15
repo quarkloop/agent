@@ -99,19 +99,19 @@ func normalizeScores(chunks []indexer.Chunk) []indexer.Chunk {
 	}
 	if minScore >= 0 && maxScore <= 1 {
 		for i := range out {
-			out[i].Score = clamp01(out[i].Score)
+			out[i] = cloneChunkWithScore(out[i], clamp01(out[i].Score))
 		}
 		return out
 	}
 	if maxScore == minScore {
 		for i := range out {
-			out[i].Score = 1
+			out[i] = cloneChunkWithScore(out[i], 1)
 		}
 		return out
 	}
 	spread := maxScore - minScore
 	for i := range out {
-		out[i].Score = clamp01((out[i].Score - minScore) / spread)
+		out[i] = cloneChunkWithScore(out[i], clamp01((out[i].Score-minScore)/spread))
 	}
 	return out
 }

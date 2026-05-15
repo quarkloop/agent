@@ -11,7 +11,7 @@ metadata, and provenance after semantic extraction in the runtime/model path.
 | --- | --- | --- | --- | --- | --- |
 | `indexer_IndexDocument` | `quark.indexer.v1.IndexerService/IndexDocument` | write | no | yes | Persist one canonical index record with document, chunk, embedding metadata, facts, entities, relations, citations, and provenance. |
 | `indexer_GetContext` | `quark.indexer.v1.IndexerService/GetContext` | read | no | yes | Retrieve vector and graph context for an agent-provided query embedding. |
-| `indexer_DeleteChunk` | `quark.indexer.v1.IndexerService/DeleteChunk` | admin | yes | no | Delete one indexed chunk and its chunk-owned edges by canonical chunk ID. |
+| `indexer_DeleteChunk` | `quark.indexer.v1.IndexerService/DeleteChunk` | admin | yes | no | Delete one indexed chunk and its chunk-owned relation nodes by canonical chunk ID. |
 
 Runtime exposes these functions through the shared tool-call path using the
 supervisor-resolved service catalog.

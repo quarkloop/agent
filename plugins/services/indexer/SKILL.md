@@ -82,9 +82,11 @@ when the indexer service is available.
   citations, embedding references/metadata, and provenance. It must not receive
   raw PDFs or prompt-only payloads as a substitute for extracted knowledge.
 - `IndexDocument` remains a single atomic canonical record upsert instead of a
-  collection of separate document/chunk/fact/entity/citation writes. Splitting
-  those writes would make graph and vector consistency harder unless the store
-  can guarantee one transaction across all record parts.
+  collection of separate document/chunk/fact/entity/citation writes. Re-indexing
+  the same chunk replaces previous chunk-owned metadata predicates, entity
+  links, and relation nodes before writing the new canonical record.
+- `DeleteChunk` removes the chunk and chunk-owned relation nodes. Shared entity
+  nodes remain available for other chunks that still reference them.
 - Query text must be embedded by the agent before `GetContext`.
 - Use `embeddingRef` and `queryVectorRef` from `embedding_Embed` instead of
   manually copying vectors through the LLM.

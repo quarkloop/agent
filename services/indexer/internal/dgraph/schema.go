@@ -19,6 +19,7 @@ quark.entity_id: string @index(exact) @upsert .
 quark.entity_name: string @index(term, exact) .
 quark.entity_type: string @index(exact) .
 quark.chunk_entity: [uid] @reverse .
+quark.chunk_relation: [uid] @reverse .
 quark.relation_id: string @index(exact) @upsert .
 quark.relation_name: string @index(exact) .
 quark.relation_from: uid @reverse .
@@ -31,6 +32,7 @@ type QuarkChunk {
 	quark.metadata_json
 	quark.canonical_json
 	quark.chunk_entity
+	quark.chunk_relation
 }
 
 type QuarkEntity {

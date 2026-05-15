@@ -24,8 +24,11 @@ create embeddings, or call other services.
   calling indexing logic.
 - `IndexDocument` intentionally remains one atomic canonical record upsert. It
   is not an ingestion pipeline; it is the storage boundary for one agent-
-  produced record. Splitting document/chunk/fact/entity/citation writes before
-  the store can guarantee one transaction would create partial-state risk.
+  produced record. Re-indexing the same chunk replaces prior chunk-owned
+  metadata predicates, entity links, and relation nodes before writing the new
+  canonical record.
+- `DeleteChunk` deletes the chunk and chunk-owned relation nodes. Shared entity
+  nodes remain because other chunks may still reference the same entities.
 
 ## Configuration
 
@@ -44,5 +47,5 @@ create embeddings, or call other services.
 
 - The service boundary already rejects raw PDF/document parsing and LLM work.
 - Mapper tests cover protobuf-to-domain and domain-to-proto copying; storage
-  tests cover canonical normalization, dimension validation, updates,
-  duplicate chunks, deletes, graph/vector consistency, and owned copies.
+  tests cover canonical normalization, dimension validation, update cleanup,
+  duplicate chunks, delete cleanup, graph/vector consistency, and owned copies.

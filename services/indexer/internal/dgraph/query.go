@@ -41,6 +41,12 @@ const neighborhoodQuery = `query neighborhood($id: string) {
   }
 }`
 
+const chunkMetadataQuery = `query chunkMetadata($id: string) {
+  chunks(func: eq(quark.chunk_id, $id), first: 1) {
+    quark.metadata_json
+  }
+}`
+
 func vectorSearchQuery(limit int, filters map[string]string) string {
 	return fmt.Sprintf(`query search($vec: float32vector) {
   var(func: similar_to(quark.embedding, %d, $vec)) %s {
