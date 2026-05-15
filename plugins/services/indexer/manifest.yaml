@@ -8,6 +8,13 @@ license: Apache-2.0
 
 service:
   address_env: QUARK_INDEXER_ADDR
+  health:
+    protocol: grpc_health_v1
+    service: quark.indexer.v1.IndexerService
+    timeout: 5s
+  readiness:
+    required: true
+    min_version: "1.0.0"
   skill: SKILL.md
   readme: README.md
   proto_services:

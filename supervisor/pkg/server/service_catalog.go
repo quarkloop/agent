@@ -14,6 +14,7 @@ import (
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	spacemodel "github.com/quarkloop/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/pluginmanager"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -137,15 +138,23 @@ func (s *Server) resolveServicePluginCatalog(ctx context.Context, space string) 
 
 	descriptors := make([]*servicev1.ServiceDescriptor, 0, len(installed))
 	for _, item := range installed {
-		address := servicePluginAddress(item.Manifest, serviceConfig[item.Manifest.Name])
+		configured := serviceConfig[item.Manifest.Name]
+		address := servicePluginAddress(item.Manifest, configured)
 		if address == "" {
+			if servicePluginReadinessRequired(item.Manifest, configured) {
+				return nil, fmt.Errorf("service plugin %s missing endpoint: set %s or configure services[].address", item.Manifest.Name, item.Manifest.Service.AddressEnv)
+			}
 			continue
+		}
+		if err := checkServicePluginReadiness(ctx, address, item.Manifest); err != nil {
+			return nil, fmt.Errorf("service plugin %s readiness at %s: %w", item.Manifest.Name, address, err)
 		}
 		discovered, err := discoverServicePlugin(ctx, address)
 		if err != nil {
 			return nil, fmt.Errorf("discover service plugin %s: %w", item.Manifest.Name, err)
 		}
 		skill := loadServicePluginSkill(item)
+		pluginDescriptors := make([]*servicev1.ServiceDescriptor, 0, len(discovered))
 		for _, desc := range discovered {
 			if desc.GetAddress() == "" {
 				desc.Address = address
@@ -159,8 +168,12 @@ func (s *Server) resolveServicePluginCatalog(ctx context.Context, space string) 
 			if skill != nil {
 				desc.Skills = replaceSkill(desc.GetSkills(), skill)
 			}
-			descriptors = append(descriptors, desc)
+			pluginDescriptors = append(pluginDescriptors, desc)
 		}
+		if err := validateServicePluginDescriptors(pluginDescriptors, item.Manifest); err != nil {
+			return nil, fmt.Errorf("service plugin %s descriptor: %w", item.Manifest.Name, err)
+		}
+		descriptors = append(descriptors, pluginDescriptors...)
 	}
 	return descriptors, nil
 }
@@ -243,6 +256,82 @@ func servicePluginAddress(manifest *plugin.Manifest, configured spacemodel.Servi
 		}
 	}
 	return strings.TrimSpace(manifest.Service.DefaultAddress)
+}
+
+func servicePluginReadinessRequired(manifest *plugin.Manifest, configured spacemodel.ServiceRef) bool {
+	if configured.Name != "" {
+		return true
+	}
+	return manifest != nil && manifest.Service != nil && manifest.Service.Readiness.Required
+}
+
+func checkServicePluginReadiness(ctx context.Context, address string, manifest *plugin.Manifest) error {
+	if manifest == nil || manifest.Service == nil {
+		return nil
+	}
+	timeout, err := time.ParseDuration(manifest.Service.Health.Timeout)
+	if err != nil {
+		return fmt.Errorf("invalid health timeout: %w", err)
+	}
+	callCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	conn, err := servicekit.Dial(callCtx, address)
+	if err != nil {
+		return fmt.Errorf("dial health endpoint: %w", err)
+	}
+	defer conn.Close()
+	resp, err := healthpb.NewHealthClient(conn).Check(callCtx, &healthpb.HealthCheckRequest{Service: healthServiceName(manifest)})
+	if err != nil {
+		return fmt.Errorf("grpc health check: %w", err)
+	}
+	if resp.GetStatus() != healthpb.HealthCheckResponse_SERVING {
+		return fmt.Errorf("health status is %s", resp.GetStatus().String())
+	}
+	return nil
+}
+
+func healthServiceName(manifest *plugin.Manifest) string {
+	if manifest == nil || manifest.Service == nil {
+		return ""
+	}
+	if manifest.Service.Health.Service != "" {
+		return manifest.Service.Health.Service
+	}
+	if len(manifest.Service.ProtoServices) > 0 {
+		return manifest.Service.ProtoServices[0]
+	}
+	return ""
+}
+
+func validateServicePluginDescriptors(descriptors []*servicev1.ServiceDescriptor, manifest *plugin.Manifest) error {
+	if manifest == nil || manifest.Service == nil {
+		return nil
+	}
+	if len(descriptors) == 0 {
+		return fmt.Errorf("no descriptors returned")
+	}
+	minVersion := strings.TrimSpace(manifest.Service.Readiness.MinVersion)
+	seenRPC := make(map[string]bool)
+	for _, desc := range descriptors {
+		if desc.GetName() == "" {
+			return fmt.Errorf("missing descriptor name")
+		}
+		if minVersion != "" && desc.GetVersion() != minVersion {
+			return fmt.Errorf("unsupported version %q for %s (required: %s)", desc.GetVersion(), desc.GetName(), minVersion)
+		}
+		if desc.GetAddress() == "" {
+			return fmt.Errorf("descriptor %s missing endpoint address", desc.GetName())
+		}
+		for _, rpc := range desc.GetRpcs() {
+			seenRPC[serviceFunctionKey(rpc.GetService(), rpc.GetMethod())] = true
+		}
+	}
+	for _, function := range manifest.Service.Functions {
+		if !seenRPC[serviceFunctionKey(function.Service, function.Method)] {
+			return fmt.Errorf("missing RPC descriptor for %s/%s", function.Service, function.Method)
+		}
+	}
+	return nil
 }
 
 func discoverServicePlugin(ctx context.Context, address string) ([]*servicev1.ServiceDescriptor, error) {

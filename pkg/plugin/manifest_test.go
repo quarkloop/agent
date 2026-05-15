@@ -78,6 +78,12 @@ func TestServiceManifestDefaultsSkillAndReadme(t *testing.T) {
 	if manifest.Service.Readme != "README.md" {
 		t.Fatalf("readme = %q, want README.md", manifest.Service.Readme)
 	}
+	if manifest.Service.Health.Protocol != "grpc_health_v1" || manifest.Service.Health.Timeout != "5s" {
+		t.Fatalf("health = %+v", manifest.Service.Health)
+	}
+	if manifest.Service.Readiness.MinVersion != manifest.Version {
+		t.Fatalf("readiness min version = %q, want %q", manifest.Service.Readiness.MinVersion, manifest.Version)
+	}
 }
 
 func TestAgentManifestDefaultsProfileSystemAndSkill(t *testing.T) {
@@ -192,6 +198,18 @@ func TestRepositoryServiceManifestsDeclareFunctionsAndReadmes(t *testing.T) {
 			}
 			if manifest.Type != TypeService {
 				t.Fatalf("manifest type = %s, want service", manifest.Type)
+			}
+			if manifest.Service.Health.Protocol != "grpc_health_v1" {
+				t.Fatalf("service health protocol = %q", manifest.Service.Health.Protocol)
+			}
+			if manifest.Service.Health.Service == "" {
+				t.Fatal("service health service is required")
+			}
+			if !manifest.Service.Readiness.Required {
+				t.Fatal("service readiness must be required")
+			}
+			if manifest.Service.Readiness.MinVersion == "" {
+				t.Fatal("service readiness min_version is required")
 			}
 			readmePath := filepath.Join(filepath.Dir(manifestPath), manifest.Service.Readme)
 			if _, err := os.Stat(readmePath); err != nil {

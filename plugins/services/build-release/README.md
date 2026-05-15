@@ -13,3 +13,12 @@ compatibility adapter and should not own release business logic.
 | `build_release_Init` | `quark.buildrelease.v1.BuildReleaseService/Init` | write | yes | no | Create a default `build_release.json` in a working directory. |
 
 Approval is required for functions that write files or execute release builds.
+
+## Health And Readiness
+
+- Health protocol: gRPC health v1.
+- Health service: `quark.buildrelease.v1.BuildReleaseService`.
+- Required readiness: yes, before runtime receives the service catalog.
+- Minimum descriptor version: `1.0.0`.
+- Startup diagnostics cover missing `QUARK_BUILD_RELEASE_ADDR`, failed health
+  checks, descriptor version mismatch, and missing RPC descriptors.

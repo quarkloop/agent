@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -68,6 +69,10 @@ type ServiceConfig struct {
 	AddressEnv string `yaml:"address_env,omitempty"`
 	// DefaultAddress is used when AddressEnv is empty or unset.
 	DefaultAddress string `yaml:"default_address,omitempty"`
+	// Health declares how supervisor checks service liveness/readiness.
+	Health ServiceHealthConfig `yaml:"health,omitempty"`
+	// Readiness declares startup readiness requirements.
+	Readiness ServiceReadinessConfig `yaml:"readiness,omitempty"`
 	// Skill names the service skill file relative to the plugin directory.
 	Skill string `yaml:"skill,omitempty"`
 	// Readme names the service README file relative to the plugin directory.
@@ -77,6 +82,17 @@ type ServiceConfig struct {
 	// Functions declares the agent-facing service functions exposed by the
 	// service plugin. These map to transport-level gRPC RPC methods.
 	Functions []ServiceFunctionConfig `yaml:"functions,omitempty"`
+}
+
+type ServiceHealthConfig struct {
+	Protocol string `yaml:"protocol,omitempty"`
+	Service  string `yaml:"service,omitempty"`
+	Timeout  string `yaml:"timeout,omitempty"`
+}
+
+type ServiceReadinessConfig struct {
+	Required   bool   `yaml:"required,omitempty"`
+	MinVersion string `yaml:"min_version,omitempty"`
 }
 
 // ServiceFunctionConfig declares one agent-facing callable service function.
@@ -202,6 +218,21 @@ func (m *Manifest) Validate() error {
 		}
 		if m.Service.Readme == "" {
 			m.Service.Readme = "README.md"
+		}
+		if m.Service.Health.Protocol == "" {
+			m.Service.Health.Protocol = "grpc_health_v1"
+		}
+		if m.Service.Health.Timeout == "" {
+			m.Service.Health.Timeout = "5s"
+		}
+		if m.Service.Health.Protocol != "grpc_health_v1" {
+			return fmt.Errorf("service.health.protocol must be grpc_health_v1")
+		}
+		if _, err := time.ParseDuration(m.Service.Health.Timeout); err != nil {
+			return fmt.Errorf("service.health.timeout: %w", err)
+		}
+		if m.Service.Readiness.MinVersion == "" {
+			m.Service.Readiness.MinVersion = m.Version
 		}
 		if len(m.Service.Functions) == 0 {
 			return fmt.Errorf("service.functions is required for service plugins")

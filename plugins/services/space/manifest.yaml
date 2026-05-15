@@ -8,6 +8,13 @@ license: Apache-2.0
 
 service:
   address_env: QUARK_SPACE_SERVICE_ADDR
+  health:
+    protocol: grpc_health_v1
+    service: quark.space.v1.SpaceService
+    timeout: 5s
+  readiness:
+    required: true
+    min_version: "1.0.0"
   skill: SKILL.md
   readme: README.md
   proto_services:

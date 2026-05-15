@@ -86,6 +86,10 @@ approval policy, and memory scope. Supervisor must validate those overrides
 against the installed profile maximum and pass only the resolved catalog to
 runtime.
 
+Service plugins must declare gRPC health/readiness requirements. Supervisor
+checks health, endpoint availability, descriptor version, and exported RPCs
+before adding a service to the runtime catalog.
+
 Supervisor-owned discovery passes runtime catalogs through:
 
 - `QUARK_RUNTIME_PLUGIN_CATALOG`

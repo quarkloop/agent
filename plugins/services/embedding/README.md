@@ -12,3 +12,12 @@ or decide document structure.
 
 Runtime stores large embedding vectors as references where needed so agents do
 not copy vector payloads through prompts.
+
+## Health And Readiness
+
+- Health protocol: gRPC health v1.
+- Health service: `quark.embedding.v1.EmbeddingService`.
+- Required readiness: yes, before runtime receives the service catalog.
+- Minimum descriptor version: `1.0.0`.
+- Startup diagnostics cover missing `QUARK_EMBEDDING_ADDR`, failed health
+  checks, descriptor version mismatch, and missing RPC descriptors.

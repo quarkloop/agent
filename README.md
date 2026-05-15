@@ -80,6 +80,8 @@ Important boundaries:
   not infer installed state for supervisor-launched agents.
 - Supervisor-to-runtime plugin and service catalogs are versioned startup
   contracts and unsupported versions fail at runtime startup.
+- Service plugins declare gRPC health/readiness requirements; supervisor checks
+  endpoint health, descriptor version, and RPC coverage before runtime launch.
 - Services do not call each other. The agent is the coordinator.
 - Service functions are the agent-facing callable service capabilities; RPC
   methods are only the gRPC transport implementation.

@@ -1,13 +1,19 @@
 package server
 
 import (
+	"context"
+	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/quarkloop/pkg/plugin"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	"github.com/quarkloop/supervisor/pkg/pluginmanager"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func TestRuntimePluginCatalogEntryIncludesToolSchemaAndSkill(t *testing.T) {
@@ -165,5 +171,123 @@ func TestApplyServiceFunctionMetadataRequiresEveryRPC(t *testing.T) {
 
 	if err := applyServiceFunctionMetadata(desc, manifest); err == nil {
 		t.Fatal("apply metadata unexpectedly succeeded")
+	}
+}
+
+func TestCheckServicePluginReadinessHealthy(t *testing.T) {
+	address, stop := startHealthServer(t, "quark.indexer.v1.IndexerService", healthpb.HealthCheckResponse_SERVING)
+	defer stop()
+
+	err := checkServicePluginReadiness(context.Background(), address, serviceManifest("indexer", "quark.indexer.v1.IndexerService"))
+	if err != nil {
+		t.Fatalf("readiness should pass: %v", err)
+	}
+}
+
+func TestCheckServicePluginReadinessUnhealthy(t *testing.T) {
+	address, stop := startHealthServer(t, "quark.indexer.v1.IndexerService", healthpb.HealthCheckResponse_NOT_SERVING)
+	defer stop()
+
+	err := checkServicePluginReadiness(context.Background(), address, serviceManifest("indexer", "quark.indexer.v1.IndexerService"))
+	if err == nil || !strings.Contains(err.Error(), "NOT_SERVING") {
+		t.Fatalf("expected unhealthy service error, got: %v", err)
+	}
+}
+
+func TestValidateServicePluginDescriptorsRejectsMissingRPC(t *testing.T) {
+	desc := &servicev1.ServiceDescriptor{
+		Name:    "indexer",
+		Version: "1.0.0",
+		Address: "127.0.0.1:7301",
+		Rpcs: []*servicev1.RpcDescriptor{{
+			Service:     "quark.indexer.v1.IndexerService",
+			Method:      "GetContext",
+			Request:     "quark.indexer.v1.QueryRequest",
+			Response:    "quark.indexer.v1.ContextResponse",
+			Description: "Retrieve context.",
+		}},
+	}
+	manifest := serviceManifest("indexer", "quark.indexer.v1.IndexerService")
+	manifest.Service.Functions = append(manifest.Service.Functions, plugin.ServiceFunctionConfig{
+		Name:        "indexer_IndexDocument",
+		Service:     "quark.indexer.v1.IndexerService",
+		Method:      "IndexDocument",
+		Request:     "quark.indexer.v1.IndexRequest",
+		Response:    "quark.indexer.v1.IndexStatus",
+		Description: "Persist index records.",
+	})
+
+	err := validateServicePluginDescriptors([]*servicev1.ServiceDescriptor{desc}, manifest)
+	if err == nil || !strings.Contains(err.Error(), "missing RPC descriptor") {
+		t.Fatalf("expected descriptor mismatch, got: %v", err)
+	}
+}
+
+func TestValidateServicePluginDescriptorsRejectsVersionMismatch(t *testing.T) {
+	desc := &servicev1.ServiceDescriptor{
+		Name:    "indexer",
+		Version: "2.0.0",
+		Address: "127.0.0.1:7301",
+		Rpcs: []*servicev1.RpcDescriptor{{
+			Service:     "quark.indexer.v1.IndexerService",
+			Method:      "GetContext",
+			Request:     "quark.indexer.v1.QueryRequest",
+			Response:    "quark.indexer.v1.ContextResponse",
+			Description: "Retrieve context.",
+		}},
+	}
+
+	err := validateServicePluginDescriptors([]*servicev1.ServiceDescriptor{desc}, serviceManifest("indexer", "quark.indexer.v1.IndexerService"))
+	if err == nil || !strings.Contains(err.Error(), "unsupported version") {
+		t.Fatalf("expected version error, got: %v", err)
+	}
+}
+
+func startHealthServer(t *testing.T, service string, status healthpb.HealthCheckResponse_ServingStatus) (string, func()) {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	server := grpc.NewServer()
+	healthServer := health.NewServer()
+	healthServer.SetServingStatus(service, status)
+	healthpb.RegisterHealthServer(server, healthServer)
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.Serve(ln)
+	}()
+	return ln.Addr().String(), func() {
+		server.Stop()
+		_ = ln.Close()
+		<-errCh
+	}
+}
+
+func serviceManifest(name, protoService string) *plugin.Manifest {
+	return &plugin.Manifest{
+		Name:    name,
+		Version: "1.0.0",
+		Type:    plugin.TypeService,
+		Service: &plugin.ServiceConfig{
+			Health: plugin.ServiceHealthConfig{
+				Protocol: "grpc_health_v1",
+				Service:  protoService,
+				Timeout:  "2s",
+			},
+			Readiness: plugin.ServiceReadinessConfig{
+				Required:   true,
+				MinVersion: "1.0.0",
+			},
+			ProtoServices: []string{protoService},
+			Functions: []plugin.ServiceFunctionConfig{{
+				Name:        "indexer_GetContext",
+				Service:     protoService,
+				Method:      "GetContext",
+				Request:     "quark.indexer.v1.QueryRequest",
+				Response:    "quark.indexer.v1.ContextResponse",
+				Description: "Retrieve context.",
+			}},
+		},
 	}
 }
