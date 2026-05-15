@@ -13,6 +13,7 @@ service IngestionService {
   rpc GetRun(GetRunRequest) returns (GetRunResponse);
   rpc ResumeRun(ResumeRunRequest) returns (ResumeRunResponse);
   rpc UpdateSourceState(UpdateSourceStateRequest) returns (UpdateSourceStateResponse);
+  rpc ListIncompleteSources(ListIncompleteSourcesRequest) returns (ListIncompleteSourcesResponse);
   rpc ListArtifacts(ListArtifactsRequest) returns (ListArtifactsResponse);
 }
 
@@ -28,6 +29,7 @@ message SourceInput {
   string filename = 2;
   string source_hash = 3;
   map<string, string> metadata = 4;
+  string file_path = 5;
 }
 
 message GetRunRequest {
@@ -51,6 +53,16 @@ message UpdateSourceStateRequest {
 message ListArtifactsRequest {
   string run_id = 1;
   string source_id = 2;
+}
+
+message ListIncompleteSourcesRequest {
+  string run_id = 1;
+  bool include_failed = 2;
+  bool include_pending = 3;
+}
+
+message ListIncompleteSourcesResponse {
+  repeated SourceState sources = 1;
 }
 
 message ListArtifactsResponse {
@@ -94,6 +106,12 @@ message SourceState {
   string last_error = 7;
   repeated IngestionArtifact artifacts = 8;
   map<string, string> metadata = 9;
+  string file_path = 10;
+  SourceStepState extraction = 11;
+  SourceStepState structuring = 12;
+  SourceStepState embedding = 13;
+  SourceStepState indexing = 14;
+  SourceStepState citation = 15;
 }
 
 message IngestionArtifact {
@@ -102,6 +120,15 @@ message IngestionArtifact {
   string source_id = 3;
   string created_at = 4;
   map<string, string> metadata = 5;
+}
+
+message SourceStepState {
+  SourcePhase phase = 1;
+  SourceStatus status = 2;
+  string artifact_ref = 3;
+  string error = 4;
+  string updated_at = 5;
+  map<string, string> metadata = 6;
 }
 
 enum SourcePhase {

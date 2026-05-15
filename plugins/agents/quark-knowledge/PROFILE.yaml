@@ -26,6 +26,7 @@ permissions:
     - ingestion_GetRun
     - ingestion_ResumeRun
     - ingestion_UpdateSourceState
+    - ingestion_ListIncompleteSources
     - ingestion_ListArtifacts
     - embedding.*
     - embedding_Embed

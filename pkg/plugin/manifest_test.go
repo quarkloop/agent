@@ -298,6 +298,7 @@ func TestQuarkKnowledgeProfileDeclaresConcreteServiceFunctions(t *testing.T) {
 		"ingestion_GetRun",
 		"ingestion_ResumeRun",
 		"ingestion_UpdateSourceState",
+		"ingestion_ListIncompleteSources",
 		"ingestion_ListArtifacts",
 		"embedding_Embed",
 		"indexer_IndexDocument",
@@ -312,6 +313,43 @@ func TestQuarkKnowledgeProfileDeclaresConcreteServiceFunctions(t *testing.T) {
 	} {
 		if !permissions[want] {
 			t.Fatalf("quark knowledge profile missing service function permission %q", want)
+		}
+	}
+}
+
+func TestIngestionServiceContractTracksResumableSourceState(t *testing.T) {
+	manifest, err := ParseManifest(filepath.Join("..", "..", "plugins", "services", "ingestion", "manifest.yaml"))
+	if err != nil {
+		t.Fatalf("parse ingestion manifest: %v", err)
+	}
+	found := false
+	for _, function := range manifest.Service.Functions {
+		if function.Name == "ingestion_ListIncompleteSources" {
+			found = true
+			if function.RiskLevel != "read" || !function.Idempotent {
+				t.Fatalf("ingestion_ListIncompleteSources contract = %+v", function)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("ingestion service missing ingestion_ListIncompleteSources")
+	}
+	protoData, err := os.ReadFile(filepath.Join("..", "..", "proto", "quark", "ingestion", "v1", "ingestion.proto"))
+	if err != nil {
+		t.Fatalf("read ingestion proto: %v", err)
+	}
+	protoText := string(protoData)
+	for _, want := range []string{
+		"string file_path",
+		"SourceStepState extraction",
+		"SourceStepState structuring",
+		"SourceStepState embedding",
+		"SourceStepState indexing",
+		"SourceStepState citation",
+		"string last_error",
+	} {
+		if !strings.Contains(protoText, want) {
+			t.Fatalf("ingestion proto missing resumable state field %q", want)
 		}
 	}
 }

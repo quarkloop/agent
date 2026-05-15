@@ -11,7 +11,9 @@ test helpers as the source of truth.
    semantic structuring, embedding, indexing, and citation verification.
 3. Call `ingestion_GetRun` or `ingestion_ResumeRun` before retrying failed or
    incomplete files.
-4. Call `ingestion_ListArtifacts` when an agent needs run artifacts for
+4. Call `ingestion_ListIncompleteSources` to identify only pending or failed
+   files before resuming a batch.
+5. Call `ingestion_ListArtifacts` when an agent needs run artifacts for
    debugging or provenance.
 
 ## RPCs
@@ -24,6 +26,8 @@ test helpers as the source of truth.
   - Generated service function: `ingestion_ResumeRun`
 - `UpdateSourceState(UpdateSourceStateRequest) -> UpdateSourceStateResponse`
   - Generated service function: `ingestion_UpdateSourceState`
+- `ListIncompleteSources(ListIncompleteSourcesRequest) -> ListIncompleteSourcesResponse`
+  - Generated service function: `ingestion_ListIncompleteSources`
 - `ListArtifacts(ListArtifactsRequest) -> ListArtifactsResponse`
   - Generated service function: `ingestion_ListArtifacts`
 
@@ -33,5 +37,8 @@ test helpers as the source of truth.
   call LLMs, embed chunks, call indexer, or call another service.
 - Source state records should track parsing, LLM structuring, embedding,
   indexing, citation verification, and last error.
+- Resume only sources whose extraction, structuring, embedding, indexing, or
+  citation state is pending, running, or failed. Do not redo succeeded sources
+  without explicit user intent.
 - User directory mutation is not required for ingestion and must remain
   approval-gated elsewhere.

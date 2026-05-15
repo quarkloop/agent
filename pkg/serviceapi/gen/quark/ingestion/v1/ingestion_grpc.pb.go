@@ -19,11 +19,12 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	IngestionService_StartRun_FullMethodName          = "/quark.ingestion.v1.IngestionService/StartRun"
-	IngestionService_GetRun_FullMethodName            = "/quark.ingestion.v1.IngestionService/GetRun"
-	IngestionService_ResumeRun_FullMethodName         = "/quark.ingestion.v1.IngestionService/ResumeRun"
-	IngestionService_UpdateSourceState_FullMethodName = "/quark.ingestion.v1.IngestionService/UpdateSourceState"
-	IngestionService_ListArtifacts_FullMethodName     = "/quark.ingestion.v1.IngestionService/ListArtifacts"
+	IngestionService_StartRun_FullMethodName              = "/quark.ingestion.v1.IngestionService/StartRun"
+	IngestionService_GetRun_FullMethodName                = "/quark.ingestion.v1.IngestionService/GetRun"
+	IngestionService_ResumeRun_FullMethodName             = "/quark.ingestion.v1.IngestionService/ResumeRun"
+	IngestionService_UpdateSourceState_FullMethodName     = "/quark.ingestion.v1.IngestionService/UpdateSourceState"
+	IngestionService_ListIncompleteSources_FullMethodName = "/quark.ingestion.v1.IngestionService/ListIncompleteSources"
+	IngestionService_ListArtifacts_FullMethodName         = "/quark.ingestion.v1.IngestionService/ListArtifacts"
 )
 
 // IngestionServiceClient is the client API for IngestionService service.
@@ -39,6 +40,7 @@ type IngestionServiceClient interface {
 	GetRun(ctx context.Context, in *GetRunRequest, opts ...grpc.CallOption) (*GetRunResponse, error)
 	ResumeRun(ctx context.Context, in *ResumeRunRequest, opts ...grpc.CallOption) (*ResumeRunResponse, error)
 	UpdateSourceState(ctx context.Context, in *UpdateSourceStateRequest, opts ...grpc.CallOption) (*UpdateSourceStateResponse, error)
+	ListIncompleteSources(ctx context.Context, in *ListIncompleteSourcesRequest, opts ...grpc.CallOption) (*ListIncompleteSourcesResponse, error)
 	ListArtifacts(ctx context.Context, in *ListArtifactsRequest, opts ...grpc.CallOption) (*ListArtifactsResponse, error)
 }
 
@@ -90,6 +92,16 @@ func (c *ingestionServiceClient) UpdateSourceState(ctx context.Context, in *Upda
 	return out, nil
 }
 
+func (c *ingestionServiceClient) ListIncompleteSources(ctx context.Context, in *ListIncompleteSourcesRequest, opts ...grpc.CallOption) (*ListIncompleteSourcesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListIncompleteSourcesResponse)
+	err := c.cc.Invoke(ctx, IngestionService_ListIncompleteSources_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *ingestionServiceClient) ListArtifacts(ctx context.Context, in *ListArtifactsRequest, opts ...grpc.CallOption) (*ListArtifactsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListArtifactsResponse)
@@ -113,6 +125,7 @@ type IngestionServiceServer interface {
 	GetRun(context.Context, *GetRunRequest) (*GetRunResponse, error)
 	ResumeRun(context.Context, *ResumeRunRequest) (*ResumeRunResponse, error)
 	UpdateSourceState(context.Context, *UpdateSourceStateRequest) (*UpdateSourceStateResponse, error)
+	ListIncompleteSources(context.Context, *ListIncompleteSourcesRequest) (*ListIncompleteSourcesResponse, error)
 	ListArtifacts(context.Context, *ListArtifactsRequest) (*ListArtifactsResponse, error)
 	mustEmbedUnimplementedIngestionServiceServer()
 }
@@ -135,6 +148,9 @@ func (UnimplementedIngestionServiceServer) ResumeRun(context.Context, *ResumeRun
 }
 func (UnimplementedIngestionServiceServer) UpdateSourceState(context.Context, *UpdateSourceStateRequest) (*UpdateSourceStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateSourceState not implemented")
+}
+func (UnimplementedIngestionServiceServer) ListIncompleteSources(context.Context, *ListIncompleteSourcesRequest) (*ListIncompleteSourcesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListIncompleteSources not implemented")
 }
 func (UnimplementedIngestionServiceServer) ListArtifacts(context.Context, *ListArtifactsRequest) (*ListArtifactsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListArtifacts not implemented")
@@ -232,6 +248,24 @@ func _IngestionService_UpdateSourceState_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _IngestionService_ListIncompleteSources_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListIncompleteSourcesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IngestionServiceServer).ListIncompleteSources(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IngestionService_ListIncompleteSources_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IngestionServiceServer).ListIncompleteSources(ctx, req.(*ListIncompleteSourcesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _IngestionService_ListArtifacts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListArtifactsRequest)
 	if err := dec(in); err != nil {
@@ -272,6 +306,10 @@ var IngestionService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateSourceState",
 			Handler:    _IngestionService_UpdateSourceState_Handler,
+		},
+		{
+			MethodName: "ListIncompleteSources",
+			Handler:    _IngestionService_ListIncompleteSources_Handler,
 		},
 		{
 			MethodName: "ListArtifacts",

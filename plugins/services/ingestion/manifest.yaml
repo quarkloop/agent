@@ -60,6 +60,16 @@ service:
       approval_required: false
       streaming: false
       idempotent: false
+    - name: ingestion_ListIncompleteSources
+      service: quark.ingestion.v1.IngestionService
+      method: ListIncompleteSources
+      request: quark.ingestion.v1.ListIncompleteSourcesRequest
+      response: quark.ingestion.v1.ListIncompleteSourcesResponse
+      description: "List pending or failed sources that the agent can resume."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
     - name: ingestion_ListArtifacts
       service: quark.ingestion.v1.IngestionService
       method: ListArtifacts
