@@ -58,6 +58,6 @@ must not call space, Core, indexer, embedding, or any other service.
 - Health protocol: gRPC health v1.
 - Health service: `quark.model.v1.ModelService`.
 - Descriptor registry: `quark.service.v1.ServiceRegistry`.
-- Readiness is optional until the standalone model service process replaces all
-  direct provider loading. Runtime still routes provider calls through the
-  model-service boundary package.
+- Readiness is required when the model service plugin is installed. Runtime
+  still routes provider calls through the model-service boundary package while
+  standalone model-service process work continues.

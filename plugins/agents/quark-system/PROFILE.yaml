@@ -9,16 +9,24 @@ prompt:
   skills:
     - SKILL.md
 permissions:
-  tools:
-    - bash
+  tools: []
   services:
-    - system.*
-    - process.*
-    - network.*
-    - logs.*
-    - metrics.*
-    - scheduler.*
-    - policy.*
+    - system_Snapshot
+    - system_GetOSInfo
+    - system_GetKernelInfo
+    - system_GetUptime
+    - system_ListPackages
+    - system_ListServices
+    - system_ListUsers
+    - system_ListMounts
+    - system_GetDiskUsage
+    - system_ListProcesses
+    - system_ListPorts
+    - system_ListNetworkConnections
+    - system_ReadLogs
+    - system_GetMetrics
+    - system_KillProcess
+    - system_RestartService
 memory:
   scope: space
   collections:
@@ -28,6 +36,8 @@ approval:
     - process.kill
     - service.restart
     - system.mutate
+    - system_KillProcess
+    - system_RestartService
 handoff:
   can_delegate_to:
     - quark-knowledge

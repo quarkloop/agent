@@ -1,0 +1,186 @@
+name: system
+version: "1.0.0"
+type: service
+mode: api
+description: "Selected Linux/system observation and approval-gated mutation functions"
+author: quarkloop
+license: Apache-2.0
+
+service:
+  address_env: QUARK_SYSTEM_ADDR
+  health:
+    protocol: grpc_health_v1
+    service: quark.system.v1.SystemService
+    timeout: 5s
+  readiness:
+    required: true
+    min_version: "1.0.0"
+  skill: SKILL.md
+  readme: README.md
+  proto_services:
+    - quark.system.v1.SystemService
+  functions:
+    - name: system_Snapshot
+      service: quark.system.v1.SystemService
+      method: Snapshot
+      request: quark.system.v1.SnapshotRequest
+      response: quark.system.v1.SnapshotResponse
+      description: "Return a scoped snapshot of OS, kernel, uptime, mounts, disks, processes, network, and metrics."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: system_GetOSInfo
+      service: quark.system.v1.SystemService
+      method: GetOSInfo
+      request: quark.system.v1.GetOSInfoRequest
+      response: quark.system.v1.GetOSInfoResponse
+      description: "Return operating-system identity and architecture."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: system_GetKernelInfo
+      service: quark.system.v1.SystemService
+      method: GetKernelInfo
+      request: quark.system.v1.GetKernelInfoRequest
+      response: quark.system.v1.GetKernelInfoResponse
+      description: "Return kernel name, release, version, and machine architecture."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: system_GetUptime
+      service: quark.system.v1.SystemService
+      method: GetUptime
+      request: quark.system.v1.GetUptimeRequest
+      response: quark.system.v1.GetUptimeResponse
+      description: "Return system uptime and boot timestamp."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: system_ListPackages
+      service: quark.system.v1.SystemService
+      method: ListPackages
+      request: quark.system.v1.ListPackagesRequest
+      response: quark.system.v1.ListPackagesResponse
+      description: "List installed packages from an approved backend such as dpkg, rpm, or osquery."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: system_ListServices
+      service: quark.system.v1.SystemService
+      method: ListServices
+      request: quark.system.v1.ListServicesRequest
+      response: quark.system.v1.ListServicesResponse
+      description: "List service manager units and their states."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: system_ListUsers
+      service: quark.system.v1.SystemService
+      method: ListUsers
+      request: quark.system.v1.ListUsersRequest
+      response: quark.system.v1.ListUsersResponse
+      description: "List local users with optional system-user filtering."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: system_ListMounts
+      service: quark.system.v1.SystemService
+      method: ListMounts
+      request: quark.system.v1.ListMountsRequest
+      response: quark.system.v1.ListMountsResponse
+      description: "List mounted filesystems and mount options."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: system_GetDiskUsage
+      service: quark.system.v1.SystemService
+      method: GetDiskUsage
+      request: quark.system.v1.GetDiskUsageRequest
+      response: quark.system.v1.GetDiskUsageResponse
+      description: "Return disk usage for one path or known mounted filesystems."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: system_ListProcesses
+      service: quark.system.v1.SystemService
+      method: ListProcesses
+      request: quark.system.v1.ListProcessesRequest
+      response: quark.system.v1.ListProcessesResponse
+      description: "List running processes with resource summaries."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: system_ListPorts
+      service: quark.system.v1.SystemService
+      method: ListPorts
+      request: quark.system.v1.ListPortsRequest
+      response: quark.system.v1.ListPortsResponse
+      description: "List listening local ports with protocol and owning process when available."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: system_ListNetworkConnections
+      service: quark.system.v1.SystemService
+      method: ListNetworkConnections
+      request: quark.system.v1.ListNetworkConnectionsRequest
+      response: quark.system.v1.ListNetworkConnectionsResponse
+      description: "List local network connections by protocol, endpoint, state, and owning process when available."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: system_ReadLogs
+      service: quark.system.v1.SystemService
+      method: ReadLogs
+      request: quark.system.v1.ReadLogsRequest
+      response: quark.system.v1.ReadLogsResponse
+      description: "Read a bounded tail from approved log sources."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: system_GetMetrics
+      service: quark.system.v1.SystemService
+      method: GetMetrics
+      request: quark.system.v1.GetMetricsRequest
+      response: quark.system.v1.GetMetricsResponse
+      description: "Return load, memory, and swap metrics."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: system_KillProcess
+      service: quark.system.v1.SystemService
+      method: KillProcess
+      request: quark.system.v1.KillProcessRequest
+      response: quark.system.v1.KillProcessResponse
+      description: "Prepare an approval-gated process termination plan."
+      risk_level: admin
+      approval_required: true
+      approval_requirements:
+        - process.kill
+      streaming: false
+      idempotent: false
+    - name: system_RestartService
+      service: quark.system.v1.SystemService
+      method: RestartService
+      request: quark.system.v1.RestartServiceRequest
+      response: quark.system.v1.RestartServiceResponse
+      description: "Prepare an approval-gated service restart plan."
+      risk_level: admin
+      approval_required: true
+      approval_requirements:
+        - service.restart
+      streaming: false
+      idempotent: false

@@ -20,6 +20,7 @@ import (
 	modelv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/model/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	spacev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/space/v1"
+	systemv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/system/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -40,6 +41,7 @@ var _ = []any{
 	memoryv1.File_quark_memory_v1_memory_proto,
 	modelv1.File_quark_model_v1_model_proto,
 	spacev1.File_quark_space_v1_space_proto,
+	systemv1.File_quark_system_v1_system_proto,
 	emptypb.File_google_protobuf_empty_proto,
 }
 

@@ -315,3 +315,51 @@ func TestQuarkKnowledgeProfileDeclaresConcreteServiceFunctions(t *testing.T) {
 		}
 	}
 }
+
+func TestQuarkSystemProfileDeclaresConcreteServiceFunctions(t *testing.T) {
+	profile, err := ParseAgentProfile(filepath.Join("..", "..", "plugins", "agents", "quark-system", "PROFILE.yaml"))
+	if err != nil {
+		t.Fatalf("parse quark system profile: %v", err)
+	}
+	if len(profile.Permissions.Tools) != 0 {
+		t.Fatalf("quark system profile should not grant shell/tool fallback permissions: %+v", profile.Permissions.Tools)
+	}
+	permissions := make(map[string]bool, len(profile.Permissions.Services))
+	for _, name := range profile.Permissions.Services {
+		permissions[name] = true
+	}
+	for _, want := range []string{
+		"system_Snapshot",
+		"system_GetOSInfo",
+		"system_GetKernelInfo",
+		"system_GetUptime",
+		"system_ListPackages",
+		"system_ListServices",
+		"system_ListUsers",
+		"system_ListMounts",
+		"system_GetDiskUsage",
+		"system_ListProcesses",
+		"system_ListPorts",
+		"system_ListNetworkConnections",
+		"system_ReadLogs",
+		"system_GetMetrics",
+		"system_KillProcess",
+		"system_RestartService",
+	} {
+		if !permissions[want] {
+			t.Fatalf("quark system profile missing service function permission %q", want)
+		}
+	}
+	for _, want := range []string{"system_KillProcess", "system_RestartService"} {
+		found := false
+		for _, approval := range profile.Approval.RequiredFor {
+			if approval == want {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("quark system profile missing approval requirement %q", want)
+		}
+	}
+}

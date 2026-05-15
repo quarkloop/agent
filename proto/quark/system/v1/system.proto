@@ -1,0 +1,279 @@
+syntax = "proto3";
+
+package quark.system.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/quarkloop/pkg/serviceapi/gen/quark/system/v1;systemv1";
+
+// SystemService exposes selected local operating-system observations and
+// approval-gated mutation plans for Quark System.
+service SystemService {
+  rpc Snapshot(SnapshotRequest) returns (SnapshotResponse);
+  rpc GetOSInfo(GetOSInfoRequest) returns (GetOSInfoResponse);
+  rpc GetKernelInfo(GetKernelInfoRequest) returns (GetKernelInfoResponse);
+  rpc GetUptime(GetUptimeRequest) returns (GetUptimeResponse);
+  rpc ListPackages(ListPackagesRequest) returns (ListPackagesResponse);
+  rpc ListServices(ListServicesRequest) returns (ListServicesResponse);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  rpc ListMounts(ListMountsRequest) returns (ListMountsResponse);
+  rpc GetDiskUsage(GetDiskUsageRequest) returns (GetDiskUsageResponse);
+  rpc ListProcesses(ListProcessesRequest) returns (ListProcessesResponse);
+  rpc ListPorts(ListPortsRequest) returns (ListPortsResponse);
+  rpc ListNetworkConnections(ListNetworkConnectionsRequest) returns (ListNetworkConnectionsResponse);
+  rpc ReadLogs(ReadLogsRequest) returns (ReadLogsResponse);
+  rpc GetMetrics(GetMetricsRequest) returns (GetMetricsResponse);
+  rpc KillProcess(KillProcessRequest) returns (KillProcessResponse);
+  rpc RestartService(RestartServiceRequest) returns (RestartServiceResponse);
+}
+
+message SnapshotRequest {
+  bool include_processes = 1;
+  bool include_network = 2;
+  bool include_metrics = 3;
+}
+
+message SnapshotResponse {
+  OSInfo os = 1;
+  KernelInfo kernel = 2;
+  Uptime uptime = 3;
+  repeated Mount mounts = 4;
+  GetDiskUsageResponse disks = 5;
+  repeated Process processes = 6;
+  repeated Port ports = 7;
+  repeated NetworkConnection network_connections = 8;
+  Metrics metrics = 9;
+  google.protobuf.Timestamp observed_at = 10;
+}
+
+message GetOSInfoRequest {}
+
+message GetOSInfoResponse {
+  OSInfo os = 1;
+}
+
+message OSInfo {
+  string name = 1;
+  string version = 2;
+  string id = 3;
+  string pretty_name = 4;
+  string architecture = 5;
+}
+
+message GetKernelInfoRequest {}
+
+message GetKernelInfoResponse {
+  KernelInfo kernel = 1;
+}
+
+message KernelInfo {
+  string name = 1;
+  string release = 2;
+  string version = 3;
+  string machine = 4;
+}
+
+message GetUptimeRequest {}
+
+message GetUptimeResponse {
+  Uptime uptime = 1;
+}
+
+message Uptime {
+  double seconds = 1;
+  google.protobuf.Timestamp boot_time = 2;
+}
+
+message ListPackagesRequest {
+  string manager = 1;
+  int32 limit = 2;
+}
+
+message ListPackagesResponse {
+  repeated Package packages = 1;
+}
+
+message Package {
+  string name = 1;
+  string version = 2;
+  string manager = 3;
+  string architecture = 4;
+}
+
+message ListServicesRequest {
+  string manager = 1;
+  string state = 2;
+  int32 limit = 3;
+}
+
+message ListServicesResponse {
+  repeated Service services = 1;
+}
+
+message Service {
+  string name = 1;
+  string state = 2;
+  string manager = 3;
+  string description = 4;
+}
+
+message ListUsersRequest {
+  bool include_system = 1;
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+}
+
+message User {
+  string name = 1;
+  string uid = 2;
+  string gid = 3;
+  string home = 4;
+  string shell = 5;
+  bool system = 6;
+}
+
+message ListMountsRequest {}
+
+message ListMountsResponse {
+  repeated Mount mounts = 1;
+}
+
+message Mount {
+  string device = 1;
+  string path = 2;
+  string filesystem = 3;
+  string options = 4;
+}
+
+message GetDiskUsageRequest {
+  string path = 1;
+}
+
+message GetDiskUsageResponse {
+  repeated DiskUsage disks = 1;
+}
+
+message DiskUsage {
+  string path = 1;
+  uint64 total_bytes = 2;
+  uint64 used_bytes = 3;
+  uint64 free_bytes = 4;
+}
+
+message ListProcessesRequest {
+  int32 limit = 1;
+  string filter = 2;
+}
+
+message ListProcessesResponse {
+  repeated Process processes = 1;
+}
+
+message Process {
+  int64 pid = 1;
+  int64 parent_pid = 2;
+  string user = 3;
+  string command = 4;
+  string state = 5;
+  double cpu_percent = 6;
+  uint64 memory_bytes = 7;
+}
+
+message ListPortsRequest {
+  string protocol = 1;
+  int32 limit = 2;
+}
+
+message ListPortsResponse {
+  repeated Port ports = 1;
+}
+
+message Port {
+  string protocol = 1;
+  string address = 2;
+  uint32 port = 3;
+  int64 pid = 4;
+  string process = 5;
+}
+
+message ListNetworkConnectionsRequest {
+  string state = 1;
+  int32 limit = 2;
+}
+
+message ListNetworkConnectionsResponse {
+  repeated NetworkConnection connections = 1;
+}
+
+message NetworkConnection {
+  string protocol = 1;
+  string local_address = 2;
+  uint32 local_port = 3;
+  string remote_address = 4;
+  uint32 remote_port = 5;
+  string state = 6;
+  int64 pid = 7;
+}
+
+message ReadLogsRequest {
+  string source = 1;
+  int32 tail_lines = 2;
+  string filter = 3;
+}
+
+message ReadLogsResponse {
+  repeated LogLine lines = 1;
+}
+
+message LogLine {
+  google.protobuf.Timestamp timestamp = 1;
+  string source = 2;
+  string message = 3;
+}
+
+message GetMetricsRequest {}
+
+message GetMetricsResponse {
+  Metrics metrics = 1;
+}
+
+message Metrics {
+  double load_1m = 1;
+  double load_5m = 2;
+  double load_15m = 3;
+  uint64 memory_total_bytes = 4;
+  uint64 memory_available_bytes = 5;
+  uint64 swap_total_bytes = 6;
+  uint64 swap_free_bytes = 7;
+}
+
+message KillProcessRequest {
+  int64 pid = 1;
+  string signal = 2;
+  string reason = 3;
+}
+
+message KillProcessResponse {
+  MutationPlan plan = 1;
+}
+
+message RestartServiceRequest {
+  string name = 1;
+  string manager = 2;
+  string reason = 3;
+}
+
+message RestartServiceResponse {
+  MutationPlan plan = 1;
+}
+
+message MutationPlan {
+  string id = 1;
+  string action = 2;
+  string target = 3;
+  string reason = 4;
+  bool approval_required = 5;
+  repeated string risks = 6;
+}

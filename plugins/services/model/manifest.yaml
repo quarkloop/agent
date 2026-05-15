@@ -13,7 +13,7 @@ service:
     service: quark.model.v1.ModelService
     timeout: 5s
   readiness:
-    required: false
+    required: true
     min_version: "1.0.0"
   skill: SKILL.md
   readme: README.md
