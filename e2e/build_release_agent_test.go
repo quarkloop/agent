@@ -13,10 +13,7 @@ import (
 	"time"
 
 	"github.com/quarkloop/e2e/utils"
-	buildreleasev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/buildrelease/v1"
-	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/supervisor/pkg/api"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func TestAgentUsesBuildReleaseServiceFunction(t *testing.T) {
@@ -70,33 +67,6 @@ func TestAgentUsesBuildReleaseServiceFunction(t *testing.T) {
 	assertAnswerContains(t, trace.Text, "v9.9.9", "quark-devops-fixture")
 }
 
-func startBuildReleaseServiceAt(t *testing.T, binary, addr string) {
-	t.Helper()
-	utils.StartProcess(t, "build-release", binary, []string{
-		"--addr", addr,
-		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "build-release"),
-	}, utils.ProcessEnv(nil))
-	utils.WaitForTCP(t, addr, 10*time.Second)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	conn, err := servicekit.Dial(ctx, addr)
-	if err != nil {
-		t.Fatalf("dial build-release service: %v", err)
-	}
-	defer conn.Close()
-	healthClient := healthpb.NewHealthClient(conn)
-	deadline := time.Now().Add(10 * time.Second)
-	for time.Now().Before(deadline) {
-		resp, err := healthClient.Check(ctx, &healthpb.HealthCheckRequest{Service: buildreleasev1.BuildReleaseService_ServiceDesc.ServiceName})
-		if err == nil && resp.GetStatus() == healthpb.HealthCheckResponse_SERVING {
-			return
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	t.Fatalf("build-release service did not become healthy at %s", addr)
-}
-
 func writeBuildReleaseFixture(t *testing.T, dir string) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/quarkdevopsfixture\n\ngo 1.26\n"), 0o644); err != nil {
@@ -127,10 +97,4 @@ func writeBuildReleaseFixture(t *testing.T, dir string) {
 	if err := os.WriteFile(filepath.Join(dir, "build_release.json"), append(data, '\n'), 0o644); err != nil {
 		t.Fatal(err)
 	}
-}
-
-func buildReleaseDryRunPrompt(workingDir string) string {
-	return fmt.Sprintf(`Use Quark DevOps release automation to preview the release plan for the Go project in %q.
-
-Call the build-release service function for a dry run with version v9.9.9 and config_path build_release.json. Do not use shell commands for this. Reply with the planned version and artifact names.`, workingDir)
 }
