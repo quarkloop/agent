@@ -63,6 +63,17 @@ func vectorSearchQuery(limit int, filters map[string]string) string {
 }`, limit, dgraphFilter(filters))
 }
 
+func metadataSearchQuery(limit int, filters map[string]string) string {
+	return fmt.Sprintf(`query search {
+  chunks(func: has(quark.chunk_id), first: %d) %s {
+    quark.chunk_id
+    quark.text_content
+    quark.metadata_json
+    quark.canonical_json
+  }
+}`, limit, dgraphFilter(filters))
+}
+
 var predicateSafe = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 
 func metadataPredicate(key string) string {

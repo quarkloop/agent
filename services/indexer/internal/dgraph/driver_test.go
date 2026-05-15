@@ -25,6 +25,58 @@ func TestDgraphHelpersBuildVectorAndFilters(t *testing.T) {
 	if !strings.Contains(query, "quark.canonical_json") {
 		t.Fatalf("vector search query does not request canonical records: %q", query)
 	}
+	metadataQuery := metadataSearchQuery(2, map[string]string{"filename": "receipt.md"})
+	for _, want := range []string{
+		"chunks(func: has(quark.chunk_id), first: 2)",
+		"@filter(eq(quark.meta_filename_",
+		`"receipt.md"`,
+		"quark.canonical_json",
+	} {
+		if !strings.Contains(metadataQuery, want) {
+			t.Fatalf("metadata search query missing %q:\n%s", want, metadataQuery)
+		}
+	}
+}
+
+func TestVectorCandidateLimitOverfetchesWhenMetadataFiltersArePresent(t *testing.T) {
+	t.Parallel()
+	if got := vectorCandidateLimit(1, nil); got != 1 {
+		t.Fatalf("unfiltered candidate limit = %d, want 1", got)
+	}
+	if got := vectorCandidateLimit(1, map[string]string{"filename": "receipt.md"}); got != 100 {
+		t.Fatalf("filtered candidate limit = %d, want 100", got)
+	}
+	if got := vectorCandidateLimit(20, map[string]string{"filename": "receipt.md"}); got != 400 {
+		t.Fatalf("filtered scaled candidate limit = %d, want 400", got)
+	}
+}
+
+func TestTrimChunksAppliesCallerLimitAfterFilteredSearch(t *testing.T) {
+	t.Parallel()
+	chunks := []indexer.Chunk{{ID: "a"}, {ID: "b"}}
+	got := trimChunks(chunks, 1)
+	if len(got) != 1 || got[0].ID != "a" {
+		t.Fatalf("trimmed chunks = %+v", got)
+	}
+	if got := trimChunks(chunks, 3); len(got) != 2 {
+		t.Fatalf("untrimmed chunks = %+v", got)
+	}
+}
+
+func TestMergeChunksKeepsVectorOrderAndAddsExactMatches(t *testing.T) {
+	t.Parallel()
+	got := mergeChunks(
+		[]indexer.Chunk{{ID: "a", Score: 0.9}, {ID: "b", Score: 0.7}},
+		[]indexer.Chunk{{ID: "b", Score: 0}, {ID: "c", Score: 0}},
+	)
+	if len(got) != 3 {
+		t.Fatalf("merged chunks = %+v", got)
+	}
+	for i, want := range []string{"a", "b", "c"} {
+		if got[i].ID != want {
+			t.Fatalf("merged chunk %d = %q, want %q: %+v", i, got[i].ID, want, got)
+		}
+	}
 }
 
 func TestRecordUpsertPlanKeepsCanonicalVectorAndGraphTogether(t *testing.T) {
