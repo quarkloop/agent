@@ -44,6 +44,7 @@ type Config struct {
 	PluginCatalog *pluginmanager.Catalog
 	PromptAddenda []string
 	PendingRefs   func() []string
+	ToolResultRef func(name, arguments, result string) (string, error)
 
 	// Execution mode configuration
 	ExecutionMode execution.Mode
@@ -550,7 +551,14 @@ func (a *Agent) executeTool(ctx context.Context, name, arguments string) (string
 	if err := a.permissions.ValidateTool(name); err != nil {
 		return "", err
 	}
-	return a.Plugins.ExecuteTool(ctx, name, arguments)
+	result, err := a.Plugins.ExecuteTool(ctx, name, arguments)
+	if err != nil {
+		return "", err
+	}
+	if a.config.ToolResultRef == nil {
+		return result, nil
+	}
+	return a.config.ToolResultRef(name, arguments, result)
 }
 
 // Identity returns the agent's hierarchy identity.

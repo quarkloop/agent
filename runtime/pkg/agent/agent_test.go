@@ -119,6 +119,33 @@ func TestExecuteToolRoutesThroughPluginManager(t *testing.T) {
 	}
 }
 
+func TestExecuteToolAppliesToolResultReferenceHook(t *testing.T) {
+	a := newTestAgentWithConfig(t, Config{
+		ID:         "test-agent",
+		PluginsDir: t.TempDir(),
+		ToolResultRef: func(name, arguments, result string) (string, error) {
+			if name != "runtime_echo" || arguments != `{"value":"hello"}` || result != "hello" {
+				t.Fatalf("unexpected hook input: %s %s %s", name, arguments, result)
+			}
+			return `{"contentRef":"content_1"}`, nil
+		},
+	})
+	a.Plugins.RegisterRuntimeTool(pluginmanager.RuntimeTool{
+		Schema: plugin.ToolSchema{Name: "runtime_echo", Description: "echo"},
+		Handler: func(context.Context, string) (string, error) {
+			return "hello", nil
+		},
+	})
+
+	got, err := a.executeTool(context.Background(), "runtime_echo", `{"value":"hello"}`)
+	if err != nil {
+		t.Fatalf("execute tool: %v", err)
+	}
+	if got != `{"contentRef":"content_1"}` {
+		t.Fatalf("tool result = %q", got)
+	}
+}
+
 func TestSpawnSubAgentEnforcesResolvedHandoffPolicy(t *testing.T) {
 	a := newTestAgentWithConfig(t, Config{
 		ID:         "test-agent",

@@ -66,6 +66,13 @@ func (c *Catalog) Execute(ctx context.Context, name, arguments string) (string, 
 	return c.executor.Execute(ctx, name, arguments)
 }
 
+func (c *Catalog) CaptureToolResult(toolName, arguments, result string) (string, error) {
+	if c == nil || c.executor == nil {
+		return result, nil
+	}
+	return c.executor.CaptureToolResult(toolName, arguments, result)
+}
+
 func (c *Catalog) PendingEmbeddingRefs() []string {
 	if c == nil || c.executor == nil {
 		return nil

@@ -104,6 +104,20 @@ func TestCatalogFromEnvRejectsUnsupportedVersion(t *testing.T) {
 func TestServiceFunctionSchemaUsesRuntimeEmbeddingReferences(t *testing.T) {
 	t.Parallel()
 
+	embedParams := requestParameters("quark.embedding.v1.EmbedRequest")
+	embedProperties, ok := embedParams["properties"].(map[string]any)
+	if !ok {
+		t.Fatalf("embedding properties missing: %+v", embedParams)
+	}
+	for _, want := range []string{"input", "inputRef", "contentRef"} {
+		if _, ok := embedProperties[want]; !ok {
+			t.Fatalf("embedding schema missing %q: %+v", want, embedProperties)
+		}
+	}
+	if required, ok := embedParams["required"].([]string); ok && containsString(required, "input") {
+		t.Fatalf("embedding input should be replaceable by inputRef/contentRef, required=%+v", required)
+	}
+
 	params := requestParameters("quark.indexer.v1.IndexRequest")
 	properties, ok := params["properties"].(map[string]any)
 	if !ok {
@@ -112,14 +126,20 @@ func TestServiceFunctionSchemaUsesRuntimeEmbeddingReferences(t *testing.T) {
 	if _, ok := properties["embeddingRef"]; !ok {
 		t.Fatalf("embeddingRef missing from schema: %+v", properties)
 	}
+	if _, ok := properties["textContentRef"]; !ok {
+		t.Fatalf("textContentRef missing from schema: %+v", properties)
+	}
 	required, ok := params["required"].([]string)
 	if !ok {
 		t.Fatalf("required missing: %+v", params)
 	}
-	for _, want := range []string{"chunkId", "textContent", "embeddingRef"} {
+	for _, want := range []string{"chunkId", "embeddingRef"} {
 		if !containsString(required, want) {
 			t.Fatalf("required missing %q: %+v", want, required)
 		}
+	}
+	if containsString(required, "textContent") {
+		t.Fatalf("textContent should be replaceable by textContentRef, required=%+v", required)
 	}
 
 	deleteParams := requestParameters("quark.indexer.v1.DeleteChunkRequest")

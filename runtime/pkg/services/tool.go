@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -56,6 +58,9 @@ type Executor struct {
 	nextEmbedding int
 	embeddings    map[string][]float32
 	embeddingInfo map[string]map[string]any
+	nextContent   int
+	contents      map[string]string
+	contentInfo   map[string]map[string]any
 	pending       map[string]struct{}
 }
 
@@ -73,6 +78,8 @@ func NewExecutor(descriptors []*servicev1.ServiceDescriptor) *Executor {
 		descriptors:   out,
 		embeddings:    make(map[string][]float32),
 		embeddingInfo: make(map[string]map[string]any),
+		contents:      make(map[string]string),
+		contentInfo:   make(map[string]map[string]any),
 		pending:       make(map[string]struct{}),
 	}
 }
@@ -111,7 +118,15 @@ func (e *Executor) Execute(ctx context.Context, functionName, arguments string) 
 		return "", err
 	}
 	rpc := resolved.rpc
+	arguments, err = normalizeServiceArgumentJSON(arguments)
+	if err != nil {
+		return "", err
+	}
 	arguments, err = e.expandRuntimeReferences(rpc.GetRequest(), arguments)
+	if err != nil {
+		return "", err
+	}
+	arguments, err = normalizeStringMapArguments(rpc.GetRequest(), arguments)
 	if err != nil {
 		return "", err
 	}
@@ -153,6 +168,45 @@ func (e *Executor) Execute(ctx context.Context, functionName, arguments string) 
 	return string(data), nil
 }
 
+func (e *Executor) CaptureToolResult(toolName, arguments, result string) (string, error) {
+	if e == nil || strings.TrimSpace(toolName) != "fs" {
+		return result, nil
+	}
+	command, path, ok := fsReadLikeCommand(arguments)
+	if !ok {
+		return result, nil
+	}
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		return result, nil
+	}
+	if _, hasError := payload["error"]; hasError {
+		return result, nil
+	}
+	rawContent, ok := payload["content"]
+	if !ok {
+		return result, nil
+	}
+	var content string
+	if err := json.Unmarshal(rawContent, &content); err != nil || content == "" {
+		return result, nil
+	}
+
+	ref, info := e.registerContent(content, map[string]any{
+		"tool":    toolName,
+		"command": command,
+		"path":    path,
+	})
+	payload["contentRef"] = mustJSONRaw(ref)
+	payload["contentChars"] = mustJSONRaw(len([]rune(content)))
+	payload["contentHash"] = mustJSONRaw(info["contentHash"])
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("encode tool result content reference: %w", err)
+	}
+	return string(data), nil
+}
+
 func (e *Executor) resolve(functionName string) (resolvedRPC, error) {
 	for _, desc := range e.descriptors {
 		if desc.GetAddress() == "" {
@@ -187,6 +241,57 @@ func ToolNameFor(serviceName, method string) string {
 	return name
 }
 
+func normalizeServiceArgumentJSON(arguments string) (string, error) {
+	if strings.TrimSpace(arguments) == "" {
+		return arguments, nil
+	}
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(arguments), &payload); err == nil {
+		return arguments, nil
+	} else {
+		repaired := repairInvalidJSONEscapes(arguments)
+		if repaired == arguments {
+			return "", fmt.Errorf("decode service arguments: %w", err)
+		}
+		if retryErr := json.Unmarshal([]byte(repaired), &payload); retryErr != nil {
+			return "", fmt.Errorf("decode service arguments: %w", err)
+		}
+		return repaired, nil
+	}
+}
+
+func repairInvalidJSONEscapes(input string) string {
+	var b strings.Builder
+	b.Grow(len(input))
+	changed := false
+	for i := 0; i < len(input); i++ {
+		ch := input[i]
+		if ch != '\\' || i+1 >= len(input) {
+			b.WriteByte(ch)
+			continue
+		}
+		next := input[i+1]
+		if isValidJSONEscapeByte(next) {
+			b.WriteByte(ch)
+			continue
+		}
+		changed = true
+	}
+	if !changed {
+		return input
+	}
+	return b.String()
+}
+
+func isValidJSONEscapeByte(ch byte) bool {
+	switch ch {
+	case '"', '\\', '/', 'b', 'f', 'n', 'r', 't', 'u':
+		return true
+	default:
+		return false
+	}
+}
+
 func requestParameters(typeName string) map[string]any {
 	msgType, err := protoregistry.GlobalTypes.FindMessageByName(protoreflect.FullName(typeName))
 	if err != nil {
@@ -212,10 +317,29 @@ func applyRuntimeReferenceFields(typeName string, schema map[string]any) {
 		return
 	}
 	switch typeName {
+	case "quark.embedding.v1.EmbedRequest":
+		if description, ok := schema["description"].(string); ok {
+			schema["description"] = description + " For input, prefer inputRef or contentRef returned from fs read or extract_pdf results when embedding source files; otherwise provide explicit input."
+		}
+		properties["inputRef"] = map[string]any{
+			"type":        "string",
+			"description": "Reference returned by fs read or extract_pdf. Prefer this over copying source text into input.",
+		}
+		properties["contentRef"] = map[string]any{
+			"type":        "string",
+			"description": "Alias for inputRef. Reference returned by fs read or extract_pdf.",
+		}
 	case "quark.indexer.v1.IndexRequest":
+		if description, ok := schema["description"].(string); ok {
+			schema["description"] = description + " For textContent, prefer textContentRef returned from fs read or extract_pdf results when indexing source files; otherwise provide explicit textContent."
+		}
 		properties["embeddingRef"] = map[string]any{
 			"type":        "string",
 			"description": "Reference returned by embedding_Embed. Prefer this over copying embedding vectors manually.",
+		}
+		properties["textContentRef"] = map[string]any{
+			"type":        "string",
+			"description": "Reference returned by fs read or extract_pdf. Prefer this over copying source text into textContent.",
 		}
 	case "quark.indexer.v1.QueryRequest":
 		properties["queryVectorRef"] = map[string]any{
@@ -238,6 +362,143 @@ func messageJSONSchema(desc protoreflect.MessageDescriptor, depth int) map[strin
 		"properties":           properties,
 		"additionalProperties": false,
 	}
+}
+
+func normalizeStringMapArguments(typeName, arguments string) (string, error) {
+	if strings.TrimSpace(arguments) == "" {
+		return arguments, nil
+	}
+	msgType, err := protoregistry.GlobalTypes.FindMessageByName(protoreflect.FullName(typeName))
+	if err != nil {
+		return arguments, nil
+	}
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(arguments), &payload); err != nil {
+		return "", fmt.Errorf("decode service arguments for normalization: %w", err)
+	}
+	if err := normalizeStringMapMessage(msgType.Descriptor(), payload); err != nil {
+		return "", err
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("encode normalized service arguments: %w", err)
+	}
+	return string(data), nil
+}
+
+func normalizeStringMapMessage(desc protoreflect.MessageDescriptor, payload map[string]json.RawMessage) error {
+	fields := desc.Fields()
+	for i := 0; i < fields.Len(); i++ {
+		field := fields.Get(i)
+		raw, ok := payload[field.JSONName()]
+		if !ok {
+			continue
+		}
+		switch {
+		case field.IsMap() && field.Message().Fields().ByName("value").Kind() == protoreflect.StringKind:
+			normalized, err := normalizeStringMapField(raw)
+			if err != nil {
+				return fmt.Errorf("normalize %s: %w", field.JSONName(), err)
+			}
+			payload[field.JSONName()] = normalized
+		case field.IsList() && field.Kind() == protoreflect.MessageKind:
+			normalized, err := normalizeMessageList(field.Message(), raw)
+			if err != nil {
+				return fmt.Errorf("normalize %s: %w", field.JSONName(), err)
+			}
+			payload[field.JSONName()] = normalized
+		case field.Kind() == protoreflect.MessageKind:
+			normalized, err := normalizeMessageField(field.Message(), raw)
+			if err != nil {
+				return fmt.Errorf("normalize %s: %w", field.JSONName(), err)
+			}
+			payload[field.JSONName()] = normalized
+		}
+	}
+	return nil
+}
+
+func normalizeStringMapField(raw json.RawMessage) (json.RawMessage, error) {
+	var values map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &values); err != nil {
+		return raw, err
+	}
+	for key, value := range values {
+		normalized, err := normalizeStringMapValue(value)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", key, err)
+		}
+		values[key] = normalized
+	}
+	data, err := json.Marshal(values)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func normalizeStringMapValue(raw json.RawMessage) (json.RawMessage, error) {
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		return raw, nil
+	}
+	decoder := json.NewDecoder(strings.NewReader(string(raw)))
+	decoder.UseNumber()
+	var value any
+	if err := decoder.Decode(&value); err != nil {
+		return nil, err
+	}
+	switch typed := value.(type) {
+	case nil:
+		s = ""
+	case json.Number:
+		s = typed.String()
+	case bool:
+		s = fmt.Sprint(typed)
+	default:
+		data, err := json.Marshal(typed)
+		if err != nil {
+			return nil, err
+		}
+		s = string(data)
+	}
+	data, err := json.Marshal(s)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func normalizeMessageList(desc protoreflect.MessageDescriptor, raw json.RawMessage) (json.RawMessage, error) {
+	var items []map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &items); err != nil {
+		return raw, err
+	}
+	for _, item := range items {
+		if err := normalizeStringMapMessage(desc, item); err != nil {
+			return nil, err
+		}
+	}
+	data, err := json.Marshal(items)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func normalizeMessageField(desc protoreflect.MessageDescriptor, raw json.RawMessage) (json.RawMessage, error) {
+	var item map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &item); err != nil {
+		return raw, err
+	}
+	if err := normalizeStringMapMessage(desc, item); err != nil {
+		return nil, err
+	}
+	data, err := json.Marshal(item)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 func fieldJSONSchema(field protoreflect.FieldDescriptor, depth int) map[string]any {
@@ -292,9 +553,9 @@ func scalarJSONSchema(field protoreflect.FieldDescriptor, depth int) map[string]
 func requiredJSONFields(typeName string) []string {
 	switch typeName {
 	case "quark.embedding.v1.EmbedRequest":
-		return []string{"input"}
+		return nil
 	case "quark.indexer.v1.IndexRequest":
-		return []string{"chunkId", "textContent", "embeddingRef"}
+		return []string{"chunkId", "embeddingRef"}
 	case "quark.indexer.v1.QueryRequest":
 		return []string{"queryVectorRef"}
 	case "quark.indexer.v1.DeleteChunkRequest":
@@ -361,13 +622,100 @@ func (e *Executor) expandRuntimeReferences(typeName, arguments string) (string, 
 		return arguments, nil
 	}
 	switch typeName {
+	case "quark.embedding.v1.EmbedRequest":
+		expanded, err := e.expandContentReference(arguments, "inputRef", "input")
+		if err != nil {
+			return "", err
+		}
+		return e.expandContentReference(expanded, "contentRef", "input")
 	case "quark.indexer.v1.IndexRequest":
-		return e.expandVectorReference(arguments, "embeddingRef", "embedding")
+		expanded, err := e.expandVectorReference(arguments, "embeddingRef", "embedding")
+		if err != nil {
+			return "", err
+		}
+		return e.expandContentReference(expanded, "textContentRef", "textContent")
 	case "quark.indexer.v1.QueryRequest":
 		return e.expandVectorReference(arguments, "queryVectorRef", "queryVector")
 	default:
 		return arguments, nil
 	}
+}
+
+func (e *Executor) expandContentReference(arguments, refField, contentField string) (string, error) {
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(arguments), &payload); err != nil {
+		return "", fmt.Errorf("decode service arguments: %w", err)
+	}
+	rawRef, ok := payload[refField]
+	if !ok {
+		return arguments, nil
+	}
+	var ref string
+	if err := json.Unmarshal(rawRef, &ref); err != nil {
+		return "", fmt.Errorf("%s must be a string: %w", refField, err)
+	}
+	content, ok := e.contentByRef(ref)
+	if !ok {
+		return "", fmt.Errorf("%s %q was not produced by an fs read or extract_pdf tool call in this runtime session", refField, ref)
+	}
+	rawContent, err := json.Marshal(content)
+	if err != nil {
+		return "", fmt.Errorf("encode %s: %w", contentField, err)
+	}
+	payload[contentField] = rawContent
+	delete(payload, refField)
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("encode service arguments: %w", err)
+	}
+	return string(data), nil
+}
+
+func fsReadLikeCommand(arguments string) (command, path string, ok bool) {
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(arguments), &payload); err != nil {
+		return "", "", false
+	}
+	if rawCommand, exists := payload["command"]; exists {
+		_ = json.Unmarshal(rawCommand, &command)
+	}
+	command = strings.TrimSpace(command)
+	if command != "read" && command != "extract_pdf" {
+		return "", "", false
+	}
+	if rawPath, exists := payload["path"]; exists {
+		_ = json.Unmarshal(rawPath, &path)
+	}
+	return command, strings.TrimSpace(path), true
+}
+
+func (e *Executor) registerContent(content string, metadata map[string]any) (string, map[string]any) {
+	sum := sha256.Sum256([]byte(content))
+	contentHash := hex.EncodeToString(sum[:])
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.nextContent++
+	ref := fmt.Sprintf("content_%d", e.nextContent)
+	info := cloneMetadata(metadata)
+	info["contentHash"] = contentHash
+	info["chars"] = len([]rune(content))
+	e.contents[ref] = content
+	e.contents[contentHash] = content
+	e.contentInfo[ref] = cloneMetadata(info)
+	e.contentInfo[contentHash] = cloneMetadata(info)
+	return ref, cloneMetadata(info)
+}
+
+func (e *Executor) contentByRef(ref string) (string, bool) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	content, ok := e.contents[ref]
+	return content, ok
+}
+
+func mustJSONRaw(value any) json.RawMessage {
+	data, _ := json.Marshal(value)
+	return data
 }
 
 func (e *Executor) expandVectorReference(arguments, refField, vectorField string) (string, error) {

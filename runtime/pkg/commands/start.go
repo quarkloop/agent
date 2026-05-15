@@ -143,6 +143,7 @@ func runStart(port int, channels []string) error {
 		SpaceID:       os.Getenv("QUARK_SPACE"),
 		PromptAddenda: promptAddenda,
 		PendingRefs:   serviceFunctionPendingRefs(serviceCatalog),
+		ToolResultRef: serviceFunctionToolResultRef(serviceCatalog),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create agent: %w", err)
@@ -265,6 +266,13 @@ func serviceFunctionPendingRefs(catalog *runtimeservices.Catalog) func() []strin
 		return nil
 	}
 	return catalog.PendingEmbeddingRefs
+}
+
+func serviceFunctionToolResultRef(catalog *runtimeservices.Catalog) func(name, arguments, result string) (string, error) {
+	if catalog == nil || catalog.Empty() {
+		return nil
+	}
+	return catalog.CaptureToolResult
 }
 
 func loadServiceCatalog() (*runtimeservices.Catalog, error) {
