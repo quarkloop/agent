@@ -18,6 +18,7 @@ use (
 	./plugins/tools/web-search
 	./runtime
 	./services/build-release
+	./services/core
 	./services/embedding
 	./services/indexer
 	./services/space
@@ -41,6 +42,7 @@ replace (
 	github.com/quarkloop/plugins/tools/web-search v0.0.0 => ./plugins/tools/web-search
 	github.com/quarkloop/runtime v0.0.0 => ./runtime
 	github.com/quarkloop/services/build-release v0.0.0 => ./services/build-release
+	github.com/quarkloop/services/core v0.0.0 => ./services/core
 	github.com/quarkloop/services/embedding v0.0.0 => ./services/embedding
 	github.com/quarkloop/services/indexer v0.0.0 => ./services/indexer
 	github.com/quarkloop/services/space v0.0.0 => ./services/space

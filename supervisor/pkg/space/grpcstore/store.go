@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	spacev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/space/v1"
@@ -141,6 +143,21 @@ func (s *Store) Sessions(name string) (*sessions.Store, error) {
 		return nil, err
 	}
 	return sessions.Open(paths.GetSessionsDir(), name)
+}
+
+func (s *Store) ServiceStateDir(name, service string) (string, error) {
+	if err := spacemodel.ValidateName(service); err != nil {
+		return "", err
+	}
+	paths, err := s.paths(name)
+	if err != nil {
+		return "", err
+	}
+	dir := filepath.Join(paths.GetRootDir(), spacemodel.ServicesDir, service)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("create service state dir: %w", err)
+	}
+	return dir, nil
 }
 
 func (s *Store) Doctor(name string) (api.DoctorResponse, error) {

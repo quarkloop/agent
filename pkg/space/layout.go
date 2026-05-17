@@ -14,6 +14,7 @@ const (
 	KBDir         = "kb"
 	PluginsDir    = "plugins"
 	SessionsDir   = "sessions"
+	ServicesDir   = "services"
 )
 
 var namePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
@@ -58,8 +59,12 @@ func (l Layout) QuarkfilePath() string { return filepath.Join(l.Root, QuarkfileN
 func (l Layout) KBPath() string        { return filepath.Join(l.Root, KBDir) }
 func (l Layout) PluginsPath() string   { return filepath.Join(l.Root, PluginsDir) }
 func (l Layout) SessionsPath() string  { return filepath.Join(l.Root, SessionsDir) }
+func (l Layout) ServicesPath() string  { return filepath.Join(l.Root, ServicesDir) }
+func (l Layout) ServicePath(name string) string {
+	return filepath.Join(l.ServicesPath(), name)
+}
 
 // RequiredDirs returns the directories that must exist for a usable space.
 func (l Layout) RequiredDirs() []string {
-	return []string{l.Root, l.KBPath(), l.PluginsPath(), l.SessionsPath()}
+	return []string{l.Root, l.KBPath(), l.PluginsPath(), l.SessionsPath(), l.ServicesPath()}
 }

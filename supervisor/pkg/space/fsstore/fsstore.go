@@ -317,6 +317,25 @@ func (s *FSStore) Sessions(name string) (*sessions.Store, error) {
 	return sessions.Open(l.SessionsPath(), name)
 }
 
+// ServiceStateDir returns a supervisor-owned state directory for one service.
+func (s *FSStore) ServiceStateDir(name, service string) (string, error) {
+	if err := spacemodel.ValidateName(service); err != nil {
+		return "", err
+	}
+	l, err := s.layout(name)
+	if err != nil {
+		return "", err
+	}
+	if _, err := s.readMeta(name); err != nil {
+		return "", err
+	}
+	dir := l.ServicePath(service)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("create service state dir: %w", err)
+	}
+	return dir, nil
+}
+
 // Doctor runs health checks against the named space's Quarkfile and
 // installed plugins.
 func (s *FSStore) Doctor(name string) (api.DoctorResponse, error) {

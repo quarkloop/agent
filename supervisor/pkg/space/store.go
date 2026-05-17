@@ -46,6 +46,10 @@ type Store interface {
 	// Sessions returns the session store scoped to the named space.
 	Sessions(name string) (*sessions.Store, error)
 
+	// ServiceStateDir returns a supervisor-owned state directory for a service
+	// process scoped to the named space.
+	ServiceStateDir(name, service string) (string, error)
+
 	// Doctor runs health checks against the named space's Quarkfile and
 	// installed plugins.
 	Doctor(name string) (api.DoctorResponse, error)

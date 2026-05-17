@@ -1,9 +1,14 @@
 # Core Service
 
-`services/core` is the planned Quark operational backbone. It centralizes
+`services/core` is Quark's operational backbone. It centralizes
 health/readiness diagnostics, audit, artifacts, approvals, config, secret
 references, events, policy, workspace mutation plans, scheduler records, and
 evaluations.
+
+The service stores records in a supervisor/space-owned state directory passed
+with `--root`. It writes atomically to `core-state.json`, redacts sensitive
+values before persistence, and returns cloned records so callers cannot mutate
+stored state through response objects.
 
 ## Service Functions
 

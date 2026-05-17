@@ -15,6 +15,7 @@ import (
 	"github.com/quarkloop/runtime/pkg/agent"
 	"github.com/quarkloop/runtime/pkg/channel/telegram"
 	"github.com/quarkloop/runtime/pkg/channel/web"
+	"github.com/quarkloop/runtime/pkg/coreevents"
 	"github.com/quarkloop/runtime/pkg/pluginmanager"
 	"github.com/quarkloop/runtime/pkg/runtime"
 	runtimeservices "github.com/quarkloop/runtime/pkg/services"
@@ -114,6 +115,7 @@ func runStart(port int, channels []string) error {
 	slog.Info("using model", "provider", modelProvider, "model", modelName)
 
 	promptAddenda := servicePromptAddenda(serviceCatalog)
+	coreRecorder := coreEventRecorder(serviceCatalog)
 	if strings.TrimSpace(agentPlugin.Skill) != "" {
 		promptAddenda = append(promptAddenda, strings.TrimSpace(agentPlugin.Skill))
 	}
@@ -144,6 +146,7 @@ func runStart(port int, channels []string) error {
 		PromptAddenda: promptAddenda,
 		PendingRefs:   serviceFunctionPendingRefs(serviceCatalog),
 		ToolResultRef: serviceFunctionToolResultRef(serviceCatalog),
+		CoreEvents:    coreRecorder,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create agent: %w", err)
@@ -189,6 +192,13 @@ func runStart(port int, channels []string) error {
 	slog.Info("runtime server is running, press Ctrl+C to exit")
 	// Start all channels via ChannelBus and block
 	return srv.Run(ctx)
+}
+
+func coreEventRecorder(catalog *runtimeservices.Catalog) *coreevents.Recorder {
+	if catalog == nil || catalog.Empty() {
+		return nil
+	}
+	return coreevents.New(catalog.Descriptors(), slog.Default())
 }
 
 func runtimeAgentProfile(item pluginmanager.CatalogPlugin) agent.Profile {

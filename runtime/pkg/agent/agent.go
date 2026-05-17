@@ -13,6 +13,7 @@ import (
 	"github.com/quarkloop/pkg/plugin"
 	"github.com/quarkloop/runtime/pkg/activity"
 	"github.com/quarkloop/runtime/pkg/channel"
+	"github.com/quarkloop/runtime/pkg/coreevents"
 	"github.com/quarkloop/runtime/pkg/execution"
 	"github.com/quarkloop/runtime/pkg/guard"
 	"github.com/quarkloop/runtime/pkg/handoff"
@@ -45,6 +46,7 @@ type Config struct {
 	PromptAddenda []string
 	PendingRefs   func() []string
 	ToolResultRef func(name, arguments, result string) (string, error)
+	CoreEvents    *coreevents.Recorder
 
 	// Execution mode configuration
 	ExecutionMode execution.Mode
@@ -68,6 +70,7 @@ type Agent struct {
 	Plugins  *pluginmanager.Manager
 	Bus      *channel.ChannelBus
 	Activity *activity.Store
+	core     *coreevents.Recorder
 	config   Config
 
 	// Hierarchy management
@@ -131,6 +134,7 @@ func NewAgent(cfg Config) (*Agent, error) {
 		Models:      llm.NewRegistry(),
 		Plugins:     pluginmanager.NewManager(pluginsDir),
 		Activity:    activity.NewStore(1000),
+		core:        cfg.CoreEvents,
 		config:      cfg,
 		agents:      agentRegistry,
 		delegator:   hierarchy.NewDelegator(agentRegistry),
@@ -211,6 +215,7 @@ func (a *Agent) Send(msg loop.Message) {
 // Run starts the agent's main loop.
 func (a *Agent) Run(ctx context.Context) error {
 	slog.Info("main loop started", "agent_id", a.ID)
+	defer a.core.Close()
 
 	// Initialize loads both tool and provider plugins.
 	if err := a.Plugins.Initialize(ctx); err != nil {
@@ -300,7 +305,7 @@ func (a *Agent) handleUserMessage(ctx context.Context, msg loop.Message) error {
 	defer stopRequestCancel()
 	response := userMsg.Response
 	if a.Activity != nil {
-		a.Activity.Add(userMsg.SessionID, "message.user", map[string]any{
+		a.addActivity(userMsg.SessionID, "message.user", map[string]any{
 			"content_length": len(userMsg.Content),
 		})
 		instrumented, stopForwarding := a.instrumentResponse(requestCtx, userMsg.SessionID, userMsg.Response)
@@ -347,7 +352,7 @@ func (a *Agent) handleUserMessage(ctx context.Context, msg loop.Message) error {
 
 	s.AddMessage("assistant", fullResponse)
 	if a.Activity != nil {
-		a.Activity.Add(userMsg.SessionID, "message.assistant", map[string]any{
+		a.addActivity(userMsg.SessionID, "message.assistant", map[string]any{
 			"content_length": len(fullResponse),
 		})
 	}
@@ -378,9 +383,9 @@ func (a *Agent) recordStreamActivity(sessionID string, msg message.StreamMessage
 	}
 	switch msg.Type {
 	case "tool_start", "tool_result":
-		a.Activity.Add(sessionID, msg.Type, msg.Data)
+		a.addActivity(sessionID, msg.Type, msg.Data)
 	case "error":
-		a.Activity.Add(sessionID, "message.error", map[string]any{"error": fmt.Sprint(msg.Data)})
+		a.addActivity(sessionID, "message.error", map[string]any{"error": fmt.Sprint(msg.Data)})
 	}
 }
 
@@ -390,7 +395,7 @@ func (a *Agent) emitMessageError(ctx context.Context, sessionID string, response
 		payload["message"] = fmt.Sprintf("Agent Error: %s", messageText)
 	}
 	if a.Activity != nil {
-		a.Activity.Add(sessionID, "message.error", payload)
+		a.addActivity(sessionID, "message.error", payload)
 	}
 	message.Emit(ctx, response, message.StreamMessage{
 		Type: "error",
@@ -440,8 +445,19 @@ func (a *Agent) recordModelUsage(ctx context.Context, usage modelservice.Usage) 
 		a.persistModelUsage(usage)
 		return
 	}
-	a.Activity.Add(sessionID, "model.usage", usage)
+	a.addActivity(sessionID, "model.usage", usage)
 	a.persistModelUsage(usage)
+}
+
+func (a *Agent) addActivity(sessionID, typ string, data any) activity.Record {
+	if a.Activity == nil {
+		return activity.Record{}
+	}
+	record := a.Activity.Add(sessionID, typ, data)
+	if a.core != nil {
+		a.core.Record(record)
+	}
+	return record
 }
 
 func (a *Agent) persistModelUsage(usage modelservice.Usage) {

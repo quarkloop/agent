@@ -336,13 +336,15 @@ func (s *Server) serviceProcessSpec(space string, item pluginmanager.InstalledPl
 	if err != nil {
 		return serviceprocess.ProcessSpec{}, err
 	}
-	logDir, err := serviceLogDir(space)
+	stateDir, err := s.store.ServiceStateDir(space, item.Manifest.Name)
 	if err != nil {
 		return serviceprocess.ProcessSpec{}, err
 	}
 	env := append(os.Environ(), item.Manifest.Service.AddressEnv+"="+address)
 	args := []string{"--addr", address, "--skill-dir", item.Path}
 	switch item.Manifest.Name {
+	case "core":
+		args = append(args, "--root", stateDir)
 	case "indexer":
 		dgraphAddr := firstEnv("QUARK_DGRAPH_ADDR", "DGRAPH_TEST_ADDR", "DGRAPH_ADDR")
 		if dgraphAddr != "" {
@@ -360,7 +362,7 @@ func (s *Server) serviceProcessSpec(space string, item pluginmanager.InstalledPl
 		WorkingDir:    workingDir,
 		Endpoint:      address,
 		HealthService: healthServiceName(item.Manifest),
-		LogPath:       filepath.Join(logDir, item.Manifest.Name+".log"),
+		LogPath:       filepath.Join(stateDir, "logs", "service.log"),
 	}, nil
 }
 
@@ -422,14 +424,6 @@ func (s *Server) writeServiceLifecycleError(c *fiber.Ctx, space string, err erro
 		return writeError(c, fiber.StatusNotFound, err.Error())
 	}
 	return s.writeSpaceError(c, space, err)
-}
-
-func serviceLogDir(space string) (string, error) {
-	root := filepath.Join(os.TempDir(), "quark-supervisor-services", space)
-	if err := os.MkdirAll(root, 0o755); err != nil {
-		return "", err
-	}
-	return root, nil
 }
 
 func firstEnv(keys ...string) string {

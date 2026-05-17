@@ -20,6 +20,7 @@ MODULES := \
 		pkg/space \
 		pkg/toolkit \
 		services/build-release \
+		services/core \
 		services/embedding \
 		services/indexer \
 		services/space \
@@ -57,6 +58,8 @@ build-services:
 		go build -o $(BINARY_DIR)/embedding-service ./services/embedding/cmd/embedding
 		@echo "--- Building service: build-release ---"
 		go build -o $(BINARY_DIR)/build-release-service ./services/build-release/cmd/build-release
+		@echo "--- Building service: core ---"
+		go build -o $(BINARY_DIR)/core-service ./services/core/cmd/core
 		@echo "--- Building service: space ---"
 		go build -o $(BINARY_DIR)/space-service ./services/space/cmd/space
 
