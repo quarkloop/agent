@@ -226,6 +226,76 @@ func TestDeleteChunkValidatesAndUsesStoreBoundary(t *testing.T) {
 	}
 }
 
+func TestCanonicalStorageFunctionsValidateAndUseStoreBoundary(t *testing.T) {
+	store := &fakeStore{}
+	svc, err := New(store)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	if err := svc.UpsertDocument(context.Background(), indexer.Document{ID: " doc-1 ", Name: "Source"}); err != nil {
+		t.Fatalf("upsert document: %v", err)
+	}
+	if err := svc.UpsertEntity(context.Background(), indexer.Entity{Name: "Quark", Type: "PROJECT"}); err != nil {
+		t.Fatalf("upsert entity: %v", err)
+	}
+	if err := svc.UpsertRelation(context.Background(), indexer.Relation{FromID: "quark", ToID: "dgraph", Relation: "USES"}, " chunk-1 "); err != nil {
+		t.Fatalf("upsert relation: %v", err)
+	}
+	if err := svc.UpsertFact(context.Background(), indexer.Fact{
+		Subject:    "Quark",
+		Predicate:  "uses",
+		Object:     "Dgraph",
+		Confidence: 0.9,
+		Citations:  []indexer.Citation{{SourceURI: "paper.pdf"}},
+	}, "chunk-1"); err != nil {
+		t.Fatalf("upsert fact: %v", err)
+	}
+	if err := svc.UpsertCitation(context.Background(), indexer.Citation{SourceURI: "paper.pdf", TextSpan: "Quark uses Dgraph.", Confidence: 0.8}, "chunk-1"); err != nil {
+		t.Fatalf("upsert citation: %v", err)
+	}
+	if err := svc.DeleteDocument(context.Background(), " doc-1 "); err != nil {
+		t.Fatalf("delete document: %v", err)
+	}
+
+	if len(store.documents) != 1 || store.documents[0].ID != "doc-1" {
+		t.Fatalf("documents = %+v, want doc-1", store.documents)
+	}
+	if len(store.entities) != 1 || store.entities[0].ID == "" || store.entities[0].Name != "Quark" {
+		t.Fatalf("entities = %+v, want normalized Quark entity", store.entities)
+	}
+	if len(store.relations) != 1 || store.relations[0].chunkID != "chunk-1" {
+		t.Fatalf("relations = %+v, want chunk-linked relation", store.relations)
+	}
+	if len(store.facts) != 1 || store.facts[0].fact.ID == "" || len(store.facts[0].fact.Citations) != 1 {
+		t.Fatalf("facts = %+v, want normalized fact with citation", store.facts)
+	}
+	if len(store.citations) != 1 || store.citations[0].citation.ChunkID != "chunk-1" {
+		t.Fatalf("citations = %+v, want chunk-linked citation", store.citations)
+	}
+	if len(store.deletedDocuments) != 1 || store.deletedDocuments[0] != "doc-1" {
+		t.Fatalf("deleted documents = %+v, want doc-1", store.deletedDocuments)
+	}
+
+	for name, call := range map[string]func() error{
+		"document": func() error { return svc.UpsertDocument(context.Background(), indexer.Document{}) },
+		"relation": func() error {
+			return svc.UpsertRelation(context.Background(), indexer.Relation{FromID: "a"}, "")
+		},
+		"fact": func() error {
+			return svc.UpsertFact(context.Background(), indexer.Fact{Subject: "a"}, "")
+		},
+		"citation": func() error {
+			return svc.UpsertCitation(context.Background(), indexer.Citation{StartOffset: 9, EndOffset: 1}, "")
+		},
+		"deleteDocument": func() error { return svc.DeleteDocument(context.Background(), " ") },
+	} {
+		if err := call(); err == nil {
+			t.Fatalf("%s: expected validation error", name)
+		}
+	}
+}
+
 func TestIndexDocumentPreservesGraphVectorConsistencyInOneStoreRecord(t *testing.T) {
 	store := &fakeStore{}
 	svc, err := New(store)
@@ -297,10 +367,31 @@ func TestBuildContextPackageDeduplicatesEvidence(t *testing.T) {
 }
 
 type fakeStore struct {
-	inserted []indexer.KnowledgeRecord
-	deleted  []string
-	chunks   []indexer.Chunk
-	graph    *indexer.GraphFragment
+	inserted         []indexer.KnowledgeRecord
+	documents        []indexer.Document
+	entities         []indexer.Entity
+	relations        []storedRelation
+	facts            []storedFact
+	citations        []storedCitation
+	deleted          []string
+	deletedDocuments []string
+	chunks           []indexer.Chunk
+	graph            *indexer.GraphFragment
+}
+
+type storedRelation struct {
+	relation indexer.Relation
+	chunkID  string
+}
+
+type storedFact struct {
+	fact    indexer.Fact
+	chunkID string
+}
+
+type storedCitation struct {
+	citation indexer.Citation
+	chunkID  string
 }
 
 func (s *fakeStore) UpsertRecord(_ context.Context, record indexer.KnowledgeRecord) error {
@@ -308,6 +399,39 @@ func (s *fakeStore) UpsertRecord(_ context.Context, record indexer.KnowledgeReco
 	record.Entities = append([]indexer.Entity(nil), record.Entities...)
 	record.Relations = append([]indexer.Relation(nil), record.Relations...)
 	s.inserted = append(s.inserted, record)
+	return nil
+}
+
+func (s *fakeStore) UpsertDocument(_ context.Context, document indexer.Document) error {
+	document.Metadata = cloneMetadata(document.Metadata)
+	s.documents = append(s.documents, document)
+	return nil
+}
+
+func (s *fakeStore) UpsertEntity(_ context.Context, entity indexer.Entity) error {
+	s.entities = append(s.entities, entity)
+	return nil
+}
+
+func (s *fakeStore) UpsertRelation(_ context.Context, relation indexer.Relation, chunkID string) error {
+	s.relations = append(s.relations, storedRelation{relation: relation, chunkID: chunkID})
+	return nil
+}
+
+func (s *fakeStore) UpsertFact(_ context.Context, fact indexer.Fact, chunkID string) error {
+	fact.Citations = cloneCitations(fact.Citations)
+	fact.Metadata = cloneMetadata(fact.Metadata)
+	s.facts = append(s.facts, storedFact{fact: fact, chunkID: chunkID})
+	return nil
+}
+
+func (s *fakeStore) UpsertCitation(_ context.Context, citation indexer.Citation, chunkID string) error {
+	s.citations = append(s.citations, storedCitation{citation: citation, chunkID: chunkID})
+	return nil
+}
+
+func (s *fakeStore) DeleteDocument(_ context.Context, documentID string) error {
+	s.deletedDocuments = append(s.deletedDocuments, documentID)
 	return nil
 }
 

@@ -20,6 +20,66 @@ service:
   proto_services:
     - quark.indexer.v1.IndexerService
   functions:
+    - name: indexer_UpsertDocument
+      service: quark.indexer.v1.IndexerService
+      method: UpsertDocument
+      request: quark.indexer.v1.UpsertDocumentRequest
+      response: quark.indexer.v1.IndexStatus
+      description: "Upsert one canonical source document record."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: indexer_UpsertChunk
+      service: quark.indexer.v1.IndexerService
+      method: UpsertChunk
+      request: quark.indexer.v1.UpsertChunkRequest
+      response: quark.indexer.v1.IndexStatus
+      description: "Upsert one canonical chunk with embedding metadata, provenance, facts, citations, entities, and relations."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: indexer_UpsertFact
+      service: quark.indexer.v1.IndexerService
+      method: UpsertFact
+      request: quark.indexer.v1.UpsertFactRequest
+      response: quark.indexer.v1.IndexStatus
+      description: "Upsert one canonical fact record."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: indexer_UpsertEntity
+      service: quark.indexer.v1.IndexerService
+      method: UpsertEntity
+      request: quark.indexer.v1.UpsertEntityRequest
+      response: quark.indexer.v1.IndexStatus
+      description: "Upsert one canonical entity record."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: indexer_UpsertRelation
+      service: quark.indexer.v1.IndexerService
+      method: UpsertRelation
+      request: quark.indexer.v1.UpsertRelationRequest
+      response: quark.indexer.v1.IndexStatus
+      description: "Upsert one canonical relation record."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: indexer_UpsertCitation
+      service: quark.indexer.v1.IndexerService
+      method: UpsertCitation
+      request: quark.indexer.v1.UpsertCitationRequest
+      response: quark.indexer.v1.IndexStatus
+      description: "Upsert one canonical citation record."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: true
     - name: indexer_IndexDocument
       service: quark.indexer.v1.IndexerService
       method: IndexDocument
@@ -27,6 +87,16 @@ service:
       response: quark.indexer.v1.IndexStatus
       description: "Persist one canonical index record: document, chunk, embedding metadata, graph data, facts, citations, and provenance."
       risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: indexer_QueryContext
+      service: quark.indexer.v1.IndexerService
+      method: QueryContext
+      request: quark.indexer.v1.QueryRequest
+      response: quark.indexer.v1.ContextResponse
+      description: "Retrieve vector and graph context for an agent-provided query embedding."
+      risk_level: read
       approval_required: false
       streaming: false
       idempotent: true
@@ -40,6 +110,18 @@ service:
       approval_required: false
       streaming: false
       idempotent: true
+    - name: indexer_DeleteDocument
+      service: quark.indexer.v1.IndexerService
+      method: DeleteDocument
+      request: quark.indexer.v1.DeleteDocumentRequest
+      response: quark.indexer.v1.DeleteDocumentResponse
+      description: "Delete one indexed document and document-owned chunks by canonical document ID."
+      risk_level: admin
+      approval_required: true
+      approval_requirements:
+        - index-delete
+      streaming: false
+      idempotent: false
     - name: indexer_DeleteChunk
       service: quark.indexer.v1.IndexerService
       method: DeleteChunk

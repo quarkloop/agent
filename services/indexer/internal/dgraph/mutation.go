@@ -61,6 +61,8 @@ func (d *Driver) DeleteChunk(ctx context.Context, chunkID string) error {
 			Query: `query chunk($id: string) {
   c as var(func: eq(quark.chunk_id, $id)) {
     r as quark.chunk_relation
+    f as ~quark.fact_chunk
+    cite as ~quark.citation_chunk
   }
 }`,
 			Vars: map[string]string{"$id": chunkID},
@@ -74,8 +76,8 @@ func (d *Driver) DeleteChunk(ctx context.Context, chunkID string) error {
 
 func recordUpsertQuery(record indexer.KnowledgeRecord) (string, map[string]string) {
 	var query strings.Builder
-	vars := map[string]string{"$chunk": record.Chunk.ID}
-	query.WriteString("query record($chunk: string")
+	vars := map[string]string{"$chunk": record.Chunk.ID, "$document": record.Chunk.Document.ID}
+	query.WriteString("query record($chunk: string, $document: string")
 	for i, entity := range record.Entities {
 		name := fmt.Sprintf("$entity%d", i)
 		vars[name] = entity.ID
@@ -90,6 +92,7 @@ func recordUpsertQuery(record indexer.KnowledgeRecord) (string, map[string]strin
   c as var(func: eq(quark.chunk_id, $chunk)) {
     oldRelations as quark.chunk_relation
   }
+  d as var(func: eq(quark.document_id, $document))
 `)
 	for i := range record.Entities {
 		fmt.Fprintf(&query, "  e%d as var(func: eq(quark.entity_id, $entity%d))\n", i, i)
@@ -110,6 +113,7 @@ func recordCleanupNQuads(metadataKeys metadataKeySet) string {
 	nquads.WriteString("uid(c) <quark.embedding> * .\n")
 	nquads.WriteString("uid(c) <quark.metadata_json> * .\n")
 	nquads.WriteString("uid(c) <quark.canonical_json> * .\n")
+	nquads.WriteString("uid(c) <quark.chunk_document> * .\n")
 	for _, key := range metadataKeys.sorted() {
 		fmt.Fprintf(&nquads, "uid(c) <%s> * .\n", metadataPredicate(key))
 	}
@@ -120,12 +124,20 @@ func deleteChunkNQuads() string {
 	return "uid(c) <quark.chunk_entity> * .\n" +
 		"uid(c) <quark.chunk_relation> * .\n" +
 		"uid(r) * * .\n" +
+		"uid(f) * * .\n" +
+		"uid(cite) * * .\n" +
 		"uid(c) * * .\n"
 }
 
 func recordMutationNQuads(record indexer.KnowledgeRecord, metaJSON, canonicalJSON string) string {
 	var nquads strings.Builder
+	if record.Chunk.Document.ID != "" {
+		nquads.WriteString(documentMutationNQuads("d", record.Chunk.Document))
+	}
 	nquads.WriteString(chunkMutationNQuads(record.Chunk, metaJSON, canonicalJSON))
+	if record.Chunk.Document.ID != "" {
+		nquads.WriteString("uid(c) <quark.chunk_document> uid(d) .\n")
+	}
 	entityVars := make(map[string]string, len(record.Entities))
 	for i, entity := range record.Entities {
 		entity = normalizeEntity(entity)
@@ -253,6 +265,17 @@ func chunkMutationNQuads(chunk indexer.Chunk, metaJSON, canonicalJSON string) st
 		fmt.Fprintf(&nquads, "uid(c) <%s> %s .\n", metadataPredicate(key), quote(value))
 	}
 	return nquads.String()
+}
+
+func documentMutationNQuads(uidVar string, document indexer.Document) string {
+	metaJSON, _ := json.Marshal(document.Metadata)
+	return fmt.Sprintf(`uid(%s) <dgraph.type> "QuarkDocument" .
+uid(%s) <quark.document_id> %s .
+uid(%s) <quark.document_name> %s .
+uid(%s) <quark.document_type> %s .
+uid(%s) <quark.document_source_uri> %s .
+uid(%s) <quark.document_metadata_json> %s .
+`, uidVar, uidVar, quote(document.ID), uidVar, quote(document.Name), uidVar, quote(document.Type), uidVar, quote(document.SourceURI), uidVar, quote(string(metaJSON)))
 }
 
 func entityMutationNQuads(uidVar string, entity indexer.Entity) string {

@@ -179,42 +179,42 @@ func assertEmbeddingSuccessCount(t *testing.T, trace utils.MessageTrace, want in
 
 func assertAgentStructuredPDFIndexPayloads(t *testing.T, trace utils.MessageTrace, documents []indexedPDFDocument) {
 	t.Helper()
-	payloads := indexerIndexDocumentPayloads(t, trace)
+	payloads := indexerUpsertChunkPayloads(t, trace)
 	if len(payloads) < len(documents) {
-		t.Fatalf("indexer_IndexDocument payload count = %d, want at least %d", len(payloads), len(documents))
+		t.Fatalf("indexer_UpsertChunk payload count = %d, want at least %d", len(payloads), len(documents))
 	}
 
 	seen := make(map[string]bool, len(documents))
 	for i, payload := range payloads {
 		if !hasNonEmptyString(payload, "chunkId") {
-			t.Fatalf("IndexDocument payload %d missing chunkId: %+v", i, payload)
+			t.Fatalf("UpsertChunk payload %d missing chunkId: %+v", i, payload)
 		}
 		if !hasNonEmptyString(payload, "textContentRef") && !hasNonEmptyString(payload, "textContent") {
-			t.Fatalf("IndexDocument payload %d missing textContentRef or textContent: %+v", i, payload)
+			t.Fatalf("UpsertChunk payload %d missing textContentRef or textContent: %+v", i, payload)
 		}
 		if !hasNonEmptyString(payload, "embeddingRef") {
-			t.Fatalf("IndexDocument payload %d missing embeddingRef from embedding_Embed: %+v", i, payload)
+			t.Fatalf("UpsertChunk payload %d missing embeddingRef from embedding_Embed: %+v", i, payload)
 		}
 		if !hasNonEmptyObject(payload, "document") {
-			t.Fatalf("IndexDocument payload %d missing first-class document metadata: %+v", i, payload)
+			t.Fatalf("UpsertChunk payload %d missing first-class document metadata: %+v", i, payload)
 		}
 		if !hasNonEmptyObject(payload, "sourceMetadata") {
-			t.Fatalf("IndexDocument payload %d missing sourceMetadata: %+v", i, payload)
+			t.Fatalf("UpsertChunk payload %d missing sourceMetadata: %+v", i, payload)
 		}
 		if !hasNonEmptyArray(payload, "facts") {
-			t.Fatalf("IndexDocument payload %d missing agent-produced facts: %+v", i, payload)
+			t.Fatalf("UpsertChunk payload %d missing agent-produced facts: %+v", i, payload)
 		}
 		if !hasNonEmptyArray(payload, "entities") {
-			t.Fatalf("IndexDocument payload %d missing agent-produced entities: %+v", i, payload)
+			t.Fatalf("UpsertChunk payload %d missing agent-produced entities: %+v", i, payload)
 		}
 		if !hasArray(payload, "relations") {
-			t.Fatalf("IndexDocument payload %d missing relations field: %+v", i, payload)
+			t.Fatalf("UpsertChunk payload %d missing relations field: %+v", i, payload)
 		}
 		if !hasCitationEvidence(payload) {
-			t.Fatalf("IndexDocument payload %d missing source citations: %+v", i, payload)
+			t.Fatalf("UpsertChunk payload %d missing source citations: %+v", i, payload)
 		}
 		if !hasNonEmptyObject(payload, "provenance") {
-			t.Fatalf("IndexDocument payload %d missing provenance: %+v", i, payload)
+			t.Fatalf("UpsertChunk payload %d missing provenance: %+v", i, payload)
 		}
 		for _, document := range documents {
 			if payloadMentionsFilename(payload, document.Filename) {
@@ -224,21 +224,21 @@ func assertAgentStructuredPDFIndexPayloads(t *testing.T, trace utils.MessageTrac
 	}
 	for _, document := range documents {
 		if !seen[document.Filename] {
-			t.Fatalf("no structured IndexDocument payload referenced %s: %+v", document.Filename, payloads)
+			t.Fatalf("no structured UpsertChunk payload referenced %s: %+v", document.Filename, payloads)
 		}
 	}
 }
 
-func indexerIndexDocumentPayloads(t *testing.T, trace utils.MessageTrace) []map[string]any {
+func indexerUpsertChunkPayloads(t *testing.T, trace utils.MessageTrace) []map[string]any {
 	t.Helper()
 	payloads := make([]map[string]any, 0)
 	for _, event := range trace.ToolStartEvents {
-		if event.Name != "indexer_IndexDocument" {
+		if event.Name != "indexer_UpsertChunk" {
 			continue
 		}
 		var payload map[string]any
 		if err := json.Unmarshal([]byte(event.Arguments), &payload); err != nil {
-			t.Fatalf("decode indexer_IndexDocument arguments: %v\n%s", err, event.Arguments)
+			t.Fatalf("decode indexer_UpsertChunk arguments: %v\n%s", err, event.Arguments)
 		}
 		payloads = append(payloads, payload)
 	}

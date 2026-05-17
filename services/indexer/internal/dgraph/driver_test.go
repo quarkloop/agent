@@ -88,6 +88,7 @@ func TestRecordUpsertPlanKeepsCanonicalVectorAndGraphTogether(t *testing.T) {
 			Text:     "Transformer uses attention.",
 			Vector:   []float32{0.1, 0.2},
 			Metadata: map[string]string{"filename": "paper.pdf"},
+			Document: indexer.Document{ID: "doc-1", Name: "paper.pdf", SourceURI: "file:///paper.pdf"},
 		},
 		Entities: []indexer.Entity{
 			{ID: "transformer", Name: "Transformer", Type: "MODEL"},
@@ -103,9 +104,15 @@ func TestRecordUpsertPlanKeepsCanonicalVectorAndGraphTogether(t *testing.T) {
 	if vars["$chunk"] != "chunk-1" || vars["$entity0"] != "transformer" || vars["$relation0"] != "chunk-1|transformer|USES|attention" {
 		t.Fatalf("record query vars = %+v", vars)
 	}
+	if vars["$document"] != "doc-1" || !strings.Contains(query, "d as var(func: eq(quark.document_id, $document))") {
+		t.Fatalf("record query missing document lookup: query=%s vars=%+v", query, vars)
+	}
 
 	nquads := recordMutationNQuads(record, `{"filename":"paper.pdf"}`, `{}`)
 	for _, want := range []string{
+		`uid(d) <dgraph.type> "QuarkDocument"`,
+		`uid(d) <quark.document_id> "doc-1"`,
+		`uid(c) <quark.chunk_document> uid(d)`,
 		`uid(c) <quark.chunk_id> "chunk-1"`,
 		`uid(c) <quark.embedding> "[0.1,0.2]"`,
 		`uid(e0) <quark.entity_id> "transformer"`,
@@ -136,6 +143,7 @@ func TestRecordCleanupPlanRemovesPreviousChunkOwnedState(t *testing.T) {
 		`uid(c) <quark.embedding> * .`,
 		`uid(c) <quark.metadata_json> * .`,
 		`uid(c) <quark.canonical_json> * .`,
+		`uid(c) <quark.chunk_document> * .`,
 		`uid(c) <quark.meta_tenant_`,
 		`uid(c) <quark.meta_old_`,
 	} {
@@ -153,10 +161,73 @@ func TestDeleteChunkPlanRemovesChunkAndOwnedRelations(t *testing.T) {
 		`uid(c) <quark.chunk_entity> * .`,
 		`uid(c) <quark.chunk_relation> * .`,
 		`uid(r) * * .`,
+		`uid(f) * * .`,
+		`uid(cite) * * .`,
 		`uid(c) * * .`,
 	} {
 		if !strings.Contains(nquads, want) {
 			t.Fatalf("delete nquads missing %q:\n%s", want, nquads)
+		}
+	}
+}
+
+func TestCanonicalMutationHelpersUseTypedRecords(t *testing.T) {
+	t.Parallel()
+
+	docNQuads := documentMutationNQuads("d", indexer.Document{
+		ID:        "doc-1",
+		Name:      "paper.pdf",
+		Type:      "paper",
+		SourceURI: "file:///paper.pdf",
+		Metadata:  map[string]string{"tenant": "acme"},
+	})
+	for _, want := range []string{
+		`uid(d) <dgraph.type> "QuarkDocument"`,
+		`uid(d) <quark.document_id> "doc-1"`,
+		`uid(d) <quark.document_metadata_json> "{\"tenant\":\"acme\"}"`,
+	} {
+		if !strings.Contains(docNQuads, want) {
+			t.Fatalf("document nquads missing %q:\n%s", want, docNQuads)
+		}
+	}
+
+	factNQuads := factMutationNQuads("f", indexer.Fact{
+		ID:         "fact-1",
+		Subject:    "Quark",
+		Predicate:  "uses",
+		Object:     "Dgraph",
+		Confidence: 0.7,
+	}, "chunk-1", `{}`) + factChunkLinkNQuads("chunk-1", "f")
+	for _, want := range []string{
+		`uid(f) <dgraph.type> "QuarkFact"`,
+		`uid(f) <quark.fact_id> "fact-1"`,
+		`uid(f) <quark.fact_chunk_id> "chunk-1"`,
+		`uid(f) <quark.fact_chunk> uid(c)`,
+		`uid(f) <quark.fact_confidence> 0.700000`,
+	} {
+		if !strings.Contains(factNQuads, want) {
+			t.Fatalf("fact nquads missing %q:\n%s", want, factNQuads)
+		}
+	}
+
+	citationNQuads := citationMutationNQuads("cite", indexer.Citation{
+		ID:          "cite-1",
+		SourceURI:   "file:///paper.pdf",
+		ChunkID:     "chunk-1",
+		TextSpan:    "attention",
+		StartOffset: 11,
+		EndOffset:   20,
+		Confidence:  1,
+	}) + citationChunkLinkNQuads("chunk-1", "cite")
+	for _, want := range []string{
+		`uid(cite) <dgraph.type> "QuarkCitation"`,
+		`uid(cite) <quark.citation_id> "cite-1"`,
+		`uid(cite) <quark.citation_start_offset> 11`,
+		`uid(cite) <quark.citation_end_offset> 20`,
+		`uid(cite) <quark.citation_chunk> uid(c)`,
+	} {
+		if !strings.Contains(citationNQuads, want) {
+			t.Fatalf("citation nquads missing %q:\n%s", want, citationNQuads)
 		}
 	}
 }

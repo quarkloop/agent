@@ -9,8 +9,16 @@ option go_package = "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1;in
 // The indexer never calls an LLM and never parses raw documents. Agents provide
 // text chunks, embeddings, entities, relationships, and query embeddings.
 service IndexerService {
+  rpc UpsertDocument(UpsertDocumentRequest) returns (IndexStatus);
+  rpc UpsertChunk(UpsertChunkRequest) returns (IndexStatus);
+  rpc UpsertFact(UpsertFactRequest) returns (IndexStatus);
+  rpc UpsertEntity(UpsertEntityRequest) returns (IndexStatus);
+  rpc UpsertRelation(UpsertRelationRequest) returns (IndexStatus);
+  rpc UpsertCitation(UpsertCitationRequest) returns (IndexStatus);
   rpc IndexDocument(IndexRequest) returns (IndexStatus);
+  rpc QueryContext(QueryRequest) returns (ContextResponse);
   rpc GetContext(QueryRequest) returns (ContextResponse);
+  rpc DeleteDocument(DeleteDocumentRequest) returns (DeleteDocumentResponse);
   rpc DeleteChunk(DeleteChunkRequest) returns (DeleteChunkResponse);
 }
 
@@ -26,6 +34,43 @@ message IndexRequest {
   repeated Fact facts = 9;
   repeated Citation citations = 10;
   Provenance provenance = 11;
+}
+
+message UpsertDocumentRequest {
+  Document document = 1;
+}
+
+message UpsertChunkRequest {
+  string chunk_id = 1;
+  string text_content = 2;
+  repeated float embedding = 3;
+  map<string, string> source_metadata = 4;
+  Document document = 5;
+  EmbeddingMetadata embedding_metadata = 6;
+  repeated Fact facts = 7;
+  repeated Citation citations = 8;
+  Provenance provenance = 9;
+  repeated Entity entities = 10;
+  repeated Relation relations = 11;
+}
+
+message UpsertFactRequest {
+  Fact fact = 1;
+  string chunk_id = 2;
+}
+
+message UpsertEntityRequest {
+  Entity entity = 1;
+}
+
+message UpsertRelationRequest {
+  Relation relation = 1;
+  string chunk_id = 2;
+}
+
+message UpsertCitationRequest {
+  Citation citation = 1;
+  string chunk_id = 2;
 }
 
 message Document {
@@ -148,5 +193,13 @@ message DeleteChunkRequest {
 }
 
 message DeleteChunkResponse {
+  bool deleted = 1;
+}
+
+message DeleteDocumentRequest {
+  string document_id = 1;
+}
+
+message DeleteDocumentResponse {
   bool deleted = 1;
 }

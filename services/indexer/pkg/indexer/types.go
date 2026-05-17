@@ -108,6 +108,12 @@ type ContextPackage struct {
 // own persistence, vector search, graph writes, lifecycle, and concurrency.
 type GraphVectorDriver interface {
 	UpsertRecord(ctx context.Context, record KnowledgeRecord) error
+	UpsertDocument(ctx context.Context, document Document) error
+	UpsertEntity(ctx context.Context, entity Entity) error
+	UpsertRelation(ctx context.Context, relation Relation, chunkID string) error
+	UpsertFact(ctx context.Context, fact Fact, chunkID string) error
+	UpsertCitation(ctx context.Context, citation Citation, chunkID string) error
+	DeleteDocument(ctx context.Context, documentID string) error
 	DeleteChunk(ctx context.Context, chunkID string) error
 	VectorSearch(ctx context.Context, queryVector []float32, limit int, filters map[string]string) ([]Chunk, error)
 	GetNeighborhood(ctx context.Context, nodeID string, depth int) (*GraphFragment, error)

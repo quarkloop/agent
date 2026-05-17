@@ -48,6 +48,39 @@ func TestIndexCommandMapsProtoToOwnedDomainCommand(t *testing.T) {
 	}
 }
 
+func TestChunkCommandMapsCanonicalProtoToOwnedDomainCommand(t *testing.T) {
+	req := &indexerv1.UpsertChunkRequest{
+		ChunkId:     "chunk-1",
+		TextContent: "Canonical chunk text.",
+		Embedding:   []float32{0.3, 0.4},
+		Document:    &indexerv1.Document{Id: "doc-1", Metadata: map[string]string{"kind": "paper"}},
+		Entities:    []*indexerv1.Entity{{Id: "entity-1", Name: "Entity"}},
+		Relations:   []*indexerv1.Relation{{FromId: "entity-1", ToId: "entity-2", Relation: "MENTIONS"}},
+		Facts:       []*indexerv1.Fact{{Id: "fact-1", Subject: "Entity", Predicate: "mentions", Object: "Other", Metadata: map[string]string{"confidence": "source"}}},
+		Citations:   []*indexerv1.Citation{{Id: "cite-1", SourceUri: "source.pdf", ChunkId: "chunk-1"}},
+		Provenance:  &indexerv1.Provenance{TraceId: "trace-1", Metadata: map[string]string{"agent": "knowledge"}},
+	}
+
+	cmd := chunkCommand(req)
+	req.Embedding[0] = 9
+	req.Document.Metadata["kind"] = "mutated"
+	req.Facts[0].Metadata["confidence"] = "mutated"
+	req.Provenance.Metadata["agent"] = "mutated"
+
+	if cmd.Vector[0] != 0.3 {
+		t.Fatalf("vector was not copied: %+v", cmd.Vector)
+	}
+	if cmd.Document.Metadata["kind"] != "paper" {
+		t.Fatalf("document metadata was not copied: %+v", cmd.Document.Metadata)
+	}
+	if cmd.Facts[0].Metadata["confidence"] != "source" {
+		t.Fatalf("fact metadata was not copied: %+v", cmd.Facts[0].Metadata)
+	}
+	if cmd.Provenance.Metadata["agent"] != "knowledge" {
+		t.Fatalf("provenance metadata was not copied: %+v", cmd.Provenance.Metadata)
+	}
+}
+
 func TestContextResponseMapsDomainToOwnedProtoResponse(t *testing.T) {
 	chunks := []indexer.Chunk{{
 		ID:       "chunk-1",

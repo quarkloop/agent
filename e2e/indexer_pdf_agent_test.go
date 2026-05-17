@@ -97,12 +97,12 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOp
 
 	assertToolStarted(t, indexTrace, "document_ExtractText")
 	assertToolStarted(t, indexTrace, "embedding_Embed")
-	assertToolStarted(t, indexTrace, "indexer_IndexDocument")
+	assertToolStarted(t, indexTrace, "indexer_UpsertChunk")
 	assertNoToolErrors(t, indexTrace, "document_ExtractText")
 	assertToolSuccessCount(t, indexTrace, "document_ExtractText", len(documents))
-	assertNoToolErrors(t, indexTrace, "indexer_IndexDocument")
+	assertNoToolErrors(t, indexTrace, "indexer_UpsertChunk")
 	assertEmbeddingSuccessCount(t, indexTrace, len(documents))
-	assertToolSuccessCount(t, indexTrace, "indexer_IndexDocument", len(documents))
+	assertToolSuccessCount(t, indexTrace, "indexer_UpsertChunk", len(documents))
 	assertAgentStructuredPDFIndexPayloads(t, indexTrace, documents)
 	for _, document := range documents {
 		if !containsText(indexTrace.Text, document.Filename) {
@@ -146,12 +146,12 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOp
 		writeAgentRunArtifacts(t, workingDir, artifactPrefix, env, queryTrace, queryPrompt)
 
 		assertToolStarted(t, queryTrace, "embedding_Embed")
-		assertToolStarted(t, queryTrace, "indexer_GetContext")
-		assertNoToolErrors(t, queryTrace, "embedding_Embed", "indexer_GetContext")
+		assertToolStarted(t, queryTrace, "indexer_QueryContext")
+		assertNoToolErrors(t, queryTrace, "embedding_Embed", "indexer_QueryContext")
 		if contains(queryTrace.ToolStarts, "fs") {
 			t.Fatalf("%s query re-read source files instead of using the index; starts=%v", queryCase.Title, queryTrace.ToolStarts)
 		}
-		assertToolResultContains(t, queryTrace, "indexer_GetContext", "reasoningContext")
+		assertToolResultContains(t, queryTrace, "indexer_QueryContext", "reasoningContext")
 		assertEmbeddingToolResult(t, queryTrace, env.Embedding.Provider, env.Embedding.Model, env.Embedding.Dimensions)
 		assertAnswerContains(t, queryTrace.Text, queryCase.Want...)
 		if len(queryCase.WantAny) > 0 {

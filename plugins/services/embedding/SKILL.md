@@ -10,7 +10,7 @@ provider-backed model embeddings belong behind the Quark Model Service boundary.
 When indexing documents:
 
 1. Call `embedding_Embed` for every chunk that will be stored in the index.
-2. Pass the returned `embeddingRef` to `indexer_IndexDocument.embeddingRef`.
+2. Pass the returned `embeddingRef` to `indexer_UpsertChunk.embeddingRef`.
 3. Preserve `model`, `provider`, `dimensions`, and `contentHash` as source or
    embedding metadata when useful.
 
@@ -18,7 +18,7 @@ When querying indexed documents:
 
 1. Call `embedding_Embed` for the user query using the same dimensions used for
    indexed chunks.
-2. Pass the returned `embeddingRef` to `indexer_GetContext.queryVectorRef`.
+2. Pass the returned `embeddingRef` to `indexer_QueryContext.queryVectorRef`.
 
 ## RPCs
 

@@ -38,6 +38,8 @@ func TestPDFPromptBuildersExposeAgentWorkflowContract(t *testing.T) {
 		"document_ExtractText",
 		"embedding_Embed",
 		"indexer_IndexDocument",
+		"indexer_UpsertChunk",
+		"indexer_UpsertDocument",
 		"textContentRef",
 		"inputRef",
 		"queryVectorRef",
@@ -58,6 +60,7 @@ func TestPDFPromptBuildersExposeAgentWorkflowContract(t *testing.T) {
 	assertPromptExcludes(t, queryPrompt,
 		"embedding_Embed",
 		"indexer_GetContext",
+		"indexer_QueryContext",
 		"queryVectorRef",
 		"reasoningContext",
 	)
@@ -80,6 +83,8 @@ func TestMarkdownPromptBuildersExposeAgentWorkflowContract(t *testing.T) {
 		"fs read",
 		"embedding_Embed",
 		"indexer_IndexDocument",
+		"indexer_UpsertChunk",
+		"indexer_UpsertDocument",
 		"textContentRef",
 		"inputRef",
 		"queryVectorRef",
@@ -100,6 +105,7 @@ func TestMarkdownPromptBuildersExposeAgentWorkflowContract(t *testing.T) {
 	assertPromptExcludes(t, queryPrompt,
 		"embedding_Embed",
 		"indexer_GetContext",
+		"indexer_QueryContext",
 		"queryVectorRef",
 		"reasoningContext",
 	)

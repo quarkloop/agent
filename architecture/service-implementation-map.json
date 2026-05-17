@@ -55,8 +55,16 @@
         "document_RunOCR",
         "embedding_Embed",
         "indexer_DeleteChunk",
+        "indexer_DeleteDocument",
         "indexer_GetContext",
         "indexer_IndexDocument",
+        "indexer_QueryContext",
+        "indexer_UpsertChunk",
+        "indexer_UpsertCitation",
+        "indexer_UpsertDocument",
+        "indexer_UpsertEntity",
+        "indexer_UpsertFact",
+        "indexer_UpsertRelation",
         "ingestion_AppendArtifact",
         "ingestion_CancelRun",
         "ingestion_GetRun",
@@ -72,7 +80,7 @@
       "missing_permissions": [],
       "name": "Quark Knowledge",
       "path": "plugins/agents/quark-knowledge/PROFILE.yaml",
-      "service_permission_count": 35
+      "service_permission_count": 43
     },
     "quark-system": {
       "area": "System",
@@ -150,7 +158,7 @@
     },
     "Indexer": {
       "declared_only_function_count": 0,
-      "implemented_function_count": 3,
+      "implemented_function_count": 11,
       "profile_count": 0,
       "proto_mismatch_count": 0,
       "runnable_service_count": 1,
@@ -161,7 +169,7 @@
     },
     "Knowledge": {
       "declared_only_function_count": 6,
-      "implemented_function_count": 24,
+      "implemented_function_count": 32,
       "profile_count": 1,
       "proto_mismatch_count": 0,
       "runnable_service_count": 5,
@@ -245,10 +253,7 @@
           "108: t.Fatalf(\"embedding_Embed tool results missing provider=%q model=%q dimensions=%d: %+v\", provider, model, dimensions, trace.ToolResultEvents)",
           "165: if event.Name != \"embedding_Embed\" {",
           "176: t.Fatalf(\"embedding_Embed successful results = %d, want at least %d: %+v\", count, want, trace.ToolResultEvents)",
-          "184: t.Fatalf(\"indexer_IndexDocument payload count = %d, want at least %d\", len(payloads), len(documents))",
-          "196: t.Fatalf(\"IndexDocument payload %d missing embeddingRef from embedding_Embed: %+v\", i, payload)",
-          "236: if event.Name != \"indexer_IndexDocument\" {",
-          "241: t.Fatalf(\"decode indexer_IndexDocument arguments: %v\\n%s\", err, event.Arguments)"
+          "196: t.Fatalf(\"UpsertChunk payload %d missing embeddingRef from embedding_Embed: %+v\", i, payload)"
         ]
       },
       {
@@ -288,12 +293,8 @@
         "path": "e2e/indexer_markdown_agent_test.go",
         "prompt_shortcut_suspects": [
           "76: assertToolStarted(t, indexTrace, \"embedding_Embed\")",
-          "77: assertToolStarted(t, indexTrace, \"indexer_IndexDocument\")",
-          "78: assertNoToolErrors(t, indexTrace, \"indexer_IndexDocument\")",
-          "80: assertToolSuccessCount(t, indexTrace, \"indexer_IndexDocument\", len(documents))",
           "106: assertToolStarted(t, queryTrace, \"embedding_Embed\")",
-          "107: assertToolStarted(t, queryTrace, \"indexer_GetContext\")",
-          "108: assertNoToolErrors(t, queryTrace, \"embedding_Embed\", \"indexer_GetContext\")"
+          "108: assertNoToolErrors(t, queryTrace, \"embedding_Embed\", \"indexer_QueryContext\")"
         ]
       },
       {
@@ -302,13 +303,8 @@
         "path": "e2e/indexer_pdf_agent_test.go",
         "prompt_shortcut_suspects": [
           "99: assertToolStarted(t, indexTrace, \"embedding_Embed\")",
-          "100: assertToolStarted(t, indexTrace, \"indexer_IndexDocument\")",
-          "103: assertNoToolErrors(t, indexTrace, \"indexer_IndexDocument\")",
-          "105: assertToolSuccessCount(t, indexTrace, \"indexer_IndexDocument\", len(documents))",
           "148: assertToolStarted(t, queryTrace, \"embedding_Embed\")",
-          "149: assertToolStarted(t, queryTrace, \"indexer_GetContext\")",
-          "150: assertNoToolErrors(t, queryTrace, \"embedding_Embed\", \"indexer_GetContext\")",
-          "154: assertToolResultContains(t, queryTrace, \"indexer_GetContext\", \"reasoningContext\")"
+          "150: assertNoToolErrors(t, queryTrace, \"embedding_Embed\", \"indexer_QueryContext\")"
         ]
       },
       {
@@ -357,15 +353,15 @@
         "prompt_shortcut_suspects": [
           "39: \"embedding_Embed\",",
           "40: \"indexer_IndexDocument\",",
-          "44: \"service function\",",
-          "59: \"embedding_Embed\",",
-          "60: \"indexer_GetContext\",",
-          "81: \"embedding_Embed\",",
-          "82: \"indexer_IndexDocument\",",
-          "86: \"service function\",",
-          "101: \"embedding_Embed\",",
-          "102: \"indexer_GetContext\",",
-          "120: \"service function\","
+          "46: \"service function\",",
+          "61: \"embedding_Embed\",",
+          "62: \"indexer_GetContext\",",
+          "84: \"embedding_Embed\",",
+          "85: \"indexer_IndexDocument\",",
+          "91: \"service function\",",
+          "106: \"embedding_Embed\",",
+          "107: \"indexer_GetContext\",",
+          "126: \"service function\","
         ]
       },
       {
@@ -416,7 +412,7 @@
         ]
       }
     ],
-    "prompt_shortcut_suspect_count": 46
+    "prompt_shortcut_suspect_count": 34
   },
   "services": {
     "build-release": {
@@ -1330,8 +1326,92 @@
     "indexer": {
       "address_env": "QUARK_INDEXER_ADDR",
       "declared_only_function_count": 0,
-      "function_count": 3,
+      "function_count": 11,
       "functions": [
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "UpsertDocument",
+          "method_implemented": true,
+          "name": "indexer_UpsertDocument",
+          "proto_rpc_exists": true,
+          "request": "quark.indexer.v1.UpsertDocumentRequest",
+          "response": "quark.indexer.v1.IndexStatus",
+          "risk_level": "write",
+          "service": "quark.indexer.v1.IndexerService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "UpsertChunk",
+          "method_implemented": true,
+          "name": "indexer_UpsertChunk",
+          "proto_rpc_exists": true,
+          "request": "quark.indexer.v1.UpsertChunkRequest",
+          "response": "quark.indexer.v1.IndexStatus",
+          "risk_level": "write",
+          "service": "quark.indexer.v1.IndexerService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "UpsertFact",
+          "method_implemented": true,
+          "name": "indexer_UpsertFact",
+          "proto_rpc_exists": true,
+          "request": "quark.indexer.v1.UpsertFactRequest",
+          "response": "quark.indexer.v1.IndexStatus",
+          "risk_level": "write",
+          "service": "quark.indexer.v1.IndexerService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "UpsertEntity",
+          "method_implemented": true,
+          "name": "indexer_UpsertEntity",
+          "proto_rpc_exists": true,
+          "request": "quark.indexer.v1.UpsertEntityRequest",
+          "response": "quark.indexer.v1.IndexStatus",
+          "risk_level": "write",
+          "service": "quark.indexer.v1.IndexerService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "UpsertRelation",
+          "method_implemented": true,
+          "name": "indexer_UpsertRelation",
+          "proto_rpc_exists": true,
+          "request": "quark.indexer.v1.UpsertRelationRequest",
+          "response": "quark.indexer.v1.IndexStatus",
+          "risk_level": "write",
+          "service": "quark.indexer.v1.IndexerService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "UpsertCitation",
+          "method_implemented": true,
+          "name": "indexer_UpsertCitation",
+          "proto_rpc_exists": true,
+          "request": "quark.indexer.v1.UpsertCitationRequest",
+          "response": "quark.indexer.v1.IndexStatus",
+          "risk_level": "write",
+          "service": "quark.indexer.v1.IndexerService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
         {
           "approval_required": false,
           "idempotent": true,
@@ -1342,6 +1422,20 @@
           "request": "quark.indexer.v1.IndexRequest",
           "response": "quark.indexer.v1.IndexStatus",
           "risk_level": "write",
+          "service": "quark.indexer.v1.IndexerService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "QueryContext",
+          "method_implemented": true,
+          "name": "indexer_QueryContext",
+          "proto_rpc_exists": true,
+          "request": "quark.indexer.v1.QueryRequest",
+          "response": "quark.indexer.v1.ContextResponse",
+          "risk_level": "read",
           "service": "quark.indexer.v1.IndexerService",
           "status": "implemented_end_to_end",
           "streaming": false
@@ -1363,6 +1457,20 @@
         {
           "approval_required": true,
           "idempotent": false,
+          "method": "DeleteDocument",
+          "method_implemented": true,
+          "name": "indexer_DeleteDocument",
+          "proto_rpc_exists": true,
+          "request": "quark.indexer.v1.DeleteDocumentRequest",
+          "response": "quark.indexer.v1.DeleteDocumentResponse",
+          "risk_level": "admin",
+          "service": "quark.indexer.v1.IndexerService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": true,
+          "idempotent": false,
           "method": "DeleteChunk",
           "method_implemented": true,
           "name": "indexer_DeleteChunk",
@@ -1376,7 +1484,7 @@
         }
       ],
       "health_service": "quark.indexer.v1.IndexerService",
-      "implemented_function_count": 3,
+      "implemented_function_count": 11,
       "manifest_path": "plugins/services/indexer/manifest.yaml",
       "module_exists": true,
       "module_path": "services/indexer",
@@ -2146,9 +2254,9 @@
     "agent_profile_count": 3,
     "declared_only_or_mismatched_function_count": 42,
     "e2e_test_file_count": 23,
-    "implemented_service_function_count": 63,
+    "implemented_service_function_count": 71,
     "runnable_service_module_count": 9,
-    "service_function_count": 105,
+    "service_function_count": 113,
     "service_plugin_count": 13
   },
   "version": 1

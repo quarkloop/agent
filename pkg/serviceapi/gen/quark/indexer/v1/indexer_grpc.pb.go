@@ -19,9 +19,17 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	IndexerService_IndexDocument_FullMethodName = "/quark.indexer.v1.IndexerService/IndexDocument"
-	IndexerService_GetContext_FullMethodName    = "/quark.indexer.v1.IndexerService/GetContext"
-	IndexerService_DeleteChunk_FullMethodName   = "/quark.indexer.v1.IndexerService/DeleteChunk"
+	IndexerService_UpsertDocument_FullMethodName = "/quark.indexer.v1.IndexerService/UpsertDocument"
+	IndexerService_UpsertChunk_FullMethodName    = "/quark.indexer.v1.IndexerService/UpsertChunk"
+	IndexerService_UpsertFact_FullMethodName     = "/quark.indexer.v1.IndexerService/UpsertFact"
+	IndexerService_UpsertEntity_FullMethodName   = "/quark.indexer.v1.IndexerService/UpsertEntity"
+	IndexerService_UpsertRelation_FullMethodName = "/quark.indexer.v1.IndexerService/UpsertRelation"
+	IndexerService_UpsertCitation_FullMethodName = "/quark.indexer.v1.IndexerService/UpsertCitation"
+	IndexerService_IndexDocument_FullMethodName  = "/quark.indexer.v1.IndexerService/IndexDocument"
+	IndexerService_QueryContext_FullMethodName   = "/quark.indexer.v1.IndexerService/QueryContext"
+	IndexerService_GetContext_FullMethodName     = "/quark.indexer.v1.IndexerService/GetContext"
+	IndexerService_DeleteDocument_FullMethodName = "/quark.indexer.v1.IndexerService/DeleteDocument"
+	IndexerService_DeleteChunk_FullMethodName    = "/quark.indexer.v1.IndexerService/DeleteChunk"
 )
 
 // IndexerServiceClient is the client API for IndexerService service.
@@ -33,8 +41,16 @@ const (
 // The indexer never calls an LLM and never parses raw documents. Agents provide
 // text chunks, embeddings, entities, relationships, and query embeddings.
 type IndexerServiceClient interface {
+	UpsertDocument(ctx context.Context, in *UpsertDocumentRequest, opts ...grpc.CallOption) (*IndexStatus, error)
+	UpsertChunk(ctx context.Context, in *UpsertChunkRequest, opts ...grpc.CallOption) (*IndexStatus, error)
+	UpsertFact(ctx context.Context, in *UpsertFactRequest, opts ...grpc.CallOption) (*IndexStatus, error)
+	UpsertEntity(ctx context.Context, in *UpsertEntityRequest, opts ...grpc.CallOption) (*IndexStatus, error)
+	UpsertRelation(ctx context.Context, in *UpsertRelationRequest, opts ...grpc.CallOption) (*IndexStatus, error)
+	UpsertCitation(ctx context.Context, in *UpsertCitationRequest, opts ...grpc.CallOption) (*IndexStatus, error)
 	IndexDocument(ctx context.Context, in *IndexRequest, opts ...grpc.CallOption) (*IndexStatus, error)
+	QueryContext(ctx context.Context, in *QueryRequest, opts ...grpc.CallOption) (*ContextResponse, error)
 	GetContext(ctx context.Context, in *QueryRequest, opts ...grpc.CallOption) (*ContextResponse, error)
+	DeleteDocument(ctx context.Context, in *DeleteDocumentRequest, opts ...grpc.CallOption) (*DeleteDocumentResponse, error)
 	DeleteChunk(ctx context.Context, in *DeleteChunkRequest, opts ...grpc.CallOption) (*DeleteChunkResponse, error)
 }
 
@@ -44,6 +60,66 @@ type indexerServiceClient struct {
 
 func NewIndexerServiceClient(cc grpc.ClientConnInterface) IndexerServiceClient {
 	return &indexerServiceClient{cc}
+}
+
+func (c *indexerServiceClient) UpsertDocument(ctx context.Context, in *UpsertDocumentRequest, opts ...grpc.CallOption) (*IndexStatus, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(IndexStatus)
+	err := c.cc.Invoke(ctx, IndexerService_UpsertDocument_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *indexerServiceClient) UpsertChunk(ctx context.Context, in *UpsertChunkRequest, opts ...grpc.CallOption) (*IndexStatus, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(IndexStatus)
+	err := c.cc.Invoke(ctx, IndexerService_UpsertChunk_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *indexerServiceClient) UpsertFact(ctx context.Context, in *UpsertFactRequest, opts ...grpc.CallOption) (*IndexStatus, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(IndexStatus)
+	err := c.cc.Invoke(ctx, IndexerService_UpsertFact_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *indexerServiceClient) UpsertEntity(ctx context.Context, in *UpsertEntityRequest, opts ...grpc.CallOption) (*IndexStatus, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(IndexStatus)
+	err := c.cc.Invoke(ctx, IndexerService_UpsertEntity_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *indexerServiceClient) UpsertRelation(ctx context.Context, in *UpsertRelationRequest, opts ...grpc.CallOption) (*IndexStatus, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(IndexStatus)
+	err := c.cc.Invoke(ctx, IndexerService_UpsertRelation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *indexerServiceClient) UpsertCitation(ctx context.Context, in *UpsertCitationRequest, opts ...grpc.CallOption) (*IndexStatus, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(IndexStatus)
+	err := c.cc.Invoke(ctx, IndexerService_UpsertCitation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *indexerServiceClient) IndexDocument(ctx context.Context, in *IndexRequest, opts ...grpc.CallOption) (*IndexStatus, error) {
@@ -56,10 +132,30 @@ func (c *indexerServiceClient) IndexDocument(ctx context.Context, in *IndexReque
 	return out, nil
 }
 
+func (c *indexerServiceClient) QueryContext(ctx context.Context, in *QueryRequest, opts ...grpc.CallOption) (*ContextResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ContextResponse)
+	err := c.cc.Invoke(ctx, IndexerService_QueryContext_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *indexerServiceClient) GetContext(ctx context.Context, in *QueryRequest, opts ...grpc.CallOption) (*ContextResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ContextResponse)
 	err := c.cc.Invoke(ctx, IndexerService_GetContext_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *indexerServiceClient) DeleteDocument(ctx context.Context, in *DeleteDocumentRequest, opts ...grpc.CallOption) (*DeleteDocumentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteDocumentResponse)
+	err := c.cc.Invoke(ctx, IndexerService_DeleteDocument_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -85,8 +181,16 @@ func (c *indexerServiceClient) DeleteChunk(ctx context.Context, in *DeleteChunkR
 // The indexer never calls an LLM and never parses raw documents. Agents provide
 // text chunks, embeddings, entities, relationships, and query embeddings.
 type IndexerServiceServer interface {
+	UpsertDocument(context.Context, *UpsertDocumentRequest) (*IndexStatus, error)
+	UpsertChunk(context.Context, *UpsertChunkRequest) (*IndexStatus, error)
+	UpsertFact(context.Context, *UpsertFactRequest) (*IndexStatus, error)
+	UpsertEntity(context.Context, *UpsertEntityRequest) (*IndexStatus, error)
+	UpsertRelation(context.Context, *UpsertRelationRequest) (*IndexStatus, error)
+	UpsertCitation(context.Context, *UpsertCitationRequest) (*IndexStatus, error)
 	IndexDocument(context.Context, *IndexRequest) (*IndexStatus, error)
+	QueryContext(context.Context, *QueryRequest) (*ContextResponse, error)
 	GetContext(context.Context, *QueryRequest) (*ContextResponse, error)
+	DeleteDocument(context.Context, *DeleteDocumentRequest) (*DeleteDocumentResponse, error)
 	DeleteChunk(context.Context, *DeleteChunkRequest) (*DeleteChunkResponse, error)
 	mustEmbedUnimplementedIndexerServiceServer()
 }
@@ -98,11 +202,35 @@ type IndexerServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedIndexerServiceServer struct{}
 
+func (UnimplementedIndexerServiceServer) UpsertDocument(context.Context, *UpsertDocumentRequest) (*IndexStatus, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpsertDocument not implemented")
+}
+func (UnimplementedIndexerServiceServer) UpsertChunk(context.Context, *UpsertChunkRequest) (*IndexStatus, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpsertChunk not implemented")
+}
+func (UnimplementedIndexerServiceServer) UpsertFact(context.Context, *UpsertFactRequest) (*IndexStatus, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpsertFact not implemented")
+}
+func (UnimplementedIndexerServiceServer) UpsertEntity(context.Context, *UpsertEntityRequest) (*IndexStatus, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpsertEntity not implemented")
+}
+func (UnimplementedIndexerServiceServer) UpsertRelation(context.Context, *UpsertRelationRequest) (*IndexStatus, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpsertRelation not implemented")
+}
+func (UnimplementedIndexerServiceServer) UpsertCitation(context.Context, *UpsertCitationRequest) (*IndexStatus, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpsertCitation not implemented")
+}
 func (UnimplementedIndexerServiceServer) IndexDocument(context.Context, *IndexRequest) (*IndexStatus, error) {
 	return nil, status.Error(codes.Unimplemented, "method IndexDocument not implemented")
 }
+func (UnimplementedIndexerServiceServer) QueryContext(context.Context, *QueryRequest) (*ContextResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method QueryContext not implemented")
+}
 func (UnimplementedIndexerServiceServer) GetContext(context.Context, *QueryRequest) (*ContextResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetContext not implemented")
+}
+func (UnimplementedIndexerServiceServer) DeleteDocument(context.Context, *DeleteDocumentRequest) (*DeleteDocumentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteDocument not implemented")
 }
 func (UnimplementedIndexerServiceServer) DeleteChunk(context.Context, *DeleteChunkRequest) (*DeleteChunkResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteChunk not implemented")
@@ -128,6 +256,114 @@ func RegisterIndexerServiceServer(s grpc.ServiceRegistrar, srv IndexerServiceSer
 	s.RegisterService(&IndexerService_ServiceDesc, srv)
 }
 
+func _IndexerService_UpsertDocument_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpsertDocumentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IndexerServiceServer).UpsertDocument(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IndexerService_UpsertDocument_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IndexerServiceServer).UpsertDocument(ctx, req.(*UpsertDocumentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IndexerService_UpsertChunk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpsertChunkRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IndexerServiceServer).UpsertChunk(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IndexerService_UpsertChunk_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IndexerServiceServer).UpsertChunk(ctx, req.(*UpsertChunkRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IndexerService_UpsertFact_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpsertFactRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IndexerServiceServer).UpsertFact(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IndexerService_UpsertFact_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IndexerServiceServer).UpsertFact(ctx, req.(*UpsertFactRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IndexerService_UpsertEntity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpsertEntityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IndexerServiceServer).UpsertEntity(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IndexerService_UpsertEntity_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IndexerServiceServer).UpsertEntity(ctx, req.(*UpsertEntityRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IndexerService_UpsertRelation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpsertRelationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IndexerServiceServer).UpsertRelation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IndexerService_UpsertRelation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IndexerServiceServer).UpsertRelation(ctx, req.(*UpsertRelationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IndexerService_UpsertCitation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpsertCitationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IndexerServiceServer).UpsertCitation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IndexerService_UpsertCitation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IndexerServiceServer).UpsertCitation(ctx, req.(*UpsertCitationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _IndexerService_IndexDocument_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(IndexRequest)
 	if err := dec(in); err != nil {
@@ -146,6 +382,24 @@ func _IndexerService_IndexDocument_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _IndexerService_QueryContext_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IndexerServiceServer).QueryContext(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IndexerService_QueryContext_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IndexerServiceServer).QueryContext(ctx, req.(*QueryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _IndexerService_GetContext_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(QueryRequest)
 	if err := dec(in); err != nil {
@@ -160,6 +414,24 @@ func _IndexerService_GetContext_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IndexerServiceServer).GetContext(ctx, req.(*QueryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IndexerService_DeleteDocument_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteDocumentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IndexerServiceServer).DeleteDocument(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IndexerService_DeleteDocument_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IndexerServiceServer).DeleteDocument(ctx, req.(*DeleteDocumentRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -190,12 +462,44 @@ var IndexerService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*IndexerServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "UpsertDocument",
+			Handler:    _IndexerService_UpsertDocument_Handler,
+		},
+		{
+			MethodName: "UpsertChunk",
+			Handler:    _IndexerService_UpsertChunk_Handler,
+		},
+		{
+			MethodName: "UpsertFact",
+			Handler:    _IndexerService_UpsertFact_Handler,
+		},
+		{
+			MethodName: "UpsertEntity",
+			Handler:    _IndexerService_UpsertEntity_Handler,
+		},
+		{
+			MethodName: "UpsertRelation",
+			Handler:    _IndexerService_UpsertRelation_Handler,
+		},
+		{
+			MethodName: "UpsertCitation",
+			Handler:    _IndexerService_UpsertCitation_Handler,
+		},
+		{
 			MethodName: "IndexDocument",
 			Handler:    _IndexerService_IndexDocument_Handler,
 		},
 		{
+			MethodName: "QueryContext",
+			Handler:    _IndexerService_QueryContext_Handler,
+		},
+		{
 			MethodName: "GetContext",
 			Handler:    _IndexerService_GetContext_Handler,
+		},
+		{
+			MethodName: "DeleteDocument",
+			Handler:    _IndexerService_DeleteDocument_Handler,
 		},
 		{
 			MethodName: "DeleteChunk",

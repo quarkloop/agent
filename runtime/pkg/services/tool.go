@@ -454,6 +454,18 @@ func applyRuntimeReferenceFields(typeName string, schema map[string]any) {
 			"type":        "string",
 			"description": "Reference returned by fs read or document_ExtractText. Prefer this over copying source text into textContent.",
 		}
+	case "quark.indexer.v1.UpsertChunkRequest":
+		if description, ok := schema["description"].(string); ok {
+			schema["description"] = description + " For textContent, prefer textContentRef returned from fs read or document_ExtractText results when indexing source files; otherwise provide explicit textContent."
+		}
+		properties["embeddingRef"] = map[string]any{
+			"type":        "string",
+			"description": "Reference returned by embedding_Embed. Prefer this over copying embedding vectors manually.",
+		}
+		properties["textContentRef"] = map[string]any{
+			"type":        "string",
+			"description": "Reference returned by fs read or document_ExtractText. Prefer this over copying source text into textContent.",
+		}
 	case "quark.indexer.v1.QueryRequest":
 		properties["queryVectorRef"] = map[string]any{
 			"type":        "string",
@@ -669,8 +681,12 @@ func requiredJSONFields(typeName string) []string {
 		return nil
 	case "quark.indexer.v1.IndexRequest":
 		return []string{"chunkId", "embeddingRef"}
+	case "quark.indexer.v1.UpsertChunkRequest":
+		return []string{"chunkId", "embeddingRef"}
 	case "quark.indexer.v1.QueryRequest":
 		return []string{"queryVectorRef"}
+	case "quark.indexer.v1.DeleteDocumentRequest":
+		return []string{"documentId"}
 	case "quark.indexer.v1.DeleteChunkRequest":
 		return []string{"chunkId"}
 	default:
@@ -784,6 +800,12 @@ func (e *Executor) expandRuntimeReferences(typeName, arguments string) (string, 
 		}
 		return e.expandContentReference(expanded, "contentRef", "input")
 	case "quark.indexer.v1.IndexRequest":
+		expanded, err := e.expandVectorReference(arguments, "embeddingRef", "embedding")
+		if err != nil {
+			return "", err
+		}
+		return e.expandContentReference(expanded, "textContentRef", "textContent")
+	case "quark.indexer.v1.UpsertChunkRequest":
 		expanded, err := e.expandVectorReference(arguments, "embeddingRef", "embedding")
 		if err != nil {
 			return "", err

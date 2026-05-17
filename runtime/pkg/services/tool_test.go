@@ -10,6 +10,7 @@ import (
 
 	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
 	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
+	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -115,6 +116,52 @@ func TestExecutorCapturesFilesystemContentRefsForIndexRequests(t *testing.T) {
 	}
 }
 
+func TestExecutorExpandsRuntimeRefsForCanonicalUpsertChunkRequests(t *testing.T) {
+	executor := NewExecutor(nil)
+
+	contentResult, err := executor.CaptureToolResult("fs", `{"command":"read","path":"/tmp/source.md"}`, `{"content":"Canonical text\n"}`)
+	if err != nil {
+		t.Fatalf("capture content result: %v", err)
+	}
+	var contentPayload map[string]any
+	if err := json.Unmarshal([]byte(contentResult), &contentPayload); err != nil {
+		t.Fatalf("decode content result: %v\n%s", err, contentResult)
+	}
+
+	embeddingResult, err := executor.embeddingToolResult(&embeddingv1.EmbedResponse{
+		Vector:      []float32{0.5, 0.25},
+		Model:       "local-hash-v1",
+		Dimensions:  2,
+		Provider:    "local",
+		ContentHash: "sha256:source",
+	})
+	if err != nil {
+		t.Fatalf("capture embedding result: %v", err)
+	}
+	var embeddingPayload map[string]any
+	if err := json.Unmarshal([]byte(embeddingResult), &embeddingPayload); err != nil {
+		t.Fatalf("decode embedding result: %v\n%s", err, embeddingResult)
+	}
+
+	expanded, err := executor.expandRuntimeReferences("quark.indexer.v1.UpsertChunkRequest", `{"chunkId":"chunk-1","textContentRef":"`+contentPayload["contentRef"].(string)+`","embeddingRef":"`+embeddingPayload["embeddingRef"].(string)+`"}`)
+	if err != nil {
+		t.Fatalf("expand refs: %v", err)
+	}
+	var req indexerv1.UpsertChunkRequest
+	if err := protojson.Unmarshal([]byte(expanded), &req); err != nil {
+		t.Fatalf("expanded payload is not canonical UpsertChunkRequest: %v\n%s", err, expanded)
+	}
+	if req.GetTextContent() != "Canonical text\n" {
+		t.Fatalf("textContent = %q", req.GetTextContent())
+	}
+	if got := req.GetEmbedding(); len(got) != 2 || got[0] != 0.5 || got[1] != 0.25 {
+		t.Fatalf("embedding = %+v", got)
+	}
+	if req.GetEmbeddingMetadata().GetModel() != "local-hash-v1" {
+		t.Fatalf("embedding metadata was not attached: %+v", req.GetEmbeddingMetadata())
+	}
+}
+
 func TestExecutorExpandsDocumentContentRefsForEmbeddingRequests(t *testing.T) {
 	executor := NewExecutor(nil)
 
@@ -147,6 +194,25 @@ func TestExecutorExpandsDocumentContentRefsForEmbeddingRequests(t *testing.T) {
 	}
 	if got := embedPayload["input"].(string); got != "Attention Is All You Need\n" {
 		t.Fatalf("input = %q", got)
+	}
+}
+
+func TestCanonicalIndexerRequestSchemasExposeRuntimeReferenceFields(t *testing.T) {
+	upsertSchema := requestParameters("quark.indexer.v1.UpsertChunkRequest")
+	properties := upsertSchema["properties"].(map[string]any)
+	if _, ok := properties["embeddingRef"]; !ok {
+		t.Fatalf("UpsertChunk schema missing embeddingRef: %+v", upsertSchema)
+	}
+	if _, ok := properties["textContentRef"]; !ok {
+		t.Fatalf("UpsertChunk schema missing textContentRef: %+v", upsertSchema)
+	}
+	if got := upsertSchema["required"]; !sameStrings(got, []string{"chunkId", "embeddingRef"}) {
+		t.Fatalf("UpsertChunk required = %+v", got)
+	}
+
+	deleteSchema := requestParameters("quark.indexer.v1.DeleteDocumentRequest")
+	if got := deleteSchema["required"]; !sameStrings(got, []string{"documentId"}) {
+		t.Fatalf("DeleteDocument required = %+v", got)
 	}
 }
 
@@ -223,4 +289,17 @@ func (s *flakyEmbeddingServer) Embed(context.Context, *embeddingv1.EmbedRequest)
 		Provider:    "test",
 		ContentHash: "abc123",
 	}, nil
+}
+
+func sameStrings(raw any, want []string) bool {
+	got, ok := raw.([]string)
+	if !ok || len(got) != len(want) {
+		return false
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			return false
+		}
+	}
+	return true
 }

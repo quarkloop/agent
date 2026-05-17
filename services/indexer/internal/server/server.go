@@ -24,11 +24,57 @@ func New(service *indexing.Service) (*Server, error) {
 	return &Server{service: service}, nil
 }
 
+func (s *Server) UpsertDocument(ctx context.Context, req *indexerv1.UpsertDocumentRequest) (*indexerv1.IndexStatus, error) {
+	if err := s.service.UpsertDocument(ctx, protoDocument(req.GetDocument())); err != nil {
+		return nil, grpcError(err)
+	}
+	return &indexerv1.IndexStatus{Success: true, Message: "document upserted"}, nil
+}
+
+func (s *Server) UpsertChunk(ctx context.Context, req *indexerv1.UpsertChunkRequest) (*indexerv1.IndexStatus, error) {
+	if err := s.service.UpsertChunk(ctx, chunkCommand(req)); err != nil {
+		return nil, grpcError(err)
+	}
+	return &indexerv1.IndexStatus{Success: true, Message: "chunk upserted"}, nil
+}
+
+func (s *Server) UpsertFact(ctx context.Context, req *indexerv1.UpsertFactRequest) (*indexerv1.IndexStatus, error) {
+	if err := s.service.UpsertFact(ctx, protoFact(req.GetFact()), req.GetChunkId()); err != nil {
+		return nil, grpcError(err)
+	}
+	return &indexerv1.IndexStatus{Success: true, Message: "fact upserted"}, nil
+}
+
+func (s *Server) UpsertEntity(ctx context.Context, req *indexerv1.UpsertEntityRequest) (*indexerv1.IndexStatus, error) {
+	if err := s.service.UpsertEntity(ctx, protoEntity(req.GetEntity())); err != nil {
+		return nil, grpcError(err)
+	}
+	return &indexerv1.IndexStatus{Success: true, Message: "entity upserted"}, nil
+}
+
+func (s *Server) UpsertRelation(ctx context.Context, req *indexerv1.UpsertRelationRequest) (*indexerv1.IndexStatus, error) {
+	if err := s.service.UpsertRelation(ctx, protoRelation(req.GetRelation()), req.GetChunkId()); err != nil {
+		return nil, grpcError(err)
+	}
+	return &indexerv1.IndexStatus{Success: true, Message: "relation upserted"}, nil
+}
+
+func (s *Server) UpsertCitation(ctx context.Context, req *indexerv1.UpsertCitationRequest) (*indexerv1.IndexStatus, error) {
+	if err := s.service.UpsertCitation(ctx, protoCitation(req.GetCitation()), req.GetChunkId()); err != nil {
+		return nil, grpcError(err)
+	}
+	return &indexerv1.IndexStatus{Success: true, Message: "citation upserted"}, nil
+}
+
 func (s *Server) IndexDocument(ctx context.Context, req *indexerv1.IndexRequest) (*indexerv1.IndexStatus, error) {
 	if err := s.service.IndexDocument(ctx, indexCommand(req)); err != nil {
 		return nil, grpcError(err)
 	}
 	return &indexerv1.IndexStatus{Success: true, Message: "indexed"}, nil
+}
+
+func (s *Server) QueryContext(ctx context.Context, req *indexerv1.QueryRequest) (*indexerv1.ContextResponse, error) {
+	return s.GetContext(ctx, req)
 }
 
 func (s *Server) GetContext(ctx context.Context, req *indexerv1.QueryRequest) (*indexerv1.ContextResponse, error) {
@@ -43,6 +89,13 @@ func (s *Server) GetContext(ctx context.Context, req *indexerv1.QueryRequest) (*
 		Graph:            toProtoGraph(result.Graph),
 		ContextPackage:   toProtoContextPackage(result.Package),
 	}, nil
+}
+
+func (s *Server) DeleteDocument(ctx context.Context, req *indexerv1.DeleteDocumentRequest) (*indexerv1.DeleteDocumentResponse, error) {
+	if err := s.service.DeleteDocument(ctx, req.GetDocumentId()); err != nil {
+		return nil, grpcError(err)
+	}
+	return &indexerv1.DeleteDocumentResponse{Deleted: true}, nil
 }
 
 func (s *Server) DeleteChunk(ctx context.Context, req *indexerv1.DeleteChunkRequest) (*indexerv1.DeleteChunkResponse, error) {

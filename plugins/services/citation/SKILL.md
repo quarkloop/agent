@@ -9,8 +9,8 @@ mechanical evidence service, not an answer generator.
    `citation_ResolveSpans` to normalize source spans and offsets.
 2. Before answering or indexing high-value claims, call
    `citation_VerifyGrounding` when grounding needs mechanical verification.
-3. Pass resolved citations to `indexer_IndexDocument.citations`,
-   `facts.citations`, and `provenance`.
+3. Pass resolved citations to `indexer_UpsertChunk.citations`,
+   `indexer_UpsertFact.fact.citations`, and `provenance`.
 
 ## RPCs
 

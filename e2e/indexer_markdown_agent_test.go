@@ -74,10 +74,10 @@ func TestAgentIndexesITCompanyMarkdownDocuments(t *testing.T) {
 
 	assertToolStarted(t, indexTrace, "fs")
 	assertToolStarted(t, indexTrace, "embedding_Embed")
-	assertToolStarted(t, indexTrace, "indexer_IndexDocument")
-	assertNoToolErrors(t, indexTrace, "indexer_IndexDocument")
+	assertToolStarted(t, indexTrace, "indexer_UpsertChunk")
+	assertNoToolErrors(t, indexTrace, "indexer_UpsertChunk")
 	assertEmbeddingSuccessCount(t, indexTrace, len(documents))
-	assertToolSuccessCount(t, indexTrace, "indexer_IndexDocument", len(documents))
+	assertToolSuccessCount(t, indexTrace, "indexer_UpsertChunk", len(documents))
 	for _, document := range documents {
 		if !containsText(indexTrace.Text, document.Filename) {
 			t.Fatalf("markdown index confirmation missing filename %q:\n%s", document.Filename, indexTrace.Text)
@@ -104,8 +104,8 @@ func TestAgentIndexesITCompanyMarkdownDocuments(t *testing.T) {
 	writeAgentRunArtifacts(t, workingDir, "markdown-agent-query", env, queryTrace, queryPrompt)
 
 	assertToolStarted(t, queryTrace, "embedding_Embed")
-	assertToolStarted(t, queryTrace, "indexer_GetContext")
-	assertNoToolErrors(t, queryTrace, "embedding_Embed", "indexer_GetContext")
+	assertToolStarted(t, queryTrace, "indexer_QueryContext")
+	assertNoToolErrors(t, queryTrace, "embedding_Embed", "indexer_QueryContext")
 	if contains(queryTrace.ToolStarts, "fs") {
 		t.Fatalf("markdown query re-read source files instead of using the index; starts=%v", queryTrace.ToolStarts)
 	}
