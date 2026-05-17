@@ -6,27 +6,24 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newLogsCmd() *cobra.Command {
+func newStopCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "logs <name>",
-		Short: "Show service logs when supervisor manages them",
+		Use:   "stop <name>",
+		Short: "Stop a supervisor-managed service",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			space, err := currentSpaceName()
 			if err != nil {
 				return err
 			}
-			resp, err := newSupervisorClient().ServiceLogs(cmd.Context(), space, args[0])
+			resp, err := newSupervisorClient().StopService(cmd.Context(), space, args[0])
 			if err != nil {
-				return serviceCommandError("service logs", err)
-			}
-			if resp.Content != "" {
-				fmt.Print(resp.Content)
-				return nil
+				return serviceCommandError("service stop", err)
 			}
 			if resp.Message != "" {
 				fmt.Println(resp.Message)
 			}
+			fmt.Print(formatServiceInspect(resp.Service))
 			return nil
 		},
 	}

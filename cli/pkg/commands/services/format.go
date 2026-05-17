@@ -36,6 +36,15 @@ func formatServiceInspect(service api.ServiceInfo) string {
 	if service.Endpoint != "" {
 		fmt.Fprintf(&b, "Endpoint:    %s\n", service.Endpoint)
 	}
+	if service.PID != 0 {
+		fmt.Fprintf(&b, "PID:         %d\n", service.PID)
+	}
+	if service.LogPath != "" {
+		fmt.Fprintf(&b, "Logs:        %s\n", service.LogPath)
+	}
+	if service.StartedAt != nil {
+		fmt.Fprintf(&b, "Started At:  %s\n", service.StartedAt.Format("2006-01-02T15:04:05Z07:00"))
+	}
 	if service.AddressEnv != "" {
 		fmt.Fprintf(&b, "Address Env: %s\n", service.AddressEnv)
 	}

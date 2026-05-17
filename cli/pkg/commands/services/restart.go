@@ -20,7 +20,10 @@ func newRestartCmd() *cobra.Command {
 			if err != nil {
 				return serviceCommandError("service restart", err)
 			}
-			fmt.Println(resp.Message)
+			if resp.Message != "" {
+				fmt.Println(resp.Message)
+			}
+			fmt.Print(formatServiceInspect(resp.Service))
 			return nil
 		},
 	}

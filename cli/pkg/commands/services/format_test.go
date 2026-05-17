@@ -3,6 +3,7 @@ package servicescmd
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/quarkloop/supervisor/pkg/api"
 )
@@ -23,10 +24,14 @@ func TestFormatServiceTable(t *testing.T) {
 }
 
 func TestFormatServiceInspectIncludesDiagnostics(t *testing.T) {
+	started := time.Date(2026, 5, 17, 10, 0, 0, 0, time.UTC)
 	out := formatServiceInspect(api.ServiceInfo{
 		Name:        "indexer",
 		Status:      api.ServiceStatusUnavailable,
 		Description: "Indexer",
+		PID:         1234,
+		LogPath:     "/tmp/indexer.log",
+		StartedAt:   &started,
 		Functions: []api.ServiceFunctionInfo{{
 			Name:    "indexer_GetContext",
 			Service: "quark.indexer.v1.IndexerService",
@@ -34,9 +39,22 @@ func TestFormatServiceInspectIncludesDiagnostics(t *testing.T) {
 		}},
 		Diagnostics: []string{"health status is NOT_SERVING"},
 	})
-	for _, want := range []string{"indexer_GetContext", "Diagnostics", "NOT_SERVING"} {
+	for _, want := range []string{"indexer_GetContext", "Diagnostics", "NOT_SERVING", "PID", "/tmp/indexer.log", "2026-05-17T10:00:00Z"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("inspect missing %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestServicesCommandIncludesLifecycleCommands(t *testing.T) {
+	cmd := NewServicesCommand()
+	names := make(map[string]bool)
+	for _, child := range cmd.Commands() {
+		names[child.Name()] = true
+	}
+	for _, want := range []string{"list", "status", "inspect", "logs", "start", "stop", "restart", "doctor"} {
+		if !names[want] {
+			t.Fatalf("services command missing %q", want)
 		}
 	}
 }
