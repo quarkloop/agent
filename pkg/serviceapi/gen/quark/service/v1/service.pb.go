@@ -195,14 +195,24 @@ func (x *ServiceDescriptor) GetSkills() []*SkillDescriptor {
 }
 
 type RpcDescriptor struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Service       string                 `protobuf:"bytes,1,opt,name=service,proto3" json:"service,omitempty"`
-	Method        string                 `protobuf:"bytes,2,opt,name=method,proto3" json:"method,omitempty"`
-	Request       string                 `protobuf:"bytes,3,opt,name=request,proto3" json:"request,omitempty"`
-	Response      string                 `protobuf:"bytes,4,opt,name=response,proto3" json:"response,omitempty"`
-	Description   string                 `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                protoimpl.MessageState    `protogen:"open.v1"`
+	Service              string                    `protobuf:"bytes,1,opt,name=service,proto3" json:"service,omitempty"`
+	Method               string                    `protobuf:"bytes,2,opt,name=method,proto3" json:"method,omitempty"`
+	Request              string                    `protobuf:"bytes,3,opt,name=request,proto3" json:"request,omitempty"`
+	Response             string                    `protobuf:"bytes,4,opt,name=response,proto3" json:"response,omitempty"`
+	Description          string                    `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
+	Owner                string                    `protobuf:"bytes,6,opt,name=owner,proto3" json:"owner,omitempty"`
+	FunctionName         string                    `protobuf:"bytes,7,opt,name=function_name,json=functionName,proto3" json:"function_name,omitempty"`
+	RiskLevel            string                    `protobuf:"bytes,8,opt,name=risk_level,json=riskLevel,proto3" json:"risk_level,omitempty"`
+	ApprovalRequired     bool                      `protobuf:"varint,9,opt,name=approval_required,json=approvalRequired,proto3" json:"approval_required,omitempty"`
+	ApprovalRequirements []string                  `protobuf:"bytes,10,rep,name=approval_requirements,json=approvalRequirements,proto3" json:"approval_requirements,omitempty"`
+	Streaming            bool                      `protobuf:"varint,11,opt,name=streaming,proto3" json:"streaming,omitempty"`
+	Idempotent           bool                      `protobuf:"varint,12,opt,name=idempotent,proto3" json:"idempotent,omitempty"`
+	TimeoutMillis        int32                     `protobuf:"varint,13,opt,name=timeout_millis,json=timeoutMillis,proto3" json:"timeout_millis,omitempty"`
+	RetryPolicy          *RetryPolicy              `protobuf:"bytes,14,opt,name=retry_policy,json=retryPolicy,proto3" json:"retry_policy,omitempty"`
+	Examples             []*ServiceFunctionExample `protobuf:"bytes,15,rep,name=examples,proto3" json:"examples,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *RpcDescriptor) Reset() {
@@ -270,6 +280,204 @@ func (x *RpcDescriptor) GetDescription() string {
 	return ""
 }
 
+func (x *RpcDescriptor) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *RpcDescriptor) GetFunctionName() string {
+	if x != nil {
+		return x.FunctionName
+	}
+	return ""
+}
+
+func (x *RpcDescriptor) GetRiskLevel() string {
+	if x != nil {
+		return x.RiskLevel
+	}
+	return ""
+}
+
+func (x *RpcDescriptor) GetApprovalRequired() bool {
+	if x != nil {
+		return x.ApprovalRequired
+	}
+	return false
+}
+
+func (x *RpcDescriptor) GetApprovalRequirements() []string {
+	if x != nil {
+		return x.ApprovalRequirements
+	}
+	return nil
+}
+
+func (x *RpcDescriptor) GetStreaming() bool {
+	if x != nil {
+		return x.Streaming
+	}
+	return false
+}
+
+func (x *RpcDescriptor) GetIdempotent() bool {
+	if x != nil {
+		return x.Idempotent
+	}
+	return false
+}
+
+func (x *RpcDescriptor) GetTimeoutMillis() int32 {
+	if x != nil {
+		return x.TimeoutMillis
+	}
+	return 0
+}
+
+func (x *RpcDescriptor) GetRetryPolicy() *RetryPolicy {
+	if x != nil {
+		return x.RetryPolicy
+	}
+	return nil
+}
+
+func (x *RpcDescriptor) GetExamples() []*ServiceFunctionExample {
+	if x != nil {
+		return x.Examples
+	}
+	return nil
+}
+
+type RetryPolicy struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	MaxAttempts          int32                  `protobuf:"varint,1,opt,name=max_attempts,json=maxAttempts,proto3" json:"max_attempts,omitempty"`
+	RetryableCodes       []string               `protobuf:"bytes,2,rep,name=retryable_codes,json=retryableCodes,proto3" json:"retryable_codes,omitempty"`
+	InitialBackoffMillis int32                  `protobuf:"varint,3,opt,name=initial_backoff_millis,json=initialBackoffMillis,proto3" json:"initial_backoff_millis,omitempty"`
+	MaxBackoffMillis     int32                  `protobuf:"varint,4,opt,name=max_backoff_millis,json=maxBackoffMillis,proto3" json:"max_backoff_millis,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *RetryPolicy) Reset() {
+	*x = RetryPolicy{}
+	mi := &file_quark_service_v1_service_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetryPolicy) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetryPolicy) ProtoMessage() {}
+
+func (x *RetryPolicy) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_service_v1_service_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetryPolicy.ProtoReflect.Descriptor instead.
+func (*RetryPolicy) Descriptor() ([]byte, []int) {
+	return file_quark_service_v1_service_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *RetryPolicy) GetMaxAttempts() int32 {
+	if x != nil {
+		return x.MaxAttempts
+	}
+	return 0
+}
+
+func (x *RetryPolicy) GetRetryableCodes() []string {
+	if x != nil {
+		return x.RetryableCodes
+	}
+	return nil
+}
+
+func (x *RetryPolicy) GetInitialBackoffMillis() int32 {
+	if x != nil {
+		return x.InitialBackoffMillis
+	}
+	return 0
+}
+
+func (x *RetryPolicy) GetMaxBackoffMillis() int32 {
+	if x != nil {
+		return x.MaxBackoffMillis
+	}
+	return 0
+}
+
+type ServiceFunctionExample struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	RequestJson   string                 `protobuf:"bytes,3,opt,name=request_json,json=requestJson,proto3" json:"request_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ServiceFunctionExample) Reset() {
+	*x = ServiceFunctionExample{}
+	mi := &file_quark_service_v1_service_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServiceFunctionExample) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServiceFunctionExample) ProtoMessage() {}
+
+func (x *ServiceFunctionExample) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_service_v1_service_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServiceFunctionExample.ProtoReflect.Descriptor instead.
+func (*ServiceFunctionExample) Descriptor() ([]byte, []int) {
+	return file_quark_service_v1_service_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ServiceFunctionExample) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ServiceFunctionExample) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *ServiceFunctionExample) GetRequestJson() string {
+	if x != nil {
+		return x.RequestJson
+	}
+	return ""
+}
+
 type SkillDescriptor struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -281,7 +489,7 @@ type SkillDescriptor struct {
 
 func (x *SkillDescriptor) Reset() {
 	*x = SkillDescriptor{}
-	mi := &file_quark_service_v1_service_proto_msgTypes[4]
+	mi := &file_quark_service_v1_service_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -293,7 +501,7 @@ func (x *SkillDescriptor) String() string {
 func (*SkillDescriptor) ProtoMessage() {}
 
 func (x *SkillDescriptor) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_service_v1_service_proto_msgTypes[4]
+	mi := &file_quark_service_v1_service_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -306,7 +514,7 @@ func (x *SkillDescriptor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SkillDescriptor.ProtoReflect.Descriptor instead.
 func (*SkillDescriptor) Descriptor() ([]byte, []int) {
-	return file_quark_service_v1_service_proto_rawDescGZIP(), []int{4}
+	return file_quark_service_v1_service_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *SkillDescriptor) GetName() string {
@@ -345,13 +553,36 @@ const file_quark_service_v1_service_proto_rawDesc = "" +
 	"\aversion\x18\x03 \x01(\tR\aversion\x12\x18\n" +
 	"\aaddress\x18\x04 \x01(\tR\aaddress\x123\n" +
 	"\x04rpcs\x18\x05 \x03(\v2\x1f.quark.service.v1.RpcDescriptorR\x04rpcs\x129\n" +
-	"\x06skills\x18\x06 \x03(\v2!.quark.service.v1.SkillDescriptorR\x06skills\"\x99\x01\n" +
+	"\x06skills\x18\x06 \x03(\v2!.quark.service.v1.SkillDescriptorR\x06skills\"\xc2\x04\n" +
 	"\rRpcDescriptor\x12\x18\n" +
 	"\aservice\x18\x01 \x01(\tR\aservice\x12\x16\n" +
 	"\x06method\x18\x02 \x01(\tR\x06method\x12\x18\n" +
 	"\arequest\x18\x03 \x01(\tR\arequest\x12\x1a\n" +
 	"\bresponse\x18\x04 \x01(\tR\bresponse\x12 \n" +
-	"\vdescription\x18\x05 \x01(\tR\vdescription\"[\n" +
+	"\vdescription\x18\x05 \x01(\tR\vdescription\x12\x14\n" +
+	"\x05owner\x18\x06 \x01(\tR\x05owner\x12#\n" +
+	"\rfunction_name\x18\a \x01(\tR\ffunctionName\x12\x1d\n" +
+	"\n" +
+	"risk_level\x18\b \x01(\tR\triskLevel\x12+\n" +
+	"\x11approval_required\x18\t \x01(\bR\x10approvalRequired\x123\n" +
+	"\x15approval_requirements\x18\n" +
+	" \x03(\tR\x14approvalRequirements\x12\x1c\n" +
+	"\tstreaming\x18\v \x01(\bR\tstreaming\x12\x1e\n" +
+	"\n" +
+	"idempotent\x18\f \x01(\bR\n" +
+	"idempotent\x12%\n" +
+	"\x0etimeout_millis\x18\r \x01(\x05R\rtimeoutMillis\x12@\n" +
+	"\fretry_policy\x18\x0e \x01(\v2\x1d.quark.service.v1.RetryPolicyR\vretryPolicy\x12D\n" +
+	"\bexamples\x18\x0f \x03(\v2(.quark.service.v1.ServiceFunctionExampleR\bexamples\"\xbd\x01\n" +
+	"\vRetryPolicy\x12!\n" +
+	"\fmax_attempts\x18\x01 \x01(\x05R\vmaxAttempts\x12'\n" +
+	"\x0fretryable_codes\x18\x02 \x03(\tR\x0eretryableCodes\x124\n" +
+	"\x16initial_backoff_millis\x18\x03 \x01(\x05R\x14initialBackoffMillis\x12,\n" +
+	"\x12max_backoff_millis\x18\x04 \x01(\x05R\x10maxBackoffMillis\"q\n" +
+	"\x16ServiceFunctionExample\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12!\n" +
+	"\frequest_json\x18\x03 \x01(\tR\vrequestJson\"[\n" +
 	"\x0fSkillDescriptor\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x1a\n" +
@@ -373,28 +604,32 @@ func file_quark_service_v1_service_proto_rawDescGZIP() []byte {
 	return file_quark_service_v1_service_proto_rawDescData
 }
 
-var file_quark_service_v1_service_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_quark_service_v1_service_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_quark_service_v1_service_proto_goTypes = []any{
-	(*ListServicesResponse)(nil), // 0: quark.service.v1.ListServicesResponse
-	(*GetServiceRequest)(nil),    // 1: quark.service.v1.GetServiceRequest
-	(*ServiceDescriptor)(nil),    // 2: quark.service.v1.ServiceDescriptor
-	(*RpcDescriptor)(nil),        // 3: quark.service.v1.RpcDescriptor
-	(*SkillDescriptor)(nil),      // 4: quark.service.v1.SkillDescriptor
-	(*emptypb.Empty)(nil),        // 5: google.protobuf.Empty
+	(*ListServicesResponse)(nil),   // 0: quark.service.v1.ListServicesResponse
+	(*GetServiceRequest)(nil),      // 1: quark.service.v1.GetServiceRequest
+	(*ServiceDescriptor)(nil),      // 2: quark.service.v1.ServiceDescriptor
+	(*RpcDescriptor)(nil),          // 3: quark.service.v1.RpcDescriptor
+	(*RetryPolicy)(nil),            // 4: quark.service.v1.RetryPolicy
+	(*ServiceFunctionExample)(nil), // 5: quark.service.v1.ServiceFunctionExample
+	(*SkillDescriptor)(nil),        // 6: quark.service.v1.SkillDescriptor
+	(*emptypb.Empty)(nil),          // 7: google.protobuf.Empty
 }
 var file_quark_service_v1_service_proto_depIdxs = []int32{
 	2, // 0: quark.service.v1.ListServicesResponse.services:type_name -> quark.service.v1.ServiceDescriptor
 	3, // 1: quark.service.v1.ServiceDescriptor.rpcs:type_name -> quark.service.v1.RpcDescriptor
-	4, // 2: quark.service.v1.ServiceDescriptor.skills:type_name -> quark.service.v1.SkillDescriptor
-	5, // 3: quark.service.v1.ServiceRegistry.ListServices:input_type -> google.protobuf.Empty
-	1, // 4: quark.service.v1.ServiceRegistry.GetService:input_type -> quark.service.v1.GetServiceRequest
-	0, // 5: quark.service.v1.ServiceRegistry.ListServices:output_type -> quark.service.v1.ListServicesResponse
-	2, // 6: quark.service.v1.ServiceRegistry.GetService:output_type -> quark.service.v1.ServiceDescriptor
-	5, // [5:7] is the sub-list for method output_type
-	3, // [3:5] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	6, // 2: quark.service.v1.ServiceDescriptor.skills:type_name -> quark.service.v1.SkillDescriptor
+	4, // 3: quark.service.v1.RpcDescriptor.retry_policy:type_name -> quark.service.v1.RetryPolicy
+	5, // 4: quark.service.v1.RpcDescriptor.examples:type_name -> quark.service.v1.ServiceFunctionExample
+	7, // 5: quark.service.v1.ServiceRegistry.ListServices:input_type -> google.protobuf.Empty
+	1, // 6: quark.service.v1.ServiceRegistry.GetService:input_type -> quark.service.v1.GetServiceRequest
+	0, // 7: quark.service.v1.ServiceRegistry.ListServices:output_type -> quark.service.v1.ListServicesResponse
+	2, // 8: quark.service.v1.ServiceRegistry.GetService:output_type -> quark.service.v1.ServiceDescriptor
+	7, // [7:9] is the sub-list for method output_type
+	5, // [5:7] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_quark_service_v1_service_proto_init() }
@@ -408,7 +643,7 @@ func file_quark_service_v1_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_quark_service_v1_service_proto_rawDesc), len(file_quark_service_v1_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

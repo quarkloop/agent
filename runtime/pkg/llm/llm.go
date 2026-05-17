@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/quarkloop/pkg/plugin"
 )
@@ -177,17 +178,20 @@ func (c *Client) Infer(ctx context.Context, messages []plugin.Message, tools []p
 				})
 			}
 
+			started := time.Now()
 			result, err := onTool(ctx, tc.Function.Name, tc.Function.Arguments)
+			durationMillis := time.Since(started).Milliseconds()
 			toolErr := err != nil
 			if err != nil {
 				result = fmt.Sprintf("error: %v", err)
 			}
 			if onMessage != nil {
 				onMessage("tool_result", map[string]any{
-					"id":     callID,
-					"name":   tc.Function.Name,
-					"result": preview(result, 2000),
-					"error":  toolErr,
+					"id":              callID,
+					"name":            tc.Function.Name,
+					"result":          preview(result, 2000),
+					"error":           toolErr,
+					"duration_millis": durationMillis,
 				})
 			}
 			messages = append(messages, plugin.Message{

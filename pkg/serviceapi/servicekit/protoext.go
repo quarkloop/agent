@@ -19,11 +19,21 @@ func CloneDescriptor(x *servicev1.ServiceDescriptor) *servicev1.ServiceDescripto
 	}
 	for _, r := range x.GetRpcs() {
 		out.Rpcs = append(out.Rpcs, &servicev1.RpcDescriptor{
-			Service:     r.GetService(),
-			Method:      r.GetMethod(),
-			Request:     r.GetRequest(),
-			Response:    r.GetResponse(),
-			Description: r.GetDescription(),
+			Service:              r.GetService(),
+			Method:               r.GetMethod(),
+			Request:              r.GetRequest(),
+			Response:             r.GetResponse(),
+			Description:          r.GetDescription(),
+			Owner:                r.GetOwner(),
+			FunctionName:         r.GetFunctionName(),
+			RiskLevel:            r.GetRiskLevel(),
+			ApprovalRequired:     r.GetApprovalRequired(),
+			ApprovalRequirements: append([]string(nil), r.GetApprovalRequirements()...),
+			Streaming:            r.GetStreaming(),
+			Idempotent:           r.GetIdempotent(),
+			TimeoutMillis:        r.GetTimeoutMillis(),
+			RetryPolicy:          cloneRetryPolicy(r.GetRetryPolicy()),
+			Examples:             cloneExamples(r.GetExamples()),
 		})
 	}
 	for _, s := range x.GetSkills() {
@@ -31,6 +41,33 @@ func CloneDescriptor(x *servicev1.ServiceDescriptor) *servicev1.ServiceDescripto
 			Name:     s.GetName(),
 			Version:  s.GetVersion(),
 			Markdown: s.GetMarkdown(),
+		})
+	}
+	return out
+}
+
+func cloneRetryPolicy(x *servicev1.RetryPolicy) *servicev1.RetryPolicy {
+	if x == nil {
+		return nil
+	}
+	return &servicev1.RetryPolicy{
+		MaxAttempts:          x.GetMaxAttempts(),
+		RetryableCodes:       append([]string(nil), x.GetRetryableCodes()...),
+		InitialBackoffMillis: x.GetInitialBackoffMillis(),
+		MaxBackoffMillis:     x.GetMaxBackoffMillis(),
+	}
+}
+
+func cloneExamples(examples []*servicev1.ServiceFunctionExample) []*servicev1.ServiceFunctionExample {
+	out := make([]*servicev1.ServiceFunctionExample, 0, len(examples))
+	for _, example := range examples {
+		if example == nil {
+			continue
+		}
+		out = append(out, &servicev1.ServiceFunctionExample{
+			Name:        example.GetName(),
+			Description: example.GetDescription(),
+			RequestJson: example.GetRequestJson(),
 		})
 	}
 	return out

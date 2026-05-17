@@ -144,6 +144,12 @@ func TestApplyServiceFunctionMetadata(t *testing.T) {
 	if rpc.GetDescription() != "Retrieve context using a query embedding." {
 		t.Fatalf("description = %q", rpc.GetDescription())
 	}
+	if rpc.GetOwner() != "indexer" || rpc.GetFunctionName() != "indexer_GetContext" || rpc.GetRiskLevel() != "read" {
+		t.Fatalf("function contract metadata missing: %+v", rpc)
+	}
+	if !rpc.GetIdempotent() || rpc.GetTimeoutMillis() != 30000 {
+		t.Fatalf("runtime safety metadata missing: %+v", rpc)
+	}
 }
 
 func TestApplyServiceFunctionMetadataRequiresEveryRPC(t *testing.T) {
@@ -200,11 +206,15 @@ func TestValidateServicePluginDescriptorsRejectsMissingRPC(t *testing.T) {
 		Version: "1.0.0",
 		Address: "127.0.0.1:7301",
 		Rpcs: []*servicev1.RpcDescriptor{{
-			Service:     "quark.indexer.v1.IndexerService",
-			Method:      "GetContext",
-			Request:     "quark.indexer.v1.QueryRequest",
-			Response:    "quark.indexer.v1.ContextResponse",
-			Description: "Retrieve context.",
+			Service:       "quark.indexer.v1.IndexerService",
+			Method:        "GetContext",
+			Request:       "quark.indexer.v1.QueryRequest",
+			Response:      "quark.indexer.v1.ContextResponse",
+			Description:   "Retrieve context.",
+			Owner:         "indexer",
+			FunctionName:  "indexer_GetContext",
+			RiskLevel:     "read",
+			TimeoutMillis: 30000,
 		}},
 	}
 	manifest := serviceManifest("indexer", "quark.indexer.v1.IndexerService")

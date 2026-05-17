@@ -18,10 +18,13 @@ func TestPromptBlockIncludesServiceSkillsAndRPCs(t *testing.T) {
 		Version: "1.0.0",
 		Address: "127.0.0.1:7301",
 		Rpcs: []*servicev1.RpcDescriptor{{
-			Service:  "quark.indexer.v1.IndexerService",
-			Method:   "GetContext",
-			Request:  "quark.indexer.v1.QueryRequest",
-			Response: "quark.indexer.v1.ContextResponse",
+			Service:       "quark.indexer.v1.IndexerService",
+			Method:        "GetContext",
+			Request:       "quark.indexer.v1.QueryRequest",
+			Response:      "quark.indexer.v1.ContextResponse",
+			FunctionName:  "indexer_GetContext",
+			RiskLevel:     "read",
+			TimeoutMillis: 30000,
 		}},
 		Skills: []*servicev1.SkillDescriptor{{
 			Name:     "service-indexer",
@@ -43,10 +46,11 @@ func TestCatalogExposesServiceFunctions(t *testing.T) {
 		Name:    "indexer",
 		Address: "127.0.0.1:7301",
 		Rpcs: []*servicev1.RpcDescriptor{{
-			Service:  "quark.indexer.v1.IndexerService",
-			Method:   "GetContext",
-			Request:  "quark.indexer.v1.QueryRequest",
-			Response: "quark.indexer.v1.ContextResponse",
+			Service:      "quark.indexer.v1.IndexerService",
+			Method:       "GetContext",
+			Request:      "quark.indexer.v1.QueryRequest",
+			Response:     "quark.indexer.v1.ContextResponse",
+			FunctionName: "indexer_GetContext",
 		}},
 	}})
 	tools := catalog.ToolSchemas()
@@ -71,11 +75,16 @@ func TestCatalogFromEnvUsesVersionedServiceCatalog(t *testing.T) {
 		Version: "1.0.0",
 		Address: "127.0.0.1:7301",
 		Rpcs: []*servicev1.RpcDescriptor{{
-			Service:     "quark.indexer.v1.IndexerService",
-			Method:      "GetContext",
-			Request:     "quark.indexer.v1.QueryRequest",
-			Response:    "quark.indexer.v1.ContextResponse",
-			Description: "Retrieve context.",
+			Service:       "quark.indexer.v1.IndexerService",
+			Method:        "GetContext",
+			Request:       "quark.indexer.v1.QueryRequest",
+			Response:      "quark.indexer.v1.ContextResponse",
+			Description:   "Retrieve context.",
+			Owner:         "indexer",
+			FunctionName:  "indexer_GetContext",
+			RiskLevel:     "read",
+			Idempotent:    true,
+			TimeoutMillis: 30000,
 		}},
 	}})
 	if err != nil {

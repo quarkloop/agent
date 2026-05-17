@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/quarkloop/pkg/boundary"
 	"github.com/quarkloop/pkg/plugin"
@@ -94,7 +95,7 @@ func (e *Executor) ToolSchemas() []ServiceFunctionSchema {
 			continue
 		}
 		for _, rpc := range desc.GetRpcs() {
-			name := ToolNameFor(desc.GetName(), rpc.GetMethod())
+			name := FunctionNameFor(desc.GetName(), rpc)
 			description := strings.TrimSpace(rpc.GetDescription())
 			if description == "" {
 				description = fmt.Sprintf("Call %s/%s.", rpc.GetService(), rpc.GetMethod())
@@ -155,7 +156,9 @@ func (e *Executor) Execute(ctx context.Context, functionName, arguments string) 
 	defer conn.Close()
 
 	fullMethod := "/" + rpc.GetService() + "/" + rpc.GetMethod()
-	if err := conn.Invoke(ctx, fullMethod, in, out); err != nil {
+	callCtx, cancel := serviceFunctionContext(ctx, rpc)
+	defer cancel()
+	if err := conn.Invoke(callCtx, fullMethod, in, out); err != nil {
 		return "", boundary.Wrap(boundary.Service, boundary.Unavailable, "call "+fullMethod, err)
 	}
 	if rpc.GetResponse() == "quark.embedding.v1.EmbedResponse" {
@@ -213,7 +216,7 @@ func (e *Executor) resolve(functionName string) (resolvedRPC, error) {
 			continue
 		}
 		for _, rpc := range desc.GetRpcs() {
-			if ToolNameFor(desc.GetName(), rpc.GetMethod()) != functionName {
+			if FunctionNameFor(desc.GetName(), rpc) != functionName {
 				continue
 			}
 			return resolvedRPC{rpc: rpc, address: desc.GetAddress()}, nil
@@ -223,6 +226,16 @@ func (e *Executor) resolve(functionName string) (resolvedRPC, error) {
 }
 
 var serviceToolUnsafeChars = regexp.MustCompile(`[^A-Za-z0-9_]+`)
+
+func FunctionNameFor(serviceName string, rpc *servicev1.RpcDescriptor) string {
+	if rpc != nil && strings.TrimSpace(rpc.GetFunctionName()) != "" {
+		return strings.TrimSpace(rpc.GetFunctionName())
+	}
+	if rpc == nil {
+		return ToolNameFor(serviceName, "")
+	}
+	return ToolNameFor(serviceName, rpc.GetMethod())
+}
 
 func ToolNameFor(serviceName, method string) string {
 	serviceName = strings.TrimSpace(serviceName)
@@ -239,6 +252,20 @@ func ToolNameFor(serviceName, method string) string {
 		return "service_call"
 	}
 	return name
+}
+
+func serviceFunctionContext(ctx context.Context, rpc *servicev1.RpcDescriptor) (context.Context, context.CancelFunc) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	timeout := time.Duration(0)
+	if rpc != nil && rpc.GetTimeoutMillis() > 0 {
+		timeout = time.Duration(rpc.GetTimeoutMillis()) * time.Millisecond
+	}
+	if timeout <= 0 {
+		return context.WithCancel(ctx)
+	}
+	return context.WithTimeout(ctx, timeout)
 }
 
 func normalizeServiceArgumentJSON(arguments string) (string, error) {

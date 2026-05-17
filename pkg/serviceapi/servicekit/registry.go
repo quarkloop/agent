@@ -31,7 +31,7 @@ func (r *Registry) Register(desc *servicev1.ServiceDescriptor) error {
 	if desc == nil {
 		return fmt.Errorf("service descriptor is required")
 	}
-	if err := ValidateRuntimeServiceCatalog([]*servicev1.ServiceDescriptor{desc}); err != nil {
+	if err := ValidateServiceDescriptor(desc); err != nil {
 		return err
 	}
 	cp := CloneDescriptor(desc)

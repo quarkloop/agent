@@ -551,6 +551,9 @@ func (a *Agent) executeTool(ctx context.Context, name, arguments string) (string
 	if err := a.permissions.ValidateTool(name); err != nil {
 		return "", err
 	}
+	if err := a.requireToolApproval(ctx, name, arguments); err != nil {
+		return "", err
+	}
 	result, err := a.Plugins.ExecuteTool(ctx, name, arguments)
 	if err != nil {
 		return "", err
@@ -559,6 +562,20 @@ func (a *Agent) executeTool(ctx context.Context, name, arguments string) (string
 		return result, nil
 	}
 	return a.config.ToolResultRef(name, arguments, result)
+}
+
+func (a *Agent) requireToolApproval(ctx context.Context, name, arguments string) error {
+	if a.execution == nil || a.execution.Mode() != execution.ModeAssistive || a.execution.Gate() == nil {
+		return nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	sessionID := modelservice.SessionID(ctx)
+	if err := a.execution.Gate().RequestApproval(ctx, name, arguments, sessionID); err != nil {
+		return fmt.Errorf("tool call approval failed for %s: %w", name, err)
+	}
+	return nil
 }
 
 // Identity returns the agent's hierarchy identity.

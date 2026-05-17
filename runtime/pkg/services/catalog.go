@@ -44,9 +44,15 @@ func PromptBlock(descriptors []*servicev1.ServiceDescriptor) string {
 		if len(desc.GetRpcs()) > 0 {
 			b.WriteString("- Functions:\n")
 			for _, rpc := range desc.GetRpcs() {
-				fmt.Fprintf(&b, "  - `%s`: `%s` -> `%s`", ToolNameFor(desc.GetName(), rpc.GetMethod()), rpc.GetRequest(), rpc.GetResponse())
+				fmt.Fprintf(&b, "  - `%s`: `%s` -> `%s`", FunctionNameFor(desc.GetName(), rpc), rpc.GetRequest(), rpc.GetResponse())
 				if rpc.GetDescription() != "" {
 					fmt.Fprintf(&b, " - %s", rpc.GetDescription())
+				}
+				if rpc.GetRiskLevel() != "" {
+					fmt.Fprintf(&b, " Risk: `%s`.", rpc.GetRiskLevel())
+				}
+				if rpc.GetApprovalRequired() {
+					fmt.Fprintf(&b, " Requires approval.")
 				}
 				b.WriteByte('\n')
 			}

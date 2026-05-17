@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/quarkloop/pkg/boundary"
 	"github.com/quarkloop/pkg/plugin"
+	"github.com/quarkloop/runtime/pkg/execution"
 	"github.com/quarkloop/runtime/pkg/hierarchy"
 	"github.com/quarkloop/runtime/pkg/message"
 	"github.com/quarkloop/runtime/pkg/modelservice"
@@ -143,6 +145,67 @@ func TestExecuteToolAppliesToolResultReferenceHook(t *testing.T) {
 	}
 	if got != `{"contentRef":"content_1"}` {
 		t.Fatalf("tool result = %q", got)
+	}
+}
+
+func TestExecuteToolUsesAssistiveApprovalGate(t *testing.T) {
+	a := newTestAgentWithConfig(t, Config{
+		ID:         "test-agent",
+		PluginsDir: t.TempDir(),
+		ExecutionCfg: execution.Config{
+			Mode:            execution.ModeAssistive,
+			ApprovalTimeout: time.Second,
+		},
+	})
+	executed := make(chan struct{}, 1)
+	a.Plugins.RegisterRuntimeTool(pluginmanager.RuntimeTool{
+		Schema: plugin.ToolSchema{Name: "runtime_echo", Description: "echo"},
+		Handler: func(context.Context, string) (string, error) {
+			executed <- struct{}{}
+			return "approved", nil
+		},
+	})
+
+	type toolResult struct {
+		output string
+		err    error
+	}
+	resultCh := make(chan toolResult, 1)
+	ctx := modelservice.WithSessionID(context.Background(), "session-1")
+	go func() {
+		output, err := a.executeTool(ctx, "runtime_echo", `{"value":"hello"}`)
+		resultCh <- toolResult{output: output, err: err}
+	}()
+
+	var requestID string
+	deadline := time.After(time.Second)
+	for requestID == "" {
+		select {
+		case <-deadline:
+			t.Fatal("approval request was not created")
+		default:
+			if pending := a.execution.PendingApprovals(); len(pending) > 0 {
+				requestID = pending[0].ID
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+	if !a.execution.Approve(requestID, "test approval") {
+		t.Fatalf("approval %s was not accepted", requestID)
+	}
+
+	select {
+	case got := <-resultCh:
+		if got.err != nil || got.output != "approved" {
+			t.Fatalf("execute tool = %q, %v", got.output, got.err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("tool execution did not resume after approval")
+	}
+	select {
+	case <-executed:
+	default:
+		t.Fatal("tool handler did not run")
 	}
 }
 

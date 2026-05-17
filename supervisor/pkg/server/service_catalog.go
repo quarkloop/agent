@@ -20,6 +20,7 @@ import (
 
 const runtimeServiceCatalogEnv = "QUARK_RUNTIME_SERVICE_CATALOG"
 const runtimePluginCatalogEnv = "QUARK_RUNTIME_PLUGIN_CATALOG"
+const defaultServiceFunctionTimeout = 30 * time.Second
 
 type runtimePluginCatalogEntry = plugin.RuntimeCatalogPlugin
 
@@ -198,8 +199,68 @@ func applyServiceFunctionMetadata(desc *servicev1.ServiceDescriptor, manifest *p
 		rpc.Request = function.Request
 		rpc.Response = function.Response
 		rpc.Description = function.Description
+		rpc.Owner = serviceFunctionOwner(manifest.Name, function)
+		rpc.FunctionName = function.Name
+		rpc.RiskLevel = serviceFunctionRisk(function)
+		rpc.ApprovalRequired = function.ApprovalRequired
+		rpc.ApprovalRequirements = append([]string(nil), function.ApprovalRequirements...)
+		rpc.Streaming = function.Streaming
+		rpc.Idempotent = function.Idempotent
+		rpc.TimeoutMillis = serviceFunctionTimeoutMillis(function)
+		rpc.RetryPolicy = serviceFunctionRetryPolicy(function)
+		rpc.Examples = serviceFunctionExamples(function)
 	}
 	return nil
+}
+
+func serviceFunctionOwner(pluginName string, function plugin.ServiceFunctionConfig) string {
+	if strings.TrimSpace(function.Owner) != "" {
+		return strings.TrimSpace(function.Owner)
+	}
+	return strings.TrimSpace(pluginName)
+}
+
+func serviceFunctionRisk(function plugin.ServiceFunctionConfig) string {
+	if strings.TrimSpace(function.RiskLevel) == "" {
+		return "read"
+	}
+	return strings.TrimSpace(function.RiskLevel)
+}
+
+func serviceFunctionTimeoutMillis(function plugin.ServiceFunctionConfig) int32 {
+	timeout := defaultServiceFunctionTimeout
+	if strings.TrimSpace(function.Timeout) != "" {
+		parsed, err := time.ParseDuration(function.Timeout)
+		if err == nil {
+			timeout = parsed
+		}
+	}
+	return int32(timeout / time.Millisecond)
+}
+
+func serviceFunctionRetryPolicy(function plugin.ServiceFunctionConfig) *servicev1.RetryPolicy {
+	policy := function.RetryPolicy
+	if policy.MaxAttempts == 0 && len(policy.RetryableCodes) == 0 && policy.InitialBackoffMillis == 0 && policy.MaxBackoffMillis == 0 {
+		return nil
+	}
+	return &servicev1.RetryPolicy{
+		MaxAttempts:          int32(policy.MaxAttempts),
+		RetryableCodes:       append([]string(nil), policy.RetryableCodes...),
+		InitialBackoffMillis: int32(policy.InitialBackoffMillis),
+		MaxBackoffMillis:     int32(policy.MaxBackoffMillis),
+	}
+}
+
+func serviceFunctionExamples(function plugin.ServiceFunctionConfig) []*servicev1.ServiceFunctionExample {
+	out := make([]*servicev1.ServiceFunctionExample, 0, len(function.Examples))
+	for _, example := range function.Examples {
+		out = append(out, &servicev1.ServiceFunctionExample{
+			Name:        example.Name,
+			Description: example.Description,
+			RequestJson: example.RequestJSON,
+		})
+	}
+	return out
 }
 
 func serviceFunctionKey(service, method string) string {
@@ -311,6 +372,7 @@ func validateServicePluginDescriptors(descriptors []*servicev1.ServiceDescriptor
 	}
 	minVersion := strings.TrimSpace(manifest.Service.Readiness.MinVersion)
 	seenRPC := make(map[string]bool)
+	seenFunction := make(map[string]bool)
 	for _, desc := range descriptors {
 		if desc.GetName() == "" {
 			return fmt.Errorf("missing descriptor name")
@@ -323,11 +385,21 @@ func validateServicePluginDescriptors(descriptors []*servicev1.ServiceDescriptor
 		}
 		for _, rpc := range desc.GetRpcs() {
 			seenRPC[serviceFunctionKey(rpc.GetService(), rpc.GetMethod())] = true
+			if rpc.GetFunctionName() == "" {
+				return fmt.Errorf("missing function name for %s/%s", rpc.GetService(), rpc.GetMethod())
+			}
+			if seenFunction[rpc.GetFunctionName()] {
+				return fmt.Errorf("duplicate function name %s", rpc.GetFunctionName())
+			}
+			seenFunction[rpc.GetFunctionName()] = true
 		}
 	}
 	for _, function := range manifest.Service.Functions {
 		if !seenRPC[serviceFunctionKey(function.Service, function.Method)] {
 			return fmt.Errorf("missing RPC descriptor for %s/%s", function.Service, function.Method)
+		}
+		if !seenFunction[function.Name] {
+			return fmt.Errorf("missing function descriptor for %s", function.Name)
 		}
 	}
 	return nil

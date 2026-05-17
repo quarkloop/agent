@@ -15,11 +15,16 @@ func TestRuntimeServiceCatalogRoundTrip(t *testing.T) {
 		Version: "1.0.0",
 		Address: "127.0.0.1:7301",
 		Rpcs: []*servicev1.RpcDescriptor{{
-			Service:     "quark.indexer.v1.IndexerService",
-			Method:      "GetContext",
-			Request:     "quark.indexer.v1.QueryRequest",
-			Response:    "quark.indexer.v1.ContextResponse",
-			Description: "Retrieve context.",
+			Service:       "quark.indexer.v1.IndexerService",
+			Method:        "GetContext",
+			Request:       "quark.indexer.v1.QueryRequest",
+			Response:      "quark.indexer.v1.ContextResponse",
+			Description:   "Retrieve context.",
+			Owner:         "indexer",
+			FunctionName:  "indexer_GetContext",
+			RiskLevel:     "read",
+			Idempotent:    true,
+			TimeoutMillis: 30000,
 		}},
 		Skills: []*servicev1.SkillDescriptor{{
 			Name:     "service-indexer",
@@ -66,5 +71,25 @@ func TestRuntimeServiceCatalogValidatesDescriptors(t *testing.T) {
 	}})
 	if err == nil || !strings.Contains(err.Error(), "missing description") {
 		t.Fatalf("expected descriptor validation error, got: %v", err)
+	}
+}
+
+func TestRuntimeServiceCatalogValidatesResolvedFunctionMetadata(t *testing.T) {
+	_, err := servicekit.MarshalRuntimeServiceCatalog([]*servicev1.ServiceDescriptor{{
+		Name:    "indexer",
+		Version: "1.0.0",
+		Address: "127.0.0.1:7301",
+		Rpcs: []*servicev1.RpcDescriptor{{
+			Service:     "quark.indexer.v1.IndexerService",
+			Method:      "GetContext",
+			Request:     "quark.indexer.v1.QueryRequest",
+			Response:    "quark.indexer.v1.ContextResponse",
+			Description: "Retrieve context.",
+			Owner:       "indexer",
+			RiskLevel:   "read",
+		}},
+	}})
+	if err == nil || !strings.Contains(err.Error(), "missing function name") {
+		t.Fatalf("expected missing function name validation error, got: %v", err)
 	}
 }

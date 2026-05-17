@@ -97,6 +97,9 @@ type ServiceReadinessConfig struct {
 
 // ServiceFunctionConfig declares one agent-facing callable service function.
 type ServiceFunctionConfig struct {
+	// Owner is the service-function owner. It defaults to the service plugin
+	// name when omitted.
+	Owner string `yaml:"owner,omitempty"`
 	// Name is the generated runtime tool-call name, such as indexer_GetContext.
 	Name string `yaml:"name"`
 	// Service is the protobuf service name, such as quark.indexer.v1.IndexerService.
@@ -119,6 +122,25 @@ type ServiceFunctionConfig struct {
 	Streaming bool `yaml:"streaming,omitempty"`
 	// Idempotent declares whether repeating the call with the same request is safe.
 	Idempotent bool `yaml:"idempotent,omitempty"`
+	// Timeout declares the execution timeout for one service-function call.
+	Timeout string `yaml:"timeout,omitempty"`
+	// RetryPolicy declares explicit retry behavior for transient failures.
+	RetryPolicy ServiceFunctionRetryPolicy `yaml:"retry_policy,omitempty"`
+	// Examples provide small protobuf JSON request examples for docs/prompts.
+	Examples []ServiceFunctionExample `yaml:"examples,omitempty"`
+}
+
+type ServiceFunctionRetryPolicy struct {
+	MaxAttempts          int      `yaml:"max_attempts,omitempty"`
+	RetryableCodes       []string `yaml:"retryable_codes,omitempty"`
+	InitialBackoffMillis int      `yaml:"initial_backoff_millis,omitempty"`
+	MaxBackoffMillis     int      `yaml:"max_backoff_millis,omitempty"`
+}
+
+type ServiceFunctionExample struct {
+	Name        string `yaml:"name,omitempty"`
+	Description string `yaml:"description,omitempty"`
+	RequestJSON string `yaml:"request_json,omitempty"`
 }
 
 // ParseManifest reads and parses a manifest.yaml file.
@@ -269,10 +291,32 @@ func (f ServiceFunctionConfig) Validate() error {
 	}
 	switch f.RiskLevel {
 	case "", "read", "write", "admin":
-		return nil
 	default:
 		return fmt.Errorf("risk_level must be read, write, or admin")
 	}
+	if f.Timeout != "" {
+		if _, err := time.ParseDuration(f.Timeout); err != nil {
+			return fmt.Errorf("timeout: %w", err)
+		}
+	}
+	if f.RetryPolicy.MaxAttempts < 0 {
+		return fmt.Errorf("retry_policy.max_attempts must be non-negative")
+	}
+	if f.RetryPolicy.InitialBackoffMillis < 0 {
+		return fmt.Errorf("retry_policy.initial_backoff_millis must be non-negative")
+	}
+	if f.RetryPolicy.MaxBackoffMillis < 0 {
+		return fmt.Errorf("retry_policy.max_backoff_millis must be non-negative")
+	}
+	for i, example := range f.Examples {
+		if example.Name == "" {
+			return fmt.Errorf("examples[%d].name is required", i)
+		}
+		if example.RequestJSON == "" {
+			return fmt.Errorf("examples[%d].request_json is required", i)
+		}
+	}
+	return nil
 }
 
 // LibTargetPath returns the path to the .so file for lib-mode plugins.

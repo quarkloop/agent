@@ -3,6 +3,7 @@ package servicekit
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -76,28 +77,91 @@ func UnmarshalRuntimeServiceCatalog(data []byte) ([]*servicev1.ServiceDescriptor
 
 func ValidateRuntimeServiceCatalog(descriptors []*servicev1.ServiceDescriptor) error {
 	for i, desc := range descriptors {
-		if desc == nil {
-			return fmt.Errorf("services[%d]: descriptor is nil", i)
+		if err := validateServiceDescriptor(i, desc); err != nil {
+			return err
 		}
-		if desc.GetName() == "" {
-			return fmt.Errorf("services[%d]: missing name", i)
-		}
-		if desc.GetAddress() == "" {
-			return fmt.Errorf("services[%d] %q: missing endpoint address", i, desc.GetName())
-		}
-		if desc.GetVersion() == "" {
-			return fmt.Errorf("services[%d] %q: missing version", i, desc.GetName())
-		}
+		seenFunctionNames := make(map[string]struct{}, len(desc.GetRpcs()))
 		for j, rpc := range desc.GetRpcs() {
-			if rpc.GetService() == "" || rpc.GetMethod() == "" {
-				return fmt.Errorf("services[%d] %q rpcs[%d]: missing service or method", i, desc.GetName(), j)
+			if err := validateResolvedRPC(i, desc.GetName(), j, rpc); err != nil {
+				return err
 			}
-			if rpc.GetRequest() == "" || rpc.GetResponse() == "" {
-				return fmt.Errorf("services[%d] %q rpcs[%d]: missing request or response type", i, desc.GetName(), j)
+			if _, ok := seenFunctionNames[rpc.GetFunctionName()]; ok {
+				return fmt.Errorf("services[%d] %q rpcs[%d]: duplicate function name %q", i, desc.GetName(), j, rpc.GetFunctionName())
 			}
-			if rpc.GetDescription() == "" {
-				return fmt.Errorf("services[%d] %q rpcs[%d]: missing description", i, desc.GetName(), j)
-			}
+			seenFunctionNames[rpc.GetFunctionName()] = struct{}{}
+		}
+	}
+	return nil
+}
+
+func ValidateServiceDescriptor(desc *servicev1.ServiceDescriptor) error {
+	return validateServiceDescriptor(0, desc)
+}
+
+func validateServiceDescriptor(i int, desc *servicev1.ServiceDescriptor) error {
+	if desc == nil {
+		return fmt.Errorf("services[%d]: descriptor is nil", i)
+	}
+	if desc.GetName() == "" {
+		return fmt.Errorf("services[%d]: missing name", i)
+	}
+	if desc.GetAddress() == "" {
+		return fmt.Errorf("services[%d] %q: missing endpoint address", i, desc.GetName())
+	}
+	if desc.GetVersion() == "" {
+		return fmt.Errorf("services[%d] %q: missing version", i, desc.GetName())
+	}
+	for j, rpc := range desc.GetRpcs() {
+		if rpc.GetService() == "" || rpc.GetMethod() == "" {
+			return fmt.Errorf("services[%d] %q rpcs[%d]: missing service or method", i, desc.GetName(), j)
+		}
+		if rpc.GetRequest() == "" || rpc.GetResponse() == "" {
+			return fmt.Errorf("services[%d] %q rpcs[%d]: missing request or response type", i, desc.GetName(), j)
+		}
+		if rpc.GetDescription() == "" {
+			return fmt.Errorf("services[%d] %q rpcs[%d]: missing description", i, desc.GetName(), j)
+		}
+	}
+	return nil
+}
+
+var serviceFunctionNamePattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*$`)
+
+func validateResolvedRPC(i int, serviceName string, j int, rpc *servicev1.RpcDescriptor) error {
+	if rpc.GetOwner() == "" {
+		return fmt.Errorf("services[%d] %q rpcs[%d]: missing owner", i, serviceName, j)
+	}
+	if rpc.GetFunctionName() == "" {
+		return fmt.Errorf("services[%d] %q rpcs[%d]: missing function name", i, serviceName, j)
+	}
+	if !serviceFunctionNamePattern.MatchString(rpc.GetFunctionName()) {
+		return fmt.Errorf("services[%d] %q rpcs[%d]: invalid function name %q", i, serviceName, j, rpc.GetFunctionName())
+	}
+	switch rpc.GetRiskLevel() {
+	case "read", "write", "admin":
+	default:
+		return fmt.Errorf("services[%d] %q rpcs[%d]: invalid risk level %q", i, serviceName, j, rpc.GetRiskLevel())
+	}
+	if rpc.GetTimeoutMillis() < 0 {
+		return fmt.Errorf("services[%d] %q rpcs[%d]: timeout_millis must be non-negative", i, serviceName, j)
+	}
+	if retry := rpc.GetRetryPolicy(); retry != nil {
+		if retry.GetMaxAttempts() < 0 {
+			return fmt.Errorf("services[%d] %q rpcs[%d]: retry_policy.max_attempts must be non-negative", i, serviceName, j)
+		}
+		if retry.GetInitialBackoffMillis() < 0 {
+			return fmt.Errorf("services[%d] %q rpcs[%d]: retry_policy.initial_backoff_millis must be non-negative", i, serviceName, j)
+		}
+		if retry.GetMaxBackoffMillis() < 0 {
+			return fmt.Errorf("services[%d] %q rpcs[%d]: retry_policy.max_backoff_millis must be non-negative", i, serviceName, j)
+		}
+	}
+	for k, example := range rpc.GetExamples() {
+		if example.GetName() == "" {
+			return fmt.Errorf("services[%d] %q rpcs[%d] examples[%d]: missing name", i, serviceName, j, k)
+		}
+		if example.GetRequestJson() == "" {
+			return fmt.Errorf("services[%d] %q rpcs[%d] examples[%d]: missing request_json", i, serviceName, j, k)
 		}
 	}
 	return nil
