@@ -42,7 +42,7 @@ func TestAgentIndexesUploadedPDFDatasetOpenRouterEmbedding(t *testing.T) {
 func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOptions) {
 	t.Helper()
 	if _, err := exec.LookPath("pdftotext"); err != nil {
-		t.Skip("pdftotext is required by the fs extract_pdf tool")
+		t.Skip("pdftotext is required by the document service PDF backend")
 	}
 
 	workingDir := t.TempDir()
@@ -95,9 +95,11 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOp
 	utils.Logf(t, "index reply: %s", indexTrace.Text)
 	writeAgentRunArtifacts(t, workingDir, "agent-index", env, indexTrace, indexPrompt)
 
-	assertToolStarted(t, indexTrace, "fs")
+	assertToolStarted(t, indexTrace, "document_ExtractText")
 	assertToolStarted(t, indexTrace, "embedding_Embed")
 	assertToolStarted(t, indexTrace, "indexer_IndexDocument")
+	assertNoToolErrors(t, indexTrace, "document_ExtractText")
+	assertToolSuccessCount(t, indexTrace, "document_ExtractText", len(documents))
 	assertNoToolErrors(t, indexTrace, "indexer_IndexDocument")
 	assertEmbeddingSuccessCount(t, indexTrace, len(documents))
 	assertToolSuccessCount(t, indexTrace, "indexer_IndexDocument", len(documents))

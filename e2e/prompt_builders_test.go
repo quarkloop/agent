@@ -35,6 +35,7 @@ func TestPDFPromptBuildersExposeAgentWorkflowContract(t *testing.T) {
 	assertPromptExcludes(t, indexPrompt,
 		"fs",
 		"extract_pdf",
+		"document_ExtractText",
 		"embedding_Embed",
 		"indexer_IndexDocument",
 		"textContentRef",

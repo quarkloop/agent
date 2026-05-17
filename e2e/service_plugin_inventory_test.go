@@ -49,7 +49,7 @@ func TestServicePluginInventoryHasE2ECoveragePlan(t *testing.T) {
 			Tests: []string{"TestAgentUsesBuildReleaseServiceFunction"},
 		},
 		"document": {
-			Mode:  "contract-only",
+			Mode:  "runtime-backed",
 			Tests: []string{"TestAgentIndexesUploadedPDFDataset"},
 		},
 		"embedding": {

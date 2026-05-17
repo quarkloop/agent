@@ -11,6 +11,7 @@ import (
 
 	"github.com/quarkloop/e2e/utils"
 	buildreleasev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/buildrelease/v1"
+	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
 	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
@@ -48,6 +49,15 @@ func startEmbeddingServiceAt(t *testing.T, binary, addr string, embedding utils.
 	waitForGRPCHealth(t, addr, embeddingv1.EmbeddingService_ServiceDesc.ServiceName, 30*time.Second, "embedding")
 }
 
+func startDocumentServiceAt(t *testing.T, binary, addr string) {
+	t.Helper()
+	utils.StartProcess(t, "document", binary, []string{
+		"--addr", addr,
+		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "document"),
+	}, utils.ProcessEnv(nil))
+	waitForGRPCHealth(t, addr, documentv1.DocumentService_ServiceDesc.ServiceName, 10*time.Second, "document")
+}
+
 func startBuildReleaseServiceAt(t *testing.T, binary, addr string) {
 	t.Helper()
 	utils.StartProcess(t, "build-release", binary, []string{
@@ -61,17 +71,20 @@ func standardKnowledgeServicesStartOptions(t *testing.T, embedding utils.Embeddi
 	t.Helper()
 	indexerAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
 	embeddingAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
+	documentAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
 	return utils.StartOptions{
 		WorkingDir: workingDir,
 		Embedding:  embedding,
 		SupervisorEnv: map[string]string{
 			"QUARK_INDEXER_ADDR":   indexerAddr,
 			"QUARK_EMBEDDING_ADDR": embeddingAddr,
+			"QUARK_DOCUMENT_ADDR":  documentAddr,
 		},
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
 			dgraphAddr := utils.StartDgraph(t)
 			startIndexerServiceAt(t, bins.Indexer, dgraphAddr, indexerAddr)
+			startDocumentServiceAt(t, bins.Document, documentAddr)
 			startEmbeddingServiceAt(t, bins.Embedding, embeddingAddr, embedding)
 		},
 	}

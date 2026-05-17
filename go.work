@@ -19,6 +19,7 @@ use (
 	./runtime
 	./services/build-release
 	./services/core
+	./services/document
 	./services/embedding
 	./services/indexer
 	./services/model
@@ -44,6 +45,7 @@ replace (
 	github.com/quarkloop/runtime v0.0.0 => ./runtime
 	github.com/quarkloop/services/build-release v0.0.0 => ./services/build-release
 	github.com/quarkloop/services/core v0.0.0 => ./services/core
+	github.com/quarkloop/services/document v0.0.0 => ./services/document
 	github.com/quarkloop/services/embedding v0.0.0 => ./services/embedding
 	github.com/quarkloop/services/indexer v0.0.0 => ./services/indexer
 	github.com/quarkloop/services/model v0.0.0 => ./services/model

@@ -9,7 +9,7 @@ TOOLS := bash fs web-search build-release
 # Provider plugins
 PROVIDERS := openrouter openai anthropic
 
-# All modules for testing/vetting (18 modules; e2e tested separately)
+# All modules for testing/vetting; e2e is tested separately.
 MODULES := \
 		supervisor \
 		runtime \
@@ -21,6 +21,7 @@ MODULES := \
 		pkg/toolkit \
 		services/build-release \
 		services/core \
+		services/document \
 		services/embedding \
 		services/indexer \
 		services/model \
@@ -61,6 +62,8 @@ build-services:
 		go build -o $(BINARY_DIR)/build-release-service ./services/build-release/cmd/build-release
 		@echo "--- Building service: core ---"
 		go build -o $(BINARY_DIR)/core-service ./services/core/cmd/core
+		@echo "--- Building service: document ---"
+		go build -o $(BINARY_DIR)/document-service ./services/document/cmd/document
 		@echo "--- Building service: model ---"
 		go build -o $(BINARY_DIR)/model-service ./services/model/cmd/model
 		@echo "--- Building service: space ---"

@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
 	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	"google.golang.org/grpc"
@@ -114,20 +115,23 @@ func TestExecutorCapturesFilesystemContentRefsForIndexRequests(t *testing.T) {
 	}
 }
 
-func TestExecutorExpandsFilesystemContentRefsForEmbeddingRequests(t *testing.T) {
+func TestExecutorExpandsDocumentContentRefsForEmbeddingRequests(t *testing.T) {
 	executor := NewExecutor(nil)
 
-	result, err := executor.CaptureToolResult("fs", `{"command":"extract_pdf","path":"/tmp/paper.pdf"}`, `{"content":"Attention Is All You Need\n"}`)
+	result, err := executor.documentExtractTextToolResult(&documentv1.ExtractTextResponse{
+		Text:       "Attention Is All You Need\n",
+		SourceHash: "sha256:paper",
+	})
 	if err != nil {
-		t.Fatalf("capture tool result: %v", err)
+		t.Fatalf("capture document result: %v", err)
 	}
 	var toolPayload map[string]any
 	if err := json.Unmarshal([]byte(result), &toolPayload); err != nil {
-		t.Fatalf("tool result is not JSON: %v\n%s", err, result)
+		t.Fatalf("document result is not JSON: %v\n%s", err, result)
 	}
 	ref, ok := toolPayload["contentRef"].(string)
 	if !ok || ref == "" {
-		t.Fatalf("contentRef missing from tool result: %+v", toolPayload)
+		t.Fatalf("contentRef missing from document result: %+v", toolPayload)
 	}
 
 	expanded, err := executor.expandRuntimeReferences("quark.embedding.v1.EmbedRequest", `{"contentRef":"`+ref+`"}`)
@@ -143,6 +147,17 @@ func TestExecutorExpandsFilesystemContentRefsForEmbeddingRequests(t *testing.T) 
 	}
 	if got := embedPayload["input"].(string); got != "Attention Is All You Need\n" {
 		t.Fatalf("input = %q", got)
+	}
+}
+
+func TestExecutorDoesNotCaptureFilesystemPDFExtractionAsContentSource(t *testing.T) {
+	executor := NewExecutor(nil)
+	result, err := executor.CaptureToolResult("fs", `{"command":"extract_pdf","path":"/tmp/paper.pdf"}`, `{"content":"Attention Is All You Need\n"}`)
+	if err != nil {
+		t.Fatalf("capture tool result: %v", err)
+	}
+	if strings.Contains(result, "contentRef") {
+		t.Fatalf("fs extract_pdf should not produce runtime content refs after document service migration: %s", result)
 	}
 }
 

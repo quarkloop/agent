@@ -1,0 +1,48 @@
+# Document Service
+
+The document service owns mechanical document inspection and extraction. It is a
+gRPC service used by agents when source files need parser-backed evidence before
+the agent performs semantic extraction with the model service.
+
+The service does not classify business meaning, infer schemas, choose chunks,
+create embeddings, write index records, call another service, or answer users.
+
+## Service Functions
+
+| Service function | RPC method | Purpose |
+| --- | --- | --- |
+| `document_DetectType` | `quark.document.v1.DocumentService/DetectType` | Detect MIME type, extension, coarse document family, and source metadata. |
+| `document_ParseBytes` | `quark.document.v1.DocumentService/ParseBytes` | Parse bytes or a file URI into mechanical metadata such as source hash, page count, and text availability. |
+| `document_ExtractText` | `quark.document.v1.DocumentService/ExtractText` | Extract raw text and per-page source offsets. |
+| `document_ExtractLayout` | `quark.document.v1.DocumentService/ExtractLayout` | Return mechanical page layout blocks and bounding boxes. |
+| `document_GetPages` | `quark.document.v1.DocumentService/GetPages` | Return page records with text, layout blocks, tables, and images. |
+| `document_ExtractTables` | `quark.document.v1.DocumentService/ExtractTables` | Extract mechanically detected table rows. |
+| `document_ExtractImages` | `quark.document.v1.DocumentService/ExtractImages` | Return image references, MIME type, page number, and metadata. |
+| `document_RunOCR` | `quark.document.v1.DocumentService/RunOCR` | Return text-layer pages as OCR-equivalent output, or fail clearly when an OCR backend is required but unavailable. |
+
+## Supported Sources
+
+- `content`: request bytes for small sources.
+- `source_uri`: local path or `file://` URI owned by the caller.
+- `content_ref`: reserved for runtime artifact references; this service returns
+  an explicit unimplemented error until artifact resolution is wired.
+
+## Supported Formats
+
+- PDF text extraction through a configured `pdftotext` executable.
+- Markdown and UTF-8 plain text.
+- Image type detection and image reference records.
+
+Receipts, CVs, papers, catalogs, certificates, and other domain-specific
+formats are handled by the agent and model service using the mechanical records
+returned here. This service intentionally exposes format adapters without
+encoding semantic schemas into the parser.
+
+## Run
+
+```bash
+go run ./services/document/cmd/document --addr 127.0.0.1:7307 --skill-dir plugins/services/document
+```
+
+Set `QUARK_PDFTOTEXT_PATH` or pass `--pdftotext` to select a specific PDF text
+backend. When empty, the service resolves `pdftotext` from `PATH`.

@@ -165,6 +165,9 @@ func (e *Executor) Execute(ctx context.Context, functionName, arguments string) 
 	if rpc.GetResponse() == "quark.embedding.v1.EmbedResponse" {
 		return e.embeddingToolResult(out)
 	}
+	if rpc.GetResponse() == "quark.document.v1.ExtractTextResponse" {
+		return e.documentExtractTextToolResult(out)
+	}
 	data, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(out)
 	if err != nil {
 		return "", fmt.Errorf("encode response: %w", err)
@@ -429,19 +432,19 @@ func applyRuntimeReferenceFields(typeName string, schema map[string]any) {
 	switch typeName {
 	case "quark.embedding.v1.EmbedRequest":
 		if description, ok := schema["description"].(string); ok {
-			schema["description"] = description + " For input, prefer inputRef or contentRef returned from fs read or extract_pdf results when embedding source files; otherwise provide explicit input."
+			schema["description"] = description + " For input, prefer inputRef or contentRef returned from fs read or document_ExtractText results when embedding source files; otherwise provide explicit input."
 		}
 		properties["inputRef"] = map[string]any{
 			"type":        "string",
-			"description": "Reference returned by fs read or extract_pdf. Prefer this over copying source text into input.",
+			"description": "Reference returned by fs read or document_ExtractText. Prefer this over copying source text into input.",
 		}
 		properties["contentRef"] = map[string]any{
 			"type":        "string",
-			"description": "Alias for inputRef. Reference returned by fs read or extract_pdf.",
+			"description": "Alias for inputRef. Reference returned by fs read or document_ExtractText.",
 		}
 	case "quark.indexer.v1.IndexRequest":
 		if description, ok := schema["description"].(string); ok {
-			schema["description"] = description + " For textContent, prefer textContentRef returned from fs read or extract_pdf results when indexing source files; otherwise provide explicit textContent."
+			schema["description"] = description + " For textContent, prefer textContentRef returned from fs read or document_ExtractText results when indexing source files; otherwise provide explicit textContent."
 		}
 		properties["embeddingRef"] = map[string]any{
 			"type":        "string",
@@ -449,7 +452,7 @@ func applyRuntimeReferenceFields(typeName string, schema map[string]any) {
 		}
 		properties["textContentRef"] = map[string]any{
 			"type":        "string",
-			"description": "Reference returned by fs read or extract_pdf. Prefer this over copying source text into textContent.",
+			"description": "Reference returned by fs read or document_ExtractText. Prefer this over copying source text into textContent.",
 		}
 	case "quark.indexer.v1.QueryRequest":
 		properties["queryVectorRef"] = map[string]any{
@@ -727,6 +730,48 @@ func (e *Executor) embeddingToolResult(msg protoreflect.ProtoMessage) (string, e
 	return string(data), nil
 }
 
+func (e *Executor) documentExtractTextToolResult(msg protoreflect.ProtoMessage) (string, error) {
+	reflected := msg.ProtoReflect()
+	fields := reflected.Descriptor().Fields()
+	textField := fields.ByName("text")
+	sourceHashField := fields.ByName("source_hash")
+	if textField == nil {
+		return "", fmt.Errorf("document extract text response descriptor is missing text field")
+	}
+	text := reflected.Get(textField).String()
+
+	data, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(msg)
+	if err != nil {
+		return "", fmt.Errorf("encode document text response: %w", err)
+	}
+	if strings.TrimSpace(text) == "" {
+		return string(data), nil
+	}
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return "", fmt.Errorf("decode document text response for content reference: %w", err)
+	}
+	sourceHash := ""
+	if sourceHashField != nil {
+		sourceHash = reflected.Get(sourceHashField).String()
+	}
+	ref, info := e.registerContent(text, map[string]any{
+		"serviceFunction": "document_ExtractText",
+		"sourceHash":      sourceHash,
+	})
+	payload["contentRef"] = mustJSONRaw(ref)
+	payload["contentChars"] = mustJSONRaw(len([]rune(text)))
+	payload["contentHash"] = mustJSONRaw(info["contentHash"])
+	if sourceHash != "" {
+		payload["sourceHash"] = mustJSONRaw(sourceHash)
+	}
+	out, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("encode document text content reference: %w", err)
+	}
+	return string(out), nil
+}
+
 func (e *Executor) expandRuntimeReferences(typeName, arguments string) (string, error) {
 	if strings.TrimSpace(arguments) == "" {
 		return arguments, nil
@@ -766,7 +811,7 @@ func (e *Executor) expandContentReference(arguments, refField, contentField stri
 	}
 	content, ok := e.contentByRef(ref)
 	if !ok {
-		return "", fmt.Errorf("%s %q was not produced by an fs read or extract_pdf tool call in this runtime session", refField, ref)
+		return "", fmt.Errorf("%s %q was not produced by an fs read or document_ExtractText call in this runtime session", refField, ref)
 	}
 	rawContent, err := json.Marshal(content)
 	if err != nil {
@@ -790,7 +835,7 @@ func fsReadLikeCommand(arguments string) (command, path string, ok bool) {
 		_ = json.Unmarshal(rawCommand, &command)
 	}
 	command = strings.TrimSpace(command)
-	if command != "read" && command != "extract_pdf" {
+	if command != "read" {
 		return "", "", false
 	}
 	if rawPath, exists := payload["path"]; exists {

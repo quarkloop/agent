@@ -12,8 +12,9 @@ does not call LLMs, read raw files, or perform OCR.
 
 When the user asks to index PDFs or other documents:
 
-1. Use file tools to read the source content. For PDFs, use `fs` with
-   `command=extract_pdf`.
+1. Use file tools for plain text files and the document service for parser
+   backed sources. For PDFs, call `document_ExtractText` or `document_GetPages`
+   with the source path so PDF parsing stays in the document service.
 2. Extract a useful, compact chunk for each document or section. Preserve the
    important facts needed for later Q&A.
 3. Use the runtime/model LLM path to perform semantic extraction from the
