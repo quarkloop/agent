@@ -16,6 +16,7 @@ import (
 	"github.com/quarkloop/runtime/pkg/channel/telegram"
 	"github.com/quarkloop/runtime/pkg/channel/web"
 	"github.com/quarkloop/runtime/pkg/coreevents"
+	"github.com/quarkloop/runtime/pkg/modelclient"
 	"github.com/quarkloop/runtime/pkg/pluginmanager"
 	"github.com/quarkloop/runtime/pkg/runtime"
 	runtimeservices "github.com/quarkloop/runtime/pkg/services"
@@ -116,6 +117,7 @@ func runStart(port int, channels []string) error {
 
 	promptAddenda := servicePromptAddenda(serviceCatalog)
 	coreRecorder := coreEventRecorder(serviceCatalog)
+	modelProviderAdapter := modelProviderFromService(serviceCatalog, modelProvider)
 	if strings.TrimSpace(agentPlugin.Skill) != "" {
 		promptAddenda = append(promptAddenda, strings.TrimSpace(agentPlugin.Skill))
 	}
@@ -131,22 +133,23 @@ func runStart(port int, channels []string) error {
 
 	// Create agent
 	a, err := agent.NewAgent(agent.Config{
-		ID:            "main",
-		Name:          agentName,
-		Description:   agentDescription,
-		ModelProvider: modelProvider,
-		Model:         modelName,
-		ModelListURL:  os.Getenv("MODEL_LIST_URL"),
-		Profile:       resolvedProfile,
-		SystemPrompt:  agentPlugin.SystemPrompt,
-		PluginsDir:    os.Getenv("QUARK_PLUGINS_DIR"),
-		PluginCatalog: pluginCatalog,
-		SupervisorURL: os.Getenv("QUARK_SUPERVISOR_URL"),
-		SpaceID:       os.Getenv("QUARK_SPACE"),
-		PromptAddenda: promptAddenda,
-		PendingRefs:   serviceFunctionPendingRefs(serviceCatalog),
-		ToolResultRef: serviceFunctionToolResultRef(serviceCatalog),
-		CoreEvents:    coreRecorder,
+		ID:                   "main",
+		Name:                 agentName,
+		Description:          agentDescription,
+		ModelProvider:        modelProvider,
+		Model:                modelName,
+		ModelListURL:         os.Getenv("MODEL_LIST_URL"),
+		Profile:              resolvedProfile,
+		SystemPrompt:         agentPlugin.SystemPrompt,
+		PluginsDir:           os.Getenv("QUARK_PLUGINS_DIR"),
+		PluginCatalog:        pluginCatalog,
+		SupervisorURL:        os.Getenv("QUARK_SUPERVISOR_URL"),
+		SpaceID:              os.Getenv("QUARK_SPACE"),
+		PromptAddenda:        promptAddenda,
+		PendingRefs:          serviceFunctionPendingRefs(serviceCatalog),
+		ToolResultRef:        serviceFunctionToolResultRef(serviceCatalog),
+		CoreEvents:           coreRecorder,
+		ModelProviderAdapter: modelProviderAdapter,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create agent: %w", err)
@@ -199,6 +202,18 @@ func coreEventRecorder(catalog *runtimeservices.Catalog) *coreevents.Recorder {
 		return nil
 	}
 	return coreevents.New(catalog.Descriptors(), slog.Default())
+}
+
+func modelProviderFromService(catalog *runtimeservices.Catalog, providerID string) *modelclient.Provider {
+	if catalog == nil || catalog.Empty() || providerID == "" {
+		return nil
+	}
+	for _, desc := range catalog.Descriptors() {
+		if desc.GetName() == "model" || desc.GetType() == "model" {
+			return modelclient.New(desc.GetAddress(), providerID)
+		}
+	}
+	return nil
 }
 
 func runtimeAgentProfile(item pluginmanager.CatalogPlugin) agent.Profile {

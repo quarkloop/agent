@@ -33,20 +33,21 @@ import (
 
 // Config holds agent configuration.
 type Config struct {
-	ID            string
-	Name          string
-	Description   string
-	ModelProvider string
-	Model         string
-	ModelListURL  string
-	Profile       Profile
-	SystemPrompt  string
-	PluginsDir    string
-	PluginCatalog *pluginmanager.Catalog
-	PromptAddenda []string
-	PendingRefs   func() []string
-	ToolResultRef func(name, arguments, result string) (string, error)
-	CoreEvents    *coreevents.Recorder
+	ID                   string
+	Name                 string
+	Description          string
+	ModelProvider        string
+	Model                string
+	ModelListURL         string
+	Profile              Profile
+	SystemPrompt         string
+	PluginsDir           string
+	PluginCatalog        *pluginmanager.Catalog
+	PromptAddenda        []string
+	PendingRefs          func() []string
+	ToolResultRef        func(name, arguments, result string) (string, error)
+	CoreEvents           *coreevents.Recorder
+	ModelProviderAdapter plugin.Provider
 
 	// Execution mode configuration
 	ExecutionMode execution.Mode
@@ -220,6 +221,9 @@ func (a *Agent) Run(ctx context.Context) error {
 	// Initialize loads both tool and provider plugins.
 	if err := a.Plugins.Initialize(ctx); err != nil {
 		slog.Error("failed to initialize plugins", "error", err)
+	}
+	if a.config.ModelProviderAdapter != nil {
+		a.Plugins.RegisterRuntimeProvider(a.config.ModelProvider, a.config.ModelProviderAdapter)
 	}
 	defer a.Plugins.Shutdown()
 

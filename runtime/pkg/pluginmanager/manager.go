@@ -177,6 +177,17 @@ func (m *Manager) GetProvider(id string) (plugin.Provider, bool) {
 	return p, ok
 }
 
+// RegisterRuntimeProvider registers a provider supplied by runtime wiring
+// instead of a disk plugin. It replaces an existing provider with the same ID.
+func (m *Manager) RegisterRuntimeProvider(id string, provider plugin.Provider) {
+	if id == "" || provider == nil {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.providers[id] = provider
+}
+
 // ListLoaded returns the names of all currently-loaded tool plugins.
 func (m *Manager) ListLoaded() []string {
 	m.mu.RLock()
