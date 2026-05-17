@@ -28,6 +28,8 @@ import (
 	spacev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/space/v1"
 	systemv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/system/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -147,8 +149,6 @@ func (e *Executor) Execute(ctx context.Context, functionName, arguments string) 
 	if err != nil {
 		return "", fmt.Errorf("response type %s not registered: %w", rpc.GetResponse(), err)
 	}
-	out := dynamicpb.NewMessage(respType.Descriptor())
-
 	conn, err := servicekit.Dial(ctx, resolved.address)
 	if err != nil {
 		return "", boundary.Wrap(boundary.Service, boundary.Transport, "dial "+resolved.address, err)
@@ -158,7 +158,8 @@ func (e *Executor) Execute(ctx context.Context, functionName, arguments string) 
 	fullMethod := "/" + rpc.GetService() + "/" + rpc.GetMethod()
 	callCtx, cancel := serviceFunctionContext(ctx, rpc)
 	defer cancel()
-	if err := conn.Invoke(callCtx, fullMethod, in, out); err != nil {
+	out, err := invokeServiceFunction(callCtx, conn, fullMethod, in, respType.Descriptor(), rpc)
+	if err != nil {
 		return "", boundary.Wrap(boundary.Service, boundary.Unavailable, "call "+fullMethod, err)
 	}
 	if rpc.GetResponse() == "quark.embedding.v1.EmbedResponse" {
@@ -266,6 +267,88 @@ func serviceFunctionContext(ctx context.Context, rpc *servicev1.RpcDescriptor) (
 		return context.WithCancel(ctx)
 	}
 	return context.WithTimeout(ctx, timeout)
+}
+
+func invokeServiceFunction(ctx context.Context, conn *grpc.ClientConn, method string, in *dynamicpb.Message, response protoreflect.MessageDescriptor, rpc *servicev1.RpcDescriptor) (*dynamicpb.Message, error) {
+	attempts := serviceFunctionMaxAttempts(rpc)
+	var lastErr error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		out := dynamicpb.NewMessage(response)
+		err := conn.Invoke(ctx, method, in, out)
+		if err == nil {
+			return out, nil
+		}
+		lastErr = err
+		if attempt == attempts || !serviceFunctionRetryable(rpc, err) {
+			return nil, err
+		}
+		if err := waitServiceFunctionRetry(ctx, rpc, attempt); err != nil {
+			return nil, err
+		}
+	}
+	return nil, lastErr
+}
+
+func serviceFunctionMaxAttempts(rpc *servicev1.RpcDescriptor) int {
+	if rpc == nil || rpc.GetRetryPolicy() == nil || rpc.GetRetryPolicy().GetMaxAttempts() <= 0 {
+		return 1
+	}
+	return int(rpc.GetRetryPolicy().GetMaxAttempts())
+}
+
+func serviceFunctionRetryable(rpc *servicev1.RpcDescriptor, err error) bool {
+	if rpc == nil || rpc.GetRetryPolicy() == nil {
+		return false
+	}
+	code := normalizeRetryCode(status.Code(err).String())
+	for _, retryable := range rpc.GetRetryPolicy().GetRetryableCodes() {
+		if normalizeRetryCode(retryable) == code {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeRetryCode(value string) string {
+	value = strings.TrimSpace(value)
+	value = strings.ReplaceAll(value, "_", "")
+	value = strings.ReplaceAll(value, "-", "")
+	value = strings.ReplaceAll(value, " ", "")
+	return strings.ToLower(value)
+}
+
+func waitServiceFunctionRetry(ctx context.Context, rpc *servicev1.RpcDescriptor, attempt int) error {
+	backoff := serviceFunctionBackoff(rpc, attempt)
+	if backoff <= 0 {
+		return nil
+	}
+	timer := time.NewTimer(backoff)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+func serviceFunctionBackoff(rpc *servicev1.RpcDescriptor, attempt int) time.Duration {
+	if rpc == nil || rpc.GetRetryPolicy() == nil {
+		return 0
+	}
+	initial := time.Duration(rpc.GetRetryPolicy().GetInitialBackoffMillis()) * time.Millisecond
+	if initial <= 0 {
+		return 0
+	}
+	backoff := initial
+	for i := 1; i < attempt; i++ {
+		backoff *= 2
+	}
+	maxBackoff := time.Duration(rpc.GetRetryPolicy().GetMaxBackoffMillis()) * time.Millisecond
+	if maxBackoff > 0 && backoff > maxBackoff {
+		return maxBackoff
+	}
+	return backoff
 }
 
 func normalizeServiceArgumentJSON(arguments string) (string, error) {

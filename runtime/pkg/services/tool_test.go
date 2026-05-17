@@ -1,10 +1,18 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
+	"net"
 	"strings"
+	"sync/atomic"
 	"testing"
 
+	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
+	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -136,4 +144,68 @@ func TestExecutorExpandsFilesystemContentRefsForEmbeddingRequests(t *testing.T) 
 	if got := embedPayload["input"].(string); got != "Attention Is All You Need\n" {
 		t.Fatalf("input = %q", got)
 	}
+}
+
+func TestExecutorRetriesRetryableServiceFunctionFailures(t *testing.T) {
+	server := grpc.NewServer()
+	fake := &flakyEmbeddingServer{}
+	embeddingv1.RegisterEmbeddingServiceServer(server, fake)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	errCh := make(chan error, 1)
+	go func() { errCh <- server.Serve(ln) }()
+	defer func() {
+		server.Stop()
+		_ = ln.Close()
+		<-errCh
+	}()
+
+	executor := NewExecutor([]*servicev1.ServiceDescriptor{{
+		Name:    "embedding",
+		Address: ln.Addr().String(),
+		Rpcs: []*servicev1.RpcDescriptor{{
+			Service:       embeddingv1.EmbeddingService_ServiceDesc.ServiceName,
+			Method:        "Embed",
+			Request:       "quark.embedding.v1.EmbedRequest",
+			Response:      "quark.embedding.v1.EmbedResponse",
+			Description:   "Embed text.",
+			FunctionName:  "embedding_Embed",
+			TimeoutMillis: 5000,
+			RetryPolicy: &servicev1.RetryPolicy{
+				MaxAttempts:    2,
+				RetryableCodes: []string{"Unavailable"},
+			},
+		}},
+	}})
+
+	result, err := executor.Execute(context.Background(), "embedding_Embed", `{"input":"hello"}`)
+	if err != nil {
+		t.Fatalf("execute retryable service function: %v", err)
+	}
+	if calls := atomic.LoadInt32(&fake.calls); calls != 2 {
+		t.Fatalf("calls = %d, want 2", calls)
+	}
+	if !strings.Contains(result, "embeddingRef") {
+		t.Fatalf("expected embedding reference result, got %s", result)
+	}
+}
+
+type flakyEmbeddingServer struct {
+	embeddingv1.UnimplementedEmbeddingServiceServer
+	calls int32
+}
+
+func (s *flakyEmbeddingServer) Embed(context.Context, *embeddingv1.EmbedRequest) (*embeddingv1.EmbedResponse, error) {
+	if atomic.AddInt32(&s.calls, 1) == 1 {
+		return nil, status.Error(codes.Unavailable, "try again")
+	}
+	return &embeddingv1.EmbedResponse{
+		Vector:      []float32{0.1, 0.2},
+		Model:       "test",
+		Dimensions:  2,
+		Provider:    "test",
+		ContentHash: "abc123",
+	}, nil
 }
