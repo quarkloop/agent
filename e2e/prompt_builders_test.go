@@ -24,31 +24,41 @@ func TestPDFPromptBuildersExposeAgentWorkflowContract(t *testing.T) {
 		"2 files",
 		"/uploads/resume.pdf",
 		"/uploads/paper.pdf",
-		"fs",
-		"semantic extraction yourself",
-		"textContentRef",
-		"inputRef",
-		"do not copy, paraphrase",
-		"embedding_Embed",
-		"indexer_IndexDocument",
-		"2 successful indexer_IndexDocument results",
-		"Do not rename files",
-		"write sidecars",
+		"Read each PDF",
+		"understand what kind of document it is",
+		"important facts",
+		"source evidence",
+		"knowledge index",
+		"do not rename",
+		"sidecar files",
 	)
 	assertPromptExcludes(t, indexPrompt,
+		"fs",
+		"extract_pdf",
+		"embedding_Embed",
+		"indexer_IndexDocument",
+		"textContentRef",
+		"inputRef",
+		"queryVectorRef",
+		"service function",
 		`"chunkId"`,
 		`"facts":`,
 		`"entities":`,
 		`"relations":`,
 	)
 
-	queryPrompt := indexedPDFQuestionPrompt("Which document is a resume?", len(documents))
+	queryPrompt := indexedPDFQuestionPrompt("Which document is a resume?")
 	assertPromptContains(t, queryPrompt,
-		"Do not re-read the source PDFs",
+		"Search the indexed PDFs",
+		"Which document is a resume?",
+		"indexed",
+		"source filename",
+	)
+	assertPromptExcludes(t, queryPrompt,
 		"embedding_Embed",
 		"indexer_GetContext",
-		"limit 8",
-		"reasoningContext only",
+		"queryVectorRef",
+		"reasoningContext",
 	)
 }
 
@@ -56,18 +66,23 @@ func TestMarkdownPromptBuildersExposeAgentWorkflowContract(t *testing.T) {
 	indexPrompt := indexMarkdownDirectoryPrompt("/uploads/company-records", 4)
 	assertPromptContains(t, indexPrompt,
 		"/uploads/company-records",
-		"fs list",
-		"fs read",
-		"textContentRef",
-		"inputRef",
-		"canonical indexed text must come from textContentRef",
-		"embedding_Embed",
-		"indexer_IndexDocument",
-		"4 successful indexer_IndexDocument results",
-		"Do not rename files",
-		"write sidecars",
+		"find every Markdown file",
+		"business record",
+		"important facts",
+		"source evidence",
+		"knowledge index",
+		"do not rename",
+		"sidecar files",
 	)
 	assertPromptExcludes(t, indexPrompt,
+		"fs list",
+		"fs read",
+		"embedding_Embed",
+		"indexer_IndexDocument",
+		"textContentRef",
+		"inputRef",
+		"queryVectorRef",
+		"service function",
 		`"chunkId"`,
 		`"facts":`,
 		`"entities":`,
@@ -76,11 +91,16 @@ func TestMarkdownPromptBuildersExposeAgentWorkflowContract(t *testing.T) {
 
 	queryPrompt := indexedMarkdownQuestionPrompt()
 	assertPromptContains(t, queryPrompt,
-		"Do not re-read the source files",
+		"Search the indexed IT company documents",
+		"Northwind Retail GmbH",
+		"ByteWorks Supply GmbH",
+		"source filenames",
+	)
+	assertPromptExcludes(t, queryPrompt,
 		"embedding_Embed",
 		"indexer_GetContext",
-		"limit 10",
-		"reasoningContext only",
+		"queryVectorRef",
+		"reasoningContext",
 	)
 }
 
@@ -89,10 +109,15 @@ func TestBuildReleasePromptBuilderUsesServiceFunctionContract(t *testing.T) {
 	assertPromptContains(t, prompt,
 		"/workspace/project",
 		"Quark DevOps release automation",
-		"build_release_DryRun",
 		"v9.9.9",
 		"build_release.json",
-		"Do not use shell commands",
+		"Do not publish",
+		"planned version",
+	)
+	assertPromptExcludes(t, prompt,
+		"build_release_DryRun",
+		"service function",
+		"shell",
 	)
 }
 

@@ -14,10 +14,9 @@ import (
 )
 
 // TestBashTool exercises the bash tool plugin end-to-end: supervisor creates
-// a session, the agent receives it via SSE, a user message instructs the LLM
-// to call the bash tool, and the final streamed reply must contain the
-// expected stdout. Tools load in lib mode (plugin.so shipped alongside the
-// binary).
+// a session, the agent receives it via SSE, a normal user message asks for a
+// terminal check, and the final streamed reply must contain the expected
+// stdout. Tools load in lib mode (plugin.so shipped alongside the binary).
 func TestBashTool(t *testing.T) {
 	runBashTool(t, false)
 }
@@ -50,7 +49,7 @@ func runBashTool(t *testing.T, forceBinary bool) {
 	utils.WaitForAgentSession(t, env, sess.ID, 10*time.Second)
 
 	reply := utils.PostMessage(t, ctx, env, sess.ID,
-		"Use the bash tool to run `echo quark-ok` and reply with the tool output verbatim.")
+		"Please use the terminal to print the marker text quark-ok, then reply with only what the terminal printed.")
 	utils.Logf(t, "reply: %q", reply)
 	if reply == "" {
 		t.Fatal("expected non-empty reply")

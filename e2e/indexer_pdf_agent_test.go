@@ -133,7 +133,7 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOp
 		}
 		utils.WaitForAgentSession(t, env, querySession.ID, 10*time.Second)
 
-		queryPrompt := indexedPDFQuestionPrompt(queryCase.Question, len(documents))
+		queryPrompt := indexedPDFQuestionPrompt(queryCase.Question)
 		queryTrace := utils.PostMessageTraceWithOptions(t, ctx, env, querySession.ID, queryPrompt, utils.MessageTraceOptions{
 			Label:          "query indexed PDF dataset: " + queryCase.Title,
 			OverallTimeout: 4 * time.Minute,
