@@ -19,8 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	CitationService_ResolveSpans_FullMethodName    = "/quark.citation.v1.CitationService/ResolveSpans"
-	CitationService_VerifyGrounding_FullMethodName = "/quark.citation.v1.CitationService/VerifyGrounding"
+	CitationService_ResolveSpans_FullMethodName     = "/quark.citation.v1.CitationService/ResolveSpans"
+	CitationService_CreateCitation_FullMethodName   = "/quark.citation.v1.CitationService/CreateCitation"
+	CitationService_VerifyGrounding_FullMethodName  = "/quark.citation.v1.CitationService/VerifyGrounding"
+	CitationService_ScoreCoverage_FullMethodName    = "/quark.citation.v1.CitationService/ScoreCoverage"
+	CitationService_RenderReferences_FullMethodName = "/quark.citation.v1.CitationService/RenderReferences"
 )
 
 // CitationServiceClient is the client API for CitationService service.
@@ -34,7 +37,10 @@ const (
 // evidence spans.
 type CitationServiceClient interface {
 	ResolveSpans(ctx context.Context, in *ResolveSpansRequest, opts ...grpc.CallOption) (*ResolveSpansResponse, error)
+	CreateCitation(ctx context.Context, in *CreateCitationRequest, opts ...grpc.CallOption) (*CitationSpan, error)
 	VerifyGrounding(ctx context.Context, in *VerifyGroundingRequest, opts ...grpc.CallOption) (*VerifyGroundingResponse, error)
+	ScoreCoverage(ctx context.Context, in *ScoreCoverageRequest, opts ...grpc.CallOption) (*ScoreCoverageResponse, error)
+	RenderReferences(ctx context.Context, in *RenderReferencesRequest, opts ...grpc.CallOption) (*RenderReferencesResponse, error)
 }
 
 type citationServiceClient struct {
@@ -55,10 +61,40 @@ func (c *citationServiceClient) ResolveSpans(ctx context.Context, in *ResolveSpa
 	return out, nil
 }
 
+func (c *citationServiceClient) CreateCitation(ctx context.Context, in *CreateCitationRequest, opts ...grpc.CallOption) (*CitationSpan, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CitationSpan)
+	err := c.cc.Invoke(ctx, CitationService_CreateCitation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *citationServiceClient) VerifyGrounding(ctx context.Context, in *VerifyGroundingRequest, opts ...grpc.CallOption) (*VerifyGroundingResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(VerifyGroundingResponse)
 	err := c.cc.Invoke(ctx, CitationService_VerifyGrounding_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *citationServiceClient) ScoreCoverage(ctx context.Context, in *ScoreCoverageRequest, opts ...grpc.CallOption) (*ScoreCoverageResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ScoreCoverageResponse)
+	err := c.cc.Invoke(ctx, CitationService_ScoreCoverage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *citationServiceClient) RenderReferences(ctx context.Context, in *RenderReferencesRequest, opts ...grpc.CallOption) (*RenderReferencesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RenderReferencesResponse)
+	err := c.cc.Invoke(ctx, CitationService_RenderReferences_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +112,10 @@ func (c *citationServiceClient) VerifyGrounding(ctx context.Context, in *VerifyG
 // evidence spans.
 type CitationServiceServer interface {
 	ResolveSpans(context.Context, *ResolveSpansRequest) (*ResolveSpansResponse, error)
+	CreateCitation(context.Context, *CreateCitationRequest) (*CitationSpan, error)
 	VerifyGrounding(context.Context, *VerifyGroundingRequest) (*VerifyGroundingResponse, error)
+	ScoreCoverage(context.Context, *ScoreCoverageRequest) (*ScoreCoverageResponse, error)
+	RenderReferences(context.Context, *RenderReferencesRequest) (*RenderReferencesResponse, error)
 	mustEmbedUnimplementedCitationServiceServer()
 }
 
@@ -90,8 +129,17 @@ type UnimplementedCitationServiceServer struct{}
 func (UnimplementedCitationServiceServer) ResolveSpans(context.Context, *ResolveSpansRequest) (*ResolveSpansResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ResolveSpans not implemented")
 }
+func (UnimplementedCitationServiceServer) CreateCitation(context.Context, *CreateCitationRequest) (*CitationSpan, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateCitation not implemented")
+}
 func (UnimplementedCitationServiceServer) VerifyGrounding(context.Context, *VerifyGroundingRequest) (*VerifyGroundingResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method VerifyGrounding not implemented")
+}
+func (UnimplementedCitationServiceServer) ScoreCoverage(context.Context, *ScoreCoverageRequest) (*ScoreCoverageResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ScoreCoverage not implemented")
+}
+func (UnimplementedCitationServiceServer) RenderReferences(context.Context, *RenderReferencesRequest) (*RenderReferencesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RenderReferences not implemented")
 }
 func (UnimplementedCitationServiceServer) mustEmbedUnimplementedCitationServiceServer() {}
 func (UnimplementedCitationServiceServer) testEmbeddedByValue()                         {}
@@ -132,6 +180,24 @@ func _CitationService_ResolveSpans_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CitationService_CreateCitation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateCitationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CitationServiceServer).CreateCitation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CitationService_CreateCitation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CitationServiceServer).CreateCitation(ctx, req.(*CreateCitationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _CitationService_VerifyGrounding_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(VerifyGroundingRequest)
 	if err := dec(in); err != nil {
@@ -150,6 +216,42 @@ func _CitationService_VerifyGrounding_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CitationService_ScoreCoverage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ScoreCoverageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CitationServiceServer).ScoreCoverage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CitationService_ScoreCoverage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CitationServiceServer).ScoreCoverage(ctx, req.(*ScoreCoverageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CitationService_RenderReferences_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RenderReferencesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CitationServiceServer).RenderReferences(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CitationService_RenderReferences_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CitationServiceServer).RenderReferences(ctx, req.(*RenderReferencesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // CitationService_ServiceDesc is the grpc.ServiceDesc for CitationService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -162,8 +264,20 @@ var CitationService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _CitationService_ResolveSpans_Handler,
 		},
 		{
+			MethodName: "CreateCitation",
+			Handler:    _CitationService_CreateCitation_Handler,
+		},
+		{
 			MethodName: "VerifyGrounding",
 			Handler:    _CitationService_VerifyGrounding_Handler,
+		},
+		{
+			MethodName: "ScoreCoverage",
+			Handler:    _CitationService_ScoreCoverage_Handler,
+		},
+		{
+			MethodName: "RenderReferences",
+			Handler:    _CitationService_RenderReferences_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

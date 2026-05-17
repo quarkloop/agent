@@ -50,7 +50,10 @@ agent:
     - indexer_DeleteChunk
     - citation.*
     - citation_ResolveSpans
+    - citation_CreateCitation
     - citation_VerifyGrounding
+    - citation_ScoreCoverage
+    - citation_RenderReferences
     - memory.*
     - memory_Put
     - memory_Get

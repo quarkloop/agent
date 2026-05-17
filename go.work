@@ -18,6 +18,7 @@ use (
 	./plugins/tools/web-search
 	./runtime
 	./services/build-release
+	./services/citation
 	./services/core
 	./services/document
 	./services/embedding
@@ -45,6 +46,7 @@ replace (
 	github.com/quarkloop/plugins/tools/web-search v0.0.0 => ./plugins/tools/web-search
 	github.com/quarkloop/runtime v0.0.0 => ./runtime
 	github.com/quarkloop/services/build-release v0.0.0 => ./services/build-release
+	github.com/quarkloop/services/citation v0.0.0 => ./services/citation
 	github.com/quarkloop/services/core v0.0.0 => ./services/core
 	github.com/quarkloop/services/document v0.0.0 => ./services/document
 	github.com/quarkloop/services/embedding v0.0.0 => ./services/embedding

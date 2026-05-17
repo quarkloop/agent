@@ -11,6 +11,7 @@ import (
 
 	"github.com/quarkloop/e2e/utils"
 	buildreleasev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/buildrelease/v1"
+	citationv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/citation/v1"
 	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
 	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
@@ -69,6 +70,15 @@ func startIngestionServiceAt(t *testing.T, binary, addr, root string) {
 	waitForGRPCHealth(t, addr, ingestionv1.IngestionService_ServiceDesc.ServiceName, 10*time.Second, "ingestion")
 }
 
+func startCitationServiceAt(t *testing.T, binary, addr string) {
+	t.Helper()
+	utils.StartProcess(t, "citation", binary, []string{
+		"--addr", addr,
+		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "citation"),
+	}, utils.ProcessEnv(nil))
+	waitForGRPCHealth(t, addr, citationv1.CitationService_ServiceDesc.ServiceName, 10*time.Second, "citation")
+}
+
 func startBuildReleaseServiceAt(t *testing.T, binary, addr string) {
 	t.Helper()
 	utils.StartProcess(t, "build-release", binary, []string{
@@ -84,6 +94,7 @@ func standardKnowledgeServicesStartOptions(t *testing.T, embedding utils.Embeddi
 	embeddingAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
 	documentAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
 	ingestionAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
+	citationAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
 	return utils.StartOptions{
 		WorkingDir: workingDir,
 		Embedding:  embedding,
@@ -92,6 +103,7 @@ func standardKnowledgeServicesStartOptions(t *testing.T, embedding utils.Embeddi
 			"QUARK_EMBEDDING_ADDR": embeddingAddr,
 			"QUARK_DOCUMENT_ADDR":  documentAddr,
 			"QUARK_INGESTION_ADDR": ingestionAddr,
+			"QUARK_CITATION_ADDR":  citationAddr,
 		},
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
@@ -99,6 +111,7 @@ func standardKnowledgeServicesStartOptions(t *testing.T, embedding utils.Embeddi
 			startIndexerServiceAt(t, bins.Indexer, dgraphAddr, indexerAddr)
 			startDocumentServiceAt(t, bins.Document, documentAddr)
 			startIngestionServiceAt(t, bins.Ingestion, ingestionAddr, filepath.Join(setup.SpacesDir, setup.Space, "services", "ingestion"))
+			startCitationServiceAt(t, bins.Citation, citationAddr)
 			startEmbeddingServiceAt(t, bins.Embedding, embeddingAddr, embedding)
 		},
 	}

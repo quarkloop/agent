@@ -185,6 +185,82 @@ func (x *ResolveSpansResponse) GetSpans() []*CitationSpan {
 	return nil
 }
 
+type CreateCitationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	SourceUri     string                 `protobuf:"bytes,2,opt,name=source_uri,json=sourceUri,proto3" json:"source_uri,omitempty"`
+	SourceText    string                 `protobuf:"bytes,3,opt,name=source_text,json=sourceText,proto3" json:"source_text,omitempty"`
+	Text          string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
+	Hint          string                 `protobuf:"bytes,5,opt,name=hint,proto3" json:"hint,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateCitationRequest) Reset() {
+	*x = CreateCitationRequest{}
+	mi := &file_quark_citation_v1_citation_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateCitationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateCitationRequest) ProtoMessage() {}
+
+func (x *CreateCitationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_citation_v1_citation_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateCitationRequest.ProtoReflect.Descriptor instead.
+func (*CreateCitationRequest) Descriptor() ([]byte, []int) {
+	return file_quark_citation_v1_citation_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *CreateCitationRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *CreateCitationRequest) GetSourceUri() string {
+	if x != nil {
+		return x.SourceUri
+	}
+	return ""
+}
+
+func (x *CreateCitationRequest) GetSourceText() string {
+	if x != nil {
+		return x.SourceText
+	}
+	return ""
+}
+
+func (x *CreateCitationRequest) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *CreateCitationRequest) GetHint() string {
+	if x != nil {
+		return x.Hint
+	}
+	return ""
+}
+
 type CitationSpan struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -199,7 +275,7 @@ type CitationSpan struct {
 
 func (x *CitationSpan) Reset() {
 	*x = CitationSpan{}
-	mi := &file_quark_citation_v1_citation_proto_msgTypes[3]
+	mi := &file_quark_citation_v1_citation_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -211,7 +287,7 @@ func (x *CitationSpan) String() string {
 func (*CitationSpan) ProtoMessage() {}
 
 func (x *CitationSpan) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_citation_v1_citation_proto_msgTypes[3]
+	mi := &file_quark_citation_v1_citation_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -224,7 +300,7 @@ func (x *CitationSpan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CitationSpan.ProtoReflect.Descriptor instead.
 func (*CitationSpan) Descriptor() ([]byte, []int) {
-	return file_quark_citation_v1_citation_proto_rawDescGZIP(), []int{3}
+	return file_quark_citation_v1_citation_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *CitationSpan) GetId() string {
@@ -278,7 +354,7 @@ type VerifyGroundingRequest struct {
 
 func (x *VerifyGroundingRequest) Reset() {
 	*x = VerifyGroundingRequest{}
-	mi := &file_quark_citation_v1_citation_proto_msgTypes[4]
+	mi := &file_quark_citation_v1_citation_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -290,7 +366,7 @@ func (x *VerifyGroundingRequest) String() string {
 func (*VerifyGroundingRequest) ProtoMessage() {}
 
 func (x *VerifyGroundingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_citation_v1_citation_proto_msgTypes[4]
+	mi := &file_quark_citation_v1_citation_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -303,7 +379,7 @@ func (x *VerifyGroundingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VerifyGroundingRequest.ProtoReflect.Descriptor instead.
 func (*VerifyGroundingRequest) Descriptor() ([]byte, []int) {
-	return file_quark_citation_v1_citation_proto_rawDescGZIP(), []int{4}
+	return file_quark_citation_v1_citation_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *VerifyGroundingRequest) GetClaims() []*GroundedClaim {
@@ -324,7 +400,7 @@ type GroundedClaim struct {
 
 func (x *GroundedClaim) Reset() {
 	*x = GroundedClaim{}
-	mi := &file_quark_citation_v1_citation_proto_msgTypes[5]
+	mi := &file_quark_citation_v1_citation_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -336,7 +412,7 @@ func (x *GroundedClaim) String() string {
 func (*GroundedClaim) ProtoMessage() {}
 
 func (x *GroundedClaim) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_citation_v1_citation_proto_msgTypes[5]
+	mi := &file_quark_citation_v1_citation_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -349,7 +425,7 @@ func (x *GroundedClaim) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GroundedClaim.ProtoReflect.Descriptor instead.
 func (*GroundedClaim) Descriptor() ([]byte, []int) {
-	return file_quark_citation_v1_citation_proto_rawDescGZIP(), []int{5}
+	return file_quark_citation_v1_citation_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GroundedClaim) GetId() string {
@@ -382,7 +458,7 @@ type VerifyGroundingResponse struct {
 
 func (x *VerifyGroundingResponse) Reset() {
 	*x = VerifyGroundingResponse{}
-	mi := &file_quark_citation_v1_citation_proto_msgTypes[6]
+	mi := &file_quark_citation_v1_citation_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -394,7 +470,7 @@ func (x *VerifyGroundingResponse) String() string {
 func (*VerifyGroundingResponse) ProtoMessage() {}
 
 func (x *VerifyGroundingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_citation_v1_citation_proto_msgTypes[6]
+	mi := &file_quark_citation_v1_citation_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -407,7 +483,7 @@ func (x *VerifyGroundingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VerifyGroundingResponse.ProtoReflect.Descriptor instead.
 func (*VerifyGroundingResponse) Descriptor() ([]byte, []int) {
-	return file_quark_citation_v1_citation_proto_rawDescGZIP(), []int{6}
+	return file_quark_citation_v1_citation_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *VerifyGroundingResponse) GetResults() []*GroundingResult {
@@ -415,6 +491,298 @@ func (x *VerifyGroundingResponse) GetResults() []*GroundingResult {
 		return x.Results
 	}
 	return nil
+}
+
+type ScoreCoverageRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Claims        []*GroundedClaim       `protobuf:"bytes,1,rep,name=claims,proto3" json:"claims,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScoreCoverageRequest) Reset() {
+	*x = ScoreCoverageRequest{}
+	mi := &file_quark_citation_v1_citation_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScoreCoverageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScoreCoverageRequest) ProtoMessage() {}
+
+func (x *ScoreCoverageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_citation_v1_citation_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScoreCoverageRequest.ProtoReflect.Descriptor instead.
+func (*ScoreCoverageRequest) Descriptor() ([]byte, []int) {
+	return file_quark_citation_v1_citation_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ScoreCoverageRequest) GetClaims() []*GroundedClaim {
+	if x != nil {
+		return x.Claims
+	}
+	return nil
+}
+
+type ScoreCoverageResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Coverage      float32                `protobuf:"fixed32,1,opt,name=coverage,proto3" json:"coverage,omitempty"`
+	GroundedCount int32                  `protobuf:"varint,2,opt,name=grounded_count,json=groundedCount,proto3" json:"grounded_count,omitempty"`
+	TotalCount    int32                  `protobuf:"varint,3,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	Results       []*GroundingResult     `protobuf:"bytes,4,rep,name=results,proto3" json:"results,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScoreCoverageResponse) Reset() {
+	*x = ScoreCoverageResponse{}
+	mi := &file_quark_citation_v1_citation_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScoreCoverageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScoreCoverageResponse) ProtoMessage() {}
+
+func (x *ScoreCoverageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_citation_v1_citation_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScoreCoverageResponse.ProtoReflect.Descriptor instead.
+func (*ScoreCoverageResponse) Descriptor() ([]byte, []int) {
+	return file_quark_citation_v1_citation_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ScoreCoverageResponse) GetCoverage() float32 {
+	if x != nil {
+		return x.Coverage
+	}
+	return 0
+}
+
+func (x *ScoreCoverageResponse) GetGroundedCount() int32 {
+	if x != nil {
+		return x.GroundedCount
+	}
+	return 0
+}
+
+func (x *ScoreCoverageResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
+func (x *ScoreCoverageResponse) GetResults() []*GroundingResult {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
+type RenderReferencesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Citations     []*CitationSpan        `protobuf:"bytes,1,rep,name=citations,proto3" json:"citations,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenderReferencesRequest) Reset() {
+	*x = RenderReferencesRequest{}
+	mi := &file_quark_citation_v1_citation_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenderReferencesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenderReferencesRequest) ProtoMessage() {}
+
+func (x *RenderReferencesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_citation_v1_citation_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenderReferencesRequest.ProtoReflect.Descriptor instead.
+func (*RenderReferencesRequest) Descriptor() ([]byte, []int) {
+	return file_quark_citation_v1_citation_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *RenderReferencesRequest) GetCitations() []*CitationSpan {
+	if x != nil {
+		return x.Citations
+	}
+	return nil
+}
+
+type RenderReferencesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	References    []*SourceReference     `protobuf:"bytes,1,rep,name=references,proto3" json:"references,omitempty"`
+	Markdown      string                 `protobuf:"bytes,2,opt,name=markdown,proto3" json:"markdown,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenderReferencesResponse) Reset() {
+	*x = RenderReferencesResponse{}
+	mi := &file_quark_citation_v1_citation_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenderReferencesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenderReferencesResponse) ProtoMessage() {}
+
+func (x *RenderReferencesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_citation_v1_citation_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenderReferencesResponse.ProtoReflect.Descriptor instead.
+func (*RenderReferencesResponse) Descriptor() ([]byte, []int) {
+	return file_quark_citation_v1_citation_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *RenderReferencesResponse) GetReferences() []*SourceReference {
+	if x != nil {
+		return x.References
+	}
+	return nil
+}
+
+func (x *RenderReferencesResponse) GetMarkdown() string {
+	if x != nil {
+		return x.Markdown
+	}
+	return ""
+}
+
+type SourceReference struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	SourceUri     string                 `protobuf:"bytes,2,opt,name=source_uri,json=sourceUri,proto3" json:"source_uri,omitempty"`
+	TextSpan      string                 `protobuf:"bytes,3,opt,name=text_span,json=textSpan,proto3" json:"text_span,omitempty"`
+	StartOffset   int32                  `protobuf:"varint,4,opt,name=start_offset,json=startOffset,proto3" json:"start_offset,omitempty"`
+	EndOffset     int32                  `protobuf:"varint,5,opt,name=end_offset,json=endOffset,proto3" json:"end_offset,omitempty"`
+	Label         string                 `protobuf:"bytes,6,opt,name=label,proto3" json:"label,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SourceReference) Reset() {
+	*x = SourceReference{}
+	mi := &file_quark_citation_v1_citation_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SourceReference) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SourceReference) ProtoMessage() {}
+
+func (x *SourceReference) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_citation_v1_citation_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SourceReference.ProtoReflect.Descriptor instead.
+func (*SourceReference) Descriptor() ([]byte, []int) {
+	return file_quark_citation_v1_citation_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *SourceReference) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SourceReference) GetSourceUri() string {
+	if x != nil {
+		return x.SourceUri
+	}
+	return ""
+}
+
+func (x *SourceReference) GetTextSpan() string {
+	if x != nil {
+		return x.TextSpan
+	}
+	return ""
+}
+
+func (x *SourceReference) GetStartOffset() int32 {
+	if x != nil {
+		return x.StartOffset
+	}
+	return 0
+}
+
+func (x *SourceReference) GetEndOffset() int32 {
+	if x != nil {
+		return x.EndOffset
+	}
+	return 0
+}
+
+func (x *SourceReference) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
 }
 
 type GroundingResult struct {
@@ -429,7 +797,7 @@ type GroundingResult struct {
 
 func (x *GroundingResult) Reset() {
 	*x = GroundingResult{}
-	mi := &file_quark_citation_v1_citation_proto_msgTypes[7]
+	mi := &file_quark_citation_v1_citation_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -441,7 +809,7 @@ func (x *GroundingResult) String() string {
 func (*GroundingResult) ProtoMessage() {}
 
 func (x *GroundingResult) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_citation_v1_citation_proto_msgTypes[7]
+	mi := &file_quark_citation_v1_citation_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -454,7 +822,7 @@ func (x *GroundingResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GroundingResult.ProtoReflect.Descriptor instead.
 func (*GroundingResult) Descriptor() ([]byte, []int) {
-	return file_quark_citation_v1_citation_proto_rawDescGZIP(), []int{7}
+	return file_quark_citation_v1_citation_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GroundingResult) GetClaimId() string {
@@ -501,7 +869,15 @@ const file_quark_citation_v1_citation_proto_rawDesc = "" +
 	"\x04text\x18\x02 \x01(\tR\x04text\x12\x12\n" +
 	"\x04hint\x18\x03 \x01(\tR\x04hint\"M\n" +
 	"\x14ResolveSpansResponse\x125\n" +
-	"\x05spans\x18\x01 \x03(\v2\x1f.quark.citation.v1.CitationSpanR\x05spans\"\xbc\x01\n" +
+	"\x05spans\x18\x01 \x03(\v2\x1f.quark.citation.v1.CitationSpanR\x05spans\"\x8f\x01\n" +
+	"\x15CreateCitationRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"source_uri\x18\x02 \x01(\tR\tsourceUri\x12\x1f\n" +
+	"\vsource_text\x18\x03 \x01(\tR\n" +
+	"sourceText\x12\x12\n" +
+	"\x04text\x18\x04 \x01(\tR\x04text\x12\x12\n" +
+	"\x04hint\x18\x05 \x01(\tR\x04hint\"\xbc\x01\n" +
 	"\fCitationSpan\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -520,17 +896,44 @@ const file_quark_citation_v1_citation_proto_rawDesc = "" +
 	"\x05claim\x18\x02 \x01(\tR\x05claim\x12=\n" +
 	"\tcitations\x18\x03 \x03(\v2\x1f.quark.citation.v1.CitationSpanR\tcitations\"W\n" +
 	"\x17VerifyGroundingResponse\x12<\n" +
-	"\aresults\x18\x01 \x03(\v2\".quark.citation.v1.GroundingResultR\aresults\"\x80\x01\n" +
+	"\aresults\x18\x01 \x03(\v2\".quark.citation.v1.GroundingResultR\aresults\"P\n" +
+	"\x14ScoreCoverageRequest\x128\n" +
+	"\x06claims\x18\x01 \x03(\v2 .quark.citation.v1.GroundedClaimR\x06claims\"\xb9\x01\n" +
+	"\x15ScoreCoverageResponse\x12\x1a\n" +
+	"\bcoverage\x18\x01 \x01(\x02R\bcoverage\x12%\n" +
+	"\x0egrounded_count\x18\x02 \x01(\x05R\rgroundedCount\x12\x1f\n" +
+	"\vtotal_count\x18\x03 \x01(\x05R\n" +
+	"totalCount\x12<\n" +
+	"\aresults\x18\x04 \x03(\v2\".quark.citation.v1.GroundingResultR\aresults\"X\n" +
+	"\x17RenderReferencesRequest\x12=\n" +
+	"\tcitations\x18\x01 \x03(\v2\x1f.quark.citation.v1.CitationSpanR\tcitations\"z\n" +
+	"\x18RenderReferencesResponse\x12B\n" +
+	"\n" +
+	"references\x18\x01 \x03(\v2\".quark.citation.v1.SourceReferenceR\n" +
+	"references\x12\x1a\n" +
+	"\bmarkdown\x18\x02 \x01(\tR\bmarkdown\"\xb5\x01\n" +
+	"\x0fSourceReference\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"source_uri\x18\x02 \x01(\tR\tsourceUri\x12\x1b\n" +
+	"\ttext_span\x18\x03 \x01(\tR\btextSpan\x12!\n" +
+	"\fstart_offset\x18\x04 \x01(\x05R\vstartOffset\x12\x1d\n" +
+	"\n" +
+	"end_offset\x18\x05 \x01(\x05R\tendOffset\x12\x14\n" +
+	"\x05label\x18\x06 \x01(\tR\x05label\"\x80\x01\n" +
 	"\x0fGroundingResult\x12\x19\n" +
 	"\bclaim_id\x18\x01 \x01(\tR\aclaimId\x12\x1a\n" +
 	"\bgrounded\x18\x02 \x01(\bR\bgrounded\x12\x1e\n" +
 	"\n" +
 	"confidence\x18\x03 \x01(\x02R\n" +
 	"confidence\x12\x16\n" +
-	"\x06reason\x18\x04 \x01(\tR\x06reason2\xdc\x01\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason2\x8a\x04\n" +
 	"\x0fCitationService\x12_\n" +
-	"\fResolveSpans\x12&.quark.citation.v1.ResolveSpansRequest\x1a'.quark.citation.v1.ResolveSpansResponse\x12h\n" +
-	"\x0fVerifyGrounding\x12).quark.citation.v1.VerifyGroundingRequest\x1a*.quark.citation.v1.VerifyGroundingResponseBFZDgithub.com/quarkloop/pkg/serviceapi/gen/quark/citation/v1;citationv1b\x06proto3"
+	"\fResolveSpans\x12&.quark.citation.v1.ResolveSpansRequest\x1a'.quark.citation.v1.ResolveSpansResponse\x12[\n" +
+	"\x0eCreateCitation\x12(.quark.citation.v1.CreateCitationRequest\x1a\x1f.quark.citation.v1.CitationSpan\x12h\n" +
+	"\x0fVerifyGrounding\x12).quark.citation.v1.VerifyGroundingRequest\x1a*.quark.citation.v1.VerifyGroundingResponse\x12b\n" +
+	"\rScoreCoverage\x12'.quark.citation.v1.ScoreCoverageRequest\x1a(.quark.citation.v1.ScoreCoverageResponse\x12k\n" +
+	"\x10RenderReferences\x12*.quark.citation.v1.RenderReferencesRequest\x1a+.quark.citation.v1.RenderReferencesResponseBFZDgithub.com/quarkloop/pkg/serviceapi/gen/quark/citation/v1;citationv1b\x06proto3"
 
 var (
 	file_quark_citation_v1_citation_proto_rawDescOnce sync.Once
@@ -544,32 +947,48 @@ func file_quark_citation_v1_citation_proto_rawDescGZIP() []byte {
 	return file_quark_citation_v1_citation_proto_rawDescData
 }
 
-var file_quark_citation_v1_citation_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_quark_citation_v1_citation_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_quark_citation_v1_citation_proto_goTypes = []any{
-	(*ResolveSpansRequest)(nil),     // 0: quark.citation.v1.ResolveSpansRequest
-	(*SpanQuery)(nil),               // 1: quark.citation.v1.SpanQuery
-	(*ResolveSpansResponse)(nil),    // 2: quark.citation.v1.ResolveSpansResponse
-	(*CitationSpan)(nil),            // 3: quark.citation.v1.CitationSpan
-	(*VerifyGroundingRequest)(nil),  // 4: quark.citation.v1.VerifyGroundingRequest
-	(*GroundedClaim)(nil),           // 5: quark.citation.v1.GroundedClaim
-	(*VerifyGroundingResponse)(nil), // 6: quark.citation.v1.VerifyGroundingResponse
-	(*GroundingResult)(nil),         // 7: quark.citation.v1.GroundingResult
+	(*ResolveSpansRequest)(nil),      // 0: quark.citation.v1.ResolveSpansRequest
+	(*SpanQuery)(nil),                // 1: quark.citation.v1.SpanQuery
+	(*ResolveSpansResponse)(nil),     // 2: quark.citation.v1.ResolveSpansResponse
+	(*CreateCitationRequest)(nil),    // 3: quark.citation.v1.CreateCitationRequest
+	(*CitationSpan)(nil),             // 4: quark.citation.v1.CitationSpan
+	(*VerifyGroundingRequest)(nil),   // 5: quark.citation.v1.VerifyGroundingRequest
+	(*GroundedClaim)(nil),            // 6: quark.citation.v1.GroundedClaim
+	(*VerifyGroundingResponse)(nil),  // 7: quark.citation.v1.VerifyGroundingResponse
+	(*ScoreCoverageRequest)(nil),     // 8: quark.citation.v1.ScoreCoverageRequest
+	(*ScoreCoverageResponse)(nil),    // 9: quark.citation.v1.ScoreCoverageResponse
+	(*RenderReferencesRequest)(nil),  // 10: quark.citation.v1.RenderReferencesRequest
+	(*RenderReferencesResponse)(nil), // 11: quark.citation.v1.RenderReferencesResponse
+	(*SourceReference)(nil),          // 12: quark.citation.v1.SourceReference
+	(*GroundingResult)(nil),          // 13: quark.citation.v1.GroundingResult
 }
 var file_quark_citation_v1_citation_proto_depIdxs = []int32{
-	1, // 0: quark.citation.v1.ResolveSpansRequest.queries:type_name -> quark.citation.v1.SpanQuery
-	3, // 1: quark.citation.v1.ResolveSpansResponse.spans:type_name -> quark.citation.v1.CitationSpan
-	5, // 2: quark.citation.v1.VerifyGroundingRequest.claims:type_name -> quark.citation.v1.GroundedClaim
-	3, // 3: quark.citation.v1.GroundedClaim.citations:type_name -> quark.citation.v1.CitationSpan
-	7, // 4: quark.citation.v1.VerifyGroundingResponse.results:type_name -> quark.citation.v1.GroundingResult
-	0, // 5: quark.citation.v1.CitationService.ResolveSpans:input_type -> quark.citation.v1.ResolveSpansRequest
-	4, // 6: quark.citation.v1.CitationService.VerifyGrounding:input_type -> quark.citation.v1.VerifyGroundingRequest
-	2, // 7: quark.citation.v1.CitationService.ResolveSpans:output_type -> quark.citation.v1.ResolveSpansResponse
-	6, // 8: quark.citation.v1.CitationService.VerifyGrounding:output_type -> quark.citation.v1.VerifyGroundingResponse
-	7, // [7:9] is the sub-list for method output_type
-	5, // [5:7] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	1,  // 0: quark.citation.v1.ResolveSpansRequest.queries:type_name -> quark.citation.v1.SpanQuery
+	4,  // 1: quark.citation.v1.ResolveSpansResponse.spans:type_name -> quark.citation.v1.CitationSpan
+	6,  // 2: quark.citation.v1.VerifyGroundingRequest.claims:type_name -> quark.citation.v1.GroundedClaim
+	4,  // 3: quark.citation.v1.GroundedClaim.citations:type_name -> quark.citation.v1.CitationSpan
+	13, // 4: quark.citation.v1.VerifyGroundingResponse.results:type_name -> quark.citation.v1.GroundingResult
+	6,  // 5: quark.citation.v1.ScoreCoverageRequest.claims:type_name -> quark.citation.v1.GroundedClaim
+	13, // 6: quark.citation.v1.ScoreCoverageResponse.results:type_name -> quark.citation.v1.GroundingResult
+	4,  // 7: quark.citation.v1.RenderReferencesRequest.citations:type_name -> quark.citation.v1.CitationSpan
+	12, // 8: quark.citation.v1.RenderReferencesResponse.references:type_name -> quark.citation.v1.SourceReference
+	0,  // 9: quark.citation.v1.CitationService.ResolveSpans:input_type -> quark.citation.v1.ResolveSpansRequest
+	3,  // 10: quark.citation.v1.CitationService.CreateCitation:input_type -> quark.citation.v1.CreateCitationRequest
+	5,  // 11: quark.citation.v1.CitationService.VerifyGrounding:input_type -> quark.citation.v1.VerifyGroundingRequest
+	8,  // 12: quark.citation.v1.CitationService.ScoreCoverage:input_type -> quark.citation.v1.ScoreCoverageRequest
+	10, // 13: quark.citation.v1.CitationService.RenderReferences:input_type -> quark.citation.v1.RenderReferencesRequest
+	2,  // 14: quark.citation.v1.CitationService.ResolveSpans:output_type -> quark.citation.v1.ResolveSpansResponse
+	4,  // 15: quark.citation.v1.CitationService.CreateCitation:output_type -> quark.citation.v1.CitationSpan
+	7,  // 16: quark.citation.v1.CitationService.VerifyGrounding:output_type -> quark.citation.v1.VerifyGroundingResponse
+	9,  // 17: quark.citation.v1.CitationService.ScoreCoverage:output_type -> quark.citation.v1.ScoreCoverageResponse
+	11, // 18: quark.citation.v1.CitationService.RenderReferences:output_type -> quark.citation.v1.RenderReferencesResponse
+	14, // [14:19] is the sub-list for method output_type
+	9,  // [9:14] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_quark_citation_v1_citation_proto_init() }
@@ -583,7 +1002,7 @@ func file_quark_citation_v1_citation_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_quark_citation_v1_citation_proto_rawDesc), len(file_quark_citation_v1_citation_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

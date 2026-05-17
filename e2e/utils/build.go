@@ -21,6 +21,7 @@ type BuiltBinaries struct {
 	FS           string
 	Indexer      string
 	Embedding    string
+	Citation     string
 	Document     string
 	Ingestion    string
 	BuildRelease string
@@ -100,6 +101,7 @@ func BuildAllOnce(t *testing.T) BuiltBinaries {
 		buildRes.FS = build("./plugins/tools/fs/cmd/fs", "fs")
 		buildRes.Indexer = build("./services/indexer/cmd/indexer", "indexer")
 		buildRes.Embedding = build("./services/embedding/cmd/embedding", "embedding")
+		buildRes.Citation = build("./services/citation/cmd/citation", "citation")
 		buildRes.Document = build("./services/document/cmd/document", "document")
 		buildRes.Ingestion = build("./services/ingestion/cmd/ingestion", "ingestion")
 		buildRes.BuildRelease = build("./services/build-release/cmd/build-release", "build-release")

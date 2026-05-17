@@ -37,14 +37,17 @@
     "quark-knowledge": {
       "area": "Knowledge",
       "declared_only_permissions": [
-        "citation_ResolveSpans",
-        "citation_VerifyGrounding",
         "memory_Delete",
         "memory_Get",
         "memory_Put",
         "memory_Search"
       ],
       "implemented_permissions": [
+        "citation_CreateCitation",
+        "citation_RenderReferences",
+        "citation_ResolveSpans",
+        "citation_ScoreCoverage",
+        "citation_VerifyGrounding",
         "document_DetectType",
         "document_ExtractImages",
         "document_ExtractLayout",
@@ -80,7 +83,7 @@
       "missing_permissions": [],
       "name": "Quark Knowledge",
       "path": "plugins/agents/quark-knowledge/PROFILE.yaml",
-      "service_permission_count": 43
+      "service_permission_count": 46
     },
     "quark-system": {
       "area": "System",
@@ -168,11 +171,11 @@
       ]
     },
     "Knowledge": {
-      "declared_only_function_count": 6,
-      "implemented_function_count": 32,
+      "declared_only_function_count": 4,
+      "implemented_function_count": 37,
       "profile_count": 1,
       "proto_mismatch_count": 0,
-      "runnable_service_count": 5,
+      "runnable_service_count": 6,
       "service_count": 7,
       "services": [
         "document",
@@ -478,43 +481,85 @@
     },
     "citation": {
       "address_env": "QUARK_CITATION_ADDR",
-      "declared_only_function_count": 2,
-      "function_count": 2,
+      "declared_only_function_count": 0,
+      "function_count": 5,
       "functions": [
         {
           "approval_required": false,
           "idempotent": true,
           "method": "ResolveSpans",
-          "method_implemented": false,
+          "method_implemented": true,
           "name": "citation_ResolveSpans",
           "proto_rpc_exists": true,
           "request": "quark.citation.v1.ResolveSpansRequest",
           "response": "quark.citation.v1.ResolveSpansResponse",
           "risk_level": "read",
           "service": "quark.citation.v1.CitationService",
-          "status": "declared_only",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "CreateCitation",
+          "method_implemented": true,
+          "name": "citation_CreateCitation",
+          "proto_rpc_exists": true,
+          "request": "quark.citation.v1.CreateCitationRequest",
+          "response": "quark.citation.v1.CitationSpan",
+          "risk_level": "read",
+          "service": "quark.citation.v1.CitationService",
+          "status": "implemented_end_to_end",
           "streaming": false
         },
         {
           "approval_required": false,
           "idempotent": true,
           "method": "VerifyGrounding",
-          "method_implemented": false,
+          "method_implemented": true,
           "name": "citation_VerifyGrounding",
           "proto_rpc_exists": true,
           "request": "quark.citation.v1.VerifyGroundingRequest",
           "response": "quark.citation.v1.VerifyGroundingResponse",
           "risk_level": "read",
           "service": "quark.citation.v1.CitationService",
-          "status": "declared_only",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "ScoreCoverage",
+          "method_implemented": true,
+          "name": "citation_ScoreCoverage",
+          "proto_rpc_exists": true,
+          "request": "quark.citation.v1.ScoreCoverageRequest",
+          "response": "quark.citation.v1.ScoreCoverageResponse",
+          "risk_level": "read",
+          "service": "quark.citation.v1.CitationService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "RenderReferences",
+          "method_implemented": true,
+          "name": "citation_RenderReferences",
+          "proto_rpc_exists": true,
+          "request": "quark.citation.v1.RenderReferencesRequest",
+          "response": "quark.citation.v1.RenderReferencesResponse",
+          "risk_level": "read",
+          "service": "quark.citation.v1.CitationService",
+          "status": "implemented_end_to_end",
           "streaming": false
         }
       ],
       "health_service": "quark.citation.v1.CitationService",
-      "implemented_function_count": 0,
+      "implemented_function_count": 5,
       "manifest_path": "plugins/services/citation/manifest.yaml",
-      "module_exists": false,
-      "module_path": "",
+      "module_exists": true,
+      "module_path": "services/citation",
       "proto_mismatch_count": 0,
       "proto_services": [
         "quark.citation.v1.CitationService"
@@ -2252,11 +2297,11 @@
   },
   "summary": {
     "agent_profile_count": 3,
-    "declared_only_or_mismatched_function_count": 42,
+    "declared_only_or_mismatched_function_count": 40,
     "e2e_test_file_count": 23,
-    "implemented_service_function_count": 71,
-    "runnable_service_module_count": 9,
-    "service_function_count": 113,
+    "implemented_service_function_count": 76,
+    "runnable_service_module_count": 10,
+    "service_function_count": 116,
     "service_plugin_count": 13
   },
   "version": 1

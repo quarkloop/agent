@@ -15,7 +15,8 @@ Keep the agent as coordinator:
 - call embedding and indexer service functions with agent-produced chunks,
   facts, entities, relations, citations, embeddings, and provenance,
 - call citation service functions to resolve spans or verify grounding when
-  evidence needs mechanical verification,
+  evidence needs mechanical verification, coverage scoring, or rendered source
+  references,
 - call memory service functions only for explicit durable memories,
 - answer only from retrieved context when the user asks about indexed sources.
 

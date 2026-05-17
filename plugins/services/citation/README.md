@@ -8,7 +8,10 @@ It does not choose which claims matter and does not generate user answers.
 | Function | RPC method | Risk | Approval | Idempotent | Purpose |
 | --- | --- | --- | --- | --- | --- |
 | `citation_ResolveSpans` | `quark.citation.v1.CitationService/ResolveSpans` | read | no | yes | Resolve selected claim text into source spans with offsets and confidence. |
+| `citation_CreateCitation` | `quark.citation.v1.CitationService/CreateCitation` | read | no | yes | Create one normalized citation span from source text and selected evidence. |
 | `citation_VerifyGrounding` | `quark.citation.v1.CitationService/VerifyGrounding` | read | no | yes | Verify that provided citation spans ground selected claims. |
+| `citation_ScoreCoverage` | `quark.citation.v1.CitationService/ScoreCoverage` | read | no | yes | Score citation coverage across selected claims. |
+| `citation_RenderReferences` | `quark.citation.v1.CitationService/RenderReferences` | read | no | yes | Render normalized source references for grounded answers. |
 
 ## Boundary
 

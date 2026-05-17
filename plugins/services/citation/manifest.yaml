@@ -30,12 +30,42 @@ service:
       approval_required: false
       streaming: false
       idempotent: true
+    - name: citation_CreateCitation
+      service: quark.citation.v1.CitationService
+      method: CreateCitation
+      request: quark.citation.v1.CreateCitationRequest
+      response: quark.citation.v1.CitationSpan
+      description: "Create one normalized citation span from source text and selected evidence."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
     - name: citation_VerifyGrounding
       service: quark.citation.v1.CitationService
       method: VerifyGrounding
       request: quark.citation.v1.VerifyGroundingRequest
       response: quark.citation.v1.VerifyGroundingResponse
       description: "Mechanically verify that selected claims are grounded by provided citation spans."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: citation_ScoreCoverage
+      service: quark.citation.v1.CitationService
+      method: ScoreCoverage
+      request: quark.citation.v1.ScoreCoverageRequest
+      response: quark.citation.v1.ScoreCoverageResponse
+      description: "Score citation coverage across selected claims."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: citation_RenderReferences
+      service: quark.citation.v1.CitationService
+      method: RenderReferences
+      request: quark.citation.v1.RenderReferencesRequest
+      response: quark.citation.v1.RenderReferencesResponse
+      description: "Render normalized source references for grounded answers."
       risk_level: read
       approval_required: false
       streaming: false

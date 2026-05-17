@@ -96,6 +96,7 @@ func installSpacePlugins(t *testing.T, env *E2EEnv, bins BuiltBinaries, includeK
 		installService("indexer")
 		installService("document")
 		installService("ingestion")
+		installService("citation")
 		embeddingPlugin := env.Embedding.Plugin
 		if embeddingPlugin == "" {
 			embeddingPlugin = "embedding"
@@ -150,6 +151,7 @@ func quarkfileFor(name, provider, model string, embedding EmbeddingOptions, serv
 		pluginRefs += fmt.Sprintf(`  - ref: quark/service-indexer
   - ref: quark/service-document
   - ref: quark/service-ingestion
+  - ref: quark/service-citation
   - ref: quark/service-%s
 `, embedding.Plugin)
 		serviceBlocks += fmt.Sprintf(`  - name: indexer
@@ -164,6 +166,10 @@ func quarkfileFor(name, provider, model string, embedding EmbeddingOptions, serv
     ref: quark/service-ingestion
     mode: local
     address_env: QUARK_INGESTION_ADDR
+  - name: citation
+    ref: quark/service-citation
+    mode: local
+    address_env: QUARK_CITATION_ADDR
   - name: embedding
     ref: quark/service-%s
     mode: %s
@@ -440,6 +446,9 @@ func serviceAddressesFromOptions(embedding EmbeddingOptions, services []ServiceP
 	}
 	if addr := supervisorEnv["QUARK_INGESTION_ADDR"]; addr != "" {
 		addresses["ingestion"] = addr
+	}
+	if addr := supervisorEnv["QUARK_CITATION_ADDR"]; addr != "" {
+		addresses["citation"] = addr
 	}
 	for _, service := range services {
 		service = service.withDefaults()
