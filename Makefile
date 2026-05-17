@@ -31,7 +31,7 @@ MODULES := \
 		plugins/providers/openai \
 		plugins/providers/anthropic
 
-.PHONY: all build clean test test-e2e test-e2e-local vet fmt fmt-check tidy proto arch-check boundary-check dead-code-check check release-check \
+.PHONY: all build clean test test-e2e test-e2e-local vet fmt fmt-check tidy proto arch-check boundary-check service-inventory service-inventory-check dead-code-check check release-check \
 		build-supervisor build-runtime build-cli \
 		build-plugins build-tools build-tools-lib build-providers build-services
 
@@ -112,8 +112,16 @@ test-e2e-local:
 test-e2e:
 		go test -tags e2e -v -timeout 20m ./e2e
 
+## Refresh the code-owned service implementation map
+service-inventory:
+		python3 scripts/service_inventory.py --write
+
+## Verify the code-owned service implementation map is current
+service-inventory-check:
+		python3 scripts/service_inventory.py --check
+
 ## Check coarse package ownership and import boundaries
-arch-check:
+arch-check: service-inventory-check
 		python3 scripts/check-architecture.py
 
 boundary-check: arch-check
