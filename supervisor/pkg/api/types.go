@@ -329,10 +329,13 @@ type HubPluginInfo struct {
 type ServiceStatus string
 
 const (
+	ServiceStatusStarting     ServiceStatus = "starting"
 	ServiceStatusReady        ServiceStatus = "ready"
 	ServiceStatusUnavailable  ServiceStatus = "unavailable"
 	ServiceStatusMissing      ServiceStatus = "missing"
 	ServiceStatusUnconfigured ServiceStatus = "unconfigured"
+	ServiceStatusStopping     ServiceStatus = "stopping"
+	ServiceStatusStopped      ServiceStatus = "stopped"
 )
 
 type ServiceFunctionInfo struct {
@@ -354,7 +357,10 @@ type ServiceInfo struct {
 	Mode          string                `json:"mode"`
 	Description   string                `json:"description"`
 	Status        ServiceStatus         `json:"status"`
+	PID           int                   `json:"pid,omitempty"`
 	Endpoint      string                `json:"endpoint,omitempty"`
+	LogPath       string                `json:"log_path,omitempty"`
+	StartedAt     *time.Time            `json:"started_at,omitempty"`
 	AddressEnv    string                `json:"address_env,omitempty"`
 	HealthService string                `json:"health_service,omitempty"`
 	MinVersion    string                `json:"min_version,omitempty"`
@@ -368,16 +374,18 @@ type ListServicesResponse struct {
 }
 
 type ServiceLogsResponse struct {
-	Name      string `json:"name"`
-	Supported bool   `json:"supported"`
-	Message   string `json:"message"`
+	Name    string `json:"name"`
+	LogPath string `json:"log_path,omitempty"`
+	Content string `json:"content,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
-type ServiceRestartResponse struct {
-	Name      string `json:"name"`
-	Supported bool   `json:"supported"`
-	Message   string `json:"message"`
+type ServiceLifecycleResponse struct {
+	Service ServiceInfo `json:"service"`
+	Message string      `json:"message,omitempty"`
 }
+
+type ServiceRestartResponse = ServiceLifecycleResponse
 
 type ServiceDoctorResponse struct {
 	Services []ServiceInfo `json:"services"`

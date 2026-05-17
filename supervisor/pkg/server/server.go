@@ -25,6 +25,7 @@ import (
 	"github.com/quarkloop/supervisor/pkg/events"
 	"github.com/quarkloop/supervisor/pkg/runtime"
 	"github.com/quarkloop/supervisor/pkg/runtime/launchenv"
+	"github.com/quarkloop/supervisor/pkg/serviceprocess"
 	"github.com/quarkloop/supervisor/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/space/grpcstore"
 	"google.golang.org/grpc"
@@ -39,6 +40,9 @@ type Config struct {
 	SpacesDir string
 	// RuntimeBin is the path (or name on $PATH) of the runtime binary to launch.
 	RuntimeBin string
+	// ServiceBinDir is the directory containing supervisor-managed service
+	// binaries such as indexer-service and embedding-service.
+	ServiceBinDir string
 	// SpaceServiceAddr is an existing SpaceService gRPC address. When empty,
 	// the supervisor starts an embedded local SpaceService and still talks to
 	// it through gRPC.
@@ -54,6 +58,7 @@ type Server struct {
 	registry  *runtime.Registry
 	launcher  *runtime.Launcher
 	launchEnv launchenv.Builder
+	services  *serviceprocess.Manager
 	events    *events.Bus
 
 	spaceConn        *grpcstore.Store
@@ -67,6 +72,9 @@ func New(cfg Config) (*Server, error) {
 	}
 	if cfg.RuntimeBin == "" {
 		cfg.RuntimeBin = "runtime"
+	}
+	if cfg.ServiceBinDir == "" {
+		cfg.ServiceBinDir = "bin"
 	}
 	root := cfg.SpacesDir
 	if root == "" {
@@ -112,6 +120,7 @@ func New(cfg Config) (*Server, error) {
 		registry:         runtimesReg,
 		launcher:         runtimesLauncher,
 		launchEnv:        runtimeEnvBuilder,
+		services:         serviceprocess.NewManager(),
 		events:           events.NewBus(),
 		spaceConn:        store,
 		spaceServiceGRPC: spaceGRPC,

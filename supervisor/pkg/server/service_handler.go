@@ -3,6 +3,10 @@ package server
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/quarkloop/pkg/plugin"
@@ -10,6 +14,7 @@ import (
 	spacemodel "github.com/quarkloop/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/api"
 	"github.com/quarkloop/supervisor/pkg/pluginmanager"
+	"github.com/quarkloop/supervisor/pkg/serviceprocess"
 )
 
 func (s *Server) handleListServices(c *fiber.Ctx) error {
@@ -42,24 +47,50 @@ func (s *Server) handleServiceLogs(c *fiber.Ctx) error {
 		return s.writeSpaceError(c, space, err)
 	}
 	name := c.Params("service")
-	return writeJSON(c, fiber.StatusOK, api.ServiceLogsResponse{
-		Name:      name,
-		Supported: false,
-		Message:   "service log streaming is not available until supervisor owns service process lifecycle",
-	})
+	content, state, ok, err := s.services.Logs(space, name, 64*1024)
+	if err != nil {
+		return writeError(c, fiber.StatusInternalServerError, err.Error())
+	}
+	if !ok {
+		return writeError(c, fiber.StatusNotFound, fmt.Sprintf("service %q is not supervisor-managed", name))
+	}
+	return writeJSON(c, fiber.StatusOK, api.ServiceLogsResponse{Name: name, LogPath: state.LogPath, Content: content})
+}
+
+func (s *Server) handleStartService(c *fiber.Ctx) error {
+	space := c.Params("name")
+	name := c.Params("service")
+	info, err := s.startManagedService(c.Context(), space, name)
+	if err != nil {
+		return s.writeServiceLifecycleError(c, space, err)
+	}
+	return writeJSON(c, fiber.StatusCreated, api.ServiceLifecycleResponse{Service: info, Message: "service start requested"})
+}
+
+func (s *Server) handleStopService(c *fiber.Ctx) error {
+	space := c.Params("name")
+	name := c.Params("service")
+	if _, err := s.store.Get(space); err != nil {
+		return s.writeSpaceError(c, space, err)
+	}
+	if _, err := s.services.Stop(c.Context(), space, name); err != nil {
+		return writeError(c, fiber.StatusNotFound, err.Error())
+	}
+	info, err := s.inspectService(c.Context(), space, name)
+	if err != nil {
+		return s.writeServiceLifecycleError(c, space, err)
+	}
+	return writeJSON(c, fiber.StatusOK, api.ServiceLifecycleResponse{Service: info, Message: "service stop requested"})
 }
 
 func (s *Server) handleRestartService(c *fiber.Ctx) error {
 	space := c.Params("name")
-	if _, err := s.store.Get(space); err != nil {
-		return s.writeSpaceError(c, space, err)
-	}
 	name := c.Params("service")
-	return writeJSON(c, fiber.StatusOK, api.ServiceRestartResponse{
-		Name:      name,
-		Supported: false,
-		Message:   "service restart is not available until supervisor owns service process lifecycle",
-	})
+	info, err := s.restartManagedService(c.Context(), space, name)
+	if err != nil {
+		return s.writeServiceLifecycleError(c, space, err)
+	}
+	return writeJSON(c, fiber.StatusOK, api.ServiceRestartResponse{Service: info, Message: "service restart requested"})
 }
 
 func (s *Server) handleServiceDoctor(c *fiber.Ctx) error {
@@ -83,6 +114,19 @@ func (s *Server) handleServiceDoctor(c *fiber.Ctx) error {
 	return writeJSON(c, fiber.StatusOK, api.ServiceDoctorResponse{Services: services, Issues: issues})
 }
 
+func (s *Server) inspectService(ctx context.Context, space, serviceName string) (api.ServiceInfo, error) {
+	services, err := s.inspectServices(ctx, space)
+	if err != nil {
+		return api.ServiceInfo{}, err
+	}
+	for _, service := range services {
+		if service.Name == serviceName {
+			return service, nil
+		}
+	}
+	return api.ServiceInfo{}, fmt.Errorf("service %q not found", serviceName)
+}
+
 func (s *Server) inspectServices(ctx context.Context, space string) ([]api.ServiceInfo, error) {
 	mgr, err := s.store.Plugins(space)
 	if err != nil {
@@ -99,12 +143,12 @@ func (s *Server) inspectServices(ctx context.Context, space string) ([]api.Servi
 	out := make([]api.ServiceInfo, 0, len(installed))
 	for _, item := range installed {
 		configured := serviceConfig[item.Manifest.Name]
-		out = append(out, s.inspectInstalledService(ctx, item, configured))
+		out = append(out, s.inspectInstalledService(ctx, space, item, configured))
 	}
 	return out, nil
 }
 
-func (s *Server) inspectInstalledService(ctx context.Context, item pluginmanager.InstalledPlugin, configured spacemodel.ServiceRef) api.ServiceInfo {
+func (s *Server) inspectInstalledService(ctx context.Context, space string, item pluginmanager.InstalledPlugin, configured spacemodel.ServiceRef) api.ServiceInfo {
 	info := api.ServiceInfo{
 		Name:        item.Manifest.Name,
 		Type:        string(item.Manifest.Type),
@@ -128,6 +172,15 @@ func (s *Server) inspectInstalledService(ctx context.Context, item pluginmanager
 	info.FunctionCount = len(info.Functions)
 
 	address := servicePluginAddress(item.Manifest, configured)
+	if managed, ok := s.managedServiceState(space, item.Manifest.Name); ok {
+		applyManagedServiceState(&info, managed)
+		if managed.Endpoint != "" {
+			address = managed.Endpoint
+		}
+		if managed.Status == api.ServiceStatusStopped || managed.Status == api.ServiceStatusStopping || managed.Status == api.ServiceStatusStarting {
+			return info
+		}
+	}
 	if address == "" {
 		if servicePluginReadinessRequired(item.Manifest, configured) {
 			info.Status = api.ServiceStatusMissing
@@ -167,6 +220,11 @@ func (s *Server) inspectInstalledService(ctx context.Context, item pluginmanager
 		return info
 	}
 	info.Status = api.ServiceStatusReady
+	if managed, ok := s.managedServiceState(space, item.Manifest.Name); ok {
+		s.services.MarkReady(space, item.Manifest.Name)
+		applyManagedServiceState(&info, managed)
+		info.Status = api.ServiceStatusReady
+	}
 	if count := descriptorFunctionCount(pluginDescriptors); count > 0 {
 		info.FunctionCount = count
 	}
@@ -197,4 +255,188 @@ func descriptorFunctionCount(descriptors []*servicev1.ServiceDescriptor) int {
 		total += len(desc.GetRpcs())
 	}
 	return total
+}
+
+func (s *Server) managedServiceState(space, serviceName string) (serviceprocess.State, bool) {
+	if s.services == nil {
+		return serviceprocess.State{}, false
+	}
+	return s.services.Inspect(space, serviceName)
+}
+
+func (s *Server) startManagedService(ctx context.Context, space, serviceName string) (api.ServiceInfo, error) {
+	item, configured, err := s.installedService(space, serviceName)
+	if err != nil {
+		return api.ServiceInfo{}, err
+	}
+	spec, err := s.serviceProcessSpec(space, item, configured)
+	if err != nil {
+		return api.ServiceInfo{}, err
+	}
+	if _, err := s.services.Start(ctx, spec); err != nil {
+		return api.ServiceInfo{}, err
+	}
+	s.waitForManagedServiceReadiness(ctx, spec, item.Manifest)
+	return s.inspectService(ctx, space, serviceName)
+}
+
+func (s *Server) restartManagedService(ctx context.Context, space, serviceName string) (api.ServiceInfo, error) {
+	item, configured, err := s.installedService(space, serviceName)
+	if err != nil {
+		return api.ServiceInfo{}, err
+	}
+	spec, err := s.serviceProcessSpec(space, item, configured)
+	if err != nil {
+		return api.ServiceInfo{}, err
+	}
+	if _, err := s.services.Restart(ctx, spec); err != nil {
+		return api.ServiceInfo{}, err
+	}
+	s.waitForManagedServiceReadiness(ctx, spec, item.Manifest)
+	return s.inspectService(ctx, space, serviceName)
+}
+
+func (s *Server) installedService(space, serviceName string) (pluginmanager.InstalledPlugin, spacemodel.ServiceRef, error) {
+	if _, err := s.store.Get(space); err != nil {
+		return pluginmanager.InstalledPlugin{}, spacemodel.ServiceRef{}, err
+	}
+	mgr, err := s.store.Plugins(space)
+	if err != nil {
+		return pluginmanager.InstalledPlugin{}, spacemodel.ServiceRef{}, err
+	}
+	installed, err := mgr.ListByType(plugin.TypeService)
+	if err != nil {
+		return pluginmanager.InstalledPlugin{}, spacemodel.ServiceRef{}, err
+	}
+	config, err := s.serviceConfigByPluginName(space)
+	if err != nil {
+		return pluginmanager.InstalledPlugin{}, spacemodel.ServiceRef{}, err
+	}
+	for _, item := range installed {
+		if item.Manifest.Name == serviceName {
+			return item, config[item.Manifest.Name], nil
+		}
+	}
+	return pluginmanager.InstalledPlugin{}, spacemodel.ServiceRef{}, fmt.Errorf("service %q not found", serviceName)
+}
+
+func (s *Server) serviceProcessSpec(space string, item pluginmanager.InstalledPlugin, configured spacemodel.ServiceRef) (serviceprocess.ProcessSpec, error) {
+	if item.Manifest.Service == nil {
+		return serviceprocess.ProcessSpec{}, fmt.Errorf("service %q has no service config", item.Manifest.Name)
+	}
+	address := servicePluginAddress(item.Manifest, configured)
+	if address == "" {
+		port, err := reservePort()
+		if err != nil {
+			return serviceprocess.ProcessSpec{}, err
+		}
+		address = fmt.Sprintf("127.0.0.1:%d", port)
+	}
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return serviceprocess.ProcessSpec{}, err
+	}
+	logDir, err := serviceLogDir(space)
+	if err != nil {
+		return serviceprocess.ProcessSpec{}, err
+	}
+	env := append(os.Environ(), item.Manifest.Service.AddressEnv+"="+address)
+	args := []string{"--addr", address, "--skill-dir", item.Path}
+	switch item.Manifest.Name {
+	case "indexer":
+		dgraphAddr := firstEnv("QUARK_DGRAPH_ADDR", "DGRAPH_TEST_ADDR", "DGRAPH_ADDR")
+		if dgraphAddr != "" {
+			args = append(args, "--dgraph", dgraphAddr)
+		}
+	case "embedding-openrouter":
+		env = append(env, "QUARK_EMBEDDING_PROVIDER=openrouter")
+	}
+	return serviceprocess.ProcessSpec{
+		Space:         space,
+		Name:          item.Manifest.Name,
+		Binary:        s.serviceBinaryPath(item.Manifest),
+		Args:          args,
+		Env:           env,
+		WorkingDir:    workingDir,
+		Endpoint:      address,
+		HealthService: healthServiceName(item.Manifest),
+		LogPath:       filepath.Join(logDir, item.Manifest.Name+".log"),
+	}, nil
+}
+
+func (s *Server) serviceBinaryPath(manifest *plugin.Manifest) string {
+	target := manifest.Name + "-service"
+	if manifest.Build != nil && manifest.Build.APITarget != "" {
+		target = manifest.Build.APITarget
+	}
+	switch manifest.Name {
+	case "embedding-openrouter":
+		target = "embedding-service"
+	case "build-release":
+		target = "build-release-service"
+	}
+	return filepath.Join(s.cfg.ServiceBinDir, target)
+}
+
+func (s *Server) waitForManagedServiceReadiness(ctx context.Context, spec serviceprocess.ProcessSpec, manifest *plugin.Manifest) {
+	deadline, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	var lastErr error
+	for {
+		if err := checkServicePluginReadiness(deadline, spec.Endpoint, manifest); err == nil {
+			s.services.MarkReady(spec.Space, spec.Name)
+			return
+		} else {
+			lastErr = err
+		}
+		select {
+		case <-deadline.Done():
+			if lastErr != nil {
+				s.services.MarkUnavailable(spec.Space, spec.Name, lastErr.Error())
+			}
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func applyManagedServiceState(info *api.ServiceInfo, state serviceprocess.State) {
+	info.Status = state.Status
+	info.PID = state.PID
+	info.Endpoint = state.Endpoint
+	info.LogPath = state.LogPath
+	info.Diagnostics = append([]string(nil), state.Diagnostics...)
+	if !state.StartedAt.IsZero() {
+		started := state.StartedAt
+		info.StartedAt = &started
+	}
+}
+
+func (s *Server) writeServiceLifecycleError(c *fiber.Ctx, space string, err error) error {
+	if err == nil {
+		return nil
+	}
+	if strings.Contains(err.Error(), "not found") {
+		return writeError(c, fiber.StatusNotFound, err.Error())
+	}
+	return s.writeSpaceError(c, space, err)
+}
+
+func serviceLogDir(space string) (string, error) {
+	root := filepath.Join(os.TempDir(), "quark-supervisor-services", space)
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		return "", err
+	}
+	return root, nil
+}
+
+func firstEnv(keys ...string) string {
+	for _, key := range keys {
+		if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+			return value
+		}
+	}
+	return ""
 }

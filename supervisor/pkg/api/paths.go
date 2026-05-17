@@ -45,6 +45,8 @@ const (
 	routeSpaceServices   = "/v1/spaces/%s/services"
 	routeSpaceService    = "/v1/spaces/%s/services/%s"
 	routeServiceLogs     = "/v1/spaces/%s/services/%s/logs"
+	routeServiceStart    = "/v1/spaces/%s/services/%s/start"
+	routeServiceStop     = "/v1/spaces/%s/services/%s/stop"
 	routeServiceRestart  = "/v1/spaces/%s/services/%s/restart"
 	routeServiceDoctor   = "/v1/spaces/%s/services/doctor"
 	routeSpaceSessions   = "/v1/spaces/%s/sessions"
@@ -83,6 +85,12 @@ func (RouteBuilder) SpaceService(n, service string) string {
 }
 func (RouteBuilder) SpaceServiceLogs(n, service string) string {
 	return fmt.Sprintf(routeServiceLogs, n, service)
+}
+func (RouteBuilder) SpaceServiceStart(n, service string) string {
+	return fmt.Sprintf(routeServiceStart, n, service)
+}
+func (RouteBuilder) SpaceServiceStop(n, service string) string {
+	return fmt.Sprintf(routeServiceStop, n, service)
 }
 func (RouteBuilder) SpaceServiceRestart(n, service string) string {
 	return fmt.Sprintf(routeServiceRestart, n, service)

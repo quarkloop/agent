@@ -25,6 +25,18 @@ func (c *Client) ServiceLogs(ctx context.Context, space, service string) (api.Se
 	return out, err
 }
 
+func (c *Client) StartService(ctx context.Context, space, service string) (api.ServiceLifecycleResponse, error) {
+	var out api.ServiceLifecycleResponse
+	err := c.do(ctx, http.MethodPost, c.route.SpaceServiceStart(space, service), nil, &out)
+	return out, err
+}
+
+func (c *Client) StopService(ctx context.Context, space, service string) (api.ServiceLifecycleResponse, error) {
+	var out api.ServiceLifecycleResponse
+	err := c.do(ctx, http.MethodPost, c.route.SpaceServiceStop(space, service), nil, &out)
+	return out, err
+}
+
 func (c *Client) RestartService(ctx context.Context, space, service string) (api.ServiceRestartResponse, error) {
 	var out api.ServiceRestartResponse
 	err := c.do(ctx, http.MethodPost, c.route.SpaceServiceRestart(space, service), nil, &out)

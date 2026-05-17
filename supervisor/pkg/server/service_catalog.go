@@ -13,6 +13,7 @@ import (
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	spacemodel "github.com/quarkloop/pkg/space"
+	"github.com/quarkloop/supervisor/pkg/api"
 	"github.com/quarkloop/supervisor/pkg/pluginmanager"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -139,7 +140,7 @@ func (s *Server) resolveServicePluginCatalog(ctx context.Context, space string) 
 	descriptors := make([]*servicev1.ServiceDescriptor, 0, len(installed))
 	for _, item := range installed {
 		configured := serviceConfig[item.Manifest.Name]
-		address := servicePluginAddress(item.Manifest, configured)
+		address := s.serviceCatalogAddress(space, item.Manifest, configured)
 		if address == "" {
 			if servicePluginReadinessRequired(item.Manifest, configured) {
 				return nil, fmt.Errorf("service plugin %s missing endpoint: set %s or configure services[].address", item.Manifest.Name, item.Manifest.Service.AddressEnv)
@@ -316,6 +317,17 @@ func servicePluginAddress(manifest *plugin.Manifest, configured spacemodel.Servi
 		}
 	}
 	return strings.TrimSpace(manifest.Service.DefaultAddress)
+}
+
+func (s *Server) serviceCatalogAddress(space string, manifest *plugin.Manifest, configured spacemodel.ServiceRef) string {
+	if manifest != nil {
+		if s.services != nil {
+			if state, ok := s.services.Inspect(space, manifest.Name); ok && state.Endpoint != "" && state.Status != api.ServiceStatusStopped {
+				return state.Endpoint
+			}
+		}
+	}
+	return servicePluginAddress(manifest, configured)
 }
 
 func servicePluginReadinessRequired(manifest *plugin.Manifest, configured spacemodel.ServiceRef) bool {

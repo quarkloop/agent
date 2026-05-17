@@ -39,6 +39,8 @@ func (s *Server) routes() {
 	app.Post("/v1/spaces/:name/services/doctor", s.handleServiceDoctor)
 	app.Get("/v1/spaces/:name/services/:service", s.handleInspectService)
 	app.Get("/v1/spaces/:name/services/:service/logs", s.handleServiceLogs)
+	app.Post("/v1/spaces/:name/services/:service/start", s.handleStartService)
+	app.Post("/v1/spaces/:name/services/:service/stop", s.handleStopService)
 	app.Post("/v1/spaces/:name/services/:service/restart", s.handleRestartService)
 
 	// Sessions
