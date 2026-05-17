@@ -91,6 +91,7 @@ const (
 	SourceStatus_SOURCE_STATUS_SUCCEEDED   SourceStatus = 3
 	SourceStatus_SOURCE_STATUS_FAILED      SourceStatus = 4
 	SourceStatus_SOURCE_STATUS_SKIPPED     SourceStatus = 5
+	SourceStatus_SOURCE_STATUS_CANCELLED   SourceStatus = 6
 )
 
 // Enum value maps for SourceStatus.
@@ -102,6 +103,7 @@ var (
 		3: "SOURCE_STATUS_SUCCEEDED",
 		4: "SOURCE_STATUS_FAILED",
 		5: "SOURCE_STATUS_SKIPPED",
+		6: "SOURCE_STATUS_CANCELLED",
 	}
 	SourceStatus_value = map[string]int32{
 		"SOURCE_STATUS_UNSPECIFIED": 0,
@@ -110,6 +112,7 @@ var (
 		"SOURCE_STATUS_SUCCEEDED":   3,
 		"SOURCE_STATUS_FAILED":      4,
 		"SOURCE_STATUS_SKIPPED":     5,
+		"SOURCE_STATUS_CANCELLED":   6,
 	}
 )
 
@@ -328,6 +331,66 @@ func (x *GetRunRequest) GetRunId() string {
 	return ""
 }
 
+type ListRunsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Space         string                 `protobuf:"bytes,1,opt,name=space,proto3" json:"space,omitempty"`
+	Status        SourceStatus           `protobuf:"varint,2,opt,name=status,proto3,enum=quark.ingestion.v1.SourceStatus" json:"status,omitempty"`
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListRunsRequest) Reset() {
+	*x = ListRunsRequest{}
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRunsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRunsRequest) ProtoMessage() {}
+
+func (x *ListRunsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRunsRequest.ProtoReflect.Descriptor instead.
+func (*ListRunsRequest) Descriptor() ([]byte, []int) {
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ListRunsRequest) GetSpace() string {
+	if x != nil {
+		return x.Space
+	}
+	return ""
+}
+
+func (x *ListRunsRequest) GetStatus() SourceStatus {
+	if x != nil {
+		return x.Status
+	}
+	return SourceStatus_SOURCE_STATUS_UNSPECIFIED
+}
+
+func (x *ListRunsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
 type ResumeRunRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
@@ -337,7 +400,7 @@ type ResumeRunRequest struct {
 
 func (x *ResumeRunRequest) Reset() {
 	*x = ResumeRunRequest{}
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[3]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -349,7 +412,7 @@ func (x *ResumeRunRequest) String() string {
 func (*ResumeRunRequest) ProtoMessage() {}
 
 func (x *ResumeRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[3]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -362,7 +425,7 @@ func (x *ResumeRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeRunRequest.ProtoReflect.Descriptor instead.
 func (*ResumeRunRequest) Descriptor() ([]byte, []int) {
-	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{3}
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ResumeRunRequest) GetRunId() string {
@@ -387,7 +450,7 @@ type UpdateSourceStateRequest struct {
 
 func (x *UpdateSourceStateRequest) Reset() {
 	*x = UpdateSourceStateRequest{}
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[4]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -399,7 +462,7 @@ func (x *UpdateSourceStateRequest) String() string {
 func (*UpdateSourceStateRequest) ProtoMessage() {}
 
 func (x *UpdateSourceStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[4]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -412,7 +475,7 @@ func (x *UpdateSourceStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSourceStateRequest.ProtoReflect.Descriptor instead.
 func (*UpdateSourceStateRequest) Descriptor() ([]byte, []int) {
-	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{4}
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *UpdateSourceStateRequest) GetRunId() string {
@@ -464,6 +527,270 @@ func (x *UpdateSourceStateRequest) GetMetadata() map[string]string {
 	return nil
 }
 
+type AppendArtifactRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	SourceId      string                 `protobuf:"bytes,2,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
+	Artifact      *IngestionArtifact     `protobuf:"bytes,3,opt,name=artifact,proto3" json:"artifact,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AppendArtifactRequest) Reset() {
+	*x = AppendArtifactRequest{}
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AppendArtifactRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AppendArtifactRequest) ProtoMessage() {}
+
+func (x *AppendArtifactRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AppendArtifactRequest.ProtoReflect.Descriptor instead.
+func (*AppendArtifactRequest) Descriptor() ([]byte, []int) {
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *AppendArtifactRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *AppendArtifactRequest) GetSourceId() string {
+	if x != nil {
+		return x.SourceId
+	}
+	return ""
+}
+
+func (x *AppendArtifactRequest) GetArtifact() *IngestionArtifact {
+	if x != nil {
+		return x.Artifact
+	}
+	return nil
+}
+
+type MarkFailedRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	SourceId      string                 `protobuf:"bytes,2,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
+	Phase         SourcePhase            `protobuf:"varint,3,opt,name=phase,proto3,enum=quark.ingestion.v1.SourcePhase" json:"phase,omitempty"`
+	Error         string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	Metadata      map[string]string      `protobuf:"bytes,5,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MarkFailedRequest) Reset() {
+	*x = MarkFailedRequest{}
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MarkFailedRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MarkFailedRequest) ProtoMessage() {}
+
+func (x *MarkFailedRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MarkFailedRequest.ProtoReflect.Descriptor instead.
+func (*MarkFailedRequest) Descriptor() ([]byte, []int) {
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *MarkFailedRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *MarkFailedRequest) GetSourceId() string {
+	if x != nil {
+		return x.SourceId
+	}
+	return ""
+}
+
+func (x *MarkFailedRequest) GetPhase() SourcePhase {
+	if x != nil {
+		return x.Phase
+	}
+	return SourcePhase_SOURCE_PHASE_UNSPECIFIED
+}
+
+func (x *MarkFailedRequest) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *MarkFailedRequest) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+type MarkCompleteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	SourceId      string                 `protobuf:"bytes,2,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
+	Phase         SourcePhase            `protobuf:"varint,3,opt,name=phase,proto3,enum=quark.ingestion.v1.SourcePhase" json:"phase,omitempty"`
+	ArtifactRef   string                 `protobuf:"bytes,4,opt,name=artifact_ref,json=artifactRef,proto3" json:"artifact_ref,omitempty"`
+	Metadata      map[string]string      `protobuf:"bytes,5,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MarkCompleteRequest) Reset() {
+	*x = MarkCompleteRequest{}
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MarkCompleteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MarkCompleteRequest) ProtoMessage() {}
+
+func (x *MarkCompleteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MarkCompleteRequest.ProtoReflect.Descriptor instead.
+func (*MarkCompleteRequest) Descriptor() ([]byte, []int) {
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *MarkCompleteRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *MarkCompleteRequest) GetSourceId() string {
+	if x != nil {
+		return x.SourceId
+	}
+	return ""
+}
+
+func (x *MarkCompleteRequest) GetPhase() SourcePhase {
+	if x != nil {
+		return x.Phase
+	}
+	return SourcePhase_SOURCE_PHASE_UNSPECIFIED
+}
+
+func (x *MarkCompleteRequest) GetArtifactRef() string {
+	if x != nil {
+		return x.ArtifactRef
+	}
+	return ""
+}
+
+func (x *MarkCompleteRequest) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+type CancelRunRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelRunRequest) Reset() {
+	*x = CancelRunRequest{}
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelRunRequest) ProtoMessage() {}
+
+func (x *CancelRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelRunRequest.ProtoReflect.Descriptor instead.
+func (*CancelRunRequest) Descriptor() ([]byte, []int) {
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *CancelRunRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *CancelRunRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 type ListArtifactsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
@@ -474,7 +801,7 @@ type ListArtifactsRequest struct {
 
 func (x *ListArtifactsRequest) Reset() {
 	*x = ListArtifactsRequest{}
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[5]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -486,7 +813,7 @@ func (x *ListArtifactsRequest) String() string {
 func (*ListArtifactsRequest) ProtoMessage() {}
 
 func (x *ListArtifactsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[5]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -499,7 +826,7 @@ func (x *ListArtifactsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListArtifactsRequest.ProtoReflect.Descriptor instead.
 func (*ListArtifactsRequest) Descriptor() ([]byte, []int) {
-	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{5}
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ListArtifactsRequest) GetRunId() string {
@@ -527,7 +854,7 @@ type ListIncompleteSourcesRequest struct {
 
 func (x *ListIncompleteSourcesRequest) Reset() {
 	*x = ListIncompleteSourcesRequest{}
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[6]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -539,7 +866,7 @@ func (x *ListIncompleteSourcesRequest) String() string {
 func (*ListIncompleteSourcesRequest) ProtoMessage() {}
 
 func (x *ListIncompleteSourcesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[6]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -552,7 +879,7 @@ func (x *ListIncompleteSourcesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListIncompleteSourcesRequest.ProtoReflect.Descriptor instead.
 func (*ListIncompleteSourcesRequest) Descriptor() ([]byte, []int) {
-	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{6}
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListIncompleteSourcesRequest) GetRunId() string {
@@ -585,7 +912,7 @@ type ListIncompleteSourcesResponse struct {
 
 func (x *ListIncompleteSourcesResponse) Reset() {
 	*x = ListIncompleteSourcesResponse{}
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[7]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -597,7 +924,7 @@ func (x *ListIncompleteSourcesResponse) String() string {
 func (*ListIncompleteSourcesResponse) ProtoMessage() {}
 
 func (x *ListIncompleteSourcesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[7]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -610,7 +937,7 @@ func (x *ListIncompleteSourcesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListIncompleteSourcesResponse.ProtoReflect.Descriptor instead.
 func (*ListIncompleteSourcesResponse) Descriptor() ([]byte, []int) {
-	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{7}
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListIncompleteSourcesResponse) GetSources() []*SourceState {
@@ -629,7 +956,7 @@ type ListArtifactsResponse struct {
 
 func (x *ListArtifactsResponse) Reset() {
 	*x = ListArtifactsResponse{}
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[8]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -641,7 +968,7 @@ func (x *ListArtifactsResponse) String() string {
 func (*ListArtifactsResponse) ProtoMessage() {}
 
 func (x *ListArtifactsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[8]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -654,7 +981,7 @@ func (x *ListArtifactsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListArtifactsResponse.ProtoReflect.Descriptor instead.
 func (*ListArtifactsResponse) Descriptor() ([]byte, []int) {
-	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{8}
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ListArtifactsResponse) GetArtifacts() []*IngestionArtifact {
@@ -673,7 +1000,7 @@ type StartRunResponse struct {
 
 func (x *StartRunResponse) Reset() {
 	*x = StartRunResponse{}
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[9]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -685,7 +1012,7 @@ func (x *StartRunResponse) String() string {
 func (*StartRunResponse) ProtoMessage() {}
 
 func (x *StartRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[9]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -698,7 +1025,7 @@ func (x *StartRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartRunResponse.ProtoReflect.Descriptor instead.
 func (*StartRunResponse) Descriptor() ([]byte, []int) {
-	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{9}
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *StartRunResponse) GetRun() *IngestionRun {
@@ -717,7 +1044,7 @@ type GetRunResponse struct {
 
 func (x *GetRunResponse) Reset() {
 	*x = GetRunResponse{}
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[10]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -729,7 +1056,7 @@ func (x *GetRunResponse) String() string {
 func (*GetRunResponse) ProtoMessage() {}
 
 func (x *GetRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[10]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -742,12 +1069,56 @@ func (x *GetRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunResponse.ProtoReflect.Descriptor instead.
 func (*GetRunResponse) Descriptor() ([]byte, []int) {
-	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{10}
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetRunResponse) GetRun() *IngestionRun {
 	if x != nil {
 		return x.Run
+	}
+	return nil
+}
+
+type ListRunsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Runs          []*IngestionRun        `protobuf:"bytes,1,rep,name=runs,proto3" json:"runs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListRunsResponse) Reset() {
+	*x = ListRunsResponse{}
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRunsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRunsResponse) ProtoMessage() {}
+
+func (x *ListRunsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRunsResponse.ProtoReflect.Descriptor instead.
+func (*ListRunsResponse) Descriptor() ([]byte, []int) {
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ListRunsResponse) GetRuns() []*IngestionRun {
+	if x != nil {
+		return x.Runs
 	}
 	return nil
 }
@@ -761,7 +1132,7 @@ type ResumeRunResponse struct {
 
 func (x *ResumeRunResponse) Reset() {
 	*x = ResumeRunResponse{}
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[11]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -773,7 +1144,7 @@ func (x *ResumeRunResponse) String() string {
 func (*ResumeRunResponse) ProtoMessage() {}
 
 func (x *ResumeRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[11]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -786,7 +1157,7 @@ func (x *ResumeRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeRunResponse.ProtoReflect.Descriptor instead.
 func (*ResumeRunResponse) Descriptor() ([]byte, []int) {
-	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{11}
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ResumeRunResponse) GetRun() *IngestionRun {
@@ -805,7 +1176,7 @@ type UpdateSourceStateResponse struct {
 
 func (x *UpdateSourceStateResponse) Reset() {
 	*x = UpdateSourceStateResponse{}
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[12]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -817,7 +1188,7 @@ func (x *UpdateSourceStateResponse) String() string {
 func (*UpdateSourceStateResponse) ProtoMessage() {}
 
 func (x *UpdateSourceStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[12]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -830,12 +1201,188 @@ func (x *UpdateSourceStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSourceStateResponse.ProtoReflect.Descriptor instead.
 func (*UpdateSourceStateResponse) Descriptor() ([]byte, []int) {
-	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{12}
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *UpdateSourceStateResponse) GetSource() *SourceState {
 	if x != nil {
 		return x.Source
+	}
+	return nil
+}
+
+type AppendArtifactResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Artifact      *IngestionArtifact     `protobuf:"bytes,1,opt,name=artifact,proto3" json:"artifact,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AppendArtifactResponse) Reset() {
+	*x = AppendArtifactResponse{}
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AppendArtifactResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AppendArtifactResponse) ProtoMessage() {}
+
+func (x *AppendArtifactResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AppendArtifactResponse.ProtoReflect.Descriptor instead.
+func (*AppendArtifactResponse) Descriptor() ([]byte, []int) {
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *AppendArtifactResponse) GetArtifact() *IngestionArtifact {
+	if x != nil {
+		return x.Artifact
+	}
+	return nil
+}
+
+type MarkFailedResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Run           *IngestionRun          `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MarkFailedResponse) Reset() {
+	*x = MarkFailedResponse{}
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MarkFailedResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MarkFailedResponse) ProtoMessage() {}
+
+func (x *MarkFailedResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MarkFailedResponse.ProtoReflect.Descriptor instead.
+func (*MarkFailedResponse) Descriptor() ([]byte, []int) {
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *MarkFailedResponse) GetRun() *IngestionRun {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+type MarkCompleteResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Run           *IngestionRun          `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MarkCompleteResponse) Reset() {
+	*x = MarkCompleteResponse{}
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MarkCompleteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MarkCompleteResponse) ProtoMessage() {}
+
+func (x *MarkCompleteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MarkCompleteResponse.ProtoReflect.Descriptor instead.
+func (*MarkCompleteResponse) Descriptor() ([]byte, []int) {
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *MarkCompleteResponse) GetRun() *IngestionRun {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+type CancelRunResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Run           *IngestionRun          `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelRunResponse) Reset() {
+	*x = CancelRunResponse{}
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelRunResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelRunResponse) ProtoMessage() {}
+
+func (x *CancelRunResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelRunResponse.ProtoReflect.Descriptor instead.
+func (*CancelRunResponse) Descriptor() ([]byte, []int) {
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *CancelRunResponse) GetRun() *IngestionRun {
+	if x != nil {
+		return x.Run
 	}
 	return nil
 }
@@ -856,7 +1403,7 @@ type IngestionRun struct {
 
 func (x *IngestionRun) Reset() {
 	*x = IngestionRun{}
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[13]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -868,7 +1415,7 @@ func (x *IngestionRun) String() string {
 func (*IngestionRun) ProtoMessage() {}
 
 func (x *IngestionRun) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[13]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -881,7 +1428,7 @@ func (x *IngestionRun) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IngestionRun.ProtoReflect.Descriptor instead.
 func (*IngestionRun) Descriptor() ([]byte, []int) {
-	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{13}
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *IngestionRun) GetId() string {
@@ -957,13 +1504,14 @@ type SourceState struct {
 	Embedding     *SourceStepState       `protobuf:"bytes,13,opt,name=embedding,proto3" json:"embedding,omitempty"`
 	Indexing      *SourceStepState       `protobuf:"bytes,14,opt,name=indexing,proto3" json:"indexing,omitempty"`
 	Citation      *SourceStepState       `protobuf:"bytes,15,opt,name=citation,proto3" json:"citation,omitempty"`
+	RetryCount    int32                  `protobuf:"varint,16,opt,name=retry_count,json=retryCount,proto3" json:"retry_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SourceState) Reset() {
 	*x = SourceState{}
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[14]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -975,7 +1523,7 @@ func (x *SourceState) String() string {
 func (*SourceState) ProtoMessage() {}
 
 func (x *SourceState) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[14]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -988,7 +1536,7 @@ func (x *SourceState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SourceState.ProtoReflect.Descriptor instead.
 func (*SourceState) Descriptor() ([]byte, []int) {
-	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{14}
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *SourceState) GetId() string {
@@ -1096,6 +1644,13 @@ func (x *SourceState) GetCitation() *SourceStepState {
 	return nil
 }
 
+func (x *SourceState) GetRetryCount() int32 {
+	if x != nil {
+		return x.RetryCount
+	}
+	return 0
+}
+
 type IngestionArtifact struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Ref           string                 `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
@@ -1109,7 +1664,7 @@ type IngestionArtifact struct {
 
 func (x *IngestionArtifact) Reset() {
 	*x = IngestionArtifact{}
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[15]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1121,7 +1676,7 @@ func (x *IngestionArtifact) String() string {
 func (*IngestionArtifact) ProtoMessage() {}
 
 func (x *IngestionArtifact) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[15]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1134,7 +1689,7 @@ func (x *IngestionArtifact) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IngestionArtifact.ProtoReflect.Descriptor instead.
 func (*IngestionArtifact) Descriptor() ([]byte, []int) {
-	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{15}
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *IngestionArtifact) GetRef() string {
@@ -1186,7 +1741,7 @@ type SourceStepState struct {
 
 func (x *SourceStepState) Reset() {
 	*x = SourceStepState{}
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[16]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1198,7 +1753,7 @@ func (x *SourceStepState) String() string {
 func (*SourceStepState) ProtoMessage() {}
 
 func (x *SourceStepState) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[16]
+	mi := &file_quark_ingestion_v1_ingestion_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1211,7 +1766,7 @@ func (x *SourceStepState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SourceStepState.ProtoReflect.Descriptor instead.
 func (*SourceStepState) Descriptor() ([]byte, []int) {
-	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{16}
+	return file_quark_ingestion_v1_ingestion_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *SourceStepState) GetPhase() SourcePhase {
@@ -1281,7 +1836,11 @@ const file_quark_ingestion_v1_ingestion_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"&\n" +
 	"\rGetRunRequest\x12\x15\n" +
-	"\x06run_id\x18\x01 \x01(\tR\x05runId\")\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\"w\n" +
+	"\x0fListRunsRequest\x12\x14\n" +
+	"\x05space\x18\x01 \x01(\tR\x05space\x128\n" +
+	"\x06status\x18\x02 \x01(\x0e2 .quark.ingestion.v1.SourceStatusR\x06status\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\")\n" +
 	"\x10ResumeRunRequest\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\"\x8d\x03\n" +
 	"\x18UpdateSourceStateRequest\x12\x15\n" +
@@ -1294,7 +1853,32 @@ const file_quark_ingestion_v1_ingestion_proto_rawDesc = "" +
 	"\bmetadata\x18\a \x03(\v2:.quark.ingestion.v1.UpdateSourceStateRequest.MetadataEntryR\bmetadata\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"J\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x8e\x01\n" +
+	"\x15AppendArtifactRequest\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1b\n" +
+	"\tsource_id\x18\x02 \x01(\tR\bsourceId\x12A\n" +
+	"\bartifact\x18\x03 \x01(\v2%.quark.ingestion.v1.IngestionArtifactR\bartifact\"\xa2\x02\n" +
+	"\x11MarkFailedRequest\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1b\n" +
+	"\tsource_id\x18\x02 \x01(\tR\bsourceId\x125\n" +
+	"\x05phase\x18\x03 \x01(\x0e2\x1f.quark.ingestion.v1.SourcePhaseR\x05phase\x12\x14\n" +
+	"\x05error\x18\x04 \x01(\tR\x05error\x12O\n" +
+	"\bmetadata\x18\x05 \x03(\v23.quark.ingestion.v1.MarkFailedRequest.MetadataEntryR\bmetadata\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb3\x02\n" +
+	"\x13MarkCompleteRequest\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1b\n" +
+	"\tsource_id\x18\x02 \x01(\tR\bsourceId\x125\n" +
+	"\x05phase\x18\x03 \x01(\x0e2\x1f.quark.ingestion.v1.SourcePhaseR\x05phase\x12!\n" +
+	"\fartifact_ref\x18\x04 \x01(\tR\vartifactRef\x12Q\n" +
+	"\bmetadata\x18\x05 \x03(\v25.quark.ingestion.v1.MarkCompleteRequest.MetadataEntryR\bmetadata\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"A\n" +
+	"\x10CancelRunRequest\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"J\n" +
 	"\x14ListArtifactsRequest\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1b\n" +
 	"\tsource_id\x18\x02 \x01(\tR\bsourceId\"\x85\x01\n" +
@@ -1309,11 +1893,21 @@ const file_quark_ingestion_v1_ingestion_proto_rawDesc = "" +
 	"\x10StartRunResponse\x122\n" +
 	"\x03run\x18\x01 \x01(\v2 .quark.ingestion.v1.IngestionRunR\x03run\"D\n" +
 	"\x0eGetRunResponse\x122\n" +
-	"\x03run\x18\x01 \x01(\v2 .quark.ingestion.v1.IngestionRunR\x03run\"G\n" +
+	"\x03run\x18\x01 \x01(\v2 .quark.ingestion.v1.IngestionRunR\x03run\"H\n" +
+	"\x10ListRunsResponse\x124\n" +
+	"\x04runs\x18\x01 \x03(\v2 .quark.ingestion.v1.IngestionRunR\x04runs\"G\n" +
 	"\x11ResumeRunResponse\x122\n" +
 	"\x03run\x18\x01 \x01(\v2 .quark.ingestion.v1.IngestionRunR\x03run\"T\n" +
 	"\x19UpdateSourceStateResponse\x127\n" +
-	"\x06source\x18\x01 \x01(\v2\x1f.quark.ingestion.v1.SourceStateR\x06source\"\x86\x03\n" +
+	"\x06source\x18\x01 \x01(\v2\x1f.quark.ingestion.v1.SourceStateR\x06source\"[\n" +
+	"\x16AppendArtifactResponse\x12A\n" +
+	"\bartifact\x18\x01 \x01(\v2%.quark.ingestion.v1.IngestionArtifactR\bartifact\"H\n" +
+	"\x12MarkFailedResponse\x122\n" +
+	"\x03run\x18\x01 \x01(\v2 .quark.ingestion.v1.IngestionRunR\x03run\"J\n" +
+	"\x14MarkCompleteResponse\x122\n" +
+	"\x03run\x18\x01 \x01(\v2 .quark.ingestion.v1.IngestionRunR\x03run\"G\n" +
+	"\x11CancelRunResponse\x122\n" +
+	"\x03run\x18\x01 \x01(\v2 .quark.ingestion.v1.IngestionRunR\x03run\"\x86\x03\n" +
 	"\fIngestionRun\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05space\x18\x02 \x01(\tR\x05space\x12\x14\n" +
@@ -1327,7 +1921,7 @@ const file_quark_ingestion_v1_ingestion_proto_rawDesc = "" +
 	"\bmetadata\x18\b \x03(\v2..quark.ingestion.v1.IngestionRun.MetadataEntryR\bmetadata\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc4\x06\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe5\x06\n" +
 	"\vSourceState\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -1349,7 +1943,9 @@ const file_quark_ingestion_v1_ingestion_proto_rawDesc = "" +
 	"\vstructuring\x18\f \x01(\v2#.quark.ingestion.v1.SourceStepStateR\vstructuring\x12A\n" +
 	"\tembedding\x18\r \x01(\v2#.quark.ingestion.v1.SourceStepStateR\tembedding\x12?\n" +
 	"\bindexing\x18\x0e \x01(\v2#.quark.ingestion.v1.SourceStepStateR\bindexing\x12?\n" +
-	"\bcitation\x18\x0f \x01(\v2#.quark.ingestion.v1.SourceStepStateR\bcitation\x1a;\n" +
+	"\bcitation\x18\x0f \x01(\v2#.quark.ingestion.v1.SourceStepStateR\bcitation\x12\x1f\n" +
+	"\vretry_count\x18\x10 \x01(\x05R\n" +
+	"retryCount\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x83\x02\n" +
@@ -1381,19 +1977,26 @@ const file_quark_ingestion_v1_ingestion_proto_rawDesc = "" +
 	"\x17SOURCE_PHASE_STRUCTURED\x10\x03\x12\x19\n" +
 	"\x15SOURCE_PHASE_EMBEDDED\x10\x04\x12\x18\n" +
 	"\x14SOURCE_PHASE_INDEXED\x10\x05\x12\x16\n" +
-	"\x12SOURCE_PHASE_CITED\x10\x06*\xb5\x01\n" +
+	"\x12SOURCE_PHASE_CITED\x10\x06*\xd2\x01\n" +
 	"\fSourceStatus\x12\x1d\n" +
 	"\x19SOURCE_STATUS_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15SOURCE_STATUS_PENDING\x10\x01\x12\x19\n" +
 	"\x15SOURCE_STATUS_RUNNING\x10\x02\x12\x1b\n" +
 	"\x17SOURCE_STATUS_SUCCEEDED\x10\x03\x12\x18\n" +
 	"\x14SOURCE_STATUS_FAILED\x10\x04\x12\x19\n" +
-	"\x15SOURCE_STATUS_SKIPPED\x10\x052\xea\x04\n" +
+	"\x15SOURCE_STATUS_SKIPPED\x10\x05\x12\x1b\n" +
+	"\x17SOURCE_STATUS_CANCELLED\x10\x062\xc4\b\n" +
 	"\x10IngestionService\x12U\n" +
 	"\bStartRun\x12#.quark.ingestion.v1.StartRunRequest\x1a$.quark.ingestion.v1.StartRunResponse\x12O\n" +
-	"\x06GetRun\x12!.quark.ingestion.v1.GetRunRequest\x1a\".quark.ingestion.v1.GetRunResponse\x12X\n" +
+	"\x06GetRun\x12!.quark.ingestion.v1.GetRunRequest\x1a\".quark.ingestion.v1.GetRunResponse\x12U\n" +
+	"\bListRuns\x12#.quark.ingestion.v1.ListRunsRequest\x1a$.quark.ingestion.v1.ListRunsResponse\x12X\n" +
 	"\tResumeRun\x12$.quark.ingestion.v1.ResumeRunRequest\x1a%.quark.ingestion.v1.ResumeRunResponse\x12p\n" +
-	"\x11UpdateSourceState\x12,.quark.ingestion.v1.UpdateSourceStateRequest\x1a-.quark.ingestion.v1.UpdateSourceStateResponse\x12|\n" +
+	"\x11UpdateSourceState\x12,.quark.ingestion.v1.UpdateSourceStateRequest\x1a-.quark.ingestion.v1.UpdateSourceStateResponse\x12g\n" +
+	"\x0eAppendArtifact\x12).quark.ingestion.v1.AppendArtifactRequest\x1a*.quark.ingestion.v1.AppendArtifactResponse\x12[\n" +
+	"\n" +
+	"MarkFailed\x12%.quark.ingestion.v1.MarkFailedRequest\x1a&.quark.ingestion.v1.MarkFailedResponse\x12a\n" +
+	"\fMarkComplete\x12'.quark.ingestion.v1.MarkCompleteRequest\x1a(.quark.ingestion.v1.MarkCompleteResponse\x12X\n" +
+	"\tCancelRun\x12$.quark.ingestion.v1.CancelRunRequest\x1a%.quark.ingestion.v1.CancelRunResponse\x12|\n" +
 	"\x15ListIncompleteSources\x120.quark.ingestion.v1.ListIncompleteSourcesRequest\x1a1.quark.ingestion.v1.ListIncompleteSourcesResponse\x12d\n" +
 	"\rListArtifacts\x12(.quark.ingestion.v1.ListArtifactsRequest\x1a).quark.ingestion.v1.ListArtifactsResponseBHZFgithub.com/quarkloop/pkg/serviceapi/gen/quark/ingestion/v1;ingestionv1b\x06proto3"
 
@@ -1410,81 +2013,114 @@ func file_quark_ingestion_v1_ingestion_proto_rawDescGZIP() []byte {
 }
 
 var file_quark_ingestion_v1_ingestion_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_quark_ingestion_v1_ingestion_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_quark_ingestion_v1_ingestion_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
 var file_quark_ingestion_v1_ingestion_proto_goTypes = []any{
 	(SourcePhase)(0),                      // 0: quark.ingestion.v1.SourcePhase
 	(SourceStatus)(0),                     // 1: quark.ingestion.v1.SourceStatus
 	(*StartRunRequest)(nil),               // 2: quark.ingestion.v1.StartRunRequest
 	(*SourceInput)(nil),                   // 3: quark.ingestion.v1.SourceInput
 	(*GetRunRequest)(nil),                 // 4: quark.ingestion.v1.GetRunRequest
-	(*ResumeRunRequest)(nil),              // 5: quark.ingestion.v1.ResumeRunRequest
-	(*UpdateSourceStateRequest)(nil),      // 6: quark.ingestion.v1.UpdateSourceStateRequest
-	(*ListArtifactsRequest)(nil),          // 7: quark.ingestion.v1.ListArtifactsRequest
-	(*ListIncompleteSourcesRequest)(nil),  // 8: quark.ingestion.v1.ListIncompleteSourcesRequest
-	(*ListIncompleteSourcesResponse)(nil), // 9: quark.ingestion.v1.ListIncompleteSourcesResponse
-	(*ListArtifactsResponse)(nil),         // 10: quark.ingestion.v1.ListArtifactsResponse
-	(*StartRunResponse)(nil),              // 11: quark.ingestion.v1.StartRunResponse
-	(*GetRunResponse)(nil),                // 12: quark.ingestion.v1.GetRunResponse
-	(*ResumeRunResponse)(nil),             // 13: quark.ingestion.v1.ResumeRunResponse
-	(*UpdateSourceStateResponse)(nil),     // 14: quark.ingestion.v1.UpdateSourceStateResponse
-	(*IngestionRun)(nil),                  // 15: quark.ingestion.v1.IngestionRun
-	(*SourceState)(nil),                   // 16: quark.ingestion.v1.SourceState
-	(*IngestionArtifact)(nil),             // 17: quark.ingestion.v1.IngestionArtifact
-	(*SourceStepState)(nil),               // 18: quark.ingestion.v1.SourceStepState
-	nil,                                   // 19: quark.ingestion.v1.StartRunRequest.MetadataEntry
-	nil,                                   // 20: quark.ingestion.v1.SourceInput.MetadataEntry
-	nil,                                   // 21: quark.ingestion.v1.UpdateSourceStateRequest.MetadataEntry
-	nil,                                   // 22: quark.ingestion.v1.IngestionRun.MetadataEntry
-	nil,                                   // 23: quark.ingestion.v1.SourceState.MetadataEntry
-	nil,                                   // 24: quark.ingestion.v1.IngestionArtifact.MetadataEntry
-	nil,                                   // 25: quark.ingestion.v1.SourceStepState.MetadataEntry
+	(*ListRunsRequest)(nil),               // 5: quark.ingestion.v1.ListRunsRequest
+	(*ResumeRunRequest)(nil),              // 6: quark.ingestion.v1.ResumeRunRequest
+	(*UpdateSourceStateRequest)(nil),      // 7: quark.ingestion.v1.UpdateSourceStateRequest
+	(*AppendArtifactRequest)(nil),         // 8: quark.ingestion.v1.AppendArtifactRequest
+	(*MarkFailedRequest)(nil),             // 9: quark.ingestion.v1.MarkFailedRequest
+	(*MarkCompleteRequest)(nil),           // 10: quark.ingestion.v1.MarkCompleteRequest
+	(*CancelRunRequest)(nil),              // 11: quark.ingestion.v1.CancelRunRequest
+	(*ListArtifactsRequest)(nil),          // 12: quark.ingestion.v1.ListArtifactsRequest
+	(*ListIncompleteSourcesRequest)(nil),  // 13: quark.ingestion.v1.ListIncompleteSourcesRequest
+	(*ListIncompleteSourcesResponse)(nil), // 14: quark.ingestion.v1.ListIncompleteSourcesResponse
+	(*ListArtifactsResponse)(nil),         // 15: quark.ingestion.v1.ListArtifactsResponse
+	(*StartRunResponse)(nil),              // 16: quark.ingestion.v1.StartRunResponse
+	(*GetRunResponse)(nil),                // 17: quark.ingestion.v1.GetRunResponse
+	(*ListRunsResponse)(nil),              // 18: quark.ingestion.v1.ListRunsResponse
+	(*ResumeRunResponse)(nil),             // 19: quark.ingestion.v1.ResumeRunResponse
+	(*UpdateSourceStateResponse)(nil),     // 20: quark.ingestion.v1.UpdateSourceStateResponse
+	(*AppendArtifactResponse)(nil),        // 21: quark.ingestion.v1.AppendArtifactResponse
+	(*MarkFailedResponse)(nil),            // 22: quark.ingestion.v1.MarkFailedResponse
+	(*MarkCompleteResponse)(nil),          // 23: quark.ingestion.v1.MarkCompleteResponse
+	(*CancelRunResponse)(nil),             // 24: quark.ingestion.v1.CancelRunResponse
+	(*IngestionRun)(nil),                  // 25: quark.ingestion.v1.IngestionRun
+	(*SourceState)(nil),                   // 26: quark.ingestion.v1.SourceState
+	(*IngestionArtifact)(nil),             // 27: quark.ingestion.v1.IngestionArtifact
+	(*SourceStepState)(nil),               // 28: quark.ingestion.v1.SourceStepState
+	nil,                                   // 29: quark.ingestion.v1.StartRunRequest.MetadataEntry
+	nil,                                   // 30: quark.ingestion.v1.SourceInput.MetadataEntry
+	nil,                                   // 31: quark.ingestion.v1.UpdateSourceStateRequest.MetadataEntry
+	nil,                                   // 32: quark.ingestion.v1.MarkFailedRequest.MetadataEntry
+	nil,                                   // 33: quark.ingestion.v1.MarkCompleteRequest.MetadataEntry
+	nil,                                   // 34: quark.ingestion.v1.IngestionRun.MetadataEntry
+	nil,                                   // 35: quark.ingestion.v1.SourceState.MetadataEntry
+	nil,                                   // 36: quark.ingestion.v1.IngestionArtifact.MetadataEntry
+	nil,                                   // 37: quark.ingestion.v1.SourceStepState.MetadataEntry
 }
 var file_quark_ingestion_v1_ingestion_proto_depIdxs = []int32{
 	3,  // 0: quark.ingestion.v1.StartRunRequest.sources:type_name -> quark.ingestion.v1.SourceInput
-	19, // 1: quark.ingestion.v1.StartRunRequest.metadata:type_name -> quark.ingestion.v1.StartRunRequest.MetadataEntry
-	20, // 2: quark.ingestion.v1.SourceInput.metadata:type_name -> quark.ingestion.v1.SourceInput.MetadataEntry
-	0,  // 3: quark.ingestion.v1.UpdateSourceStateRequest.phase:type_name -> quark.ingestion.v1.SourcePhase
-	1,  // 4: quark.ingestion.v1.UpdateSourceStateRequest.status:type_name -> quark.ingestion.v1.SourceStatus
-	21, // 5: quark.ingestion.v1.UpdateSourceStateRequest.metadata:type_name -> quark.ingestion.v1.UpdateSourceStateRequest.MetadataEntry
-	16, // 6: quark.ingestion.v1.ListIncompleteSourcesResponse.sources:type_name -> quark.ingestion.v1.SourceState
-	17, // 7: quark.ingestion.v1.ListArtifactsResponse.artifacts:type_name -> quark.ingestion.v1.IngestionArtifact
-	15, // 8: quark.ingestion.v1.StartRunResponse.run:type_name -> quark.ingestion.v1.IngestionRun
-	15, // 9: quark.ingestion.v1.GetRunResponse.run:type_name -> quark.ingestion.v1.IngestionRun
-	15, // 10: quark.ingestion.v1.ResumeRunResponse.run:type_name -> quark.ingestion.v1.IngestionRun
-	16, // 11: quark.ingestion.v1.UpdateSourceStateResponse.source:type_name -> quark.ingestion.v1.SourceState
-	1,  // 12: quark.ingestion.v1.IngestionRun.status:type_name -> quark.ingestion.v1.SourceStatus
-	16, // 13: quark.ingestion.v1.IngestionRun.sources:type_name -> quark.ingestion.v1.SourceState
-	22, // 14: quark.ingestion.v1.IngestionRun.metadata:type_name -> quark.ingestion.v1.IngestionRun.MetadataEntry
-	0,  // 15: quark.ingestion.v1.SourceState.phase:type_name -> quark.ingestion.v1.SourcePhase
-	1,  // 16: quark.ingestion.v1.SourceState.status:type_name -> quark.ingestion.v1.SourceStatus
-	17, // 17: quark.ingestion.v1.SourceState.artifacts:type_name -> quark.ingestion.v1.IngestionArtifact
-	23, // 18: quark.ingestion.v1.SourceState.metadata:type_name -> quark.ingestion.v1.SourceState.MetadataEntry
-	18, // 19: quark.ingestion.v1.SourceState.extraction:type_name -> quark.ingestion.v1.SourceStepState
-	18, // 20: quark.ingestion.v1.SourceState.structuring:type_name -> quark.ingestion.v1.SourceStepState
-	18, // 21: quark.ingestion.v1.SourceState.embedding:type_name -> quark.ingestion.v1.SourceStepState
-	18, // 22: quark.ingestion.v1.SourceState.indexing:type_name -> quark.ingestion.v1.SourceStepState
-	18, // 23: quark.ingestion.v1.SourceState.citation:type_name -> quark.ingestion.v1.SourceStepState
-	24, // 24: quark.ingestion.v1.IngestionArtifact.metadata:type_name -> quark.ingestion.v1.IngestionArtifact.MetadataEntry
-	0,  // 25: quark.ingestion.v1.SourceStepState.phase:type_name -> quark.ingestion.v1.SourcePhase
-	1,  // 26: quark.ingestion.v1.SourceStepState.status:type_name -> quark.ingestion.v1.SourceStatus
-	25, // 27: quark.ingestion.v1.SourceStepState.metadata:type_name -> quark.ingestion.v1.SourceStepState.MetadataEntry
-	2,  // 28: quark.ingestion.v1.IngestionService.StartRun:input_type -> quark.ingestion.v1.StartRunRequest
-	4,  // 29: quark.ingestion.v1.IngestionService.GetRun:input_type -> quark.ingestion.v1.GetRunRequest
-	5,  // 30: quark.ingestion.v1.IngestionService.ResumeRun:input_type -> quark.ingestion.v1.ResumeRunRequest
-	6,  // 31: quark.ingestion.v1.IngestionService.UpdateSourceState:input_type -> quark.ingestion.v1.UpdateSourceStateRequest
-	8,  // 32: quark.ingestion.v1.IngestionService.ListIncompleteSources:input_type -> quark.ingestion.v1.ListIncompleteSourcesRequest
-	7,  // 33: quark.ingestion.v1.IngestionService.ListArtifacts:input_type -> quark.ingestion.v1.ListArtifactsRequest
-	11, // 34: quark.ingestion.v1.IngestionService.StartRun:output_type -> quark.ingestion.v1.StartRunResponse
-	12, // 35: quark.ingestion.v1.IngestionService.GetRun:output_type -> quark.ingestion.v1.GetRunResponse
-	13, // 36: quark.ingestion.v1.IngestionService.ResumeRun:output_type -> quark.ingestion.v1.ResumeRunResponse
-	14, // 37: quark.ingestion.v1.IngestionService.UpdateSourceState:output_type -> quark.ingestion.v1.UpdateSourceStateResponse
-	9,  // 38: quark.ingestion.v1.IngestionService.ListIncompleteSources:output_type -> quark.ingestion.v1.ListIncompleteSourcesResponse
-	10, // 39: quark.ingestion.v1.IngestionService.ListArtifacts:output_type -> quark.ingestion.v1.ListArtifactsResponse
-	34, // [34:40] is the sub-list for method output_type
-	28, // [28:34] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	29, // 1: quark.ingestion.v1.StartRunRequest.metadata:type_name -> quark.ingestion.v1.StartRunRequest.MetadataEntry
+	30, // 2: quark.ingestion.v1.SourceInput.metadata:type_name -> quark.ingestion.v1.SourceInput.MetadataEntry
+	1,  // 3: quark.ingestion.v1.ListRunsRequest.status:type_name -> quark.ingestion.v1.SourceStatus
+	0,  // 4: quark.ingestion.v1.UpdateSourceStateRequest.phase:type_name -> quark.ingestion.v1.SourcePhase
+	1,  // 5: quark.ingestion.v1.UpdateSourceStateRequest.status:type_name -> quark.ingestion.v1.SourceStatus
+	31, // 6: quark.ingestion.v1.UpdateSourceStateRequest.metadata:type_name -> quark.ingestion.v1.UpdateSourceStateRequest.MetadataEntry
+	27, // 7: quark.ingestion.v1.AppendArtifactRequest.artifact:type_name -> quark.ingestion.v1.IngestionArtifact
+	0,  // 8: quark.ingestion.v1.MarkFailedRequest.phase:type_name -> quark.ingestion.v1.SourcePhase
+	32, // 9: quark.ingestion.v1.MarkFailedRequest.metadata:type_name -> quark.ingestion.v1.MarkFailedRequest.MetadataEntry
+	0,  // 10: quark.ingestion.v1.MarkCompleteRequest.phase:type_name -> quark.ingestion.v1.SourcePhase
+	33, // 11: quark.ingestion.v1.MarkCompleteRequest.metadata:type_name -> quark.ingestion.v1.MarkCompleteRequest.MetadataEntry
+	26, // 12: quark.ingestion.v1.ListIncompleteSourcesResponse.sources:type_name -> quark.ingestion.v1.SourceState
+	27, // 13: quark.ingestion.v1.ListArtifactsResponse.artifacts:type_name -> quark.ingestion.v1.IngestionArtifact
+	25, // 14: quark.ingestion.v1.StartRunResponse.run:type_name -> quark.ingestion.v1.IngestionRun
+	25, // 15: quark.ingestion.v1.GetRunResponse.run:type_name -> quark.ingestion.v1.IngestionRun
+	25, // 16: quark.ingestion.v1.ListRunsResponse.runs:type_name -> quark.ingestion.v1.IngestionRun
+	25, // 17: quark.ingestion.v1.ResumeRunResponse.run:type_name -> quark.ingestion.v1.IngestionRun
+	26, // 18: quark.ingestion.v1.UpdateSourceStateResponse.source:type_name -> quark.ingestion.v1.SourceState
+	27, // 19: quark.ingestion.v1.AppendArtifactResponse.artifact:type_name -> quark.ingestion.v1.IngestionArtifact
+	25, // 20: quark.ingestion.v1.MarkFailedResponse.run:type_name -> quark.ingestion.v1.IngestionRun
+	25, // 21: quark.ingestion.v1.MarkCompleteResponse.run:type_name -> quark.ingestion.v1.IngestionRun
+	25, // 22: quark.ingestion.v1.CancelRunResponse.run:type_name -> quark.ingestion.v1.IngestionRun
+	1,  // 23: quark.ingestion.v1.IngestionRun.status:type_name -> quark.ingestion.v1.SourceStatus
+	26, // 24: quark.ingestion.v1.IngestionRun.sources:type_name -> quark.ingestion.v1.SourceState
+	34, // 25: quark.ingestion.v1.IngestionRun.metadata:type_name -> quark.ingestion.v1.IngestionRun.MetadataEntry
+	0,  // 26: quark.ingestion.v1.SourceState.phase:type_name -> quark.ingestion.v1.SourcePhase
+	1,  // 27: quark.ingestion.v1.SourceState.status:type_name -> quark.ingestion.v1.SourceStatus
+	27, // 28: quark.ingestion.v1.SourceState.artifacts:type_name -> quark.ingestion.v1.IngestionArtifact
+	35, // 29: quark.ingestion.v1.SourceState.metadata:type_name -> quark.ingestion.v1.SourceState.MetadataEntry
+	28, // 30: quark.ingestion.v1.SourceState.extraction:type_name -> quark.ingestion.v1.SourceStepState
+	28, // 31: quark.ingestion.v1.SourceState.structuring:type_name -> quark.ingestion.v1.SourceStepState
+	28, // 32: quark.ingestion.v1.SourceState.embedding:type_name -> quark.ingestion.v1.SourceStepState
+	28, // 33: quark.ingestion.v1.SourceState.indexing:type_name -> quark.ingestion.v1.SourceStepState
+	28, // 34: quark.ingestion.v1.SourceState.citation:type_name -> quark.ingestion.v1.SourceStepState
+	36, // 35: quark.ingestion.v1.IngestionArtifact.metadata:type_name -> quark.ingestion.v1.IngestionArtifact.MetadataEntry
+	0,  // 36: quark.ingestion.v1.SourceStepState.phase:type_name -> quark.ingestion.v1.SourcePhase
+	1,  // 37: quark.ingestion.v1.SourceStepState.status:type_name -> quark.ingestion.v1.SourceStatus
+	37, // 38: quark.ingestion.v1.SourceStepState.metadata:type_name -> quark.ingestion.v1.SourceStepState.MetadataEntry
+	2,  // 39: quark.ingestion.v1.IngestionService.StartRun:input_type -> quark.ingestion.v1.StartRunRequest
+	4,  // 40: quark.ingestion.v1.IngestionService.GetRun:input_type -> quark.ingestion.v1.GetRunRequest
+	5,  // 41: quark.ingestion.v1.IngestionService.ListRuns:input_type -> quark.ingestion.v1.ListRunsRequest
+	6,  // 42: quark.ingestion.v1.IngestionService.ResumeRun:input_type -> quark.ingestion.v1.ResumeRunRequest
+	7,  // 43: quark.ingestion.v1.IngestionService.UpdateSourceState:input_type -> quark.ingestion.v1.UpdateSourceStateRequest
+	8,  // 44: quark.ingestion.v1.IngestionService.AppendArtifact:input_type -> quark.ingestion.v1.AppendArtifactRequest
+	9,  // 45: quark.ingestion.v1.IngestionService.MarkFailed:input_type -> quark.ingestion.v1.MarkFailedRequest
+	10, // 46: quark.ingestion.v1.IngestionService.MarkComplete:input_type -> quark.ingestion.v1.MarkCompleteRequest
+	11, // 47: quark.ingestion.v1.IngestionService.CancelRun:input_type -> quark.ingestion.v1.CancelRunRequest
+	13, // 48: quark.ingestion.v1.IngestionService.ListIncompleteSources:input_type -> quark.ingestion.v1.ListIncompleteSourcesRequest
+	12, // 49: quark.ingestion.v1.IngestionService.ListArtifacts:input_type -> quark.ingestion.v1.ListArtifactsRequest
+	16, // 50: quark.ingestion.v1.IngestionService.StartRun:output_type -> quark.ingestion.v1.StartRunResponse
+	17, // 51: quark.ingestion.v1.IngestionService.GetRun:output_type -> quark.ingestion.v1.GetRunResponse
+	18, // 52: quark.ingestion.v1.IngestionService.ListRuns:output_type -> quark.ingestion.v1.ListRunsResponse
+	19, // 53: quark.ingestion.v1.IngestionService.ResumeRun:output_type -> quark.ingestion.v1.ResumeRunResponse
+	20, // 54: quark.ingestion.v1.IngestionService.UpdateSourceState:output_type -> quark.ingestion.v1.UpdateSourceStateResponse
+	21, // 55: quark.ingestion.v1.IngestionService.AppendArtifact:output_type -> quark.ingestion.v1.AppendArtifactResponse
+	22, // 56: quark.ingestion.v1.IngestionService.MarkFailed:output_type -> quark.ingestion.v1.MarkFailedResponse
+	23, // 57: quark.ingestion.v1.IngestionService.MarkComplete:output_type -> quark.ingestion.v1.MarkCompleteResponse
+	24, // 58: quark.ingestion.v1.IngestionService.CancelRun:output_type -> quark.ingestion.v1.CancelRunResponse
+	14, // 59: quark.ingestion.v1.IngestionService.ListIncompleteSources:output_type -> quark.ingestion.v1.ListIncompleteSourcesResponse
+	15, // 60: quark.ingestion.v1.IngestionService.ListArtifacts:output_type -> quark.ingestion.v1.ListArtifactsResponse
+	50, // [50:61] is the sub-list for method output_type
+	39, // [39:50] is the sub-list for method input_type
+	39, // [39:39] is the sub-list for extension type_name
+	39, // [39:39] is the sub-list for extension extendee
+	0,  // [0:39] is the sub-list for field type_name
 }
 
 func init() { file_quark_ingestion_v1_ingestion_proto_init() }
@@ -1498,7 +2134,7 @@ func file_quark_ingestion_v1_ingestion_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_quark_ingestion_v1_ingestion_proto_rawDesc), len(file_quark_ingestion_v1_ingestion_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   24,
+			NumMessages:   36,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

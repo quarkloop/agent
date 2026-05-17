@@ -11,8 +11,13 @@ option go_package = "github.com/quarkloop/pkg/serviceapi/gen/quark/ingestion/v1;
 service IngestionService {
   rpc StartRun(StartRunRequest) returns (StartRunResponse);
   rpc GetRun(GetRunRequest) returns (GetRunResponse);
+  rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
   rpc ResumeRun(ResumeRunRequest) returns (ResumeRunResponse);
   rpc UpdateSourceState(UpdateSourceStateRequest) returns (UpdateSourceStateResponse);
+  rpc AppendArtifact(AppendArtifactRequest) returns (AppendArtifactResponse);
+  rpc MarkFailed(MarkFailedRequest) returns (MarkFailedResponse);
+  rpc MarkComplete(MarkCompleteRequest) returns (MarkCompleteResponse);
+  rpc CancelRun(CancelRunRequest) returns (CancelRunResponse);
   rpc ListIncompleteSources(ListIncompleteSourcesRequest) returns (ListIncompleteSourcesResponse);
   rpc ListArtifacts(ListArtifactsRequest) returns (ListArtifactsResponse);
 }
@@ -36,6 +41,12 @@ message GetRunRequest {
   string run_id = 1;
 }
 
+message ListRunsRequest {
+  string space = 1;
+  SourceStatus status = 2;
+  int32 limit = 3;
+}
+
 message ResumeRunRequest {
   string run_id = 1;
 }
@@ -48,6 +59,33 @@ message UpdateSourceStateRequest {
   string artifact_ref = 5;
   string error = 6;
   map<string, string> metadata = 7;
+}
+
+message AppendArtifactRequest {
+  string run_id = 1;
+  string source_id = 2;
+  IngestionArtifact artifact = 3;
+}
+
+message MarkFailedRequest {
+  string run_id = 1;
+  string source_id = 2;
+  SourcePhase phase = 3;
+  string error = 4;
+  map<string, string> metadata = 5;
+}
+
+message MarkCompleteRequest {
+  string run_id = 1;
+  string source_id = 2;
+  SourcePhase phase = 3;
+  string artifact_ref = 4;
+  map<string, string> metadata = 5;
+}
+
+message CancelRunRequest {
+  string run_id = 1;
+  string reason = 2;
 }
 
 message ListArtifactsRequest {
@@ -77,12 +115,32 @@ message GetRunResponse {
   IngestionRun run = 1;
 }
 
+message ListRunsResponse {
+  repeated IngestionRun runs = 1;
+}
+
 message ResumeRunResponse {
   IngestionRun run = 1;
 }
 
 message UpdateSourceStateResponse {
   SourceState source = 1;
+}
+
+message AppendArtifactResponse {
+  IngestionArtifact artifact = 1;
+}
+
+message MarkFailedResponse {
+  IngestionRun run = 1;
+}
+
+message MarkCompleteResponse {
+  IngestionRun run = 1;
+}
+
+message CancelRunResponse {
+  IngestionRun run = 1;
 }
 
 message IngestionRun {
@@ -112,6 +170,7 @@ message SourceState {
   SourceStepState embedding = 13;
   SourceStepState indexing = 14;
   SourceStepState citation = 15;
+  int32 retry_count = 16;
 }
 
 message IngestionArtifact {
@@ -148,4 +207,5 @@ enum SourceStatus {
   SOURCE_STATUS_SUCCEEDED = 3;
   SOURCE_STATUS_FAILED = 4;
   SOURCE_STATUS_SKIPPED = 5;
+  SOURCE_STATUS_CANCELLED = 6;
 }

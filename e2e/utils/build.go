@@ -22,6 +22,7 @@ type BuiltBinaries struct {
 	Indexer      string
 	Embedding    string
 	Document     string
+	Ingestion    string
 	BuildRelease string
 
 	// Lib-mode tool .so paths. Empty if the build failed (e.g. no CGO);
@@ -100,6 +101,7 @@ func BuildAllOnce(t *testing.T) BuiltBinaries {
 		buildRes.Indexer = build("./services/indexer/cmd/indexer", "indexer")
 		buildRes.Embedding = build("./services/embedding/cmd/embedding", "embedding")
 		buildRes.Document = build("./services/document/cmd/document", "document")
+		buildRes.Ingestion = build("./services/ingestion/cmd/ingestion", "ingestion")
 		buildRes.BuildRelease = build("./services/build-release/cmd/build-release", "build-release")
 
 		buildRes.BashLib = buildLib("./plugins/tools/bash", "bash")

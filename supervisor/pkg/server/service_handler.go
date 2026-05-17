@@ -345,6 +345,8 @@ func (s *Server) serviceProcessSpec(space string, item pluginmanager.InstalledPl
 	switch item.Manifest.Name {
 	case "core":
 		args = append(args, "--root", stateDir)
+	case "ingestion":
+		args = append(args, "--root", stateDir)
 	case "indexer":
 		dgraphAddr := firstEnv("QUARK_DGRAPH_ADDR", "DGRAPH_TEST_ADDR", "DGRAPH_ADDR")
 		if dgraphAddr != "" {

@@ -40,6 +40,16 @@ service:
       approval_required: false
       streaming: false
       idempotent: true
+    - name: ingestion_ListRuns
+      service: quark.ingestion.v1.IngestionService
+      method: ListRuns
+      request: quark.ingestion.v1.ListRunsRequest
+      response: quark.ingestion.v1.ListRunsResponse
+      description: "List ingestion runs by space and optional status."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
     - name: ingestion_ResumeRun
       service: quark.ingestion.v1.IngestionService
       method: ResumeRun
@@ -56,6 +66,46 @@ service:
       request: quark.ingestion.v1.UpdateSourceStateRequest
       response: quark.ingestion.v1.UpdateSourceStateResponse
       description: "Update one source phase, status, artifact reference, and last error."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: ingestion_AppendArtifact
+      service: quark.ingestion.v1.IngestionService
+      method: AppendArtifact
+      request: quark.ingestion.v1.AppendArtifactRequest
+      response: quark.ingestion.v1.AppendArtifactResponse
+      description: "Attach an artifact reference to a run or source."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: ingestion_MarkFailed
+      service: quark.ingestion.v1.IngestionService
+      method: MarkFailed
+      request: quark.ingestion.v1.MarkFailedRequest
+      response: quark.ingestion.v1.MarkFailedResponse
+      description: "Mark an ingestion run or source phase as failed."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: ingestion_MarkComplete
+      service: quark.ingestion.v1.IngestionService
+      method: MarkComplete
+      request: quark.ingestion.v1.MarkCompleteRequest
+      response: quark.ingestion.v1.MarkCompleteResponse
+      description: "Mark an ingestion run or source phase as complete."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: ingestion_CancelRun
+      service: quark.ingestion.v1.IngestionService
+      method: CancelRun
+      request: quark.ingestion.v1.CancelRunRequest
+      response: quark.ingestion.v1.CancelRunResponse
+      description: "Cancel an ingestion run without deleting source state."
       risk_level: write
       approval_required: false
       streaming: false

@@ -21,8 +21,13 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	IngestionService_StartRun_FullMethodName              = "/quark.ingestion.v1.IngestionService/StartRun"
 	IngestionService_GetRun_FullMethodName                = "/quark.ingestion.v1.IngestionService/GetRun"
+	IngestionService_ListRuns_FullMethodName              = "/quark.ingestion.v1.IngestionService/ListRuns"
 	IngestionService_ResumeRun_FullMethodName             = "/quark.ingestion.v1.IngestionService/ResumeRun"
 	IngestionService_UpdateSourceState_FullMethodName     = "/quark.ingestion.v1.IngestionService/UpdateSourceState"
+	IngestionService_AppendArtifact_FullMethodName        = "/quark.ingestion.v1.IngestionService/AppendArtifact"
+	IngestionService_MarkFailed_FullMethodName            = "/quark.ingestion.v1.IngestionService/MarkFailed"
+	IngestionService_MarkComplete_FullMethodName          = "/quark.ingestion.v1.IngestionService/MarkComplete"
+	IngestionService_CancelRun_FullMethodName             = "/quark.ingestion.v1.IngestionService/CancelRun"
 	IngestionService_ListIncompleteSources_FullMethodName = "/quark.ingestion.v1.IngestionService/ListIncompleteSources"
 	IngestionService_ListArtifacts_FullMethodName         = "/quark.ingestion.v1.IngestionService/ListArtifacts"
 )
@@ -38,8 +43,13 @@ const (
 type IngestionServiceClient interface {
 	StartRun(ctx context.Context, in *StartRunRequest, opts ...grpc.CallOption) (*StartRunResponse, error)
 	GetRun(ctx context.Context, in *GetRunRequest, opts ...grpc.CallOption) (*GetRunResponse, error)
+	ListRuns(ctx context.Context, in *ListRunsRequest, opts ...grpc.CallOption) (*ListRunsResponse, error)
 	ResumeRun(ctx context.Context, in *ResumeRunRequest, opts ...grpc.CallOption) (*ResumeRunResponse, error)
 	UpdateSourceState(ctx context.Context, in *UpdateSourceStateRequest, opts ...grpc.CallOption) (*UpdateSourceStateResponse, error)
+	AppendArtifact(ctx context.Context, in *AppendArtifactRequest, opts ...grpc.CallOption) (*AppendArtifactResponse, error)
+	MarkFailed(ctx context.Context, in *MarkFailedRequest, opts ...grpc.CallOption) (*MarkFailedResponse, error)
+	MarkComplete(ctx context.Context, in *MarkCompleteRequest, opts ...grpc.CallOption) (*MarkCompleteResponse, error)
+	CancelRun(ctx context.Context, in *CancelRunRequest, opts ...grpc.CallOption) (*CancelRunResponse, error)
 	ListIncompleteSources(ctx context.Context, in *ListIncompleteSourcesRequest, opts ...grpc.CallOption) (*ListIncompleteSourcesResponse, error)
 	ListArtifacts(ctx context.Context, in *ListArtifactsRequest, opts ...grpc.CallOption) (*ListArtifactsResponse, error)
 }
@@ -72,6 +82,16 @@ func (c *ingestionServiceClient) GetRun(ctx context.Context, in *GetRunRequest, 
 	return out, nil
 }
 
+func (c *ingestionServiceClient) ListRuns(ctx context.Context, in *ListRunsRequest, opts ...grpc.CallOption) (*ListRunsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListRunsResponse)
+	err := c.cc.Invoke(ctx, IngestionService_ListRuns_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *ingestionServiceClient) ResumeRun(ctx context.Context, in *ResumeRunRequest, opts ...grpc.CallOption) (*ResumeRunResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ResumeRunResponse)
@@ -86,6 +106,46 @@ func (c *ingestionServiceClient) UpdateSourceState(ctx context.Context, in *Upda
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(UpdateSourceStateResponse)
 	err := c.cc.Invoke(ctx, IngestionService_UpdateSourceState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *ingestionServiceClient) AppendArtifact(ctx context.Context, in *AppendArtifactRequest, opts ...grpc.CallOption) (*AppendArtifactResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AppendArtifactResponse)
+	err := c.cc.Invoke(ctx, IngestionService_AppendArtifact_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *ingestionServiceClient) MarkFailed(ctx context.Context, in *MarkFailedRequest, opts ...grpc.CallOption) (*MarkFailedResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MarkFailedResponse)
+	err := c.cc.Invoke(ctx, IngestionService_MarkFailed_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *ingestionServiceClient) MarkComplete(ctx context.Context, in *MarkCompleteRequest, opts ...grpc.CallOption) (*MarkCompleteResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MarkCompleteResponse)
+	err := c.cc.Invoke(ctx, IngestionService_MarkComplete_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *ingestionServiceClient) CancelRun(ctx context.Context, in *CancelRunRequest, opts ...grpc.CallOption) (*CancelRunResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CancelRunResponse)
+	err := c.cc.Invoke(ctx, IngestionService_CancelRun_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -123,8 +183,13 @@ func (c *ingestionServiceClient) ListArtifacts(ctx context.Context, in *ListArti
 type IngestionServiceServer interface {
 	StartRun(context.Context, *StartRunRequest) (*StartRunResponse, error)
 	GetRun(context.Context, *GetRunRequest) (*GetRunResponse, error)
+	ListRuns(context.Context, *ListRunsRequest) (*ListRunsResponse, error)
 	ResumeRun(context.Context, *ResumeRunRequest) (*ResumeRunResponse, error)
 	UpdateSourceState(context.Context, *UpdateSourceStateRequest) (*UpdateSourceStateResponse, error)
+	AppendArtifact(context.Context, *AppendArtifactRequest) (*AppendArtifactResponse, error)
+	MarkFailed(context.Context, *MarkFailedRequest) (*MarkFailedResponse, error)
+	MarkComplete(context.Context, *MarkCompleteRequest) (*MarkCompleteResponse, error)
+	CancelRun(context.Context, *CancelRunRequest) (*CancelRunResponse, error)
 	ListIncompleteSources(context.Context, *ListIncompleteSourcesRequest) (*ListIncompleteSourcesResponse, error)
 	ListArtifacts(context.Context, *ListArtifactsRequest) (*ListArtifactsResponse, error)
 	mustEmbedUnimplementedIngestionServiceServer()
@@ -143,11 +208,26 @@ func (UnimplementedIngestionServiceServer) StartRun(context.Context, *StartRunRe
 func (UnimplementedIngestionServiceServer) GetRun(context.Context, *GetRunRequest) (*GetRunResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetRun not implemented")
 }
+func (UnimplementedIngestionServiceServer) ListRuns(context.Context, *ListRunsRequest) (*ListRunsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListRuns not implemented")
+}
 func (UnimplementedIngestionServiceServer) ResumeRun(context.Context, *ResumeRunRequest) (*ResumeRunResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ResumeRun not implemented")
 }
 func (UnimplementedIngestionServiceServer) UpdateSourceState(context.Context, *UpdateSourceStateRequest) (*UpdateSourceStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateSourceState not implemented")
+}
+func (UnimplementedIngestionServiceServer) AppendArtifact(context.Context, *AppendArtifactRequest) (*AppendArtifactResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AppendArtifact not implemented")
+}
+func (UnimplementedIngestionServiceServer) MarkFailed(context.Context, *MarkFailedRequest) (*MarkFailedResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method MarkFailed not implemented")
+}
+func (UnimplementedIngestionServiceServer) MarkComplete(context.Context, *MarkCompleteRequest) (*MarkCompleteResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method MarkComplete not implemented")
+}
+func (UnimplementedIngestionServiceServer) CancelRun(context.Context, *CancelRunRequest) (*CancelRunResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CancelRun not implemented")
 }
 func (UnimplementedIngestionServiceServer) ListIncompleteSources(context.Context, *ListIncompleteSourcesRequest) (*ListIncompleteSourcesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListIncompleteSources not implemented")
@@ -212,6 +292,24 @@ func _IngestionService_GetRun_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _IngestionService_ListRuns_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListRunsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IngestionServiceServer).ListRuns(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IngestionService_ListRuns_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IngestionServiceServer).ListRuns(ctx, req.(*ListRunsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _IngestionService_ResumeRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ResumeRunRequest)
 	if err := dec(in); err != nil {
@@ -244,6 +342,78 @@ func _IngestionService_UpdateSourceState_Handler(srv interface{}, ctx context.Co
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(IngestionServiceServer).UpdateSourceState(ctx, req.(*UpdateSourceStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IngestionService_AppendArtifact_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AppendArtifactRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IngestionServiceServer).AppendArtifact(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IngestionService_AppendArtifact_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IngestionServiceServer).AppendArtifact(ctx, req.(*AppendArtifactRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IngestionService_MarkFailed_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MarkFailedRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IngestionServiceServer).MarkFailed(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IngestionService_MarkFailed_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IngestionServiceServer).MarkFailed(ctx, req.(*MarkFailedRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IngestionService_MarkComplete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MarkCompleteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IngestionServiceServer).MarkComplete(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IngestionService_MarkComplete_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IngestionServiceServer).MarkComplete(ctx, req.(*MarkCompleteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IngestionService_CancelRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CancelRunRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IngestionServiceServer).CancelRun(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IngestionService_CancelRun_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IngestionServiceServer).CancelRun(ctx, req.(*CancelRunRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -300,12 +470,32 @@ var IngestionService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _IngestionService_GetRun_Handler,
 		},
 		{
+			MethodName: "ListRuns",
+			Handler:    _IngestionService_ListRuns_Handler,
+		},
+		{
 			MethodName: "ResumeRun",
 			Handler:    _IngestionService_ResumeRun_Handler,
 		},
 		{
 			MethodName: "UpdateSourceState",
 			Handler:    _IngestionService_UpdateSourceState_Handler,
+		},
+		{
+			MethodName: "AppendArtifact",
+			Handler:    _IngestionService_AppendArtifact_Handler,
+		},
+		{
+			MethodName: "MarkFailed",
+			Handler:    _IngestionService_MarkFailed_Handler,
+		},
+		{
+			MethodName: "MarkComplete",
+			Handler:    _IngestionService_MarkComplete_Handler,
+		},
+		{
+			MethodName: "CancelRun",
+			Handler:    _IngestionService_CancelRun_Handler,
 		},
 		{
 			MethodName: "ListIncompleteSources",

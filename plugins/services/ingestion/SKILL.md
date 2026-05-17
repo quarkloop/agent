@@ -11,9 +11,15 @@ test helpers as the source of truth.
    semantic structuring, embedding, indexing, and citation verification.
 3. Call `ingestion_GetRun` or `ingestion_ResumeRun` before retrying failed or
    incomplete files.
-4. Call `ingestion_ListIncompleteSources` to identify only pending or failed
+4. Call `ingestion_ListRuns` when the user asks for recent ingestion work in a
+   space.
+5. Call `ingestion_ListIncompleteSources` to identify only pending or failed
    files before resuming a batch.
-5. Call `ingestion_ListArtifacts` when an agent needs run artifacts for
+6. Call `ingestion_AppendArtifact` when a step produces an artifact reference
+   that should be attached to the durable run state.
+7. Call `ingestion_MarkFailed`, `ingestion_MarkComplete`, or
+   `ingestion_CancelRun` to close explicit terminal states.
+8. Call `ingestion_ListArtifacts` when an agent needs run artifacts for
    debugging or provenance.
 
 ## RPCs
@@ -22,10 +28,20 @@ test helpers as the source of truth.
   - Generated service function: `ingestion_StartRun`
 - `GetRun(GetRunRequest) -> GetRunResponse`
   - Generated service function: `ingestion_GetRun`
+- `ListRuns(ListRunsRequest) -> ListRunsResponse`
+  - Generated service function: `ingestion_ListRuns`
 - `ResumeRun(ResumeRunRequest) -> ResumeRunResponse`
   - Generated service function: `ingestion_ResumeRun`
 - `UpdateSourceState(UpdateSourceStateRequest) -> UpdateSourceStateResponse`
   - Generated service function: `ingestion_UpdateSourceState`
+- `AppendArtifact(AppendArtifactRequest) -> AppendArtifactResponse`
+  - Generated service function: `ingestion_AppendArtifact`
+- `MarkFailed(MarkFailedRequest) -> MarkFailedResponse`
+  - Generated service function: `ingestion_MarkFailed`
+- `MarkComplete(MarkCompleteRequest) -> MarkCompleteResponse`
+  - Generated service function: `ingestion_MarkComplete`
+- `CancelRun(CancelRunRequest) -> CancelRunResponse`
+  - Generated service function: `ingestion_CancelRun`
 - `ListIncompleteSources(ListIncompleteSourcesRequest) -> ListIncompleteSourcesResponse`
   - Generated service function: `ingestion_ListIncompleteSources`
 - `ListArtifacts(ListArtifactsRequest) -> ListArtifactsResponse`

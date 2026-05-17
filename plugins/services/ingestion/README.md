@@ -10,8 +10,13 @@ extraction, embedding, indexing, or service-to-service orchestration.
 | --- | --- | --- | --- | --- | --- |
 | `ingestion_StartRun` | `quark.ingestion.v1.IngestionService/StartRun` | write | no | no | Create a durable ingestion run with per-source state. |
 | `ingestion_GetRun` | `quark.ingestion.v1.IngestionService/GetRun` | read | no | yes | Return run status and per-source progress. |
+| `ingestion_ListRuns` | `quark.ingestion.v1.IngestionService/ListRuns` | read | no | yes | List ingestion runs by space and optional status. |
 | `ingestion_ResumeRun` | `quark.ingestion.v1.IngestionService/ResumeRun` | write | no | no | Reopen an incomplete run for agent-coordinated resume. |
 | `ingestion_UpdateSourceState` | `quark.ingestion.v1.IngestionService/UpdateSourceState` | write | no | no | Update one source phase, status, artifact reference, and last error. |
+| `ingestion_AppendArtifact` | `quark.ingestion.v1.IngestionService/AppendArtifact` | write | no | no | Attach an artifact reference to a run or source. |
+| `ingestion_MarkFailed` | `quark.ingestion.v1.IngestionService/MarkFailed` | write | no | no | Mark an ingestion run or source phase as failed. |
+| `ingestion_MarkComplete` | `quark.ingestion.v1.IngestionService/MarkComplete` | write | no | no | Mark an ingestion run or source phase as complete. |
+| `ingestion_CancelRun` | `quark.ingestion.v1.IngestionService/CancelRun` | write | no | no | Cancel an ingestion run without deleting source state. |
 | `ingestion_ListIncompleteSources` | `quark.ingestion.v1.IngestionService/ListIncompleteSources` | read | no | yes | List pending or failed sources that the agent can resume. |
 | `ingestion_ListArtifacts` | `quark.ingestion.v1.IngestionService/ListArtifacts` | read | no | yes | List run or source artifacts. |
 

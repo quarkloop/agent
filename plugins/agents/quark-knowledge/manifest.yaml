@@ -25,8 +25,13 @@ agent:
     - ingestion.*
     - ingestion_StartRun
     - ingestion_GetRun
+    - ingestion_ListRuns
     - ingestion_ResumeRun
     - ingestion_UpdateSourceState
+    - ingestion_AppendArtifact
+    - ingestion_MarkFailed
+    - ingestion_MarkComplete
+    - ingestion_CancelRun
     - ingestion_ListIncompleteSources
     - ingestion_ListArtifacts
     - embedding.*

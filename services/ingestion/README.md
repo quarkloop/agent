@@ -11,8 +11,13 @@ here so partial batches can resume cleanly.
 | --- | --- | --- | --- | --- |
 | `ingestion_StartRun` | `quark.ingestion.v1.IngestionService/StartRun` | `StartRunRequest` | `StartRunResponse` | Create a durable ingestion run with per-source state. |
 | `ingestion_GetRun` | `quark.ingestion.v1.IngestionService/GetRun` | `GetRunRequest` | `GetRunResponse` | Return run status and per-source progress. |
+| `ingestion_ListRuns` | `quark.ingestion.v1.IngestionService/ListRuns` | `ListRunsRequest` | `ListRunsResponse` | List ingestion runs by space and optional status. |
 | `ingestion_ResumeRun` | `quark.ingestion.v1.IngestionService/ResumeRun` | `ResumeRunRequest` | `ResumeRunResponse` | Reopen an incomplete run for agent-coordinated resume. |
 | `ingestion_UpdateSourceState` | `quark.ingestion.v1.IngestionService/UpdateSourceState` | `UpdateSourceStateRequest` | `UpdateSourceStateResponse` | Update one source phase, status, artifact reference, and last error. |
+| `ingestion_AppendArtifact` | `quark.ingestion.v1.IngestionService/AppendArtifact` | `AppendArtifactRequest` | `AppendArtifactResponse` | Attach an artifact reference to a run or source. |
+| `ingestion_MarkFailed` | `quark.ingestion.v1.IngestionService/MarkFailed` | `MarkFailedRequest` | `MarkFailedResponse` | Mark an ingestion run or source phase as failed. |
+| `ingestion_MarkComplete` | `quark.ingestion.v1.IngestionService/MarkComplete` | `MarkCompleteRequest` | `MarkCompleteResponse` | Mark an ingestion run or source phase as complete. |
+| `ingestion_CancelRun` | `quark.ingestion.v1.IngestionService/CancelRun` | `CancelRunRequest` | `CancelRunResponse` | Cancel an ingestion run without deleting source state. |
 | `ingestion_ListIncompleteSources` | `quark.ingestion.v1.IngestionService/ListIncompleteSources` | `ListIncompleteSourcesRequest` | `ListIncompleteSourcesResponse` | List pending or failed sources that the agent can resume. |
 | `ingestion_ListArtifacts` | `quark.ingestion.v1.IngestionService/ListArtifacts` | `ListArtifactsRequest` | `ListArtifactsResponse` | List run or source artifacts. |
 
@@ -28,6 +33,7 @@ Each source tracks:
 - indexing state
 - citation state
 - last error
+- retry count
 
 Resume operations must skip succeeded sources and return only pending, running,
 or failed sources unless the user explicitly asks to re-index.
