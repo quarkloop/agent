@@ -27,59 +27,33 @@ func (s *Server) Release(ctx context.Context, req *buildreleasev1.ReleaseRequest
 	if err := validateWorkingDir(req.GetWorkingDir()); err != nil {
 		return nil, grpcError(err)
 	}
-	result, err := s.runner.Release(ctx, buildrelease.ReleaseRequest{
-		WorkingDir:  req.GetWorkingDir(),
-		ConfigPath:  req.GetConfigPath(),
-		Version:     req.GetVersion(),
-		Parallelism: int(req.GetParallelism()),
-		SkipTests:   req.GetSkipTests(),
-	})
+	result, err := s.runner.Release(ctx, releaseRequestFromProto(req))
 	if err != nil {
 		return nil, grpcError(err)
 	}
-	return &buildreleasev1.ReleaseResponse{
-		Success:    result.Success,
-		Message:    result.Message,
-		Version:    result.Version,
-		ReleaseDir: result.ReleaseDir,
-		Artifacts:  artifactsToProto(result.Artifacts),
-	}, nil
+	return releaseResponseToProto(result), nil
 }
 
 func (s *Server) DryRun(ctx context.Context, req *buildreleasev1.DryRunRequest) (*buildreleasev1.DryRunResponse, error) {
 	if err := validateWorkingDir(req.GetWorkingDir()); err != nil {
 		return nil, grpcError(err)
 	}
-	result, err := s.runner.DryRun(ctx, buildrelease.DryRunRequest{
-		WorkingDir:  req.GetWorkingDir(),
-		ConfigPath:  req.GetConfigPath(),
-		Version:     req.GetVersion(),
-		Parallelism: int(req.GetParallelism()),
-	})
+	result, err := s.runner.DryRun(ctx, dryRunRequestFromProto(req))
 	if err != nil {
 		return nil, grpcError(err)
 	}
-	return &buildreleasev1.DryRunResponse{
-		Version: result.Version,
-		Planned: artifactsToProto(result.Planned),
-	}, nil
+	return dryRunResponseToProto(result), nil
 }
 
 func (s *Server) Init(ctx context.Context, req *buildreleasev1.InitRequest) (*buildreleasev1.InitResponse, error) {
 	if err := validateWorkingDir(req.GetWorkingDir()); err != nil {
 		return nil, grpcError(err)
 	}
-	result, err := s.runner.Init(ctx, buildrelease.InitRequest{
-		WorkingDir: req.GetWorkingDir(),
-		Overwrite:  req.GetOverwrite(),
-	})
+	result, err := s.runner.Init(ctx, initRequestFromProto(req))
 	if err != nil {
 		return nil, grpcError(err)
 	}
-	return &buildreleasev1.InitResponse{
-		ConfigPath: result.ConfigPath,
-		Created:    result.Created,
-	}, nil
+	return initResponseToProto(result), nil
 }
 
 func validateWorkingDir(workingDir string) error {
@@ -87,25 +61,6 @@ func validateWorkingDir(workingDir string) error {
 		return fmt.Errorf("working_dir is required")
 	}
 	return nil
-}
-
-func artifactsToProto(in []buildrelease.Artifact) []*buildreleasev1.Artifact {
-	out := make([]*buildreleasev1.Artifact, 0, len(in))
-	for _, artifact := range in {
-		out = append(out, &buildreleasev1.Artifact{
-			BuildName:      artifact.BuildName,
-			Os:             artifact.Target.OS,
-			Arch:           artifact.Target.Arch,
-			Arm:            artifact.Target.ARM,
-			Filename:       artifact.Filename,
-			ArchiveName:    artifact.ArchiveName,
-			Checksum:       artifact.Checksum,
-			Size:           artifact.Size,
-			DurationMillis: artifact.Duration.Milliseconds(),
-			Error:          artifact.Error,
-		})
-	}
-	return out
 }
 
 func grpcError(err error) error {

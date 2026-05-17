@@ -9,7 +9,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strings"
 
 	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
@@ -87,20 +86,13 @@ func Run(ctx context.Context, cfg Config) error {
 }
 
 func (s *server) Embed(ctx context.Context, req *embeddingv1.EmbedRequest) (*embeddingv1.EmbedResponse, error) {
-	model := strings.TrimSpace(req.GetModel())
-	dimensions := int(req.GetDimensions())
-	hash := sha256.Sum256([]byte(req.GetInput()))
-	result, err := s.embedder.Embed(ctx, req.GetInput(), model, dimensions)
+	cmd := embedCommandFromProto(req)
+	hash := sha256.Sum256([]byte(cmd.Input))
+	result, err := s.embedder.Embed(ctx, cmd.Input, cmd.Model, cmd.Dimensions)
 	if err != nil {
 		return nil, err
 	}
-	return &embeddingv1.EmbedResponse{
-		Vector:      result.Vector,
-		Model:       result.Model,
-		Dimensions:  int32(len(result.Vector)),
-		Provider:    result.Provider,
-		ContentHash: hex.EncodeToString(hash[:]),
-	}, nil
+	return embedResponseToProto(result, hex.EncodeToString(hash[:])), nil
 }
 
 func resolveSkillPath(skillDir string) (string, error) {
