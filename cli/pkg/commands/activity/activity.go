@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/quarkloop/cli/pkg/agentdial"
-	agentclient "github.com/quarkloop/runtime/pkg/client"
+	"github.com/quarkloop/cli/pkg/runtimedial"
+	rtclient "github.com/quarkloop/runtime/pkg/client"
 )
 
 func NewActivityCommand() *cobra.Command {
@@ -25,18 +25,19 @@ func newActivityQueryCmd() *cobra.Command {
 	var eventType string
 	var limit int
 	var follow bool
+
 	cmd := &cobra.Command{
 		Use:   "query",
 		Short: "Query activity log entries",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			c, _, err := agentdial.Current(cmd.Context())
+			c, _, err := runtimedial.Current(cmd.Context())
 			if err != nil {
 				return err
 			}
 
 			if follow {
 				fmt.Println("Streaming live activity... (Ctrl+C to stop)")
-				return c.StreamActivity(cmd.Context(), func(record agentclient.ActivityRecord) {
+				return c.StreamActivity(cmd.Context(), func(record rtclient.ActivityRecord) {
 					if eventType != "" && record.Type != eventType {
 						return
 					}
@@ -52,13 +53,14 @@ func newActivityQueryCmd() *cobra.Command {
 				fmt.Println("No activity.")
 				return nil
 			}
+
 			for _, rec := range records {
 				if eventType != "" && rec.Type != eventType {
 					continue
 				}
-				fmt.Printf("%s  %-30s  %s  %s\n",
-					rec.Timestamp.Format(time.RFC3339), rec.Type, rec.SessionID, rec.Data)
+				fmt.Printf("%s  %-30s  %s  %s\n", rec.Timestamp.Format(time.RFC3339), rec.Type, rec.SessionID, rec.Data)
 			}
+
 			return nil
 		},
 	}

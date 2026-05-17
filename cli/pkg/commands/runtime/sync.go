@@ -10,8 +10,8 @@ import (
 	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
-// SyncCLI returns the "sync" command.
-func SyncCLI() *cobra.Command {
+// NewSyncCommand returns the "sync" command.
+func NewSyncCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "sync",
 		Short: "Sync the local Quarkfile to the supervisor",

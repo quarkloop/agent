@@ -3,7 +3,7 @@ package servicescmd
 
 import "github.com/spf13/cobra"
 
-func NewCommand() *cobra.Command {
+func NewServicesCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "services",
 		Short: "Inspect Quark services through the supervisor",

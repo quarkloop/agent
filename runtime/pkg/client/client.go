@@ -1,4 +1,4 @@
-package agentclient
+package rtclient
 
 import (
 	"context"
@@ -132,6 +132,7 @@ func (c *Client) RejectPlan(ctx context.Context, planID string) error {
 func (c *Client) StreamActivity(ctx context.Context, fn func(ActivityRecord)) error {
 	return c.transport.StreamSSEEvents(ctx, "/v1/activity/stream", func(event SSEEvent) error {
 		var record ActivityRecord
+
 		if err := json.Unmarshal(event.Data, &record); err != nil {
 			fn(ActivityRecord{
 				Type: "stream.decode_error",
@@ -139,6 +140,7 @@ func (c *Client) StreamActivity(ctx context.Context, fn func(ActivityRecord)) er
 			})
 			return nil
 		}
+
 		fn(record)
 		return nil
 	})

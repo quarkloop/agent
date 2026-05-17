@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/quarkloop/cli/pkg/agentdial"
+	"github.com/quarkloop/cli/pkg/runtimedial"
 )
 
 func NewPlanCommand() *cobra.Command {
@@ -28,7 +28,7 @@ func newPlanGetCmd() *cobra.Command {
 		Use:   "get",
 		Short: "Get the agent's current plan",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			c, _, err := agentdial.Current(cmd.Context())
+			c, _, err := runtimedial.Current(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -48,7 +48,7 @@ func newPlanListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List the agent's current plan",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			c, _, err := agentdial.Current(cmd.Context())
+			c, _, err := runtimedial.Current(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -68,7 +68,7 @@ func newPlanApproveCmd() *cobra.Command {
 		Short: "Approve the current active plan",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			c, _, err := agentdial.Current(cmd.Context())
+			c, _, err := runtimedial.Current(cmd.Context())
 			if err != nil {
 				return err
 			}
@@ -91,7 +91,7 @@ func newPlanRejectCmd() *cobra.Command {
 		Short: "Reject the current active plan",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			c, _, err := agentdial.Current(cmd.Context())
+			c, _, err := runtimedial.Current(cmd.Context())
 			if err != nil {
 				return err
 			}

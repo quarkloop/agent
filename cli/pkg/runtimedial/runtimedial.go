@@ -1,29 +1,29 @@
-// Package agentdial provides helpers for connecting the CLI to the agent
+// Package runtimedial provides helpers for connecting the CLI to the runtime
 // process of the current space. All lookups go through the supervisor —
-// the CLI never reads the filesystem to discover a running agent.
-package agentdial
+// the CLI never reads the filesystem to discover a running runtime.
+package runtimedial
 
 import (
 	"context"
 	"fmt"
 
 	spacemodel "github.com/quarkloop/pkg/space"
-	agentclient "github.com/quarkloop/runtime/pkg/client"
+	rtclient "github.com/quarkloop/runtime/pkg/client"
 	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
-// Current resolves the running agent for the current working directory's
+// Current resolves the running runtime for the current working directory's
 // space and returns an HTTP client pointed at it.
 //
-// The supervisor is the source of truth; if no agent is running for the
+// The supervisor is the source of truth; if no runtime is running for the
 // current space, an error is returned.
-func Current(ctx context.Context) (*agentclient.Client, supclient.RuntimeInfo, error) {
+func Current(ctx context.Context) (*rtclient.Client, supclient.RuntimeInfo, error) {
 	return CurrentWithTransportOptions(ctx)
 }
 
-// CurrentWithTransportOptions resolves the running agent and constructs a
+// CurrentWithTransportOptions resolves the running runtime and constructs a
 // runtime client with explicit HTTP transport options.
-func CurrentWithTransportOptions(ctx context.Context, opts ...agentclient.TransportOption) (*agentclient.Client, supclient.RuntimeInfo, error) {
+func CurrentWithTransportOptions(ctx context.Context, opts ...rtclient.TransportOption) (*rtclient.Client, supclient.RuntimeInfo, error) {
 	name, err := spacemodel.CurrentName()
 	if err != nil {
 		return nil, supclient.RuntimeInfo{}, err
@@ -39,6 +39,6 @@ func CurrentWithTransportOptions(ctx context.Context, opts ...agentclient.Transp
 	if rt.Status != supclient.RuntimeRunning {
 		return nil, supclient.RuntimeInfo{}, fmt.Errorf("runtime for space %q is %s, not running", name, rt.Status)
 	}
-	transport := agentclient.NewTransport(rt.URL(), opts...)
-	return agentclient.New(rt.URL(), agentclient.WithTransport(transport)), rt, nil
+	transport := rtclient.NewTransport(rt.URL(), opts...)
+	return rtclient.New(rt.URL(), rtclient.WithTransport(transport)), rt, nil
 }

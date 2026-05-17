@@ -11,8 +11,8 @@ import (
 	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
-// DoctorCLI returns the "doctor" command.
-func DoctorCLI() *cobra.Command {
+// NewDoctorCommand returns the "doctor" command.
+func NewDoctorCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "doctor",
 		Short: "Run supervisor-side health checks against the current space",

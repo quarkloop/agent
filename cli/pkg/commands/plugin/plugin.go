@@ -6,8 +6,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewCommand creates the plugin subcommand tree.
-func NewCommand() *cobra.Command {
+// NewPluginCommand creates the plugin subcommand tree.
+func NewPluginCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "plugin",
 		Short: "Manage agent plugins (delegated to the supervisor)",

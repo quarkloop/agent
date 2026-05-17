@@ -19,18 +19,18 @@ import (
 
 func RegisterCommands(root *cobra.Command) {
 	// Space Commands — agent lifecycle + space operations.
-	addGroup(root, "space",
-		runtimecmd.RunCLI(),
-		runtimecmd.StopCLI(),
-		runtimecmd.InspectCLI(),
-		runtimecmd.SyncCLI(),
-		initcmd.InitCLI(),
-		doctorcmd.DoctorCLI(),
-		versioncmd.VersionCLI(),
+	addGroup("space", root,
+		runtimecmd.NewRunCommand(),
+		runtimecmd.NewStopCommand(),
+		runtimecmd.NewInspectCommand(),
+		runtimecmd.NewSyncCommand(),
+		initcmd.NewInitCommand(),
+		doctorcmd.NewDoctorCommand(),
+		versioncmd.NewVersionCommand(),
 	)
 
 	// Data Commands — session, config, kb, plan, activity management.
-	addGroup(root, "data",
+	addGroup("data", root,
 		chatcmd.NewChatCommand(),
 		sessioncmd.NewSessionCommand(),
 		configcmd.NewConfigCommand(),
@@ -40,13 +40,13 @@ func RegisterCommands(root *cobra.Command) {
 	)
 
 	// Management Commands — plugin manager and validation.
-	addGroup(root, "management",
-		plugincmd.NewCommand(),
-		servicescmd.NewCommand(),
+	addGroup("management", root,
+		plugincmd.NewPluginCommand(),
+		servicescmd.NewServicesCommand(),
 	)
 }
 
-func addGroup(root *cobra.Command, groupID string, cmds ...*cobra.Command) {
+func addGroup(groupID string, root *cobra.Command, cmds ...*cobra.Command) {
 	for _, c := range cmds {
 		c.GroupID = groupID
 		root.AddCommand(c)

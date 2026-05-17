@@ -8,8 +8,8 @@ import (
 	"github.com/quarkloop/cli/pkg/buildinfo"
 )
 
-// VersionCLI returns the "version" command.
-func VersionCLI() *cobra.Command {
+// NewVersionCommand returns the "version" command.
+func NewVersionCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Show version information",

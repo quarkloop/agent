@@ -11,8 +11,8 @@ import (
 	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
-// StopCLI returns the "stop" command.
-func StopCLI() *cobra.Command {
+// NewStopCommand returns the "stop" command.
+func NewStopCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "stop",
 		Short: "Stop the runtime for the current space via the supervisor",

@@ -8,12 +8,12 @@ import (
 	"github.com/spf13/cobra"
 
 	spacemodel "github.com/quarkloop/pkg/space"
-	agentclient "github.com/quarkloop/runtime/pkg/client"
+	rtclient "github.com/quarkloop/runtime/pkg/client"
 	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
-// InspectCLI returns the "inspect" command.
-func InspectCLI() *cobra.Command {
+// NewInspectCommand returns the "inspect" command.
+func NewInspectCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "inspect",
 		Short: "Show status and details of the current space and its runtime",
@@ -64,7 +64,7 @@ func InspectCLI() *cobra.Command {
 			if rt.Status != supclient.RuntimeRunning {
 				return nil
 			}
-			runtimeInfo, err := agentclient.New(rt.URL()).Info(cmd.Context())
+			runtimeInfo, err := rtclient.New(rt.URL()).Info(cmd.Context())
 			if err != nil {
 				return nil
 			}

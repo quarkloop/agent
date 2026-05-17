@@ -1,4 +1,4 @@
-package agentclient
+package rtclient
 
 import (
 	"context"

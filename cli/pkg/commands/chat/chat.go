@@ -12,9 +12,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/quarkloop/cli/pkg/agentdial"
+	"github.com/quarkloop/cli/pkg/runtimedial"
 	spacemodel "github.com/quarkloop/pkg/space"
-	agentclient "github.com/quarkloop/runtime/pkg/client"
+	rtclient "github.com/quarkloop/runtime/pkg/client"
 	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
@@ -45,7 +45,7 @@ func NewChatCommand() *cobra.Command {
 			}
 			defer cancel()
 
-			agent, _, err := agentdial.CurrentWithTransportOptions(ctx, agentclient.WithHTTPClient(&http.Client{}))
+			rtClient, _, err := runtimedial.CurrentWithTransportOptions(ctx, rtclient.WithHTTPClient(&http.Client{}))
 			if err != nil {
 				return err
 			}
@@ -62,22 +62,23 @@ func NewChatCommand() *cobra.Command {
 			if targetSession == "" {
 				return fmt.Errorf("session is required; pass --session <id> or --new")
 			}
-			if err := waitForRuntimeSession(ctx, agent, targetSession); err != nil {
+			if err := waitForRuntimeSession(ctx, rtClient, targetSession); err != nil {
 				return err
 			}
 
-			out := cmd.OutOrStdout()
-			errOut := cmd.ErrOrStderr()
-			err = agent.PostSessionMessage(ctx, targetSession, content, func(event agentclient.SSEEvent) error {
-				return printEvent(out, errOut, event, showTools)
+			stdout := cmd.OutOrStdout()
+			stderr := cmd.ErrOrStderr()
+			err = rtClient.PostSessionMessage(ctx, targetSession, content, func(event rtclient.SSEEvent) error {
+				return printEvent(stdout, stderr, event, showTools)
 			})
 			if err != nil {
 				return err
 			}
-			fmt.Fprintln(out)
+			fmt.Fprintln(stdout)
 			return nil
 		},
 	}
+
 	cmd.Flags().StringVarP(&sessionID, "session", "s", "", "Session id to send the message to")
 	cmd.Flags().BoolVar(&createSession, "new", false, "Create a new chat session before sending")
 	cmd.Flags().StringVar(&title, "title", "", "Title for --new chat sessions")
@@ -101,16 +102,16 @@ func createChatSession(ctx context.Context, title string) (supclient.Session, er
 	return session, nil
 }
 
-func waitForRuntimeSession(ctx context.Context, agent *agentclient.Client, sessionID string) error {
+func waitForRuntimeSession(ctx context.Context, rtClient *rtclient.Client, sessionID string) error {
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 
 	for {
-		_, err := agent.ListSessionMessages(ctx, sessionID)
+		_, err := rtClient.ListSessionMessages(ctx, sessionID)
 		if err == nil {
 			return nil
 		}
-		if !agentclient.IsNotFound(err) {
+		if !rtclient.IsNotFound(err) {
 			return fmt.Errorf("lookup runtime session: %w", err)
 		}
 
@@ -122,22 +123,22 @@ func waitForRuntimeSession(ctx context.Context, agent *agentclient.Client, sessi
 	}
 }
 
-func printEvent(out, errOut io.Writer, event agentclient.SSEEvent, showTools bool) error {
+func printEvent(stdout, stderr io.Writer, event rtclient.SSEEvent, showTools bool) error {
 	switch event.Type {
 	case "text", "token":
 		var token string
 		if err := json.Unmarshal(event.Data, &token); err != nil {
 			return fmt.Errorf("decode token event: %w", err)
 		}
-		_, err := fmt.Fprint(out, token)
+		_, err := fmt.Fprint(stdout, token)
 		return err
 	case "tool_start":
 		if showTools {
-			fmt.Fprintf(errOut, "tool start: %s\n", eventToolName(event.Data))
+			fmt.Fprintf(stderr, "tool start: %s\n", eventToolName(event.Data))
 		}
 	case "tool_result":
 		if showTools {
-			fmt.Fprintf(errOut, "tool result: %s\n", eventToolName(event.Data))
+			fmt.Fprintf(stderr, "tool result: %s\n", eventToolName(event.Data))
 		}
 	case "error":
 		var message string

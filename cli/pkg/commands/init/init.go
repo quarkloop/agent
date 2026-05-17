@@ -29,8 +29,8 @@ The command refuses to run if a space with the same name is already registered.`
   quark init my-space --work-dir ./projects/existing-dir`
 )
 
-// InitCLI returns the "init" command.
-func InitCLI() *cobra.Command {
+// NewInitCommand returns the "init" command.
+func NewInitCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "init <name>",
 		Short:   "Scaffold a Quarkfile and register the space with the supervisor",

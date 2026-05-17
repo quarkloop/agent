@@ -19,8 +19,8 @@ var flags struct {
 	timeout time.Duration
 }
 
-// RunCLI returns the "run" command.
-func RunCLI() *cobra.Command {
+// NewRunCommand returns the "run" command.
+func NewRunCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run [dir]",
 		Short: "Start the runtime for the current space via the supervisor",
