@@ -11,17 +11,8 @@ agent:
   system: SYSTEM.md
   skill: SKILL.md
   tools:
-    - bash
     - fs
   services:
-    - repo.*
-    - build.*
-    - test.*
-    - container.*
-    - release.*
-    - deploy.*
-    - policy.*
-    - build-release.*
     - repo_Status
     - repo_Diff
     - repo_GetBranch

@@ -10,6 +10,7 @@ import (
 
 	"github.com/quarkloop/pkg/plugin"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
+	spacemodel "github.com/quarkloop/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/pluginmanager"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -177,6 +178,35 @@ func TestApplyServiceFunctionMetadataRequiresEveryRPC(t *testing.T) {
 
 	if err := applyServiceFunctionMetadata(desc, manifest); err == nil {
 		t.Fatal("apply metadata unexpectedly succeeded")
+	}
+}
+
+func TestServicePluginAddressPrefersQuarkfileServiceBinding(t *testing.T) {
+	t.Setenv("QUARK_CONFIGURED_INDEXER_ADDR", "127.0.0.1:9001")
+	t.Setenv("QUARK_INDEXER_ADDR", "127.0.0.1:9002")
+	manifest := serviceManifest("indexer", "quark.indexer.v1.IndexerService")
+	manifest.Service.AddressEnv = "QUARK_INDEXER_ADDR"
+	manifest.Service.DefaultAddress = "127.0.0.1:9003"
+
+	got := servicePluginAddress(manifest, spacemodel.ServiceRef{AddressEnv: "QUARK_CONFIGURED_INDEXER_ADDR"})
+	if got != "127.0.0.1:9001" {
+		t.Fatalf("address from configured env = %q", got)
+	}
+
+	got = servicePluginAddress(manifest, spacemodel.ServiceRef{Address: "127.0.0.1:9004"})
+	if got != "127.0.0.1:9004" {
+		t.Fatalf("address from configured literal = %q", got)
+	}
+
+	got = servicePluginAddress(manifest, spacemodel.ServiceRef{})
+	if got != "127.0.0.1:9002" {
+		t.Fatalf("address from manifest env = %q", got)
+	}
+
+	t.Setenv("QUARK_INDEXER_ADDR", "")
+	got = servicePluginAddress(manifest, spacemodel.ServiceRef{})
+	if got != "127.0.0.1:9003" {
+		t.Fatalf("address from default = %q", got)
 	}
 }
 

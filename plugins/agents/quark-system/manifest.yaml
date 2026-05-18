@@ -10,15 +10,23 @@ agent:
   profile: PROFILE.yaml
   system: SYSTEM.md
   skill: SKILL.md
-  tools:
-    - bash
+  tools: []
   services:
-    - system.*
-    - process.*
-    - network.*
-    - logs.*
-    - metrics.*
-    - scheduler.*
-    - policy.*
+    - system_Snapshot
+    - system_GetOSInfo
+    - system_GetKernelInfo
+    - system_GetUptime
+    - system_ListPackages
+    - system_ListServices
+    - system_ListUsers
+    - system_ListMounts
+    - system_GetDiskUsage
+    - system_ListProcesses
+    - system_ListPorts
+    - system_ListNetworkConnections
+    - system_ReadLogs
+    - system_GetMetrics
+    - system_KillProcess
+    - system_RestartService
   skills:
     - SKILL.md

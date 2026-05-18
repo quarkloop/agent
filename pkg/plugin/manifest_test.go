@@ -267,6 +267,7 @@ func TestRepositoryAgentManifestsDeclareProfiles(t *testing.T) {
 			if profile.ID != manifest.Name {
 				t.Fatalf("profile id = %q, want manifest name %q", profile.ID, manifest.Name)
 			}
+			assertConcreteAgentRefs(t, manifest.Name, manifest.Agent.Tools, manifest.Agent.Services, profile.Permissions.Tools, profile.Permissions.Services)
 			for _, name := range []string{manifest.Agent.System, manifest.Agent.Skill} {
 				if _, err := os.Stat(filepath.Join(filepath.Dir(manifestPath), name)); err != nil {
 					t.Fatalf("agent file %s missing: %v", name, err)
@@ -274,6 +275,43 @@ func TestRepositoryAgentManifestsDeclareProfiles(t *testing.T) {
 			}
 		})
 	}
+}
+
+func assertConcreteAgentRefs(t *testing.T, name string, manifestTools, manifestServices, profileTools, profileServices []string) {
+	t.Helper()
+	for _, ref := range append(append([]string{}, manifestTools...), profileTools...) {
+		if strings.Contains(ref, "*") {
+			t.Fatalf("%s declares wildcard tool permission %q; agent profiles must use concrete tools", name, ref)
+		}
+	}
+	for _, ref := range append(append([]string{}, manifestServices...), profileServices...) {
+		if strings.Contains(ref, "*") {
+			t.Fatalf("%s declares wildcard service permission %q; agent profiles must use concrete service functions", name, ref)
+		}
+	}
+	if !sameStringSet(manifestTools, profileTools) {
+		t.Fatalf("%s manifest tools %+v do not match profile tools %+v", name, manifestTools, profileTools)
+	}
+	if !sameStringSet(manifestServices, profileServices) {
+		t.Fatalf("%s manifest services %+v do not match profile services %+v", name, manifestServices, profileServices)
+	}
+}
+
+func sameStringSet(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	seen := make(map[string]int, len(left))
+	for _, value := range left {
+		seen[value]++
+	}
+	for _, value := range right {
+		seen[value]--
+		if seen[value] < 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func TestQuarkKnowledgeProfileDeclaresConcreteServiceFunctions(t *testing.T) {

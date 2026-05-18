@@ -12,7 +12,6 @@ permissions:
   tools:
     - fs
   services:
-    - document.*
     - document_DetectType
     - document_ParseBytes
     - document_ExtractText
@@ -21,7 +20,6 @@ permissions:
     - document_ExtractTables
     - document_ExtractImages
     - document_RunOCR
-    - ingestion.*
     - ingestion_StartRun
     - ingestion_GetRun
     - ingestion_ListRuns
@@ -33,9 +31,7 @@ permissions:
     - ingestion_CancelRun
     - ingestion_ListIncompleteSources
     - ingestion_ListArtifacts
-    - embedding.*
     - embedding_Embed
-    - indexer.*
     - indexer_UpsertDocument
     - indexer_UpsertChunk
     - indexer_UpsertFact
@@ -47,13 +43,11 @@ permissions:
     - indexer_GetContext
     - indexer_DeleteDocument
     - indexer_DeleteChunk
-    - citation.*
     - citation_ResolveSpans
     - citation_CreateCitation
     - citation_VerifyGrounding
     - citation_ScoreCoverage
     - citation_RenderReferences
-    - memory.*
     - memory_Put
     - memory_Get
     - memory_Search

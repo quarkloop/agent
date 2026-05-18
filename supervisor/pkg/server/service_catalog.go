@@ -43,6 +43,7 @@ func (s *Server) runtimePluginCatalogEnv(ctx context.Context, space string) ([]s
 	if err != nil {
 		return nil, fmt.Errorf("list plugins: %w", err)
 	}
+	validationCatalog := newAgentPluginValidationCatalog(installed)
 	catalog := plugin.NewRuntimeCatalog(make([]plugin.RuntimeCatalogPlugin, 0, len(installed)))
 	for _, item := range installed {
 		switch item.Manifest.Type {
@@ -59,6 +60,12 @@ func (s *Server) runtimePluginCatalogEnv(ctx context.Context, space string) ([]s
 		return nil, err
 	}
 	catalog.Plugins = plugins
+	if err := validateEnabledAgentPluginContracts(installed, enabledAgentPluginNames(plugins), validationCatalog); err != nil {
+		return nil, err
+	}
+	if err := validateRuntimeAgentProfiles(plugins, validationCatalog); err != nil {
+		return nil, err
+	}
 	if err := catalog.Validate(); err != nil {
 		return nil, fmt.Errorf("validate runtime plugin catalog: %w", err)
 	}

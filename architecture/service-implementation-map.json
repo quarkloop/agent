@@ -82,7 +82,7 @@
       "missing_permissions": [],
       "name": "Quark Knowledge",
       "path": "plugins/agents/quark-knowledge/PROFILE.yaml",
-      "service_permission_count": 46
+      "service_permission_count": 40
     },
     "quark-system": {
       "area": "System",
