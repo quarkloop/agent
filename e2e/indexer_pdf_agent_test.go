@@ -95,9 +95,11 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOp
 	utils.Logf(t, "index reply: %s", indexTrace.Text)
 	writeAgentRunArtifacts(t, workingDir, "agent-index", env, indexTrace, indexPrompt)
 
+	assertToolStarted(t, indexTrace, "ingestion_StartRun")
 	assertToolStarted(t, indexTrace, "document_ExtractText")
 	assertToolStarted(t, indexTrace, "embedding_Embed")
 	assertToolStarted(t, indexTrace, "indexer_UpsertChunk")
+	assertToolStarted(t, indexTrace, "ingestion_MarkComplete")
 	assertNoToolErrors(t, indexTrace, "document_ExtractText")
 	assertToolSuccessCount(t, indexTrace, "document_ExtractText", len(documents))
 	assertNoToolErrors(t, indexTrace, "indexer_UpsertChunk")
@@ -147,7 +149,8 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOp
 
 		assertToolStarted(t, queryTrace, "embedding_Embed")
 		assertToolStarted(t, queryTrace, "indexer_QueryContext")
-		assertNoToolErrors(t, queryTrace, "embedding_Embed", "indexer_QueryContext")
+		assertToolStartedAny(t, queryTrace, "citation_VerifyGrounding", "citation_RenderReferences")
+		assertNoToolErrors(t, queryTrace, "embedding_Embed", "indexer_QueryContext", "citation_VerifyGrounding", "citation_RenderReferences")
 		if contains(queryTrace.ToolStarts, "fs") {
 			t.Fatalf("%s query re-read source files instead of using the index; starts=%v", queryCase.Title, queryTrace.ToolStarts)
 		}

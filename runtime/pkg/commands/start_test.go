@@ -66,6 +66,43 @@ func TestRegisterServiceFunctionsUsesRuntimeToolPath(t *testing.T) {
 	}
 }
 
+func TestRegisterServiceFunctionsSkipsStreamingRPCs(t *testing.T) {
+	a, err := agent.NewAgent(agent.Config{ID: "test-agent"})
+	if err != nil {
+		t.Fatalf("new agent: %v", err)
+	}
+	catalog := runtimeservices.NewCatalog([]*servicev1.ServiceDescriptor{{
+		Name:    "model",
+		Type:    "model",
+		Address: "127.0.0.1:7306",
+		Rpcs: []*servicev1.RpcDescriptor{{
+			Service:      "quark.model.v1.ModelService",
+			Method:       "StreamGenerate",
+			Request:      "quark.model.v1.StreamGenerateRequest",
+			Response:     "quark.model.v1.StreamGenerateResponse",
+			FunctionName: "model_StreamGenerate",
+			Streaming:    true,
+		}},
+	}})
+
+	registerServiceFunctions(a, catalog)
+
+	if len(a.Plugins.GetTools()) != 0 {
+		t.Fatalf("streaming service function was registered as a unary runtime tool: %+v", a.Plugins.GetTools())
+	}
+}
+
+func TestModelProviderFromServiceUsesModelDescriptor(t *testing.T) {
+	catalog := runtimeservices.NewCatalog([]*servicev1.ServiceDescriptor{{
+		Name:    "model",
+		Type:    "model",
+		Address: "127.0.0.1:7306",
+	}})
+	if got := modelProviderFromService(catalog, "openrouter"); got == nil {
+		t.Fatal("expected model service provider adapter")
+	}
+}
+
 func TestResolveAgentPluginSelectsRequestedProfile(t *testing.T) {
 	catalog := &pluginmanager.Catalog{Plugins: []pluginmanager.CatalogPlugin{
 		{

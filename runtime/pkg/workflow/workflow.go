@@ -232,9 +232,11 @@ func Detect(prompt string, tools []plugin.ToolSchema) []Intent {
 	intents := make([]Intent, 0, 2)
 	if looksLikeKnowledgeIndex(text) {
 		if steps := requiredSteps(available,
+			step("ingest-start", "ingestion run creation", "ingestion_StartRun"),
 			step("extract", "document extraction", "document_ExtractText", "document_ParseBytes", "document_GetPages"),
 			step("embed", "embedding generation", "embedding_Embed", "model_Embed"),
 			step("index", "canonical indexing", "indexer_UpsertChunk", "indexer_IndexDocument"),
+			step("ingest-complete", "ingestion run completion", "ingestion_MarkComplete"),
 		); len(steps) > 0 {
 			intents = append(intents, Intent{Kind: KindKnowledgeIndex, Steps: steps})
 		}

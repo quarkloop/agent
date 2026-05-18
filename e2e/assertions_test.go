@@ -62,6 +62,16 @@ func assertToolStarted(t *testing.T, trace utils.MessageTrace, name string) {
 	}
 }
 
+func assertToolStartedAny(t *testing.T, trace utils.MessageTrace, names ...string) {
+	t.Helper()
+	for _, name := range names {
+		if contains(trace.ToolStarts, name) {
+			return
+		}
+	}
+	t.Fatalf("agent did not start any of %v; starts=%v", names, trace.ToolStarts)
+}
+
 func assertToolResultContains(t *testing.T, trace utils.MessageTrace, tool string, wants ...string) {
 	t.Helper()
 	for _, event := range trace.ToolResultEvents {

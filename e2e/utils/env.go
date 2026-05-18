@@ -30,6 +30,7 @@ type E2EEnv struct {
 	Model     string
 	Embedding EmbeddingOptions
 	Services  []ServicePlugin
+	Agents    []string
 
 	ServiceAddresses map[string]string
 }
@@ -82,6 +83,20 @@ func installSpacePlugins(t *testing.T, env *E2EEnv, bins BuiltBinaries, includeK
 	installTool("bash", bins.Bash, bins.BashLib)
 	installTool("fs", bins.FS, bins.FSLib)
 
+	installAgent := func(name string) {
+		src := filepath.Join(srcRoot, "agents", name)
+		dst := filepath.Join(pluginsDir, "agents", name)
+		if err := os.MkdirAll(dst, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dst, err)
+		}
+		for _, file := range []string{"manifest.yaml", "PROFILE.yaml", "SYSTEM.md", "SKILL.md"} {
+			copyFile(t, filepath.Join(src, file), filepath.Join(dst, file), 0o644)
+		}
+	}
+	for _, agent := range env.Agents {
+		installAgent(agent)
+	}
+
 	installService := func(name string) {
 		src := filepath.Join(srcRoot, "services", name)
 		dst := filepath.Join(pluginsDir, "services", name)
@@ -93,6 +108,8 @@ func installSpacePlugins(t *testing.T, env *E2EEnv, bins BuiltBinaries, includeK
 		copyFile(t, filepath.Join(src, "README.md"), filepath.Join(dst, "README.md"), 0o644)
 	}
 	if includeKnowledgeServices {
+		installService("core")
+		installService("model")
 		installService("indexer")
 		installService("document")
 		installService("ingestion")
@@ -134,7 +151,7 @@ func copyFile(t *testing.T, src, dst string, mode os.FileMode) {
 }
 
 // quarkfileFor returns the raw bytes of a minimal Quarkfile for a space.
-func quarkfileFor(name, provider, model string, embedding EmbeddingOptions, services []ServicePlugin, includeKnowledgeServices bool) []byte {
+func quarkfileFor(name, provider, model string, embedding EmbeddingOptions, services []ServicePlugin, agents []string, includeKnowledgeServices bool) []byte {
 	env := ""
 	if provider != "noop" {
 		env = `  env:
@@ -147,14 +164,35 @@ func quarkfileFor(name, provider, model string, embedding EmbeddingOptions, serv
 `)
 	serviceBlocks := ""
 	embeddingBlock := ""
+	agentBlocks := ""
+	for _, agent := range agents {
+		pluginRefs += fmt.Sprintf("  - ref: quark/agent-%s\n", agent)
+		agentBlocks += fmt.Sprintf(`  - profile: %s
+    enabled: true
+`, agent)
+	}
+	agentsSection := ""
+	if agentBlocks != "" {
+		agentsSection = "agents:\n" + agentBlocks
+	}
 	if includeKnowledgeServices {
-		pluginRefs += fmt.Sprintf(`  - ref: quark/service-indexer
+		pluginRefs += fmt.Sprintf(`  - ref: quark/service-core
+  - ref: quark/service-model
+  - ref: quark/service-indexer
   - ref: quark/service-document
   - ref: quark/service-ingestion
   - ref: quark/service-citation
   - ref: quark/service-%s
 `, embedding.Plugin)
-		serviceBlocks += fmt.Sprintf(`  - name: indexer
+		serviceBlocks += fmt.Sprintf(`  - name: core
+    ref: quark/service-core
+    mode: local
+    address_env: QUARK_CORE_ADDR
+  - name: model
+    ref: quark/service-model
+    mode: local
+    address_env: QUARK_MODEL_SERVICE_ADDR
+  - name: indexer
     ref: quark/service-indexer
     mode: local
     address_env: QUARK_INDEXER_ADDR
@@ -201,9 +239,10 @@ model:
 %s
 plugins:
 %s
+%s
 services:
 %s
-%s`, name, provider, model, env, pluginRefs, serviceBlocks, embeddingBlock)
+%s`, name, provider, model, env, pluginRefs, agentsSection, serviceBlocks, embeddingBlock)
 	return []byte(qf)
 }
 
@@ -329,6 +368,10 @@ type StartOptions struct {
 	// Services declares additional service plugins that should be installed in
 	// the e2e space and exposed to runtime via supervisor discovery.
 	Services []ServicePlugin
+	// Agents declares agent profile plugins that should be installed and
+	// enabled through the Quarkfile. When empty, tests use the runtime fallback
+	// profile so legacy tool/provider E2Es stay focused.
+	Agents []string
 	// BeforeRuntime runs after the space and plugins are ready, but before the
 	// runtime child is started. Use it to start external services whose
 	// addresses were already supplied through SupervisorEnv.
@@ -383,7 +426,7 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 	}
 	createCtx, createCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer createCancel()
-	if _, err := sup.CreateSpace(createCtx, spaceName, quarkfileFor(spaceName, provider, model, embedding, opt.Services, !opt.DisableKnowledgeServices), workingDir); err != nil {
+	if _, err := sup.CreateSpace(createCtx, spaceName, quarkfileFor(spaceName, provider, model, embedding, opt.Services, opt.Agents, !opt.DisableKnowledgeServices), workingDir); err != nil {
 		t.Fatalf("create space: %v", err)
 	}
 
@@ -398,6 +441,7 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 		Model:     model,
 		Embedding: embedding,
 		Services:  append([]ServicePlugin(nil), opt.Services...),
+		Agents:    append([]string(nil), opt.Agents...),
 
 		ServiceAddresses: serviceAddressesFromOptions(embedding, opt.Services, supervisorEnv),
 	}
@@ -436,6 +480,12 @@ func serviceAddressesFromOptions(embedding EmbeddingOptions, services []ServiceP
 	addresses := make(map[string]string)
 	if addr := supervisorEnv["QUARK_INDEXER_ADDR"]; addr != "" {
 		addresses["indexer"] = addr
+	}
+	if addr := supervisorEnv["QUARK_CORE_ADDR"]; addr != "" {
+		addresses["core"] = addr
+	}
+	if addr := supervisorEnv["QUARK_MODEL_SERVICE_ADDR"]; addr != "" {
+		addresses["model"] = addr
 	}
 	if addr := supervisorEnv["QUARK_EMBEDDING_ADDR"]; addr != "" {
 		addresses["embedding"] = addr

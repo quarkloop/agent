@@ -344,10 +344,12 @@ func TestQuarkKnowledgeProfileDeclaresConcreteServiceFunctions(t *testing.T) {
 		"indexer_DeleteChunk",
 		"citation_ResolveSpans",
 		"citation_VerifyGrounding",
-		"memory_Put",
-		"memory_Get",
-		"memory_Search",
-		"memory_Delete",
+		"core_CreateWorkspaceMutationPlan",
+		"core_ApproveWorkspaceMutationPlan",
+		"core_RequestApproval",
+		"core_EvaluatePolicy",
+		"core_RecordAuditEvent",
+		"core_PutArtifact",
 	} {
 		if !permissions[want] {
 			t.Fatalf("quark knowledge profile missing service function permission %q", want)

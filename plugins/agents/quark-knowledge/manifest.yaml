@@ -49,9 +49,11 @@ agent:
     - citation_VerifyGrounding
     - citation_ScoreCoverage
     - citation_RenderReferences
-    - memory_Put
-    - memory_Get
-    - memory_Search
-    - memory_Delete
+    - core_CreateWorkspaceMutationPlan
+    - core_ApproveWorkspaceMutationPlan
+    - core_RequestApproval
+    - core_EvaluatePolicy
+    - core_RecordAuditEvent
+    - core_PutArtifact
   skills:
     - SKILL.md

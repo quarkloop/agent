@@ -44,6 +44,9 @@ func PromptBlock(descriptors []*servicev1.ServiceDescriptor) string {
 		if len(desc.GetRpcs()) > 0 {
 			b.WriteString("- Functions:\n")
 			for _, rpc := range desc.GetRpcs() {
+				if rpc.GetStreaming() {
+					continue
+				}
 				fmt.Fprintf(&b, "  - `%s`: `%s` -> `%s`", FunctionNameFor(desc.GetName(), rpc), rpc.GetRequest(), rpc.GetResponse())
 				if rpc.GetDescription() != "" {
 					fmt.Fprintf(&b, " - %s", rpc.GetDescription())

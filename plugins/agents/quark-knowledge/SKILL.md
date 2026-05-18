@@ -17,9 +17,11 @@ Keep the agent as coordinator:
 - call citation service functions to resolve spans or verify grounding when
   evidence needs mechanical verification, coverage scoring, or rendered source
   references,
-- call memory service functions only for explicit durable memories,
+- use Core service functions for audit artifacts, policy checks, approvals, and
+  approval-gated workspace mutation plans when the user explicitly asks to
+  reorganize or write into their directory,
 - answer only from retrieved context when the user asks about indexed sources.
 
-Do not move semantic extraction into document, ingestion, citation, memory, or
+Do not move semantic extraction into document, ingestion, citation, core, or
 indexer services. Do not let one service call another service. The agent is the
 coordinator.

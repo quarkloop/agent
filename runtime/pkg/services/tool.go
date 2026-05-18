@@ -108,6 +108,9 @@ func (e *Executor) ToolSchemas() []ServiceFunctionSchema {
 			continue
 		}
 		for _, rpc := range desc.GetRpcs() {
+			if rpc.GetStreaming() {
+				continue
+			}
 			name := FunctionNameFor(desc.GetName(), rpc)
 			description := strings.TrimSpace(rpc.GetDescription())
 			if description == "" {

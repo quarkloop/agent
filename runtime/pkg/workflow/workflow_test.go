@@ -10,14 +10,16 @@ import (
 
 func TestDetectKnowledgeIndexWorkflowFromUserLanguage(t *testing.T) {
 	intents := Detect("Please index these PDF files so I can ask questions later.", toolSchemas(
+		"ingestion_StartRun",
 		"document_ExtractText",
 		"embedding_Embed",
 		"indexer_UpsertChunk",
+		"ingestion_MarkComplete",
 	))
 	if len(intents) != 1 || intents[0].Kind != KindKnowledgeIndex {
 		t.Fatalf("intents = %+v", intents)
 	}
-	if len(intents[0].Steps) != 3 {
+	if len(intents[0].Steps) != 5 {
 		t.Fatalf("steps = %+v", intents[0].Steps)
 	}
 }
@@ -45,9 +47,11 @@ func TestTrackerBlocksFinalizationUntilRequiredServiceResults(t *testing.T) {
 	store := NewStore()
 	var events []Event
 	tracker := NewTracker("session-1", "Index these documents.", toolSchemas(
+		"ingestion_StartRun",
 		"document_ExtractText",
 		"embedding_Embed",
 		"indexer_UpsertChunk",
+		"ingestion_MarkComplete",
 	), store, func(event Event) {
 		events = append(events, event)
 	})
@@ -63,7 +67,7 @@ func TestTrackerBlocksFinalizationUntilRequiredServiceResults(t *testing.T) {
 	wrapped := tracker.WrapToolHandler(func(context.Context, string, string) (string, error) {
 		return `{"ok": true}`, nil
 	})
-	for _, tool := range []string{"document_ExtractText", "embedding_Embed", "indexer_UpsertChunk"} {
+	for _, tool := range []string{"ingestion_StartRun", "document_ExtractText", "embedding_Embed", "indexer_UpsertChunk", "ingestion_MarkComplete"} {
 		if _, err := wrapped(context.Background(), tool, "{}"); err != nil {
 			t.Fatalf("wrapped tool %s: %v", tool, err)
 		}
