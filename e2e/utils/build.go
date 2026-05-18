@@ -25,6 +25,7 @@ type BuiltBinaries struct {
 	DevOps       string
 	Document     string
 	Ingestion    string
+	System       string
 	BuildRelease string
 
 	// Lib-mode tool .so paths. Empty if the build failed (e.g. no CGO);
@@ -106,6 +107,7 @@ func BuildAllOnce(t *testing.T) BuiltBinaries {
 		buildRes.DevOps = build("./services/devops/cmd/devops", "devops")
 		buildRes.Document = build("./services/document/cmd/document", "document")
 		buildRes.Ingestion = build("./services/ingestion/cmd/ingestion", "ingestion")
+		buildRes.System = build("./services/system/cmd/system", "system")
 		buildRes.BuildRelease = build("./services/build-release/cmd/build-release", "build-release")
 
 		buildRes.BashLib = buildLib("./plugins/tools/bash", "bash")

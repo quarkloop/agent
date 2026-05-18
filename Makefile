@@ -29,6 +29,7 @@ MODULES := \
 		services/indexer \
 		services/model \
 		services/space \
+		services/system \
 		plugins/tools/bash \
 		plugins/tools/fs \
 		plugins/tools/web-search \
@@ -77,6 +78,8 @@ build-services:
 		go build -o $(BINARY_DIR)/model-service ./services/model/cmd/model
 		@echo "--- Building service: space ---"
 		go build -o $(BINARY_DIR)/space-service ./services/space/cmd/space
+		@echo "--- Building service: system ---"
+		go build -o $(BINARY_DIR)/system-service ./services/system/cmd/system
 
 ## Build tool plugins as .so files (lib mode, requires CGO)
 build-tools-lib:

@@ -17,6 +17,7 @@ import (
 	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
 	ingestionv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/ingestion/v1"
+	systemv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/system/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -96,6 +97,15 @@ func startDevOpsServiceAt(t *testing.T, binary, addr string) {
 		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "devops"),
 	}, utils.ProcessEnv(nil))
 	waitForGRPCHealth(t, addr, devopsv1.RepoService_ServiceDesc.ServiceName, 10*time.Second, "devops")
+}
+
+func startSystemServiceAt(t *testing.T, binary, addr string) {
+	t.Helper()
+	utils.StartProcess(t, "system", binary, []string{
+		"--addr", addr,
+		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "system"),
+	}, utils.ProcessEnv(nil))
+	waitForGRPCHealth(t, addr, systemv1.SystemService_ServiceDesc.ServiceName, 10*time.Second, "system")
 }
 
 func standardKnowledgeServicesStartOptions(t *testing.T, embedding utils.EmbeddingOptions, workingDir string) utils.StartOptions {

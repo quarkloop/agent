@@ -27,6 +27,7 @@ use (
 	./services/indexer
 	./services/model
 	./services/space
+	./services/system
 	./supervisor
 )
 
@@ -56,5 +57,6 @@ replace (
 	github.com/quarkloop/services/indexer v0.0.0 => ./services/indexer
 	github.com/quarkloop/services/model v0.0.0 => ./services/model
 	github.com/quarkloop/services/space v0.0.0 => ./services/space
+	github.com/quarkloop/services/system v0.0.0 => ./services/system
 	github.com/quarkloop/supervisor v0.0.0 => ./supervisor
 )
