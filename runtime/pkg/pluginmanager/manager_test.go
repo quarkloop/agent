@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/quarkloop/pkg/plugin"
 )
 
 func TestInitializeWithoutCatalogDoesNotScanFilesystem(t *testing.T) {
@@ -37,12 +39,33 @@ tool:
 	}
 }
 
+func TestRegisterRuntimeProviderRejectsTypedNilProvider(t *testing.T) {
+	m := NewManager(t.TempDir())
+	var provider *testProvider
+
+	m.RegisterRuntimeProvider("openrouter", provider)
+
+	if _, ok := m.GetProvider("openrouter"); ok {
+		t.Fatal("typed nil provider was registered")
+	}
+}
+
 func TestNormalizeToolResponseUnwrapsToolkitOutput(t *testing.T) {
 	got := normalizeToolResponse([]byte(`{"data":{"output":"quark-ok\n","exit_code":0},"error":""}`))
 	want := `{"output":"quark-ok\n","exit_code":0}`
 	if got != want {
 		t.Fatalf("got %s, want %s", got, want)
 	}
+}
+
+type testProvider struct{}
+
+func (p *testProvider) ChatCompletionStream(context.Context, *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+	return nil, nil
+}
+
+func (p *testProvider) ParseToolCalls(content string) ([]plugin.ToolCall, string) {
+	return nil, content
 }
 
 func TestNormalizeToolResponseKeepsCustomPayload(t *testing.T) {

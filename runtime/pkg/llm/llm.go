@@ -29,6 +29,45 @@ type Client struct {
 
 type FinalGuard func(content string) (instruction string, retry bool)
 
+// ToolCallGate can accept streamed assistant content before executing the next
+// tool calls. It is used for workflow-owned completion rules where the model
+// has already produced a final answer and the remaining calls are redundant.
+type ToolCallGate func(content string, toolCalls []plugin.ToolCall) bool
+
+// ToolCallGuard can reject the next tool-call batch and ask the model to retry.
+// It is used by runtime workflow policy when the model starts finalizing while
+// the proposed calls do not advance required service-backed steps.
+type ToolCallGuard func(content string, toolCalls []plugin.ToolCall) (instruction string, retry bool)
+
+// ToolResultGate can accept streamed assistant content after the current tool
+// calls have executed successfully. It is used for terminal workflow calls that
+// complete the required service-backed steps while the model already streamed a
+// user-facing final answer.
+type ToolResultGate func(content string, toolCalls []plugin.ToolCall) bool
+
+// ToolResultInstruction can add a transient system instruction after a tool
+// batch executes and before the next model turn. Workflow policy uses this to
+// keep long-running service workflows on the current required step.
+type ToolResultInstruction func() string
+
+// ToolCallArgumentNormalizer can rewrite tool-call arguments before workflow
+// guards, trace events, and execution. Runtime service adapters use it for
+// deterministic argument normalization that should not depend on provider
+// behavior.
+type ToolCallArgumentNormalizer func(ctx context.Context, name, arguments string) (string, error)
+
+type toolCallArgumentNormalizerKey struct{}
+
+func WithToolCallArgumentNormalizer(ctx context.Context, normalizer ToolCallArgumentNormalizer) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if normalizer == nil {
+		return ctx
+	}
+	return context.WithValue(ctx, toolCallArgumentNormalizerKey{}, normalizer)
+}
+
 // InferenceLimits bounds one user-visible inference request. They prevent a
 // provider from keeping the runtime in an endless tool/finalization loop.
 type InferenceLimits struct {
@@ -76,6 +115,22 @@ func NewClientWithLimits(p Provider, model string, contextWindow int, limits Inf
 // It fires onMessage for streamed text and tool execution data.
 // If onTool is nil, tool calls are ignored.
 func (c *Client) Infer(ctx context.Context, messages []plugin.Message, tools []plugin.ToolSchema, onTool plugin.ToolHandler, onMessage func(msgType string, data any), finalGuard FinalGuard) (string, error) {
+	return c.InferWithToolCallGate(ctx, messages, tools, onTool, onMessage, finalGuard, nil)
+}
+
+// InferWithToolCallGate runs Infer with an optional pre-tool completion gate.
+func (c *Client) InferWithToolCallGate(ctx context.Context, messages []plugin.Message, tools []plugin.ToolSchema, onTool plugin.ToolHandler, onMessage func(msgType string, data any), finalGuard FinalGuard, toolCallGate ToolCallGate) (string, error) {
+	return c.InferWithToolCallPolicy(ctx, messages, tools, onTool, onMessage, finalGuard, toolCallGate, nil, nil)
+}
+
+// InferWithToolCallPolicy runs Infer with workflow-owned pre-tool policies.
+func (c *Client) InferWithToolCallPolicy(ctx context.Context, messages []plugin.Message, tools []plugin.ToolSchema, onTool plugin.ToolHandler, onMessage func(msgType string, data any), finalGuard FinalGuard, toolCallGate ToolCallGate, toolCallGuard ToolCallGuard, toolResultGate ToolResultGate) (string, error) {
+	return c.InferWithToolCallPolicyAndContinuation(ctx, messages, tools, onTool, onMessage, finalGuard, toolCallGate, toolCallGuard, toolResultGate, nil)
+}
+
+// InferWithToolCallPolicyAndContinuation runs Infer with workflow-owned
+// pre-tool policies and post-tool continuation instructions.
+func (c *Client) InferWithToolCallPolicyAndContinuation(ctx context.Context, messages []plugin.Message, tools []plugin.ToolSchema, onTool plugin.ToolHandler, onMessage func(msgType string, data any), finalGuard FinalGuard, toolCallGate ToolCallGate, toolCallGuard ToolCallGuard, toolResultGate ToolResultGate, toolResultInstruction ToolResultInstruction) (string, error) {
 	turns := 0
 	finalGuardRetries := 0
 	for {
@@ -125,6 +180,46 @@ func (c *Client) Infer(ctx context.Context, messages []plugin.Message, tools []p
 			slog.Warn("dropped malformed tool calls", "count", droppedToolCalls)
 		}
 		toolCalls = normalizedToolCalls
+		if len(toolCalls) > 0 {
+			normalized, err := normalizeToolCallArgumentsFromContext(ctx, toolCalls)
+			if err != nil {
+				return "", err
+			}
+			toolCalls = normalized
+		}
+		if len(toolCalls) > 0 && toolCallGuard != nil {
+			instruction, retry := toolCallGuard(fullContent, toolCalls)
+			if retry {
+				finalGuardRetries++
+				if finalGuardRetries > c.limits.MaxFinalGuardRetries {
+					return "", fmt.Errorf("tool-call guard exceeded %d retries for model %q", c.limits.MaxFinalGuardRetries, c.model)
+				}
+				if strings.TrimSpace(fullContent) != "" {
+					messages = append(messages, plugin.Message{Role: "assistant", Content: fullContent})
+				}
+				messages = append(messages, plugin.Message{Role: "system", Content: instruction})
+				fullContent = ""
+				continue
+			}
+		}
+		if len(toolCalls) > 0 && toolCallGate != nil && toolCallGate(fullContent, toolCalls) {
+			if finalGuard != nil {
+				instruction, retry := finalGuard(fullContent)
+				if retry {
+					finalGuardRetries++
+					if finalGuardRetries > c.limits.MaxFinalGuardRetries {
+						return "", fmt.Errorf("finalization guard exceeded %d retries for model %q", c.limits.MaxFinalGuardRetries, c.model)
+					}
+					messages = append(messages,
+						plugin.Message{Role: "assistant", Content: fullContent},
+						plugin.Message{Role: "system", Content: instruction},
+					)
+					fullContent = ""
+					continue
+				}
+			}
+			return fullContent, nil
+		}
 
 		// No tool calls at all — we're done
 		if len(toolCalls) == 0 {
@@ -214,9 +309,48 @@ func (c *Client) Infer(ctx context.Context, messages []plugin.Message, tools []p
 			})
 		}
 
+		if toolResultGate != nil && toolResultGate(fullContent, toolCalls) {
+			if finalGuard != nil {
+				instruction, retry := finalGuard(fullContent)
+				if retry {
+					finalGuardRetries++
+					if finalGuardRetries > c.limits.MaxFinalGuardRetries {
+						return "", fmt.Errorf("finalization guard exceeded %d retries for model %q", c.limits.MaxFinalGuardRetries, c.model)
+					}
+					messages = append(messages, plugin.Message{Role: "system", Content: instruction})
+					fullContent = ""
+					continue
+				}
+			}
+			return fullContent, nil
+		}
+
+		if toolResultInstruction != nil {
+			if instruction := strings.TrimSpace(toolResultInstruction()); instruction != "" {
+				messages = append(messages, plugin.Message{Role: "system", Content: instruction})
+			}
+		}
+
 		// Reset for next LLM call
 		fullContent = ""
 	}
+}
+
+func normalizeToolCallArgumentsFromContext(ctx context.Context, calls []plugin.ToolCall) ([]plugin.ToolCall, error) {
+	normalizer, ok := ctx.Value(toolCallArgumentNormalizerKey{}).(ToolCallArgumentNormalizer)
+	if !ok || normalizer == nil {
+		return calls, nil
+	}
+	out := make([]plugin.ToolCall, len(calls))
+	copy(out, calls)
+	for i, call := range out {
+		arguments, err := normalizer(ctx, call.Function.Name, call.Function.Arguments)
+		if err != nil {
+			return nil, fmt.Errorf("normalize tool call %s arguments: %w", call.Function.Name, err)
+		}
+		out[i].Function.Arguments = arguments
+	}
+	return out, nil
 }
 
 // mergeToolCalls accumulates streamed tool call deltas by index.

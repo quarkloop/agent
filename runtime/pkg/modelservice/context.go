@@ -7,6 +7,7 @@ type contextKey string
 const (
 	sessionIDKey contextKey = "modelservice.session_id"
 	runIDKey     contextKey = "modelservice.run_id"
+	spaceIDKey   contextKey = "modelservice.space_id"
 )
 
 // WithSessionID returns a child context that binds model usage to a runtime
@@ -36,5 +37,21 @@ func WithRunID(ctx context.Context, runID string) context.Context {
 // RunID returns the logical run identifier bound to ctx.
 func RunID(ctx context.Context) string {
 	value, _ := ctx.Value(runIDKey).(string)
+	return value
+}
+
+// WithSpaceID returns a child context that binds the current Quark space to
+// runtime-owned operations. Services that expose a top-level `space` field get
+// this value from runtime context instead of asking the LLM to invent it.
+func WithSpaceID(ctx context.Context, spaceID string) context.Context {
+	if spaceID == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, spaceIDKey, spaceID)
+}
+
+// SpaceID returns the Quark space identifier bound to ctx.
+func SpaceID(ctx context.Context) string {
+	value, _ := ctx.Value(spaceIDKey).(string)
 	return value
 }

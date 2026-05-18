@@ -218,7 +218,7 @@ func (r Registry) PromptBlock() string {
 			}
 		}
 	}
-	b.WriteString("\nBefore calling `indexer_IndexDocument`, validate that extracted facts have evidence when source text exists, entities and relations are internally consistent, and unsupported partial fields are either omitted or marked uncertain.\n")
+	b.WriteString("\nBefore calling `indexer_UpsertChunk`, validate that extracted facts have evidence when source text exists, entities and relations are internally consistent, and unsupported partial fields are either omitted or marked uncertain.\n")
 	return strings.TrimSpace(b.String())
 }
 

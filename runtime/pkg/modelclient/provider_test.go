@@ -50,6 +50,13 @@ func TestProviderStreamsThroughModelService(t *testing.T) {
 	}
 }
 
+func TestNilProviderReturnsConfigurationError(t *testing.T) {
+	var provider *Provider
+	if _, err := provider.ChatCompletionStream(context.Background(), &plugin.ChatRequest{}); err == nil {
+		t.Fatal("expected configuration error")
+	}
+}
+
 type fakeModelService struct {
 	modelv1.UnimplementedModelServiceServer
 	provider string

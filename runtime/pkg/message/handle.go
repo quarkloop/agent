@@ -16,6 +16,22 @@ import (
 //
 // Tokens are streamed to resp as they arrive.
 func Handle(ctx context.Context, history []Message, llmClient *llm.Client, systemPrompt string, workSummary string, tools []plugin.ToolSchema, onTool plugin.ToolHandler, resp chan<- StreamMessage, finalGuard llm.FinalGuard) (string, error) {
+	return HandleWithToolCallGate(ctx, history, llmClient, systemPrompt, workSummary, tools, onTool, resp, finalGuard, nil)
+}
+
+// HandleWithToolCallGate runs Handle with an optional workflow completion gate.
+func HandleWithToolCallGate(ctx context.Context, history []Message, llmClient *llm.Client, systemPrompt string, workSummary string, tools []plugin.ToolSchema, onTool plugin.ToolHandler, resp chan<- StreamMessage, finalGuard llm.FinalGuard, toolCallGate llm.ToolCallGate) (string, error) {
+	return HandleWithToolCallPolicy(ctx, history, llmClient, systemPrompt, workSummary, tools, onTool, resp, finalGuard, toolCallGate, nil, nil)
+}
+
+// HandleWithToolCallPolicy runs Handle with optional workflow tool-call policy.
+func HandleWithToolCallPolicy(ctx context.Context, history []Message, llmClient *llm.Client, systemPrompt string, workSummary string, tools []plugin.ToolSchema, onTool plugin.ToolHandler, resp chan<- StreamMessage, finalGuard llm.FinalGuard, toolCallGate llm.ToolCallGate, toolCallGuard llm.ToolCallGuard, toolResultGate llm.ToolResultGate) (string, error) {
+	return HandleWithToolCallPolicyAndContinuation(ctx, history, llmClient, systemPrompt, workSummary, tools, onTool, resp, finalGuard, toolCallGate, toolCallGuard, toolResultGate, nil)
+}
+
+// HandleWithToolCallPolicyAndContinuation runs Handle with optional workflow
+// tool-call policy and post-tool continuation instructions.
+func HandleWithToolCallPolicyAndContinuation(ctx context.Context, history []Message, llmClient *llm.Client, systemPrompt string, workSummary string, tools []plugin.ToolSchema, onTool plugin.ToolHandler, resp chan<- StreamMessage, finalGuard llm.FinalGuard, toolCallGate llm.ToolCallGate, toolCallGuard llm.ToolCallGuard, toolResultGate llm.ToolResultGate, toolResultInstruction llm.ToolResultInstruction) (string, error) {
 	if llmClient == nil {
 		return "", fmt.Errorf("no LLM client configured")
 	}
@@ -47,7 +63,7 @@ func Handle(ctx context.Context, history []Message, llmClient *llm.Client, syste
 	}
 
 	// Infer (LLM call → tool loop → streaming)
-	return llmClient.Infer(ctx, msgs, tools, onTool, func(msgType string, data any) {
+	return llmClient.InferWithToolCallPolicyAndContinuation(ctx, msgs, tools, onTool, func(msgType string, data any) {
 		Emit(ctx, resp, StreamMessage{Type: msgType, Data: data})
-	}, finalGuard)
+	}, finalGuard, toolCallGate, toolCallGuard, toolResultGate, toolResultInstruction)
 }

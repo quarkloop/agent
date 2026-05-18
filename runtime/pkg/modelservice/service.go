@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -166,12 +167,25 @@ func cloneProviders(providers map[string]plugin.Provider) map[string]plugin.Prov
 	out := make(map[string]plugin.Provider, len(providers))
 	for id, provider := range providers {
 		id = strings.TrimSpace(id)
-		if id == "" || provider == nil {
+		if id == "" || providerIsNil(provider) {
 			continue
 		}
 		out[id] = provider
 	}
 	return out
+}
+
+func providerIsNil(provider plugin.Provider) bool {
+	if provider == nil {
+		return true
+	}
+	value := reflect.ValueOf(provider)
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return value.IsNil()
+	default:
+		return false
+	}
 }
 
 func cloneFallbacks(fallbacks map[string][]string) map[string][]string {

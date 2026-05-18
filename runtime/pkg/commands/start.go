@@ -118,7 +118,10 @@ func runStart(port int, channels []string) error {
 
 	promptAddenda := servicePromptAddenda(serviceCatalog)
 	coreRecorder := coreEventRecorder(serviceCatalog)
-	modelProviderAdapter := modelProviderFromService(serviceCatalog, modelProvider)
+	var modelProviderAdapter plugin.Provider
+	if adapter := modelProviderFromService(serviceCatalog, modelProvider); adapter != nil {
+		modelProviderAdapter = adapter
+	}
 	if strings.TrimSpace(agentPlugin.Skill) != "" {
 		promptAddenda = append(promptAddenda, strings.TrimSpace(agentPlugin.Skill))
 	}
@@ -149,6 +152,7 @@ func runStart(port int, channels []string) error {
 		PromptAddenda:        promptAddenda,
 		PendingRefs:          serviceFunctionPendingRefs(serviceCatalog),
 		ToolResultRef:        serviceFunctionToolResultRef(serviceCatalog),
+		ToolCallArguments:    serviceFunctionToolCallArgumentNormalizer(serviceCatalog),
 		CoreEvents:           coreRecorder,
 		ModelProviderAdapter: modelProviderAdapter,
 		PermissionPolicy:     runtimePermissionPolicy(agentPlugin.AgentProfile),
@@ -324,6 +328,13 @@ func serviceFunctionToolResultRef(catalog *runtimeservices.Catalog) func(name, a
 		return nil
 	}
 	return catalog.CaptureToolResult
+}
+
+func serviceFunctionToolCallArgumentNormalizer(catalog *runtimeservices.Catalog) func(context.Context, string, string) (string, error) {
+	if catalog == nil || catalog.Empty() {
+		return nil
+	}
+	return catalog.NormalizeToolCallArguments
 }
 
 func loadServiceCatalog() (*runtimeservices.Catalog, error) {

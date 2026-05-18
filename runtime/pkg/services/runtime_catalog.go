@@ -73,6 +73,13 @@ func (c *Catalog) CaptureToolResult(toolName, arguments, result string) (string,
 	return c.executor.CaptureToolResult(toolName, arguments, result)
 }
 
+func (c *Catalog) NormalizeToolCallArguments(ctx context.Context, name, arguments string) (string, error) {
+	if c == nil || c.executor == nil {
+		return arguments, nil
+	}
+	return c.executor.NormalizeToolCallArguments(ctx, name, arguments)
+}
+
 func (c *Catalog) PendingEmbeddingRefs() []string {
 	if c == nil || c.executor == nil {
 		return nil

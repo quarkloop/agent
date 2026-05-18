@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"time"
 
@@ -180,12 +181,25 @@ func (m *Manager) GetProvider(id string) (plugin.Provider, bool) {
 // RegisterRuntimeProvider registers a provider supplied by runtime wiring
 // instead of a disk plugin. It replaces an existing provider with the same ID.
 func (m *Manager) RegisterRuntimeProvider(id string, provider plugin.Provider) {
-	if id == "" || provider == nil {
+	if id == "" || providerIsNil(provider) {
 		return
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.providers[id] = provider
+}
+
+func providerIsNil(provider plugin.Provider) bool {
+	if provider == nil {
+		return true
+	}
+	value := reflect.ValueOf(provider)
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return value.IsNil()
+	default:
+		return false
+	}
 }
 
 // ListLoaded returns the names of all currently-loaded tool plugins.

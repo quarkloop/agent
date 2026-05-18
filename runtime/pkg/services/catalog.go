@@ -35,7 +35,7 @@ func PromptBlock(descriptors []*servicev1.ServiceDescriptor) string {
 	b.WriteString("Never claim that data was indexed, embedded, retrieved, released, or persisted unless the matching service function has returned successfully in this session.\n")
 	b.WriteString("When a user gives multiple files or records to index, index every listed item and verify one successful persistence result per item before finalizing.\n")
 	b.WriteString("\nService function arguments must match the protobuf JSON shape for that RPC request message.\n")
-	b.WriteString("Call at most one service function per assistant turn. Each service function argument payload must be one valid JSON object with quoted keys and schema-compatible values; never emit comments, bare key/value syntax, or multiple JSON objects in one call.\n")
+	b.WriteString("Each service function argument payload must be one valid JSON object with quoted keys and schema-compatible values; never emit comments, bare key/value syntax, or multiple JSON objects in one call. When the workflow gives an ordered batch of known independent service calls, issue that batch in one assistant turn.\n")
 	for _, desc := range descriptors {
 		fmt.Fprintf(&b, "\n### %s\n\n", desc.GetName())
 		fmt.Fprintf(&b, "- Type: `%s`\n", desc.GetType())

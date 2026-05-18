@@ -24,7 +24,7 @@ func New(address, provider string) *Provider {
 }
 
 func (p *Provider) ChatCompletionStream(ctx context.Context, req *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
-	if p.address == "" {
+	if p == nil || p.address == "" {
 		return nil, fmt.Errorf("model service address is required")
 	}
 	conn, err := servicekit.Dial(ctx, p.address)

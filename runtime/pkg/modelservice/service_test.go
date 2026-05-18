@@ -77,6 +77,26 @@ func TestAdapterRecordsStreamingUsageWithoutPromptLeak(t *testing.T) {
 	}
 }
 
+func TestRuntimeContextCarriesSpaceSessionAndRun(t *testing.T) {
+	ctx := context.Background()
+	ctx = WithSpaceID(ctx, "space-1")
+	ctx = WithSessionID(ctx, "session-1")
+	ctx = WithRunID(ctx, "run-1")
+
+	if SpaceID(ctx) != "space-1" || SessionID(ctx) != "session-1" || RunID(ctx) != "run-1" {
+		t.Fatalf("runtime context values = space:%q session:%q run:%q", SpaceID(ctx), SessionID(ctx), RunID(ctx))
+	}
+}
+
+func TestNewIgnoresTypedNilProviders(t *testing.T) {
+	var provider *fakeProvider
+	svc := New(map[string]plugin.Provider{"openrouter": provider}, nil)
+
+	if svc.HasProvider("openrouter") {
+		t.Fatal("typed nil provider was registered")
+	}
+}
+
 func TestAdapterRecordsFallbackUsage(t *testing.T) {
 	primaryErr := plugin.NewProviderError(plugin.ProviderErrorRateLimit, "primary", "model-a", 429, errors.New("primary quota exhausted"))
 	primaryErr.ResetAt = "2026-05-15T12:00:00Z"

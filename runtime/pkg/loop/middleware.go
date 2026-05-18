@@ -1,6 +1,10 @@
 package loop
 
-import "context"
+import (
+	"context"
+	"fmt"
+	"runtime/debug"
+)
 
 // Middleware wraps a HandlerFunc to add cross-cutting behavior.
 // Middleware is applied in the order registered, forming a chain.
@@ -22,9 +26,9 @@ func RecoveryMiddleware(next HandlerFunc) HandlerFunc {
 			if r := recover(); r != nil {
 				switch v := r.(type) {
 				case error:
-					err = v
+					err = &PanicError{Value: v, MsgType: msg.Type(), Stack: debug.Stack()}
 				default:
-					err = &PanicError{Value: r, MsgType: msg.Type()}
+					err = &PanicError{Value: r, MsgType: msg.Type(), Stack: debug.Stack()}
 				}
 			}
 		}()
@@ -36,10 +40,14 @@ func RecoveryMiddleware(next HandlerFunc) HandlerFunc {
 type PanicError struct {
 	Value   any
 	MsgType string
+	Stack   []byte
 }
 
 func (e *PanicError) Error() string {
-	return "panic in handler for " + e.MsgType
+	if len(e.Stack) == 0 {
+		return fmt.Sprintf("panic in handler for %s: %v", e.MsgType, e.Value)
+	}
+	return fmt.Sprintf("panic in handler for %s: %v\n%s", e.MsgType, e.Value, e.Stack)
 }
 
 // ObserverFunc is called when a message is processed.

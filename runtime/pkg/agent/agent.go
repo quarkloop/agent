@@ -28,6 +28,7 @@ import (
 	"github.com/quarkloop/runtime/pkg/pluginmanager"
 	"github.com/quarkloop/runtime/pkg/prompt"
 	"github.com/quarkloop/runtime/pkg/session"
+	"github.com/quarkloop/runtime/pkg/toolpolicy"
 	"github.com/quarkloop/runtime/pkg/workflow"
 	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
@@ -47,6 +48,7 @@ type Config struct {
 	PromptAddenda        []string
 	PendingRefs          func() []string
 	ToolResultRef        func(name, arguments, result string) (string, error)
+	ToolCallArguments    llm.ToolCallArgumentNormalizer
 	CoreEvents           *coreevents.Recorder
 	ModelProviderAdapter plugin.Provider
 
@@ -307,6 +309,7 @@ func (a *Agent) handleUserMessage(ctx context.Context, msg loop.Message) error {
 
 	runID := newRunID()
 	requestCtx, cancel := context.WithCancel(ctx)
+	requestCtx = modelservice.WithSpaceID(requestCtx, a.Space)
 	requestCtx = modelservice.WithSessionID(requestCtx, userMsg.SessionID)
 	requestCtx = modelservice.WithRunID(requestCtx, runID)
 	defer cancel()
@@ -335,22 +338,47 @@ func (a *Agent) handleUserMessage(ctx context.Context, msg loop.Message) error {
 	if client == nil {
 		return fmt.Errorf("no LLM client configured")
 	}
+	if a.config.ToolCallArguments != nil {
+		requestCtx = llm.WithToolCallArgumentNormalizer(requestCtx, a.config.ToolCallArguments)
+	}
 
 	history := s.GetMessages()
 	tools := a.defaultTools()
 	workflowTracker := workflow.NewTracker(userMsg.SessionID, userMsg.Content, tools, a.Workflows, func(event workflow.Event) {
 		a.addActivity(userMsg.SessionID, "workflow."+event.Type, event)
 	})
-	fullResponse, err := message.Handle(
+	systemPrompt := a.systemPrompt()
+	onTool := a.executeTool
+	var workflowGuard llm.FinalGuard
+	var workflowToolCallGate llm.ToolCallGate
+	var workflowToolCallGuard llm.ToolCallGuard
+	var workflowToolResultGate llm.ToolResultGate
+	var workflowToolResultInstruction llm.ToolResultInstruction
+	if workflowTracker != nil {
+		if block := workflowTracker.PromptBlock(); block != "" {
+			systemPrompt = systemPrompt + "\n\n" + block
+		}
+		onTool = workflowTracker.WrapToolHandler(onTool)
+		workflowGuard = workflowTracker.FinalGuard
+		workflowToolCallGate = workflowTracker.AcceptFinalBeforeToolCalls
+		workflowToolCallGuard = workflowTracker.GuardToolCalls
+		workflowToolResultGate = workflowTracker.AcceptFinalAfterToolCalls
+		workflowToolResultInstruction = workflowTracker.ContinuationPrompt
+	}
+	fullResponse, err := message.HandleWithToolCallPolicyAndContinuation(
 		requestCtx,
 		history,
 		client,
-		a.systemPrompt(),
+		systemPrompt,
 		a.Plan.GetSummary(),
 		tools,
-		workflowTracker.WrapToolHandler(a.executeTool),
+		onTool,
 		response,
-		guard.CombineFinalGuards(a.finalGuard(), workflowTracker.FinalGuard),
+		guard.CombineFinalGuards(a.finalGuard(), workflowGuard),
+		workflowToolCallGate,
+		workflowToolCallGuard,
+		workflowToolResultGate,
+		workflowToolResultInstruction,
 	)
 	if err != nil {
 		a.emitMessageError(requestCtx, userMsg.SessionID, response, err)
@@ -544,14 +572,7 @@ func (a *Agent) handleWorkStep(ctx context.Context, msg loop.Message) error {
 func (a *Agent) handleToolCall(ctx context.Context, msg loop.Message) error {
 	toolMsg := msg.(ToolCallMsg)
 
-	// Check permissions (additional check beyond middleware)
-	if err := a.permissions.ValidateTool(toolMsg.Tool); err != nil {
-		denied := a.toolPolicyDeniedError(ctx, toolMsg.Tool, toolMsg.Arguments)
-		toolMsg.ResultChan <- AgentToolResult{Error: denied}
-		return denied
-	}
-
-	result, err := a.Plugins.ExecuteTool(ctx, toolMsg.Tool, toolMsg.Arguments)
+	result, err := a.executeTool(ctx, toolMsg.Tool, toolMsg.Arguments)
 	toolMsg.ResultChan <- AgentToolResult{Output: result, Error: err}
 	return err
 }
@@ -574,7 +595,49 @@ func (a *Agent) processWork(ctx context.Context, agentID, task string) (string, 
 
 // defaultTools returns the available tools.
 func (a *Agent) defaultTools() []plugin.ToolSchema {
-	return a.Plugins.GetTools()
+	tools := a.Plugins.GetTools()
+	if len(tools) == 0 {
+		return nil
+	}
+	filtered := make([]plugin.ToolSchema, 0, len(tools))
+	for _, tool := range tools {
+		if a.permissions != nil && !a.permissions.CanUseTool(tool.Name) {
+			continue
+		}
+		filtered = append(filtered, cloneToolSchema(tool))
+	}
+	return filtered
+}
+
+func cloneToolSchema(schema plugin.ToolSchema) plugin.ToolSchema {
+	schema.Parameters = cloneSchemaMap(schema.Parameters)
+	return schema
+}
+
+func cloneSchemaMap(in map[string]any) map[string]any {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]any, len(in))
+	for key, value := range in {
+		out[key] = cloneSchemaValue(value)
+	}
+	return out
+}
+
+func cloneSchemaValue(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		return cloneSchemaMap(typed)
+	case []any:
+		out := make([]any, len(typed))
+		for i, item := range typed {
+			out[i] = cloneSchemaValue(item)
+		}
+		return out
+	default:
+		return value
+	}
 }
 
 func (a *Agent) systemPrompt() string {
@@ -596,7 +659,15 @@ func (a *Agent) executeTool(ctx context.Context, name, arguments string) (string
 	if err := a.permissions.ValidateTool(name); err != nil {
 		return "", a.toolPolicyDeniedError(ctx, name, arguments)
 	}
-	if err := a.requireToolApproval(ctx, name, arguments); err != nil {
+	runtimeApproved, err := a.requireToolApproval(ctx, name, arguments)
+	if err != nil {
+		return "", err
+	}
+	if err := toolpolicy.Validate(toolpolicy.Invocation{
+		Name:            name,
+		Arguments:       arguments,
+		RuntimeApproved: runtimeApproved,
+	}); err != nil {
 		return "", err
 	}
 	result, err := a.Plugins.ExecuteTool(ctx, name, arguments)
@@ -628,18 +699,18 @@ func (a *Agent) toolPolicyDeniedError(ctx context.Context, name, arguments strin
 	)
 }
 
-func (a *Agent) requireToolApproval(ctx context.Context, name, arguments string) error {
+func (a *Agent) requireToolApproval(ctx context.Context, name, arguments string) (bool, error) {
 	if a.execution == nil || a.execution.Mode() != execution.ModeAssistive || a.execution.Gate() == nil {
-		return nil
+		return false, nil
 	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	sessionID := modelservice.SessionID(ctx)
 	if err := a.execution.Gate().RequestApproval(ctx, name, arguments, sessionID); err != nil {
-		return fmt.Errorf("tool call approval failed for %s: %w", name, err)
+		return false, fmt.Errorf("tool call approval failed for %s: %w", name, err)
 	}
-	return nil
+	return true, nil
 }
 
 // Identity returns the agent's hierarchy identity.

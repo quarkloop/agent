@@ -101,10 +101,84 @@ func TestDefaultToolsComesFromPluginManager(t *testing.T) {
 	}
 }
 
+func TestDefaultToolsFiltersDeniedProfileFunctions(t *testing.T) {
+	a := newTestAgentWithConfig(t, Config{
+		ID:               "test-agent",
+		PluginsDir:       t.TempDir(),
+		PermissionPolicy: &permissions.Policy{RestrictTools: true, AllowedTools: []string{"embedding_Embed"}},
+	})
+	a.Plugins.RegisterRuntimeTool(pluginmanager.RuntimeTool{
+		Schema: plugin.ToolSchema{Name: "embedding_Embed", Description: "embed"},
+		Handler: func(context.Context, string) (string, error) {
+			return "ok", nil
+		},
+	})
+	a.Plugins.RegisterRuntimeTool(pluginmanager.RuntimeTool{
+		Schema: plugin.ToolSchema{Name: "model_Embed", Description: "model embed"},
+		Handler: func(context.Context, string) (string, error) {
+			return "ok", nil
+		},
+	})
+
+	tools := a.defaultTools()
+	if len(tools) != 1 || tools[0].Name != "embedding_Embed" {
+		t.Fatalf("filtered tools = %+v", tools)
+	}
+}
+
+func TestDefaultToolsReturnsIndependentSchemaMaps(t *testing.T) {
+	a := newTestAgent(t)
+	a.Plugins.RegisterRuntimeTool(pluginmanager.RuntimeTool{
+		Schema: plugin.ToolSchema{
+			Name: "runtime_echo",
+			Parameters: map[string]any{
+				"properties": map[string]any{"value": map[string]any{"type": "string"}},
+			},
+		},
+		Handler: func(context.Context, string) (string, error) {
+			return "ok", nil
+		},
+	})
+
+	first := a.defaultTools()
+	first[0].Parameters["properties"].(map[string]any)["value"] = map[string]any{"type": "integer"}
+
+	second := a.defaultTools()
+	got := second[0].Parameters["properties"].(map[string]any)["value"].(map[string]any)["type"]
+	if got != "string" {
+		t.Fatalf("schema map mutation leaked into agent tool registry: %v", got)
+	}
+}
+
 func TestAgentInitializesWorkflowStateStore(t *testing.T) {
 	a := newTestAgent(t)
 	if a.Workflows == nil {
 		t.Fatal("workflow store was not initialized")
+	}
+}
+
+func TestHandleUserMessageWithoutWorkflowDoesNotPanic(t *testing.T) {
+	a := newTestAgent(t)
+	a.Models.AddModel("test-model", staticProvider{reply: "hello from model"}, 0)
+	a.Models.SetDefault("test-model")
+
+	resp := make(chan message.StreamMessage, 8)
+	err := a.handleUserMessage(context.Background(), NewUserMessage(context.Background(), message.PostRequest{
+		SessionID: "session-1",
+		Content:   "hello there",
+	}, resp))
+	if err != nil {
+		t.Fatalf("handle user message: %v", err)
+	}
+
+	var reply string
+	for msg := range resp {
+		if msg.Type == "token" {
+			reply += msg.Data.(string)
+		}
+	}
+	if reply != "hello from model" {
+		t.Fatalf("streamed reply = %q", reply)
 	}
 }
 
@@ -214,6 +288,26 @@ func TestExecuteToolUsesAssistiveApprovalGate(t *testing.T) {
 	case <-executed:
 	default:
 		t.Fatal("tool handler did not run")
+	}
+}
+
+func TestExecuteToolRequiresRuntimeApprovalForFSMutations(t *testing.T) {
+	a := newTestAgent(t)
+	executed := false
+	a.Plugins.RegisterRuntimeTool(pluginmanager.RuntimeTool{
+		Schema: plugin.ToolSchema{Name: "fs", Description: "filesystem"},
+		Handler: func(context.Context, string) (string, error) {
+			executed = true
+			return "removed", nil
+		},
+	})
+
+	_, err := a.executeTool(context.Background(), "fs", `{"command":"rm","path":"/tmp/quark-e2e-space","approved":true}`)
+	if !boundary.IsCategory(err, boundary.ApprovalRequired) {
+		t.Fatalf("expected approval-required boundary error, got %v", err)
+	}
+	if executed {
+		t.Fatal("fs mutation executed without runtime approval")
 	}
 }
 
@@ -364,4 +458,20 @@ func newTestAgentWithConfig(t *testing.T, cfg Config) *Agent {
 		t.Fatalf("new agent: %v", err)
 	}
 	return a
+}
+
+type staticProvider struct {
+	reply string
+}
+
+func (p staticProvider) ChatCompletionStream(context.Context, *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+	ch := make(chan plugin.StreamEvent, 2)
+	ch <- plugin.StreamEvent{Delta: p.reply}
+	ch <- plugin.StreamEvent{Done: true}
+	close(ch)
+	return ch, nil
+}
+
+func (p staticProvider) ParseToolCalls(content string) ([]plugin.ToolCall, string) {
+	return nil, content
 }
