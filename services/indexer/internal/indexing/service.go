@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/quarkloop/services/indexer/pkg/indexer"
 )
@@ -29,7 +30,9 @@ type Store interface {
 }
 
 type Service struct {
-	store Store
+	store            Store
+	mu               sync.RWMutex
+	vectorDimensions int
 }
 
 func New(store Store) (*Service, error) {
@@ -46,6 +49,9 @@ func (s *Service) IndexDocument(ctx context.Context, cmd IndexCommand) error {
 func (s *Service) UpsertChunk(ctx context.Context, cmd IndexCommand) error {
 	cmd = normalizeIndexCommand(cmd)
 	if err := validateIndexCommand(cmd); err != nil {
+		return err
+	}
+	if err := s.rememberVectorDimensions(len(cmd.Vector)); err != nil {
 		return err
 	}
 
@@ -147,6 +153,9 @@ func (s *Service) GetContext(ctx context.Context, query ContextQuery) (*ContextR
 	if err := validateContextQuery(query); err != nil {
 		return nil, err
 	}
+	if err := s.checkQueryVectorDimensions(len(query.Vector)); err != nil {
+		return nil, err
+	}
 
 	chunks, err := s.store.VectorSearch(ctx, query.Vector, query.Limit, query.Filters)
 	if err != nil {
@@ -194,10 +203,12 @@ func normalizeIndexCommand(cmd IndexCommand) IndexCommand {
 	cmd.Vector = cloneVector(cmd.Vector)
 	cmd.Metadata = cloneMetadata(cmd.Metadata)
 	cmd.Document = normalizeDocument(cmd.Document, cmd.Metadata, cmd.ChunkID)
+	cmd.Provenance = normalizeProvenance(cmd.Provenance, cmd.Metadata, cmd.Document.SourceURI, cmd.Text)
+	cmd.Metadata = normalizeSourceMetadata(cmd.Metadata, cmd.Document, cmd.Provenance)
+	cmd.Document = normalizeDocument(cmd.Document, cmd.Metadata, cmd.ChunkID)
 	cmd.EmbeddingMetadata = normalizeEmbeddingMetadata(cmd.EmbeddingMetadata, cmd.Metadata, len(cmd.Vector))
 	cmd.Entities = normalizeEntities(cmd.Entities)
 	cmd.Relations = normalizeRelations(cmd.Relations)
-	cmd.Provenance = normalizeProvenance(cmd.Provenance, cmd.Metadata, cmd.Document.SourceURI, cmd.Text)
 	cmd.Citations = normalizeCitations(cmd.Citations, cmd.ChunkID, cmd.Provenance.SourceURI)
 	cmd.Facts = normalizeFacts(cmd.Facts, cmd.ChunkID, cmd.Provenance.SourceURI)
 	return cmd
@@ -249,6 +260,28 @@ func validateContextQuery(query ContextQuery) error {
 		return invalid("query_vector", "is required")
 	}
 	return nil
+}
+
+func (s *Service) rememberVectorDimensions(dimensions int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.vectorDimensions == 0 {
+		s.vectorDimensions = dimensions
+		return nil
+	}
+	if s.vectorDimensions != dimensions {
+		return invalid("embedding", fmt.Sprintf("has %d dimensions, but this index uses %d-dimensional embeddings", dimensions, s.vectorDimensions))
+	}
+	return nil
+}
+
+func (s *Service) checkQueryVectorDimensions(dimensions int) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.vectorDimensions == 0 || s.vectorDimensions == dimensions {
+		return nil
+	}
+	return invalid("query_vector", fmt.Sprintf("has %d dimensions, but this index uses %d-dimensional embeddings", dimensions, s.vectorDimensions))
 }
 
 func normalizeEntities(entities []indexer.Entity) []indexer.Entity {
@@ -378,6 +411,91 @@ func normalizeProvenance(provenance indexer.Provenance, metadata map[string]stri
 		TraceID:    traceID,
 		Metadata:   cloneMetadata(provenance.Metadata),
 	}
+}
+
+func normalizeSourceMetadata(metadata map[string]string, document indexer.Document, provenance indexer.Provenance) map[string]string {
+	out := cloneMetadata(metadata)
+	copyMissingMetadata(out, document.Metadata)
+	copyMissingMetadata(out, provenance.Metadata)
+	setMetadataDefault(out, "document_id", document.ID)
+	setMetadataDefault(out, "document_name", document.Name)
+	setMetadataDefault(out, "document_type", document.Type)
+	setMetadataDefault(out, "source_uri", firstNonEmpty(document.SourceURI, provenance.SourceURI))
+	setMetadataDefault(out, "source_hash", provenance.SourceHash)
+	if firstMetadata(out, "filename") == "" {
+		setMetadataDefault(out, "filename", bestSourceFilename(out, document, provenance))
+	}
+	return out
+}
+
+func copyMissingMetadata(dst, src map[string]string) {
+	for key, value := range src {
+		setMetadataDefault(dst, key, value)
+	}
+}
+
+func setMetadataDefault(metadata map[string]string, key, value string) {
+	key = strings.TrimSpace(key)
+	value = strings.TrimSpace(value)
+	if key == "" || value == "" {
+		return
+	}
+	if strings.TrimSpace(metadata[key]) != "" {
+		return
+	}
+	metadata[key] = value
+}
+
+func bestSourceFilename(metadata map[string]string, document indexer.Document, provenance indexer.Provenance) string {
+	for _, value := range []string{
+		firstMetadata(metadata, "filename", "source_filename", "file_name"),
+		firstMetadata(document.Metadata, "filename", "source_filename", "file_name"),
+		firstMetadata(provenance.Metadata, "filename", "source_filename", "file_name"),
+		document.SourceURI,
+		provenance.SourceURI,
+		firstMetadata(metadata, "source_uri", "source", "path"),
+		document.Name,
+	} {
+		filename := filenameFromSource(value)
+		if filename == "" {
+			continue
+		}
+		if strings.EqualFold(value, document.Name) && !looksLikeFilename(filename) {
+			continue
+		}
+		return filename
+	}
+	return ""
+}
+
+func filenameFromSource(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	if idx := strings.Index(value, "://"); idx >= 0 {
+		withoutScheme := value[idx+3:]
+		if slash := strings.IndexAny(withoutScheme, `/\`); slash >= 0 {
+			value = withoutScheme[slash:]
+		}
+	}
+	if query := strings.IndexAny(value, "?#"); query >= 0 {
+		value = value[:query]
+	}
+	value = strings.TrimRight(value, `/\`)
+	if slash := strings.LastIndexAny(value, `/\`); slash >= 0 {
+		value = value[slash+1:]
+	}
+	value = strings.TrimSpace(value)
+	if value == "." || value == ".." {
+		return ""
+	}
+	return value
+}
+
+func looksLikeFilename(value string) bool {
+	value = filenameFromSource(value)
+	return strings.Contains(value, ".")
 }
 
 func normalizeCitations(citations []indexer.Citation, chunkID, sourceURI string) []indexer.Citation {

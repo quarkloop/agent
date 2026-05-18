@@ -22,6 +22,16 @@ func TestLocalEmbedderUsesDeterministicMetadata(t *testing.T) {
 	}
 }
 
+func TestLocalEmbedderRejectsDimensionOverride(t *testing.T) {
+	emb, err := newEmbedder(Config{Provider: "local", Dimensions: 32})
+	if err != nil {
+		t.Fatalf("new embedder: %v", err)
+	}
+	if _, err := emb.Embed(context.Background(), "hello world", "", 384); !isProviderCategory(err, CategoryDimensionMismatch) {
+		t.Fatalf("expected dimension mismatch error, got %v", err)
+	}
+}
+
 func TestOpenRouterEmbedderCallsEmbeddingsEndpoint(t *testing.T) {
 	var sawAuth bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -80,6 +90,29 @@ func TestOpenRouterEmbedderRejectsDimensionMismatch(t *testing.T) {
 	}
 	if _, err := emb.Embed(context.Background(), "hello", "", 0); !isProviderCategory(err, CategoryDimensionMismatch) {
 		t.Fatalf("expected dimension mismatch error, got %v", err)
+	}
+}
+
+func TestOpenRouterEmbedderCategorizesProviderErrorPayload(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"error":{"message":"HTTP 400: {\"error\":\"Input length 12004 exceeds maximum allowed token size 8192\"}"}}`))
+	}))
+	defer srv.Close()
+
+	emb, err := newEmbedder(Config{
+		Provider:          "openrouter",
+		Model:             "test-model",
+		Dimensions:        3,
+		OpenRouterAPIKey:  "test-key",
+		OpenRouterBaseURL: srv.URL,
+		HTTPClient:        srv.Client(),
+	})
+	if err != nil {
+		t.Fatalf("new embedder: %v", err)
+	}
+	if _, err := emb.Embed(context.Background(), "hello", "", 0); !isProviderCategory(err, CategoryInvalidRequest) {
+		t.Fatalf("expected invalid request error, got %v", err)
 	}
 }
 

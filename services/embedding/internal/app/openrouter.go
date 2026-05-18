@@ -60,6 +60,9 @@ func (e *openRouterEmbedder) Embed(ctx context.Context, input, model string, dim
 	if err := json.Unmarshal(body, &out); err != nil {
 		return embeddingResult{}, providerError(CategoryProviderResponse, e.Provider(), model, resp.StatusCode, fmt.Errorf("decode response: %w", err))
 	}
+	if out.Error != nil {
+		return embeddingResult{}, providerError(categoryForProviderError(out.Error.Message), e.Provider(), model, resp.StatusCode, fmt.Errorf("%s", out.Error.Message))
+	}
 	if len(out.Data) == 0 || len(out.Data[0].Embedding) == 0 {
 		return embeddingResult{}, providerError(CategoryProviderResponse, e.Provider(), model, resp.StatusCode, fmt.Errorf("response did not include an embedding"))
 	}
@@ -104,7 +107,26 @@ type openRouterEmbeddingContent struct {
 
 type openRouterEmbeddingResponse struct {
 	Model string `json:"model"`
-	Data  []struct {
+	Error *struct {
+		Message string `json:"message"`
+	} `json:"error,omitempty"`
+	Data []struct {
 		Embedding []float32 `json:"embedding"`
 	} `json:"data"`
+}
+
+func categoryForProviderError(message string) ErrorCategory {
+	normalized := strings.ToLower(message)
+	switch {
+	case strings.Contains(normalized, "api key") || strings.Contains(normalized, "auth"):
+		return CategoryAuth
+	case strings.Contains(normalized, "rate") || strings.Contains(normalized, "quota"):
+		return CategoryQuota
+	case strings.Contains(normalized, "not found") || strings.Contains(normalized, "unavailable"):
+		return CategoryModelUnavailable
+	case strings.Contains(normalized, "input length") || strings.Contains(normalized, "maximum allowed token"):
+		return CategoryInvalidRequest
+	default:
+		return CategoryProviderResponse
+	}
 }

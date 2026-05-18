@@ -13,6 +13,7 @@ const (
 	CategoryAuth               ErrorCategory = "auth"
 	CategoryQuota              ErrorCategory = "quota"
 	CategoryModelUnavailable   ErrorCategory = "model_unavailable"
+	CategoryInvalidRequest     ErrorCategory = "invalid_request"
 	CategoryDimensionMismatch  ErrorCategory = "dimension_mismatch"
 	CategoryTransport          ErrorCategory = "transport"
 	CategoryInvalidConfig      ErrorCategory = "invalid_config"
@@ -80,6 +81,8 @@ func categoryForHTTPStatus(statusCode int) ErrorCategory {
 		return CategoryQuota
 	case statusCode == http.StatusNotFound || statusCode == http.StatusGone:
 		return CategoryModelUnavailable
+	case statusCode == http.StatusBadRequest:
+		return CategoryInvalidRequest
 	case statusCode >= http.StatusInternalServerError:
 		return CategoryTransport
 	default:

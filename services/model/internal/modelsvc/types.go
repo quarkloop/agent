@@ -95,19 +95,6 @@ type modelUsage struct {
 	FinishReason    string
 }
 
-type providerFailure struct {
-	Category string
-	ResetAt  string
-}
-
-func providerFailureInfo(err error) providerFailure {
-	var providerErr *plugin.ProviderError
-	if errors.As(err, &providerErr) {
-		return providerFailure{Category: string(providerErr.Category), ResetAt: providerErr.ResetAt}
-	}
-	return providerFailure{Category: string(plugin.ProviderErrorResponse)}
-}
-
 func canFallbackAfter(err error) bool {
 	var providerErr *plugin.ProviderError
 	if !errors.As(err, &providerErr) {

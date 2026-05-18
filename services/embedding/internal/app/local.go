@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"crypto/sha256"
+	"fmt"
 	"math"
 	"strings"
 	"unicode"
@@ -20,6 +21,8 @@ func (e localEmbedder) Embed(ctx context.Context, input, model string, dimension
 	}
 	if dimensions <= 0 {
 		dimensions = e.dimensions
+	} else if dimensions != e.dimensions {
+		return embeddingResult{}, providerError(CategoryDimensionMismatch, e.Provider(), model, 0, fmt.Errorf("requested %d got configured %d", dimensions, e.dimensions))
 	}
 	return embeddingResult{
 		Vector:   deterministicVector(input, dimensions),

@@ -2,6 +2,7 @@ package indexing
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/quarkloop/services/indexer/pkg/indexer"
@@ -141,6 +142,102 @@ func TestIndexDocumentRejectsEmbeddingDimensionMismatch(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected validation error")
+	}
+}
+
+func TestIndexDocumentDerivesSearchMetadataFromCanonicalSourceFields(t *testing.T) {
+	store := &fakeStore{}
+	svc, err := New(store)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	err = svc.UpsertChunk(context.Background(), IndexCommand{
+		ChunkID: "chunk-invoice",
+		Text:    "Invoice INV-2026-014 for Northwind Retail GmbH totals EUR 18,450.00.",
+		Vector:  []float32{0.1, 0.2, 0.3},
+		Document: indexer.Document{
+			ID:        "doc-invoice",
+			Name:      "Aurora cloud migration invoice",
+			Type:      "invoice",
+			SourceURI: "/uploads/company-records/invoice_2026_aurora_cloud_migration.md",
+			Metadata:  map[string]string{"tenant": "e2e"},
+		},
+		Provenance: indexer.Provenance{
+			SourceHash: "hash-invoice",
+			Metadata:   map[string]string{"run_id": "run-1"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("upsert chunk: %v", err)
+	}
+
+	chunk := store.inserted[0].Chunk
+	if got := chunk.Metadata["filename"]; got != "invoice_2026_aurora_cloud_migration.md" {
+		t.Fatalf("derived filename = %q, want invoice filename: %+v", got, chunk.Metadata)
+	}
+	if got := chunk.Metadata["source_uri"]; got != "/uploads/company-records/invoice_2026_aurora_cloud_migration.md" {
+		t.Fatalf("derived source_uri = %q: %+v", got, chunk.Metadata)
+	}
+	if got := chunk.Metadata["document_id"]; got != "doc-invoice" {
+		t.Fatalf("derived document_id = %q: %+v", got, chunk.Metadata)
+	}
+	if got := chunk.Metadata["source_hash"]; got != "hash-invoice" {
+		t.Fatalf("derived source_hash = %q: %+v", got, chunk.Metadata)
+	}
+	if got := chunk.Metadata["tenant"]; got != "e2e" {
+		t.Fatalf("document metadata was not copied into searchable metadata: %+v", chunk.Metadata)
+	}
+	if got := chunk.Metadata["run_id"]; got != "run-1" {
+		t.Fatalf("provenance metadata was not copied into searchable metadata: %+v", chunk.Metadata)
+	}
+	if chunk.Document.Name != "Aurora cloud migration invoice" {
+		t.Fatalf("document name was overwritten: %+v", chunk.Document)
+	}
+}
+
+func TestIndexDocumentRejectsMixedEmbeddingDimensions(t *testing.T) {
+	svc, err := New(&fakeStore{})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if err := svc.IndexDocument(context.Background(), IndexCommand{
+		ChunkID:           "chunk-1",
+		Text:              "hello",
+		Vector:            []float32{0.1, 0.2},
+		EmbeddingMetadata: indexer.EmbeddingMetadata{Provider: "local", Model: "local-hash-v1", Dimensions: 2},
+	}); err != nil {
+		t.Fatalf("first index document: %v", err)
+	}
+
+	err = svc.IndexDocument(context.Background(), IndexCommand{
+		ChunkID:           "chunk-2",
+		Text:              "goodbye",
+		Vector:            []float32{0.1, 0.2, 0.3},
+		EmbeddingMetadata: indexer.EmbeddingMetadata{Provider: "local", Model: "local-hash-v1", Dimensions: 3},
+	})
+	if err == nil || !strings.Contains(err.Error(), "2-dimensional embeddings") {
+		t.Fatalf("expected mixed-dimension validation error, got %v", err)
+	}
+}
+
+func TestGetContextRejectsQueryDimensionMismatch(t *testing.T) {
+	svc, err := New(&fakeStore{})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if err := svc.IndexDocument(context.Background(), IndexCommand{
+		ChunkID:           "chunk-1",
+		Text:              "hello",
+		Vector:            []float32{0.1, 0.2},
+		EmbeddingMetadata: indexer.EmbeddingMetadata{Provider: "local", Model: "local-hash-v1", Dimensions: 2},
+	}); err != nil {
+		t.Fatalf("index document: %v", err)
+	}
+
+	_, err = svc.GetContext(context.Background(), ContextQuery{Vector: []float32{0.1, 0.2, 0.3}})
+	if err == nil || !strings.Contains(err.Error(), "2-dimensional embeddings") {
+		t.Fatalf("expected query dimension validation error, got %v", err)
 	}
 }
 

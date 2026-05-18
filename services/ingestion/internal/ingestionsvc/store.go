@@ -111,6 +111,13 @@ func (s *fileStore) updateRun(id string, mutate func(*runRecord) error) (runReco
 
 func (s *fileStore) loadLocked() (persistedState, error) {
 	data, err := os.ReadFile(s.path)
+	if errors.Is(err, os.ErrNotExist) {
+		state := persistedState{}
+		if saveErr := s.saveLocked(state); saveErr != nil {
+			return persistedState{}, saveErr
+		}
+		return state, nil
+	}
 	if err != nil {
 		return persistedState{}, fmt.Errorf("read ingestion state: %w", err)
 	}
@@ -129,6 +136,9 @@ func (s *fileStore) saveLocked(state persistedState) error {
 	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return fmt.Errorf("encode ingestion state: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+		return fmt.Errorf("create ingestion state root: %w", err)
 	}
 	if err := os.WriteFile(tmp, data, 0o600); err != nil {
 		return fmt.Errorf("write ingestion state: %w", err)

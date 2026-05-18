@@ -196,6 +196,22 @@ func TestIngestionServiceDoesNotCallOtherServices(t *testing.T) {
 	}
 }
 
+func TestIngestionStoreRecreatesMissingStateFile(t *testing.T) {
+	root := t.TempDir()
+	srv := newTestServer(t, root)
+	if err := os.Remove(filepath.Join(root, "ingestion-state.json")); err != nil {
+		t.Fatalf("remove state: %v", err)
+	}
+
+	resp := startFixtureRun(t, srv)
+	if resp.GetRun().GetId() == "" {
+		t.Fatalf("run was not persisted after state recreation: %#v", resp.GetRun())
+	}
+	if _, err := os.Stat(filepath.Join(root, "ingestion-state.json")); err != nil {
+		t.Fatalf("state file was not recreated: %v", err)
+	}
+}
+
 func newTestServer(t *testing.T, root string) *Server {
 	t.Helper()
 	srv, err := New(root)

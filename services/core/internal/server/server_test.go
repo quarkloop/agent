@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	corev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/core/v1"
@@ -42,6 +44,28 @@ func TestCoreServicePersistsArtifactReferences(t *testing.T) {
 	}
 	if got.GetArtifact().GetUri() != "artifact://runs/run-1/trace.json" {
 		t.Fatalf("artifact URI mismatch: %q", got.GetArtifact().GetUri())
+	}
+}
+
+func TestCoreStoreRecreatesStateRootOnSave(t *testing.T) {
+	root := t.TempDir()
+	srv, err := New(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(root); err != nil {
+		t.Fatalf("remove state root: %v", err)
+	}
+
+	if _, err := srv.PublishEvent(context.Background(), &corev1.PublishEventRequest{Event: &corev1.Event{
+		Id:     "event-1",
+		Stream: "session/session-1",
+		Kind:   "tool_result",
+	}}); err != nil {
+		t.Fatalf("publish after root removal: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, storeFileName)); err != nil {
+		t.Fatalf("state file was not recreated: %v", err)
 	}
 }
 

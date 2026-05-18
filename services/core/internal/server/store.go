@@ -293,6 +293,9 @@ func (s *fileStore) save(data coreData) error {
 	if err != nil {
 		return fmt.Errorf("marshal core state: %w", err)
 	}
+	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+		return fmt.Errorf("create core state root: %w", err)
+	}
 	tmp := s.path + ".tmp"
 	if err := os.WriteFile(tmp, body, 0o644); err != nil {
 		return fmt.Errorf("write core state: %w", err)
