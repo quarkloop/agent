@@ -58,12 +58,15 @@ var _ = []any{
 type Executor struct {
 	descriptors   []*servicev1.ServiceDescriptor
 	mu            sync.RWMutex
+	refTTL        time.Duration
 	nextEmbedding int
 	embeddings    map[string][]float32
 	embeddingInfo map[string]map[string]any
+	embeddingBorn map[string]time.Time
 	nextContent   int
 	contents      map[string]string
 	contentInfo   map[string]map[string]any
+	contentBorn   map[string]time.Time
 	pending       map[string]struct{}
 }
 
@@ -79,13 +82,21 @@ func NewExecutor(descriptors []*servicev1.ServiceDescriptor) *Executor {
 	}
 	return &Executor{
 		descriptors:   out,
+		refTTL:        defaultReferenceTTL,
 		embeddings:    make(map[string][]float32),
 		embeddingInfo: make(map[string]map[string]any),
+		embeddingBorn: make(map[string]time.Time),
 		contents:      make(map[string]string),
 		contentInfo:   make(map[string]map[string]any),
+		contentBorn:   make(map[string]time.Time),
 		pending:       make(map[string]struct{}),
 	}
 }
+
+const (
+	defaultReferenceTTL     = 30 * time.Minute
+	largeResultReferenceMin = 2048
+)
 
 func (e *Executor) ToolSchemas() []ServiceFunctionSchema {
 	if e == nil || len(e.descriptors) == 0 {
@@ -116,6 +127,7 @@ func (e *Executor) Execute(ctx context.Context, functionName, arguments string) 
 	if e == nil {
 		return "", fmt.Errorf("service executor is not configured")
 	}
+	e.CleanupExpiredReferences(time.Now())
 	resolved, err := e.resolve(functionName)
 	if err != nil {
 		return "", err
@@ -172,13 +184,14 @@ func (e *Executor) Execute(ctx context.Context, functionName, arguments string) 
 	if err != nil {
 		return "", fmt.Errorf("encode response: %w", err)
 	}
-	return string(data), nil
+	return e.attachResultReference(functionName, rpc.GetResponse(), data)
 }
 
 func (e *Executor) CaptureToolResult(toolName, arguments, result string) (string, error) {
 	if e == nil || strings.TrimSpace(toolName) != "fs" {
 		return result, nil
 	}
+	e.CleanupExpiredReferences(time.Now())
 	command, path, ok := fsReadLikeCommand(arguments)
 	if !ok {
 		return result, nil
@@ -719,6 +732,7 @@ func (e *Executor) embeddingToolResult(msg protoreflect.ProtoMessage) (string, e
 	e.mu.Lock()
 	e.nextEmbedding++
 	ref := fmt.Sprintf("emb_%d", e.nextEmbedding)
+	now := time.Now()
 	metadata := map[string]any{
 		"contentHash": contentHash,
 		"dimensions":  int(reflected.Get(dimensionsField).Int()),
@@ -729,6 +743,8 @@ func (e *Executor) embeddingToolResult(msg protoreflect.ProtoMessage) (string, e
 	e.embeddings[contentHash] = cloneVector(vector)
 	e.embeddingInfo[ref] = cloneMetadata(metadata)
 	e.embeddingInfo[contentHash] = cloneMetadata(metadata)
+	e.embeddingBorn[ref] = now
+	e.embeddingBorn[contentHash] = now
 	e.pending[ref] = struct{}{}
 	e.mu.Unlock()
 
@@ -873,6 +889,7 @@ func (e *Executor) registerContent(content string, metadata map[string]any) (str
 	defer e.mu.Unlock()
 	e.nextContent++
 	ref := fmt.Sprintf("content_%d", e.nextContent)
+	now := time.Now()
 	info := cloneMetadata(metadata)
 	info["contentHash"] = contentHash
 	info["chars"] = len([]rune(content))
@@ -880,14 +897,53 @@ func (e *Executor) registerContent(content string, metadata map[string]any) (str
 	e.contents[contentHash] = content
 	e.contentInfo[ref] = cloneMetadata(info)
 	e.contentInfo[contentHash] = cloneMetadata(info)
+	e.contentBorn[ref] = now
+	e.contentBorn[contentHash] = now
 	return ref, cloneMetadata(info)
 }
 
 func (e *Executor) contentByRef(ref string) (string, bool) {
+	e.CleanupExpiredReferences(time.Now())
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	content, ok := e.contents[ref]
 	return content, ok
+}
+
+func (e *Executor) attachResultReference(functionName, responseType string, data []byte) (string, error) {
+	if len(data) < largeResultReferenceMin && !shouldReferenceResponse(responseType) {
+		return string(data), nil
+	}
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return string(data), nil
+	}
+	ref, info := e.registerContent(string(data), map[string]any{
+		"serviceFunction": functionName,
+		"responseType":    responseType,
+	})
+	payload["resultRef"] = mustJSONRaw(ref)
+	payload["resultChars"] = mustJSONRaw(info["chars"])
+	payload["resultHash"] = mustJSONRaw(info["contentHash"])
+	out, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("encode service result reference: %w", err)
+	}
+	return string(out), nil
+}
+
+func shouldReferenceResponse(responseType string) bool {
+	switch responseType {
+	case "quark.indexer.v1.ContextResponse",
+		"quark.indexer.v1.QueryContextResponse",
+		"quark.devops.v1.RunTestsResponse",
+		"quark.devops.v1.ExplainFailureResponse",
+		"quark.system.v1.ReadLogsResponse",
+		"quark.system.v1.SnapshotResponse":
+		return true
+	default:
+		return false
+	}
 }
 
 func mustJSONRaw(value any) json.RawMessage {
@@ -938,6 +994,7 @@ func (e *Executor) expandVectorReference(arguments, refField, vectorField string
 }
 
 func (e *Executor) embeddingMetadataByRef(ref string) (map[string]any, bool) {
+	e.CleanupExpiredReferences(time.Now())
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	metadata, ok := e.embeddingInfo[ref]
@@ -951,6 +1008,7 @@ func (e *Executor) markEmbeddingConsumed(ref string) {
 }
 
 func (e *Executor) PendingEmbeddingRefs() []string {
+	e.CleanupExpiredReferences(time.Now())
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return e.pendingEmbeddingRefsLocked()
@@ -966,6 +1024,7 @@ func (e *Executor) pendingEmbeddingRefsLocked() []string {
 }
 
 func (e *Executor) embeddingByRef(ref string) ([]float32, bool) {
+	e.CleanupExpiredReferences(time.Now())
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	vector, ok := e.embeddings[ref]
@@ -973,6 +1032,37 @@ func (e *Executor) embeddingByRef(ref string) ([]float32, bool) {
 		return nil, false
 	}
 	return cloneVector(vector), true
+}
+
+func (e *Executor) CleanupExpiredReferences(now time.Time) {
+	if e == nil || e.refTTL <= 0 {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for ref, born := range e.contentBorn {
+		if now.Sub(born) <= e.refTTL {
+			continue
+		}
+		delete(e.contentBorn, ref)
+		delete(e.contents, ref)
+		delete(e.contentInfo, ref)
+	}
+	for ref, born := range e.embeddingBorn {
+		if now.Sub(born) <= e.refTTL {
+			continue
+		}
+		delete(e.embeddingBorn, ref)
+		delete(e.embeddings, ref)
+		delete(e.embeddingInfo, ref)
+		delete(e.pending, ref)
+	}
+}
+
+func (e *Executor) setReferenceTTL(ttl time.Duration) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.refTTL = ttl
 }
 
 func cloneVector(in []float32) []float32 {

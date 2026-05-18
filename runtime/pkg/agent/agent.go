@@ -28,6 +28,7 @@ import (
 	"github.com/quarkloop/runtime/pkg/pluginmanager"
 	"github.com/quarkloop/runtime/pkg/prompt"
 	"github.com/quarkloop/runtime/pkg/session"
+	"github.com/quarkloop/runtime/pkg/workflow"
 	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
@@ -63,16 +64,17 @@ type Config struct {
 
 // Agent is the main agent instance with a typed message loop.
 type Agent struct {
-	ID       string
-	loop     *loop.Loop
-	Sessions *session.Registry
-	Plan     *plan.Plan
-	Models   *llm.Registry
-	Plugins  *pluginmanager.Manager
-	Bus      *channel.ChannelBus
-	Activity *activity.Store
-	core     *coreevents.Recorder
-	config   Config
+	ID        string
+	loop      *loop.Loop
+	Sessions  *session.Registry
+	Plan      *plan.Plan
+	Models    *llm.Registry
+	Plugins   *pluginmanager.Manager
+	Bus       *channel.ChannelBus
+	Activity  *activity.Store
+	Workflows *workflow.Store
+	core      *coreevents.Recorder
+	config    Config
 
 	// Hierarchy management
 	identity  *hierarchy.Identity
@@ -135,6 +137,7 @@ func NewAgent(cfg Config) (*Agent, error) {
 		Models:      llm.NewRegistry(),
 		Plugins:     pluginmanager.NewManager(pluginsDir),
 		Activity:    activity.NewStore(1000),
+		Workflows:   workflow.NewStore(),
 		core:        cfg.CoreEvents,
 		config:      cfg,
 		agents:      agentRegistry,
@@ -330,17 +333,20 @@ func (a *Agent) handleUserMessage(ctx context.Context, msg loop.Message) error {
 	}
 
 	history := s.GetMessages()
-	toolRequirements := guard.NewToolRequirementTracker(userMsg.Content)
+	tools := a.defaultTools()
+	workflowTracker := workflow.NewTracker(userMsg.SessionID, userMsg.Content, tools, a.Workflows, func(event workflow.Event) {
+		a.addActivity(userMsg.SessionID, "workflow."+event.Type, event)
+	})
 	fullResponse, err := message.Handle(
 		requestCtx,
 		history,
 		client,
 		a.systemPrompt(),
 		a.Plan.GetSummary(),
-		a.defaultTools(),
-		toolRequirements.WrapToolHandler(a.executeTool),
+		tools,
+		workflowTracker.WrapToolHandler(a.executeTool),
 		response,
-		guard.CombineFinalGuards(a.finalGuard(), toolRequirements.FinalGuard),
+		guard.CombineFinalGuards(a.finalGuard(), workflowTracker.FinalGuard),
 	)
 	if err != nil {
 		a.emitMessageError(requestCtx, userMsg.SessionID, response, err)

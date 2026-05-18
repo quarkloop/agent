@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
 	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
@@ -213,6 +214,33 @@ func TestCanonicalIndexerRequestSchemasExposeRuntimeReferenceFields(t *testing.T
 	deleteSchema := requestParameters("quark.indexer.v1.DeleteDocumentRequest")
 	if got := deleteSchema["required"]; !sameStrings(got, []string{"documentId"}) {
 		t.Fatalf("DeleteDocument required = %+v", got)
+	}
+}
+
+func TestExecutorAddsExpiringReferencesForLargeServiceResults(t *testing.T) {
+	executor := NewExecutor(nil)
+	result := `{"contexts":[{"text":"` + strings.Repeat("retrieved context ", 200) + `"}]}`
+
+	withRef, err := executor.attachResultReference("indexer_QueryContext", "quark.indexer.v1.ContextResponse", []byte(result))
+	if err != nil {
+		t.Fatalf("attach result reference: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(withRef), &payload); err != nil {
+		t.Fatalf("decode referenced result: %v\n%s", err, withRef)
+	}
+	ref, ok := payload["resultRef"].(string)
+	if !ok || ref == "" {
+		t.Fatalf("resultRef missing: %+v", payload)
+	}
+	if content, ok := executor.contentByRef(ref); !ok || content != result {
+		t.Fatalf("stored result ref = %q ok=%t", content, ok)
+	}
+
+	executor.setReferenceTTL(time.Millisecond)
+	executor.CleanupExpiredReferences(time.Now().Add(time.Hour))
+	if _, ok := executor.contentByRef(ref); ok {
+		t.Fatalf("expired result reference %s was not cleaned up", ref)
 	}
 }
 

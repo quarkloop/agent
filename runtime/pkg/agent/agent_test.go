@@ -100,6 +100,13 @@ func TestDefaultToolsComesFromPluginManager(t *testing.T) {
 	}
 }
 
+func TestAgentInitializesWorkflowStateStore(t *testing.T) {
+	a := newTestAgent(t)
+	if a.Workflows == nil {
+		t.Fatal("workflow store was not initialized")
+	}
+}
+
 func TestExecuteToolRoutesThroughPluginManager(t *testing.T) {
 	a := newTestAgent(t)
 	a.Plugins.RegisterRuntimeTool(pluginmanager.RuntimeTool{
