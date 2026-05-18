@@ -305,8 +305,10 @@ func (a *Agent) handleUserMessage(ctx context.Context, msg loop.Message) error {
 	userMsg := msg.(UserMessageMsg)
 	defer close(userMsg.Response)
 
+	runID := newRunID()
 	requestCtx, cancel := context.WithCancel(ctx)
 	requestCtx = modelservice.WithSessionID(requestCtx, userMsg.SessionID)
+	requestCtx = modelservice.WithRunID(requestCtx, runID)
 	defer cancel()
 	stopRequestCancel := context.AfterFunc(userMsg.Context, cancel)
 	defer stopRequestCancel()
@@ -314,11 +316,13 @@ func (a *Agent) handleUserMessage(ctx context.Context, msg loop.Message) error {
 	if a.Activity != nil {
 		a.addActivity(userMsg.SessionID, "message.user", map[string]any{
 			"content_length": len(userMsg.Content),
+			"run_id":         runID,
 		})
 		instrumented, stopForwarding := a.instrumentResponse(requestCtx, userMsg.SessionID, userMsg.Response)
 		response = instrumented
 		defer stopForwarding()
 	}
+	slog.Info("agent message started", "session_id", userMsg.SessionID, "run_id", runID, "content_length", len(userMsg.Content))
 
 	s := a.Sessions.Get(userMsg.SessionID)
 	if s == nil {
@@ -350,12 +354,14 @@ func (a *Agent) handleUserMessage(ctx context.Context, msg loop.Message) error {
 	)
 	if err != nil {
 		a.emitMessageError(requestCtx, userMsg.SessionID, response, err)
+		slog.Error("agent message failed", "session_id", userMsg.SessionID, "run_id", runID, "error", err)
 		return err
 	}
 	if a.config.PendingRefs != nil {
 		if refs := a.config.PendingRefs(); len(refs) > 0 {
 			err := guard.UnconsumedPendingRefsError(refs)
 			a.emitMessageError(requestCtx, userMsg.SessionID, response, err)
+			slog.Error("agent message failed", "session_id", userMsg.SessionID, "run_id", runID, "error", err)
 			return err
 		}
 	}
@@ -364,9 +370,15 @@ func (a *Agent) handleUserMessage(ctx context.Context, msg loop.Message) error {
 	if a.Activity != nil {
 		a.addActivity(userMsg.SessionID, "message.assistant", map[string]any{
 			"content_length": len(fullResponse),
+			"run_id":         runID,
 		})
 	}
+	slog.Info("agent message completed", "session_id", userMsg.SessionID, "run_id", runID, "content_length", len(fullResponse))
 	return nil
+}
+
+func newRunID() string {
+	return fmt.Sprintf("run-%d", time.Now().UTC().UnixNano())
 }
 
 func (a *Agent) instrumentResponse(ctx context.Context, sessionID string, downstream chan message.StreamMessage) (chan message.StreamMessage, func()) {
@@ -401,6 +413,12 @@ func (a *Agent) recordStreamActivity(sessionID string, msg message.StreamMessage
 
 func (a *Agent) emitMessageError(ctx context.Context, sessionID string, response chan message.StreamMessage, err error) {
 	payload := boundary.StreamPayload(err, boundary.Runtime, "message")
+	if runID := modelservice.RunID(ctx); runID != "" {
+		payload["run_id"] = runID
+	}
+	if sessionID != "" {
+		payload["session_id"] = sessionID
+	}
 	if messageText, ok := payload["message"].(string); ok {
 		payload["message"] = fmt.Sprintf("Agent Error: %s", messageText)
 	}
@@ -593,11 +611,13 @@ func (a *Agent) executeTool(ctx context.Context, name, arguments string) (string
 
 func (a *Agent) toolPolicyDeniedError(ctx context.Context, name, arguments string) error {
 	sessionID := modelservice.SessionID(ctx)
+	runID := modelservice.RunID(ctx)
 	if a.Activity != nil {
 		a.addActivity(sessionID, "policy.denied", map[string]any{
 			"tool":             name,
 			"reason":           "tool_not_allowed",
 			"arguments_length": len(arguments),
+			"run_id":           runID,
 		})
 	}
 	return boundary.New(

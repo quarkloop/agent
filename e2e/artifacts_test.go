@@ -34,7 +34,10 @@ func writeAgentRunArtifacts(t *testing.T, dir, prefix string, env *utils.E2EEnv,
 	writeArtifact(t, dir, prefix+"-tools.txt", strings.Join(trace.ToolStarts, "\n"))
 	writeTraceArtifact(t, dir, prefix+"-tool-events.json", trace)
 	writeJSONArtifact(t, dir, prefix+"-observability.json", map[string]any{
+		"artifact_id":   prefix + "-observability",
 		"space":         env.Space,
+		"session_id":    trace.SessionID,
+		"run_id":        trace.RunID,
 		"agent_url":     env.AgentURL,
 		"supervisor":    env.SupURL,
 		"prompt_sha256": promptHash(prompt),
@@ -56,9 +59,13 @@ func writeAgentRunArtifacts(t *testing.T, dir, prefix string, env *utils.E2EEnv,
 		"catalog_snapshot": catalogSnapshot(env, trace),
 		"profile_snapshot": profileSnapshot(env),
 		"model_usage":      modelUsageSnapshot(env, trace),
+		"model_usage_timeline": []map[string]any{
+			modelUsageSnapshot(env, trace),
+		},
 		"services":         serviceSnapshot(env),
 		"tool_timeline":    toolTimeline(trace),
 		"service_timeline": serviceTimeline(trace),
+		"diagnostics":      diagnosticsSnapshot(trace),
 		"artifacts": map[string]string{
 			"reply":         artifacts.Reply,
 			"tools":         artifacts.Tools,
@@ -177,22 +184,31 @@ func toolTimeline(trace utils.MessageTrace) []map[string]any {
 	timeline := make([]map[string]any, 0, len(trace.ToolStartEvents)+len(trace.ToolResultEvents))
 	for i, event := range trace.ToolStartEvents {
 		timeline = append(timeline, map[string]any{
-			"sequence":  i,
-			"phase":     "start",
-			"call_id":   event.CallID,
-			"name":      event.Name,
-			"arguments": event.Arguments,
+			"sequence":        i,
+			"phase":           "start",
+			"call_id":         event.CallID,
+			"service_call_id": firstNonEmpty(event.ServiceCallID, event.CallID),
+			"name":            event.Name,
+			"arguments":       event.Arguments,
+			"session_id":      event.SessionID,
+			"run_id":          event.RunID,
+			"observed_at":     event.ObservedAt,
 		})
 	}
 	offset := len(timeline)
 	for i, event := range trace.ToolResultEvents {
 		timeline = append(timeline, map[string]any{
-			"sequence": offset + i,
-			"phase":    "result",
-			"call_id":  event.CallID,
-			"name":     event.Name,
-			"error":    event.Error,
-			"result":   event.Result,
+			"sequence":        offset + i,
+			"phase":           "result",
+			"call_id":         event.CallID,
+			"service_call_id": firstNonEmpty(event.ServiceCallID, event.CallID),
+			"name":            event.Name,
+			"error":           event.Error,
+			"result":          event.Result,
+			"duration_millis": event.DurationMillis,
+			"session_id":      event.SessionID,
+			"run_id":          event.RunID,
+			"observed_at":     event.ObservedAt,
 		})
 	}
 	return timeline
@@ -206,13 +222,49 @@ func serviceTimeline(trace utils.MessageTrace) []map[string]any {
 			continue
 		}
 		timeline = append(timeline, map[string]any{
-			"service": service,
-			"tool":    event.Name,
-			"call_id": event.CallID,
-			"error":   event.Error,
+			"service":         service,
+			"tool":            event.Name,
+			"call_id":         event.CallID,
+			"service_call_id": firstNonEmpty(event.ServiceCallID, event.CallID),
+			"error":           event.Error,
+			"duration_millis": event.DurationMillis,
+			"session_id":      event.SessionID,
+			"run_id":          event.RunID,
+			"observed_at":     event.ObservedAt,
 		})
 	}
 	return timeline
+}
+
+func diagnosticsSnapshot(trace utils.MessageTrace) []map[string]any {
+	diagnostics := make([]map[string]any, 0)
+	for _, event := range trace.ToolResultEvents {
+		if !event.Error {
+			continue
+		}
+		service, _ := serviceNameFromTool(event.Name)
+		diagnostics = append(diagnostics, map[string]any{
+			"code":            "tool.call_failed",
+			"severity":        "error",
+			"service":         service,
+			"tool":            event.Name,
+			"call_id":         event.CallID,
+			"service_call_id": firstNonEmpty(event.ServiceCallID, event.CallID),
+			"session_id":      event.SessionID,
+			"run_id":          event.RunID,
+			"message":         "Tool or service function returned an error.",
+		})
+	}
+	return diagnostics
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func serviceNameFromTool(name string) (string, bool) {

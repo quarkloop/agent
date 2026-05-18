@@ -21,7 +21,10 @@ func main() {
 	flag.StringVar(&pdftotextPath, "pdftotext", os.Getenv("QUARK_PDFTOTEXT_PATH"), "pdftotext executable path; empty resolves from PATH")
 	flag.Parse()
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	logger := slog.New(slog.NewTextHandler(os.Stderr, nil).WithAttrs([]slog.Attr{
+		slog.String("process", "service"),
+		slog.String("service", "document"),
+	}))
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 

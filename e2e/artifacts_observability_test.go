@@ -31,16 +31,28 @@ func TestAgentRunArtifactsAreRedactedAndStructured(t *testing.T) {
 	}
 	trace := utils.MessageTrace{
 		Text:       "reply with " + secret,
+		Space:      env.Space,
+		SessionID:  "session-1",
+		RunID:      "run-1",
 		ToolStarts: []string{"embedding_Embed"},
 		ToolStartEvents: []utils.ToolEvent{{
-			CallID:    "call-1",
-			Name:      "embedding_Embed",
-			Arguments: `{"authorization":"Bearer ` + secret + `"}`,
+			CallID:        "call-1",
+			ServiceCallID: "call-1",
+			Name:          "embedding_Embed",
+			Arguments:     `{"authorization":"Bearer ` + secret + `"}`,
+			SessionID:     "session-1",
+			RunID:         "run-1",
+			ObservedAt:    "2026-05-18T10:00:00Z",
 		}},
 		ToolResultEvents: []utils.ToolEvent{{
-			CallID: "call-1",
-			Name:   "embedding_Embed",
-			Result: `{"api_key":"` + secret + `"}`,
+			CallID:         "call-1",
+			ServiceCallID:  "call-1",
+			Name:           "embedding_Embed",
+			Result:         `{"api_key":"` + secret + `"}`,
+			SessionID:      "session-1",
+			RunID:          "run-1",
+			ObservedAt:     "2026-05-18T10:00:01Z",
+			DurationMillis: 25,
 		}},
 	}
 
@@ -56,14 +68,19 @@ func TestAgentRunArtifactsAreRedactedAndStructured(t *testing.T) {
 	}
 
 	var payload struct {
+		ArtifactID      string           `json:"artifact_id"`
+		SessionID       string           `json:"session_id"`
+		RunID           string           `json:"run_id"`
 		PromptSHA256    string           `json:"prompt_sha256"`
 		Model           map[string]any   `json:"model"`
 		Embedding       map[string]any   `json:"embedding"`
 		CatalogSnapshot map[string]any   `json:"catalog_snapshot"`
 		ProfileSnapshot map[string]any   `json:"profile_snapshot"`
 		ModelUsage      map[string]any   `json:"model_usage"`
+		ModelTimeline   []map[string]any `json:"model_usage_timeline"`
 		ToolTimeline    []map[string]any `json:"tool_timeline"`
 		ServiceTimeline []map[string]any `json:"service_timeline"`
+		Diagnostics     []map[string]any `json:"diagnostics"`
 		Artifacts       map[string]any   `json:"artifacts"`
 	}
 	data, err := os.ReadFile(artifacts.Observability)
@@ -76,6 +93,9 @@ func TestAgentRunArtifactsAreRedactedAndStructured(t *testing.T) {
 	if len(payload.PromptSHA256) != 64 {
 		t.Fatalf("prompt hash length = %d, want 64", len(payload.PromptSHA256))
 	}
+	if payload.ArtifactID == "" || payload.SessionID != "session-1" || payload.RunID != "run-1" {
+		t.Fatalf("observability identity missing: %+v", payload)
+	}
 	if payload.Model["provider"] != "openrouter" || payload.Embedding["provider"] != "local" {
 		t.Fatalf("unexpected model/embedding snapshot: %+v %+v", payload.Model, payload.Embedding)
 	}
@@ -85,13 +105,71 @@ func TestAgentRunArtifactsAreRedactedAndStructured(t *testing.T) {
 	if payload.ModelUsage["provider"] != "openrouter" || payload.ModelUsage["reported_by_model"] != false {
 		t.Fatalf("unexpected model usage snapshot: %+v", payload.ModelUsage)
 	}
+	if len(payload.ModelTimeline) != 1 || payload.ModelTimeline[0]["provider"] != "openrouter" {
+		t.Fatalf("unexpected model usage timeline: %+v", payload.ModelTimeline)
+	}
 	if len(payload.ToolTimeline) != 2 {
 		t.Fatalf("tool timeline length = %d, want 2: %+v", len(payload.ToolTimeline), payload.ToolTimeline)
+	}
+	if payload.ToolTimeline[0]["service_call_id"] != "call-1" || payload.ToolTimeline[0]["run_id"] != "run-1" {
+		t.Fatalf("tool timeline missing correlation fields: %+v", payload.ToolTimeline)
 	}
 	if len(payload.ServiceTimeline) != 2 || payload.ServiceTimeline[0]["service"] != "embedding" {
 		t.Fatalf("unexpected service timeline: %+v", payload.ServiceTimeline)
 	}
+	if len(payload.Diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics for successful trace: %+v", payload.Diagnostics)
+	}
 	if payload.Artifacts["reply"] == "" || payload.Artifacts["observability"] == "" {
 		t.Fatalf("artifact paths missing from observability payload: %+v", payload.Artifacts)
+	}
+}
+
+func TestAgentRunArtifactsIncludeToolFailureDiagnostics(t *testing.T) {
+	dir := t.TempDir()
+	env := &utils.E2EEnv{
+		Space:    "e2e-artifact-test",
+		SupURL:   "http://127.0.0.1:7200",
+		AgentURL: "http://127.0.0.1:7300",
+		Provider: "openrouter",
+		Model:    "test/model",
+		Embedding: utils.EmbeddingOptions{
+			Plugin:     "embedding",
+			Mode:       "local",
+			Provider:   "local",
+			Model:      "local-hash-v1",
+			Dimensions: 32,
+		},
+	}
+	trace := utils.MessageTrace{
+		Space:     env.Space,
+		SessionID: "session-1",
+		RunID:     "run-1",
+		ToolResultEvents: []utils.ToolEvent{{
+			CallID:        "call-1",
+			ServiceCallID: "call-1",
+			Name:          "indexer_QueryContext",
+			Error:         true,
+			SessionID:     "session-1",
+			RunID:         "run-1",
+		}},
+	}
+
+	artifacts := writeAgentRunArtifacts(t, dir, "agent-run", env, trace, "what did we index?")
+	data, err := os.ReadFile(artifacts.Observability)
+	if err != nil {
+		t.Fatalf("read observability artifact: %v", err)
+	}
+	var payload struct {
+		Diagnostics []map[string]any `json:"diagnostics"`
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		t.Fatalf("decode observability artifact: %v\n%s", err, string(data))
+	}
+	if len(payload.Diagnostics) != 1 {
+		t.Fatalf("diagnostics = %+v", payload.Diagnostics)
+	}
+	if payload.Diagnostics[0]["service"] != "indexer" || payload.Diagnostics[0]["service_call_id"] != "call-1" {
+		t.Fatalf("diagnostic missing service correlation: %+v", payload.Diagnostics[0])
 	}
 }

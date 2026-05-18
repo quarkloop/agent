@@ -142,11 +142,13 @@ func StreamPayload(err error, boundary Boundary, operation string) map[string]an
 	if boundaryErr != nil && boundaryErr.Message != "" {
 		message = boundaryErr.Message
 	}
+	diagnostic := DiagnosticFromError(err, boundary, operation)
 	return map[string]any{
-		"message":   message,
-		"boundary":  string(boundaryErr.Boundary),
-		"category":  string(boundaryErr.Category),
-		"operation": boundaryErr.Operation,
+		"message":    message,
+		"boundary":   string(boundaryErr.Boundary),
+		"category":   string(boundaryErr.Category),
+		"operation":  boundaryErr.Operation,
+		"diagnostic": diagnostic,
 	}
 }
 

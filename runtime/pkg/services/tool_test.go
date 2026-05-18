@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/quarkloop/pkg/boundary"
 	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
 	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
@@ -301,9 +302,63 @@ func TestExecutorRetriesRetryableServiceFunctionFailures(t *testing.T) {
 	}
 }
 
+func TestExecutorWrapsMissingServiceFunctionAsDiagnosticNotFound(t *testing.T) {
+	executor := NewExecutor(nil)
+
+	_, err := executor.Execute(context.Background(), "missing_Service", `{}`)
+	if !boundary.IsCategory(err, boundary.NotFound) {
+		t.Fatalf("expected not found boundary error, got %v", err)
+	}
+	diag := boundary.DiagnosticFromError(err, boundary.Service, "service function")
+	if diag.Code != "service.not_found" || diag.Hint == "" {
+		t.Fatalf("diagnostic = %+v", diag)
+	}
+}
+
+func TestExecutorMapsServiceInvalidArgumentToDiagnostics(t *testing.T) {
+	server := grpc.NewServer()
+	embeddingv1.RegisterEmbeddingServiceServer(server, invalidArgumentEmbeddingServer{})
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	errCh := make(chan error, 1)
+	go func() { errCh <- server.Serve(ln) }()
+	defer func() {
+		server.Stop()
+		_ = ln.Close()
+		<-errCh
+	}()
+
+	executor := NewExecutor([]*servicev1.ServiceDescriptor{{
+		Name:    "embedding",
+		Address: ln.Addr().String(),
+		Rpcs: []*servicev1.RpcDescriptor{{
+			Service:      embeddingv1.EmbeddingService_ServiceDesc.ServiceName,
+			Method:       "Embed",
+			Request:      "quark.embedding.v1.EmbedRequest",
+			Response:     "quark.embedding.v1.EmbedResponse",
+			FunctionName: "embedding_Embed",
+		}},
+	}})
+
+	_, err = executor.Execute(context.Background(), "embedding_Embed", `{"input":"bad"}`)
+	if !boundary.IsCategory(err, boundary.InvalidArgument) {
+		t.Fatalf("expected invalid argument boundary error, got %v", err)
+	}
+}
+
 type flakyEmbeddingServer struct {
 	embeddingv1.UnimplementedEmbeddingServiceServer
 	calls int32
+}
+
+type invalidArgumentEmbeddingServer struct {
+	embeddingv1.UnimplementedEmbeddingServiceServer
+}
+
+func (invalidArgumentEmbeddingServer) Embed(context.Context, *embeddingv1.EmbedRequest) (*embeddingv1.EmbedResponse, error) {
+	return nil, status.Error(codes.InvalidArgument, "parser rejected input")
 }
 
 func (s *flakyEmbeddingServer) Embed(context.Context, *embeddingv1.EmbedRequest) (*embeddingv1.EmbedResponse, error) {

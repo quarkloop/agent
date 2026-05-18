@@ -26,6 +26,9 @@ func PostMessage(t *testing.T, ctx context.Context, env *E2EEnv, sessionID, cont
 // MessageTrace is the observable response stream produced by PostMessageTrace.
 type MessageTrace struct {
 	Text             string
+	Space            string
+	SessionID        string
+	RunID            string
 	ToolStarts       []string
 	ToolResults      []string
 	ToolStartEvents  []ToolEvent
@@ -35,11 +38,16 @@ type MessageTrace struct {
 }
 
 type ToolEvent struct {
-	CallID    string `json:"id,omitempty"`
-	Name      string `json:"name"`
-	Arguments string `json:"arguments,omitempty"`
-	Result    string `json:"result,omitempty"`
-	Error     bool   `json:"error,omitempty"`
+	CallID         string `json:"id,omitempty"`
+	ServiceCallID  string `json:"service_call_id,omitempty"`
+	Name           string `json:"name"`
+	Arguments      string `json:"arguments,omitempty"`
+	Result         string `json:"result,omitempty"`
+	Error          bool   `json:"error,omitempty"`
+	SessionID      string `json:"session_id,omitempty"`
+	RunID          string `json:"run_id,omitempty"`
+	ObservedAt     string `json:"observed_at,omitempty"`
+	DurationMillis int64  `json:"duration_millis,omitempty"`
 }
 
 // MessageTraceOptions bounds one streamed agent response and controls failure
@@ -120,7 +128,24 @@ func PostMessageTraceWithOptions(t *testing.T, ctx context.Context, env *E2EEnv,
 		}
 		t.Fatalf("read message stream %s: %v", opts.Label, err)
 	}
+	trace.Space = opts.Space
+	trace.SessionID = opts.SessionID
+	trace.RunID = traceRunID(trace)
 	return trace
+}
+
+func traceRunID(trace MessageTrace) string {
+	for _, event := range trace.ToolStartEvents {
+		if event.RunID != "" {
+			return event.RunID
+		}
+	}
+	for _, event := range trace.ToolResultEvents {
+		if event.RunID != "" {
+			return event.RunID
+		}
+	}
+	return ""
 }
 
 func normalizeMessageTraceOptions(opts MessageTraceOptions) MessageTraceOptions {

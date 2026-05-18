@@ -23,7 +23,10 @@ func main() {
 	flag.Parse()
 
 	fallbacks := parseFallbacks(fallbackSpec)
-	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	logger := slog.New(slog.NewTextHandler(os.Stderr, nil).WithAttrs([]slog.Attr{
+		slog.String("process", "service"),
+		slog.String("service", "model"),
+	}))
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 

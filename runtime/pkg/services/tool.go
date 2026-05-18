@@ -29,6 +29,7 @@ import (
 	systemv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/system/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -133,20 +134,20 @@ func (e *Executor) Execute(ctx context.Context, functionName, arguments string) 
 	e.CleanupExpiredReferences(time.Now())
 	resolved, err := e.resolve(functionName)
 	if err != nil {
-		return "", err
+		return "", boundary.Wrap(boundary.Service, boundary.NotFound, "resolve "+functionName, err)
 	}
 	rpc := resolved.rpc
 	arguments, err = normalizeServiceArgumentJSON(arguments)
 	if err != nil {
-		return "", err
+		return "", boundary.Wrap(boundary.Service, boundary.InvalidArgument, "decode arguments "+functionName, err)
 	}
 	arguments, err = e.expandRuntimeReferences(rpc.GetRequest(), arguments)
 	if err != nil {
-		return "", err
+		return "", boundary.Wrap(boundary.Service, boundary.NotFound, "expand references "+functionName, err)
 	}
 	arguments, err = normalizeStringMapArguments(rpc.GetRequest(), arguments)
 	if err != nil {
-		return "", err
+		return "", boundary.Wrap(boundary.Service, boundary.InvalidArgument, "normalize arguments "+functionName, err)
 	}
 
 	msgType, err := protoregistry.GlobalTypes.FindMessageByName(protoreflect.FullName(rpc.GetRequest()))
@@ -156,7 +157,7 @@ func (e *Executor) Execute(ctx context.Context, functionName, arguments string) 
 	in := dynamicpb.NewMessage(msgType.Descriptor())
 	if strings.TrimSpace(arguments) != "" {
 		if err := protojson.Unmarshal([]byte(arguments), in); err != nil {
-			return "", fmt.Errorf("decode %s: %w", rpc.GetRequest(), err)
+			return "", boundary.Wrap(boundary.Service, boundary.InvalidArgument, "decode "+rpc.GetRequest(), err)
 		}
 	}
 
@@ -175,7 +176,7 @@ func (e *Executor) Execute(ctx context.Context, functionName, arguments string) 
 	defer cancel()
 	out, err := invokeServiceFunction(callCtx, conn, fullMethod, in, respType.Descriptor(), rpc)
 	if err != nil {
-		return "", boundary.Wrap(boundary.Service, boundary.Unavailable, "call "+fullMethod, err)
+		return "", boundary.Wrap(boundary.Service, categoryFromGRPCStatus(err), "call "+fullMethod, err)
 	}
 	if rpc.GetResponse() == "quark.embedding.v1.EmbedResponse" {
 		return e.embeddingToolResult(out)
@@ -188,6 +189,31 @@ func (e *Executor) Execute(ctx context.Context, functionName, arguments string) 
 		return "", fmt.Errorf("encode response: %w", err)
 	}
 	return e.attachResultReference(functionName, rpc.GetResponse(), data)
+}
+
+func categoryFromGRPCStatus(err error) boundary.Category {
+	switch status.Code(err) {
+	case codes.OK:
+		return boundary.Unknown
+	case codes.Canceled:
+		return boundary.Canceled
+	case codes.InvalidArgument, codes.FailedPrecondition, codes.OutOfRange:
+		return boundary.InvalidArgument
+	case codes.DeadlineExceeded:
+		return boundary.Deadline
+	case codes.NotFound:
+		return boundary.NotFound
+	case codes.AlreadyExists, codes.Aborted:
+		return boundary.Conflict
+	case codes.PermissionDenied, codes.Unauthenticated:
+		return boundary.Auth
+	case codes.ResourceExhausted:
+		return boundary.RateLimit
+	case codes.Unavailable:
+		return boundary.Unavailable
+	default:
+		return boundary.Unavailable
+	}
 }
 
 func (e *Executor) CaptureToolResult(toolName, arguments, result string) (string, error) {

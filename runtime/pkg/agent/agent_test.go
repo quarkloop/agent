@@ -325,7 +325,8 @@ func TestEmitMessageErrorPropagatesBoundaryCategory(t *testing.T) {
 	response := make(chan message.StreamMessage, 1)
 	err := plugin.NewProviderError(plugin.ProviderErrorRateLimit, "openrouter", "model-a", 429, nil)
 
-	a.emitMessageError(context.Background(), "session-1", response, err)
+	ctx := modelservice.WithRunID(context.Background(), "run-1")
+	a.emitMessageError(ctx, "session-1", response, err)
 
 	select {
 	case msg := <-response:
@@ -338,6 +339,9 @@ func TestEmitMessageErrorPropagatesBoundaryCategory(t *testing.T) {
 		}
 		if payload["boundary"] != string(boundary.Provider) || payload["category"] != string(boundary.RateLimit) {
 			t.Fatalf("stream payload = %+v", payload)
+		}
+		if payload["session_id"] != "session-1" || payload["run_id"] != "run-1" || payload["diagnostic"] == nil {
+			t.Fatalf("stream payload missing observability fields = %+v", payload)
 		}
 	default:
 		t.Fatal("expected stream error payload")

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/quarkloop/pkg/plugin"
+	"github.com/quarkloop/runtime/pkg/modelservice"
 )
 
 type fakeProvider struct {
@@ -130,8 +131,9 @@ func TestInferStreamsTraceableToolEvents(t *testing.T) {
 	client := NewClientWithLimits(provider, "test-model", 0, InferenceLimits{MaxTurns: 1, MaxFinalGuardRetries: 1})
 
 	var events []map[string]any
+	ctx := modelservice.WithRunID(modelservice.WithSessionID(context.Background(), "session-1"), "run-1")
 	_, err := client.Infer(
-		context.Background(),
+		ctx,
 		[]plugin.Message{{Role: "user", Content: "index"}},
 		[]plugin.ToolSchema{{Name: "indexer_IndexDocument"}},
 		func(context.Context, string, string) (string, error) { return "", fmt.Errorf("write failed") },
@@ -154,8 +156,14 @@ func TestInferStreamsTraceableToolEvents(t *testing.T) {
 	if events[0]["kind"] != "tool_start" || events[0]["id"] != "call-1" || events[0]["name"] != "indexer_IndexDocument" {
 		t.Fatalf("tool start event not traceable: %+v", events[0])
 	}
+	if events[0]["session_id"] != "session-1" || events[0]["run_id"] != "run-1" || events[0]["service_call_id"] != "call-1" || events[0]["observed_at"] == "" {
+		t.Fatalf("tool start event missing correlation fields: %+v", events[0])
+	}
 	if events[1]["kind"] != "tool_result" || events[1]["id"] != "call-1" || events[1]["error"] != true {
 		t.Fatalf("tool result event not traceable: %+v", events[1])
+	}
+	if events[1]["session_id"] != "session-1" || events[1]["run_id"] != "run-1" || events[1]["service_call_id"] != "call-1" || events[1]["observed_at"] == "" {
+		t.Fatalf("tool result event missing correlation fields: %+v", events[1])
 	}
 }
 

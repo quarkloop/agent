@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/quarkloop/pkg/plugin"
+	"github.com/quarkloop/runtime/pkg/modelservice"
 )
 
 // Client wraps a provider with the inference loop.
@@ -158,7 +159,9 @@ func (c *Client) Infer(ctx context.Context, messages []plugin.Message, tools []p
 			return fullContent, nil
 		}
 
-		slog.Info("tool calls", "count", len(toolCalls), "names", toolCallNames(toolCalls))
+		sessionID := modelservice.SessionID(ctx)
+		runID := modelservice.RunID(ctx)
+		slog.Info("tool calls", "count", len(toolCalls), "names", toolCallNames(toolCalls), "session_id", sessionID, "run_id", runID)
 
 		// Append assistant message with tool calls
 		messages = append(messages, plugin.Message{
@@ -170,17 +173,23 @@ func (c *Client) Infer(ctx context.Context, messages []plugin.Message, tools []p
 		// Execute each tool and append results
 		for _, tc := range toolCalls {
 			callID := tc.ID
+			startedAt := time.Now().UTC()
 			if onMessage != nil {
 				onMessage("tool_start", map[string]any{
-					"id":        callID,
-					"name":      tc.Function.Name,
-					"arguments": tc.Function.Arguments,
+					"id":              callID,
+					"service_call_id": callID,
+					"name":            tc.Function.Name,
+					"arguments":       tc.Function.Arguments,
+					"session_id":      sessionID,
+					"run_id":          runID,
+					"observed_at":     startedAt.Format(time.RFC3339Nano),
 				})
 			}
 
 			started := time.Now()
 			result, err := onTool(ctx, tc.Function.Name, tc.Function.Arguments)
 			durationMillis := time.Since(started).Milliseconds()
+			finishedAt := time.Now().UTC()
 			toolErr := err != nil
 			if err != nil {
 				result = fmt.Sprintf("error: %v", err)
@@ -188,10 +197,14 @@ func (c *Client) Infer(ctx context.Context, messages []plugin.Message, tools []p
 			if onMessage != nil {
 				onMessage("tool_result", map[string]any{
 					"id":              callID,
+					"service_call_id": callID,
 					"name":            tc.Function.Name,
 					"result":          preview(result, 2000),
 					"error":           toolErr,
 					"duration_millis": durationMillis,
+					"session_id":      sessionID,
+					"run_id":          runID,
+					"observed_at":     finishedAt.Format(time.RFC3339Nano),
 				})
 			}
 			messages = append(messages, plugin.Message{
