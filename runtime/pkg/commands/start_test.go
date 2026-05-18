@@ -6,6 +6,7 @@ import (
 	"github.com/quarkloop/pkg/plugin"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	"github.com/quarkloop/runtime/pkg/agent"
+	"github.com/quarkloop/runtime/pkg/permissions"
 	"github.com/quarkloop/runtime/pkg/pluginmanager"
 	runtimeservices "github.com/quarkloop/runtime/pkg/services"
 )
@@ -209,5 +210,45 @@ func TestRuntimeAgentProfileMapsResolvedProfileWithoutAliasing(t *testing.T) {
 	}
 	if len(got.HandoffTargets) != 1 || got.HandoffTargets[0] != "quark-devops" {
 		t.Fatalf("handoff targets = %+v", got.HandoffTargets)
+	}
+}
+
+func TestRuntimePermissionPolicyCombinesToolAndServiceFunctions(t *testing.T) {
+	got := runtimePermissionPolicy(&plugin.AgentProfile{
+		Permissions: plugin.AgentProfilePermission{
+			Tools:    []string{"fs", "fs"},
+			Services: []string{"indexer_QueryContext", "embedding_Embed"},
+		},
+	})
+	if got == nil {
+		t.Fatal("expected permission policy")
+	}
+	if !got.RestrictTools {
+		t.Fatal("resolved agent profile policy must restrict tools to its allowlist")
+	}
+	want := []string{"fs", "indexer_QueryContext", "embedding_Embed"}
+	if len(got.AllowedTools) != len(want) {
+		t.Fatalf("allowed tools = %+v, want %+v", got.AllowedTools, want)
+	}
+	for i, name := range want {
+		if got.AllowedTools[i] != name {
+			t.Fatalf("allowed tools = %+v, want %+v", got.AllowedTools, want)
+		}
+	}
+}
+
+func TestRuntimePermissionPolicyAllowsFallbackAgentWhenProfileMissing(t *testing.T) {
+	if got := runtimePermissionPolicy(nil); got != nil {
+		t.Fatalf("fallback profile should not restrict tools, got %+v", got)
+	}
+}
+
+func TestRuntimePermissionPolicyWithEmptyResolvedPermissionsDeniesAll(t *testing.T) {
+	got := runtimePermissionPolicy(&plugin.AgentProfile{})
+	if got == nil || !got.RestrictTools || len(got.AllowedTools) != 0 {
+		t.Fatalf("expected restricted empty policy, got %+v", got)
+	}
+	if permissions.NewChecker(got).CanUseTool("fs") {
+		t.Fatal("empty resolved permission set unexpectedly allowed tool call")
 	}
 }

@@ -2,6 +2,7 @@ package launchenv
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -69,5 +70,28 @@ func TestBuilderCopiesInputs(t *testing.T) {
 func TestBuilderRequiresProcessFields(t *testing.T) {
 	if _, err := NewWithBase(nil, "", nil).Build(Inputs{}); err == nil {
 		t.Fatal("expected validation error")
+	}
+}
+
+func TestNewFiltersUndeclaredSecretsFromRuntimeBaseEnvironment(t *testing.T) {
+	t.Setenv("PATH", "/bin")
+	t.Setenv("OPENROUTER_API_KEY", "sk-or-v1-launch-secret")
+
+	spec, err := New("", nil).Build(Inputs{
+		RuntimeID:  "rt-1",
+		Space:      "space-1",
+		WorkingDir: "/tmp/space",
+		Port:       7777,
+	})
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	if !slices.Contains(spec.Env, "PATH=/bin") {
+		t.Fatalf("runtime env missing PATH: %v", spec.Env)
+	}
+	for _, entry := range spec.Env {
+		if strings.Contains(entry, "sk-or-v1-launch-secret") || strings.HasPrefix(entry, "OPENROUTER_API_KEY=") {
+			t.Fatalf("runtime env leaked undeclared secret: %v", spec.Env)
+		}
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/quarkloop/pkg/boundary/redaction"
 	"github.com/quarkloop/runtime/pkg/modelservice"
 )
 
@@ -25,6 +26,7 @@ func Persist(ctx context.Context, store Store, space string, usage modelservice.
 	if err != nil {
 		return fmt.Errorf("marshal model usage: %w", err)
 	}
+	data = redaction.RedactBytes(data)
 	if err := store.KBSet(ctx, space, Namespace, Key(usage, at), data); err != nil {
 		return fmt.Errorf("persist model usage: %w", err)
 	}

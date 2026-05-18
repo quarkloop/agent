@@ -13,6 +13,7 @@ import (
 	"github.com/quarkloop/runtime/pkg/hierarchy"
 	"github.com/quarkloop/runtime/pkg/message"
 	"github.com/quarkloop/runtime/pkg/modelservice"
+	"github.com/quarkloop/runtime/pkg/permissions"
 	"github.com/quarkloop/runtime/pkg/pluginmanager"
 )
 
@@ -213,6 +214,42 @@ func TestExecuteToolUsesAssistiveApprovalGate(t *testing.T) {
 	case <-executed:
 	default:
 		t.Fatal("tool handler did not run")
+	}
+}
+
+func TestExecuteToolDeniesUnpermittedServiceFunctionAndRecordsPolicyEvent(t *testing.T) {
+	a := newTestAgentWithConfig(t, Config{
+		ID:               "test-agent",
+		PluginsDir:       t.TempDir(),
+		PermissionPolicy: &permissions.Policy{AllowedTools: []string{"fs"}},
+	})
+	executed := false
+	a.Plugins.RegisterRuntimeTool(pluginmanager.RuntimeTool{
+		Schema: plugin.ToolSchema{Name: "indexer_QueryContext", Description: "query context"},
+		Handler: func(context.Context, string) (string, error) {
+			executed = true
+			return "should-not-run", nil
+		},
+	})
+
+	ctx := modelservice.WithSessionID(context.Background(), "session-1")
+	_, err := a.executeTool(ctx, "indexer_QueryContext", `{"authorization":"Bearer secret-value"}`)
+	if err == nil {
+		t.Fatal("expected permission denial")
+	}
+	if !boundary.IsCategory(err, boundary.PolicyDenied) {
+		t.Fatalf("expected policy denied boundary error, got %v", err)
+	}
+	if executed {
+		t.Fatal("service function handler ran despite permission denial")
+	}
+	records := a.Activity.List(10)
+	if len(records) != 1 || records[0].Type != "policy.denied" || records[0].SessionID != "session-1" {
+		t.Fatalf("activity records = %+v", records)
+	}
+	data := string(records[0].Data)
+	if !strings.Contains(data, "indexer_QueryContext") || strings.Contains(data, "secret-value") {
+		t.Fatalf("policy activity did not record safe denial details: %s", data)
 	}
 }
 

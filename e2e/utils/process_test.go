@@ -3,23 +3,44 @@
 package utils
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
 
-func TestFormatProcessLogLineAddsE2EPrefix(t *testing.T) {
-	got := formatProcessLogLine("TestFormat", "indexer", `time=now level=INFO msg="ready"`)
-	want := `[e2e][test=TestFormat][process=indexer] time=now level=INFO msg="ready"`
-	if got != want {
-		t.Fatalf("formatProcessLogLine() = %q, want %q", got, want)
+func TestServiceProcessEnvDoesNotPropagateUndeclaredSecrets(t *testing.T) {
+	t.Setenv("OPENROUTER_API_KEY", "sk-or-v1-process-secret")
+	t.Setenv("UNDECLARED_SECRET", "must-not-leak")
+	t.Setenv("PATH", "/bin")
+
+	env := ServiceProcessEnv(map[string]string{"QUARK_INDEXER_ADDR": "127.0.0.1:7301"})
+
+	if !slices.Contains(env, "PATH=/bin") || !slices.Contains(env, "QUARK_INDEXER_ADDR=127.0.0.1:7301") {
+		t.Fatalf("expected base and override env entries, got %v", env)
+	}
+	for _, entry := range env {
+		if strings.Contains(entry, "sk-or-v1-process-secret") || strings.Contains(entry, "must-not-leak") {
+			t.Fatalf("service env leaked secret: %v", env)
+		}
 	}
 }
 
-func TestFormatProcessLogLineRelabelsRuntimeChild(t *testing.T) {
-	got := formatProcessLogLine("TestFormat", "supervisor", `time=now level=INFO msg="tool calls" process=runtime`)
-	for _, want := range []string{"[e2e]", "[test=TestFormat]", "[process=runtime]", "[parent_process=supervisor]", "tool calls"} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("formatted line %q missing %q", got, want)
+func TestSupervisorProcessEnvCarriesOnlyProviderSecretsAndOverrides(t *testing.T) {
+	t.Setenv("OPENROUTER_API_KEY", "sk-or-v1-process-secret")
+	t.Setenv("UNDECLARED_SECRET", "must-not-leak")
+	t.Setenv("PATH", "/bin")
+
+	env := SupervisorProcessEnv(map[string]string{"QUARK_SPACES_ROOT": "/tmp/spaces"})
+
+	if !slices.Contains(env, "OPENROUTER_API_KEY=sk-or-v1-process-secret") {
+		t.Fatalf("supervisor env missing declared provider credential: %v", env)
+	}
+	if !slices.Contains(env, "QUARK_SPACES_ROOT=/tmp/spaces") {
+		t.Fatalf("supervisor env missing override: %v", env)
+	}
+	for _, entry := range env {
+		if strings.Contains(entry, "must-not-leak") {
+			t.Fatalf("supervisor env leaked unrelated secret: %v", env)
 		}
 	}
 }

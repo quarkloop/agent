@@ -528,8 +528,9 @@ func (a *Agent) handleToolCall(ctx context.Context, msg loop.Message) error {
 
 	// Check permissions (additional check beyond middleware)
 	if err := a.permissions.ValidateTool(toolMsg.Tool); err != nil {
-		toolMsg.ResultChan <- AgentToolResult{Error: err}
-		return err
+		denied := a.toolPolicyDeniedError(ctx, toolMsg.Tool, toolMsg.Arguments)
+		toolMsg.ResultChan <- AgentToolResult{Error: denied}
+		return denied
 	}
 
 	result, err := a.Plugins.ExecuteTool(ctx, toolMsg.Tool, toolMsg.Arguments)
@@ -575,7 +576,7 @@ func (a *Agent) finalGuard() llm.FinalGuard {
 func (a *Agent) executeTool(ctx context.Context, name, arguments string) (string, error) {
 	// Check permissions
 	if err := a.permissions.ValidateTool(name); err != nil {
-		return "", err
+		return "", a.toolPolicyDeniedError(ctx, name, arguments)
 	}
 	if err := a.requireToolApproval(ctx, name, arguments); err != nil {
 		return "", err
@@ -588,6 +589,23 @@ func (a *Agent) executeTool(ctx context.Context, name, arguments string) (string
 		return result, nil
 	}
 	return a.config.ToolResultRef(name, arguments, result)
+}
+
+func (a *Agent) toolPolicyDeniedError(ctx context.Context, name, arguments string) error {
+	sessionID := modelservice.SessionID(ctx)
+	if a.Activity != nil {
+		a.addActivity(sessionID, "policy.denied", map[string]any{
+			"tool":             name,
+			"reason":           "tool_not_allowed",
+			"arguments_length": len(arguments),
+		})
+	}
+	return boundary.New(
+		boundary.Runtime,
+		boundary.PolicyDenied,
+		"tool."+name,
+		fmt.Sprintf("tool %q is not allowed by the active agent policy", name),
+	)
 }
 
 func (a *Agent) requireToolApproval(ctx context.Context, name, arguments string) error {

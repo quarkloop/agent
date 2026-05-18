@@ -8,11 +8,11 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/quarkloop/e2e/utils"
+	"github.com/quarkloop/pkg/boundary/redaction"
 )
 
 type agentRunArtifacts struct {
@@ -276,30 +276,5 @@ func redactValue(value any) any {
 }
 
 func redactString(value string) string {
-	redacted := value
-	for _, env := range os.Environ() {
-		key, secret, ok := strings.Cut(env, "=")
-		if !ok || len(secret) < 6 || !looksSensitiveKey(key) {
-			continue
-		}
-		redacted = strings.ReplaceAll(redacted, secret, "[redacted]")
-	}
-	for _, pattern := range secretPatterns {
-		redacted = pattern.ReplaceAllString(redacted, "${1}[redacted]")
-	}
-	return redacted
-}
-
-func looksSensitiveKey(key string) bool {
-	key = strings.ToUpper(key)
-	return strings.Contains(key, "KEY") ||
-		strings.Contains(key, "TOKEN") ||
-		strings.Contains(key, "SECRET") ||
-		strings.Contains(key, "PASSWORD")
-}
-
-var secretPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`(?i)(bearer\s+)[A-Za-z0-9._~+/=-]+`),
-	regexp.MustCompile(`(?i)(api[_-]?key["':=\s]+)[A-Za-z0-9._~+/=-]+`),
-	regexp.MustCompile(`(?i)(sk-(?:or-v1-)?)[A-Za-z0-9._~+/=-]+`),
+	return redaction.RedactString(value)
 }

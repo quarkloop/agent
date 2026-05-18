@@ -46,6 +46,30 @@ func TestPersistWritesRedactedUsageToSpaceStorage(t *testing.T) {
 	}
 }
 
+func TestPersistRedactsUnexpectedSecretsInUsageMetadata(t *testing.T) {
+	secret := "sk-or-v1-usage-secret"
+	t.Setenv("OPENROUTER_API_KEY", secret)
+	store := &fakeStore{}
+
+	usage := modelservice.Usage{
+		SessionID:     "session-1",
+		Provider:      "openrouter",
+		Model:         "openai/gpt-test",
+		RequestID:     "request-" + secret,
+		FallbackChain: []string{"openrouter", "Bearer " + secret},
+		FinishReason:  "stop",
+	}
+	if err := Persist(context.Background(), store, "space-1", usage, time.Now().UTC()); err != nil {
+		t.Fatalf("persist: %v", err)
+	}
+	if strings.Contains(string(store.value), secret) {
+		t.Fatalf("usage persistence leaked secret: %s", store.value)
+	}
+	if !strings.Contains(string(store.value), "[redacted]") {
+		t.Fatalf("usage persistence was not redacted: %s", store.value)
+	}
+}
+
 type fakeStore struct {
 	space     string
 	namespace string

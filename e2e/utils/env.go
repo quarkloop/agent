@@ -325,7 +325,7 @@ func startSupervisor(t *testing.T, bins BuiltBinaries, extraEnv map[string]strin
 	for k, v := range extraEnv {
 		overrides[k] = v
 	}
-	env := ProcessEnv(overrides)
+	env := SupervisorProcessEnv(overrides)
 	proc := StartProcess(t, "supervisor", bins.Supervisor, []string{
 		"start",
 		"--port", fmt.Sprint(port),

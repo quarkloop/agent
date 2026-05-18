@@ -21,7 +21,7 @@ func StartDgraph(t *testing.T) string {
 		"--name", name,
 		"-p", fmt.Sprintf("127.0.0.1:%d:9080", port),
 		DgraphStandaloneImage,
-	}, ProcessEnv(nil))
+	}, ServiceProcessEnv(nil))
 	t.Cleanup(func() {
 		_ = exec.Command("docker", "rm", "-f", name).Run()
 	})

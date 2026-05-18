@@ -26,6 +26,11 @@ var ErrHostNotAllowed = errors.New("host not allowed by permissions")
 
 // Policy defines the permission constraints for an agent.
 type Policy struct {
+	// RestrictTools makes AllowedTools authoritative. Nil policies remain
+	// permissive for standalone agents, while supervisor-resolved profiles use
+	// restricted policies so an empty permission set denies all tool calls.
+	RestrictTools bool
+
 	// Tool permissions
 	AllowedTools []string
 	DeniedTools  []string
@@ -71,8 +76,9 @@ func (c *Checker) CanUseTool(tool string) bool {
 		}
 	}
 
-	// If allowed list is empty, all tools are allowed
-	if len(c.policy.AllowedTools) == 0 {
+	// If allowed list is empty and the policy is not restricted, all tools are
+	// allowed. Restricted policies use an empty allowlist to deny all tools.
+	if len(c.policy.AllowedTools) == 0 && !c.policy.RestrictTools {
 		return true
 	}
 

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/quarkloop/pkg/boundary/redaction"
 )
 
 // Record is one runtime activity event.
@@ -41,6 +43,7 @@ func NewStore(limit int) *Store {
 // boundary so mutable caller state cannot leak into the activity store.
 func (s *Store) Add(sessionID, typ string, data any) Record {
 	payload, _ := json.Marshal(data)
+	payload = redaction.RedactBytes(payload)
 
 	s.mu.Lock()
 	s.next++

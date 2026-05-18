@@ -38,20 +38,24 @@ func startIndexerServiceAt(t *testing.T, binary, dgraphAddr, addr string) {
 		"--addr", addr,
 		"--dgraph", dgraphAddr,
 		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "indexer"),
-	}, utils.ProcessEnv(nil))
+	}, utils.ServiceProcessEnv(nil))
 	waitForGRPCHealth(t, addr, indexerv1.IndexerService_ServiceDesc.ServiceName, 60*time.Second, "indexer")
 }
 
 func startEmbeddingServiceAt(t *testing.T, binary, addr string, embedding utils.EmbeddingOptions) {
 	t.Helper()
 	embedding = embedding.WithDefaults()
+	env := utils.ServiceProcessEnv(nil)
+	if embedding.Provider == "openrouter" {
+		env = utils.ServiceProcessEnv(nil, "OPENROUTER_API_KEY", "OPENROUTER_BASE_URL")
+	}
 	utils.StartProcess(t, "embedding", binary, []string{
 		"--addr", addr,
 		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", embedding.Plugin),
 		"--provider", embedding.Provider,
 		"--model", embedding.Model,
 		"--dimensions", fmt.Sprint(embedding.Dimensions),
-	}, utils.ProcessEnv(nil))
+	}, env)
 	waitForGRPCHealth(t, addr, embeddingv1.EmbeddingService_ServiceDesc.ServiceName, 30*time.Second, "embedding")
 }
 
@@ -60,7 +64,7 @@ func startDocumentServiceAt(t *testing.T, binary, addr string) {
 	utils.StartProcess(t, "document", binary, []string{
 		"--addr", addr,
 		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "document"),
-	}, utils.ProcessEnv(nil))
+	}, utils.ServiceProcessEnv(nil))
 	waitForGRPCHealth(t, addr, documentv1.DocumentService_ServiceDesc.ServiceName, 10*time.Second, "document")
 }
 
@@ -70,7 +74,7 @@ func startIngestionServiceAt(t *testing.T, binary, addr, root string) {
 		"--addr", addr,
 		"--root", root,
 		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "ingestion"),
-	}, utils.ProcessEnv(nil))
+	}, utils.ServiceProcessEnv(nil))
 	waitForGRPCHealth(t, addr, ingestionv1.IngestionService_ServiceDesc.ServiceName, 10*time.Second, "ingestion")
 }
 
@@ -79,7 +83,7 @@ func startCitationServiceAt(t *testing.T, binary, addr string) {
 	utils.StartProcess(t, "citation", binary, []string{
 		"--addr", addr,
 		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "citation"),
-	}, utils.ProcessEnv(nil))
+	}, utils.ServiceProcessEnv(nil))
 	waitForGRPCHealth(t, addr, citationv1.CitationService_ServiceDesc.ServiceName, 10*time.Second, "citation")
 }
 
@@ -89,7 +93,7 @@ func startCoreServiceAt(t *testing.T, binary, addr, root string) {
 		"--addr", addr,
 		"--root", root,
 		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "core"),
-	}, utils.ProcessEnv(nil))
+	}, utils.ServiceProcessEnv(nil))
 	waitForGRPCHealth(t, addr, corev1.CoreService_ServiceDesc.ServiceName, 10*time.Second, "core")
 }
 
@@ -98,7 +102,7 @@ func startModelServiceAt(t *testing.T, binary, addr string) {
 	utils.StartProcess(t, "model", binary, []string{
 		"--addr", addr,
 		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "model"),
-	}, utils.ProcessEnv(nil))
+	}, utils.ServiceProcessEnv(nil, "OPENROUTER_API_KEY", "OPENROUTER_BASE_URL", "OPENAI_API_KEY", "OPENAI_BASE_URL", "ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "ZHIPU_API_KEY", "ZHIPU_BASE_URL"))
 	waitForGRPCHealth(t, addr, modelv1.ModelService_ServiceDesc.ServiceName, 10*time.Second, "model")
 }
 
@@ -107,7 +111,7 @@ func startBuildReleaseServiceAt(t *testing.T, binary, addr string) {
 	utils.StartProcess(t, "build-release", binary, []string{
 		"--addr", addr,
 		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "build-release"),
-	}, utils.ProcessEnv(nil))
+	}, utils.ServiceProcessEnv(nil))
 	waitForGRPCHealth(t, addr, buildreleasev1.BuildReleaseService_ServiceDesc.ServiceName, 10*time.Second, "build-release")
 }
 
@@ -116,7 +120,7 @@ func startDevOpsServiceAt(t *testing.T, binary, addr string) {
 	utils.StartProcess(t, "devops", binary, []string{
 		"--addr", addr,
 		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "devops"),
-	}, utils.ProcessEnv(nil))
+	}, utils.ServiceProcessEnv(nil))
 	waitForGRPCHealth(t, addr, devopsv1.RepoService_ServiceDesc.ServiceName, 10*time.Second, "devops")
 }
 
@@ -125,7 +129,7 @@ func startSystemServiceAt(t *testing.T, binary, addr string) {
 	utils.StartProcess(t, "system", binary, []string{
 		"--addr", addr,
 		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "system"),
-	}, utils.ProcessEnv(nil))
+	}, utils.ServiceProcessEnv(nil))
 	waitForGRPCHealth(t, addr, systemv1.SystemService_ServiceDesc.ServiceName, 10*time.Second, "system")
 }
 

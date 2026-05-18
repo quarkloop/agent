@@ -17,6 +17,7 @@ import (
 	"github.com/quarkloop/runtime/pkg/channel/web"
 	"github.com/quarkloop/runtime/pkg/coreevents"
 	"github.com/quarkloop/runtime/pkg/modelclient"
+	"github.com/quarkloop/runtime/pkg/permissions"
 	"github.com/quarkloop/runtime/pkg/pluginmanager"
 	"github.com/quarkloop/runtime/pkg/runtime"
 	runtimeservices "github.com/quarkloop/runtime/pkg/services"
@@ -150,6 +151,7 @@ func runStart(port int, channels []string) error {
 		ToolResultRef:        serviceFunctionToolResultRef(serviceCatalog),
 		CoreEvents:           coreRecorder,
 		ModelProviderAdapter: modelProviderAdapter,
+		PermissionPolicy:     runtimePermissionPolicy(agentPlugin.AgentProfile),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create agent: %w", err)
@@ -214,6 +216,30 @@ func modelProviderFromService(catalog *runtimeservices.Catalog, providerID strin
 		}
 	}
 	return nil
+}
+
+func runtimePermissionPolicy(profile *plugin.AgentProfile) *permissions.Policy {
+	if profile == nil {
+		return nil
+	}
+	allowed := make([]string, 0, len(profile.Permissions.Tools)+len(profile.Permissions.Services))
+	seen := make(map[string]struct{}, cap(allowed))
+	add := func(values []string) {
+		for _, value := range values {
+			name := strings.TrimSpace(value)
+			if name == "" {
+				continue
+			}
+			if _, ok := seen[name]; ok {
+				continue
+			}
+			seen[name] = struct{}{}
+			allowed = append(allowed, name)
+		}
+	}
+	add(profile.Permissions.Tools)
+	add(profile.Permissions.Services)
+	return &permissions.Policy{RestrictTools: true, AllowedTools: allowed}
 }
 
 func runtimeAgentProfile(item pluginmanager.CatalogPlugin) agent.Profile {

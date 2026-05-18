@@ -26,6 +26,14 @@ func TestToolPermissions(t *testing.T) {
 			allowed: true,
 		},
 		{
+			name: "restricted empty policy denies all",
+			policy: &permissions.Policy{
+				RestrictTools: true,
+			},
+			tool:    "bash",
+			allowed: false,
+		},
+		{
 			name: "allowed tool",
 			policy: &permissions.Policy{
 				AllowedTools: []string{"bash", "read"},

@@ -30,7 +30,7 @@ type ProcessSpec struct {
 }
 
 func New(supervisorURL string, serviceEnv []string) Builder {
-	return NewWithBase(os.Environ(), supervisorURL, serviceEnv)
+	return NewWithBase(defaultBaseEnvironment(os.Environ()), supervisorURL, serviceEnv)
 }
 
 func NewWithBase(base []string, supervisorURL string, serviceEnv []string) Builder {
@@ -117,5 +117,37 @@ func cloneStrings(in []string) []string {
 	}
 	out := make([]string, len(in))
 	copy(out, in)
+	return out
+}
+
+func defaultBaseEnvironment(environment []string) []string {
+	allowed := map[string]struct{}{
+		"PATH":            {},
+		"HOME":            {},
+		"USER":            {},
+		"LOGNAME":         {},
+		"TMPDIR":          {},
+		"TEMP":            {},
+		"TMP":             {},
+		"LANG":            {},
+		"LC_ALL":          {},
+		"SSL_CERT_FILE":   {},
+		"SSL_CERT_DIR":    {},
+		"TZ":              {},
+		"TERM":            {},
+		"XDG_CACHE_HOME":  {},
+		"XDG_CONFIG_HOME": {},
+		"XDG_DATA_HOME":   {},
+	}
+	out := make([]string, 0, len(environment))
+	for _, entry := range environment {
+		key, _, ok := strings.Cut(entry, "=")
+		if !ok || key == "" {
+			continue
+		}
+		if _, keep := allowed[key]; keep {
+			out = append(out, entry)
+		}
+	}
 	return out
 }

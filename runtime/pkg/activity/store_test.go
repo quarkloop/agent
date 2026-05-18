@@ -2,6 +2,7 @@ package activity
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -35,5 +36,24 @@ func TestStorePublishesToSubscribers(t *testing.T) {
 	got := <-ch
 	if got.ID != record.ID || got.Type != "message.user" {
 		t.Fatalf("subscriber got %+v, want %+v", got, record)
+	}
+}
+
+func TestStoreRedactsSecretsAtActivityBoundary(t *testing.T) {
+	secret := "sk-or-v1-runtime-secret"
+	t.Setenv("OPENROUTER_API_KEY", secret)
+	store := NewStore(10)
+
+	record := store.Add("s1", "tool_start", map[string]any{
+		"name":      "embedding_Embed",
+		"arguments": `{"authorization":"Bearer ` + secret + `"}`,
+	})
+
+	data := string(record.Data)
+	if strings.Contains(data, secret) {
+		t.Fatalf("activity data leaked secret: %s", data)
+	}
+	if !strings.Contains(data, `Bearer [redacted]`) {
+		t.Fatalf("activity data was not redacted: %s", data)
 	}
 }
