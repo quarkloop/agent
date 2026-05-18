@@ -10,10 +10,12 @@ import (
 	"time"
 
 	"github.com/quarkloop/pkg/boundary"
+	citationv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/citation/v1"
 	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
 	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
+	"github.com/quarkloop/runtime/pkg/modelservice"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -83,6 +85,64 @@ func TestNormalizeServiceArgumentJSONRepairsOnlyInvalidEscapes(t *testing.T) {
 	}
 	if got := payload["textContent"].(string); !strings.Contains(got, "2Â × monitors") {
 		t.Fatalf("textContent = %q", got)
+	}
+}
+
+func TestServiceRequestUnmarshalDiscardsUnknownGeneratedFields(t *testing.T) {
+	var req citationv1.VerifyGroundingRequest
+	raw := `{
+		"claims": [{
+			"id": "claim-1",
+			"claim": "The invoice total is EUR 18,450.00.",
+			"citations": [{
+				"id": "cite-1",
+				"chunkId": "chunk-invoice",
+				"sourceUri": "invoice.md",
+				"textSpan": "Total due: EUR 18,450.00",
+				"startOffset": 10,
+				"endOffset": 35,
+				"confidence": 0.92
+			}]
+		}]
+	}`
+
+	if err := serviceRequestUnmarshalOptions().Unmarshal([]byte(raw), &req); err != nil {
+		t.Fatalf("service request unmarshal rejected harmless extra field: %v", err)
+	}
+	citations := req.GetClaims()[0].GetCitations()
+	if len(citations) != 1 {
+		t.Fatalf("citations = %+v", citations)
+	}
+	if got := citations[0].GetTextSpan(); got != "Total due: EUR 18,450.00" {
+		t.Fatalf("textSpan = %q", got)
+	}
+}
+
+func TestInjectRuntimeContextArgumentsAddsSpaceForSpaceScopedRequests(t *testing.T) {
+	ctx := modelservice.WithSpaceID(context.Background(), "space-1")
+
+	normalized, err := injectRuntimeContextArguments(ctx, "quark.ingestion.v1.StartRunRequest", `{"title":"Import"}`)
+	if err != nil {
+		t.Fatalf("inject runtime context: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(normalized), &payload); err != nil {
+		t.Fatalf("runtime context payload is not JSON: %v\n%s", err, normalized)
+	}
+	if payload["space"] != "space-1" || payload["title"] != "Import" {
+		t.Fatalf("payload = %+v", payload)
+	}
+}
+
+func TestInjectRuntimeContextArgumentsDoesNotOverrideExplicitSpace(t *testing.T) {
+	ctx := modelservice.WithSpaceID(context.Background(), "runtime-space")
+
+	normalized, err := injectRuntimeContextArguments(ctx, "quark.ingestion.v1.StartRunRequest", `{"space":"explicit-space","title":"Import"}`)
+	if err != nil {
+		t.Fatalf("inject runtime context: %v", err)
+	}
+	if !strings.Contains(normalized, `"space":"explicit-space"`) {
+		t.Fatalf("explicit space was overwritten: %s", normalized)
 	}
 }
 
@@ -164,13 +224,124 @@ func TestExecutorExpandsRuntimeRefsForCanonicalUpsertChunkRequests(t *testing.T)
 	}
 }
 
+func TestExecutorNormalizesCanonicalUpsertChunkCitationEvidence(t *testing.T) {
+	executor := NewExecutor(nil)
+	result, err := executor.documentExtractTextToolResult(&documentv1.ExtractTextResponse{
+		Text:       "Evidence line one.\nEvidence line two.",
+		SourceHash: "sha256:source",
+	}, "")
+	if err != nil {
+		t.Fatalf("capture document result: %v", err)
+	}
+	var documentPayload map[string]any
+	if err := json.Unmarshal([]byte(result), &documentPayload); err != nil {
+		t.Fatalf("decode document result: %v\n%s", err, result)
+	}
+	arguments := `{
+		"chunkId": "chunk-1",
+		"textContentRef": "` + documentPayload["contentRef"].(string) + `",
+		"embeddingRef": "emb_1",
+		"document": {"id": "doc-1", "sourceUri": "/tmp/source.pdf"},
+		"sourceMetadata": {"filename": "source.pdf"},
+		"provenance": {"sourceUri": "/tmp/source.pdf", "sourceHash": "sha256:source"},
+		"facts": [{"subject": "source", "predicate": "contains", "object": "evidence", "citations": []}],
+		"entities": [{"id": "doc-1", "name": "source.pdf", "type": "document"}],
+		"relations": [],
+		"citations": []
+	}`
+
+	normalized, err := executor.NormalizeToolCallArguments(context.Background(), "indexer_UpsertChunk", arguments)
+	if err != nil {
+		t.Fatalf("normalize tool call arguments: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(normalized), &payload); err != nil {
+		t.Fatalf("normalized payload is not JSON: %v\n%s", err, normalized)
+	}
+	citations, ok := payload["citations"].([]any)
+	if !ok || len(citations) != 1 {
+		t.Fatalf("citations = %+v", payload["citations"])
+	}
+	citation := citations[0].(map[string]any)
+	if got := citation["textSpan"].(string); !strings.Contains(got, "Evidence line one.") {
+		t.Fatalf("citation textSpan = %q", got)
+	}
+	facts := payload["facts"].([]any)
+	factCitations := facts[0].(map[string]any)["citations"].([]any)
+	if len(facts) != 1 || len(factCitations) != 1 {
+		t.Fatalf("fact citation evidence missing: %+v", payload["facts"])
+	}
+}
+
+func TestExecutorCompletesCanonicalUpsertChunkDefaultsFromRuntimeReferences(t *testing.T) {
+	executor := NewExecutor(nil)
+	result, err := executor.documentExtractTextToolResult(&documentv1.ExtractTextResponse{
+		Text:       "Attention Is All You Need introduced the Transformer architecture.",
+		SourceHash: "sha256:paper",
+	}, `{"input":{"sourceUri":"/tmp/attention_is_all_you_need_paper.pdf","filename":"attention_is_all_you_need_paper.pdf","mimeType":"application/pdf"}}`)
+	if err != nil {
+		t.Fatalf("capture document result: %v", err)
+	}
+	var documentPayload map[string]any
+	if err := json.Unmarshal([]byte(result), &documentPayload); err != nil {
+		t.Fatalf("decode document result: %v\n%s", err, result)
+	}
+	embeddingResult, err := executor.embeddingToolResult(&embeddingv1.EmbedResponse{
+		Vector:      []float32{0.5, 0.25},
+		Model:       "local-hash-v1",
+		Dimensions:  2,
+		Provider:    "local",
+		ContentHash: "sha256:paper",
+	})
+	if err != nil {
+		t.Fatalf("capture embedding result: %v", err)
+	}
+	var embeddingPayload map[string]any
+	if err := json.Unmarshal([]byte(embeddingResult), &embeddingPayload); err != nil {
+		t.Fatalf("decode embedding result: %v\n%s", err, embeddingResult)
+	}
+
+	normalized, err := executor.NormalizeToolCallArguments(context.Background(), "indexer_UpsertChunk", `{
+		"textContentRef": "`+documentPayload["contentRef"].(string)+`",
+		"embeddingRef": "`+embeddingPayload["embeddingRef"].(string)+`"
+	}`)
+	if err != nil {
+		t.Fatalf("normalize tool call arguments: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(normalized), &payload); err != nil {
+		t.Fatalf("normalized payload is not JSON: %v\n%s", err, normalized)
+	}
+	for _, key := range []string{"chunkId", "document", "sourceMetadata", "provenance", "embeddingMetadata", "facts", "entities", "relations", "citations"} {
+		if _, ok := payload[key]; !ok {
+			t.Fatalf("normalized payload missing %s: %+v", key, payload)
+		}
+	}
+	document := payload["document"].(map[string]any)
+	if got := document["sourceUri"].(string); got != "/tmp/attention_is_all_you_need_paper.pdf" {
+		t.Fatalf("document sourceUri = %q", got)
+	}
+	sourceMetadata := payload["sourceMetadata"].(map[string]any)
+	if got := sourceMetadata["filename"].(string); got != "attention_is_all_you_need_paper.pdf" {
+		t.Fatalf("source metadata filename = %q", got)
+	}
+	facts := payload["facts"].([]any)
+	if len(facts) != 1 {
+		t.Fatalf("facts = %+v", payload["facts"])
+	}
+	fact := facts[0].(map[string]any)
+	if got := fact["object"].(string); !strings.Contains(got, "Transformer architecture") {
+		t.Fatalf("fallback fact object = %q", got)
+	}
+}
+
 func TestExecutorExpandsDocumentContentRefsForEmbeddingRequests(t *testing.T) {
 	executor := NewExecutor(nil)
 
 	result, err := executor.documentExtractTextToolResult(&documentv1.ExtractTextResponse{
 		Text:       "Attention Is All You Need\n",
 		SourceHash: "sha256:paper",
-	})
+	}, "")
 	if err != nil {
 		t.Fatalf("capture document result: %v", err)
 	}
@@ -199,22 +370,143 @@ func TestExecutorExpandsDocumentContentRefsForEmbeddingRequests(t *testing.T) {
 	}
 }
 
+func TestExecutorStripsEmbeddingProviderOverrides(t *testing.T) {
+	executor := NewExecutor(nil)
+
+	expanded, err := executor.expandRuntimeReferences("quark.embedding.v1.EmbedRequest", `{"input":"hello","model":"wrong-model","dimensions":384}`)
+	if err != nil {
+		t.Fatalf("expand refs: %v", err)
+	}
+	var embedPayload map[string]any
+	if err := json.Unmarshal([]byte(expanded), &embedPayload); err != nil {
+		t.Fatalf("expanded payload is not JSON: %v\n%s", err, expanded)
+	}
+	if _, ok := embedPayload["model"]; ok {
+		t.Fatalf("model override was not removed: %s", expanded)
+	}
+	if _, ok := embedPayload["dimensions"]; ok {
+		t.Fatalf("dimensions override was not removed: %s", expanded)
+	}
+	if got := embedPayload["input"].(string); got != "hello" {
+		t.Fatalf("input = %q", got)
+	}
+}
+
+func TestExecutorPromotesContentReferencePassedThroughStringFields(t *testing.T) {
+	executor := NewExecutor(nil)
+
+	result, err := executor.documentExtractTextToolResult(&documentv1.ExtractTextResponse{
+		Text: "Canonical source text\n",
+	}, "")
+	if err != nil {
+		t.Fatalf("capture document result: %v", err)
+	}
+	var toolPayload map[string]any
+	if err := json.Unmarshal([]byte(result), &toolPayload); err != nil {
+		t.Fatalf("document result is not JSON: %v\n%s", err, result)
+	}
+	ref := toolPayload["contentRef"].(string)
+
+	expanded, err := executor.expandRuntimeReferences("quark.embedding.v1.EmbedRequest", `{"input":["`+ref+`"]}`)
+	if err != nil {
+		t.Fatalf("expand refs: %v", err)
+	}
+	var embedPayload map[string]any
+	if err := json.Unmarshal([]byte(expanded), &embedPayload); err != nil {
+		t.Fatalf("expanded payload is not JSON: %v\n%s", err, expanded)
+	}
+	if got := embedPayload["input"].(string); got != "Canonical source text\n" {
+		t.Fatalf("input = %q", got)
+	}
+}
+
+func TestNormalizeStringArgumentsAcceptsStructuredTextShapes(t *testing.T) {
+	normalized, err := normalizeStringMapArguments("quark.embedding.v1.EmbedRequest", `{"input":[{"type":"text","text":"first"},{"content":[{"type":"text","text":"second"}]}]}`)
+	if err != nil {
+		t.Fatalf("normalize: %v", err)
+	}
+	var req embeddingv1.EmbedRequest
+	if err := protojson.Unmarshal([]byte(normalized), &req); err != nil {
+		t.Fatalf("protojson accepts normalized payload: %v\n%s", err, normalized)
+	}
+	if req.GetInput() != "first\n\nsecond" {
+		t.Fatalf("input = %q", req.GetInput())
+	}
+}
+
 func TestCanonicalIndexerRequestSchemasExposeRuntimeReferenceFields(t *testing.T) {
+	embedSchema := requestParameters("quark.embedding.v1.EmbedRequest")
+	embedProperties := embedSchema["properties"].(map[string]any)
+	if _, ok := embedProperties["inputRef"]; !ok {
+		t.Fatalf("EmbedRequest schema missing inputRef: %+v", embedSchema)
+	}
+	if _, ok := embedProperties["model"]; ok {
+		t.Fatalf("EmbedRequest schema exposed model override: %+v", embedSchema)
+	}
+	if _, ok := embedProperties["dimensions"]; ok {
+		t.Fatalf("EmbedRequest schema exposed dimensions override: %+v", embedSchema)
+	}
+
 	upsertSchema := requestParameters("quark.indexer.v1.UpsertChunkRequest")
 	properties := upsertSchema["properties"].(map[string]any)
 	if _, ok := properties["embeddingRef"]; !ok {
 		t.Fatalf("UpsertChunk schema missing embeddingRef: %+v", upsertSchema)
 	}
+	if _, ok := properties["embedding"]; ok {
+		t.Fatalf("UpsertChunk schema exposed direct embedding vectors: %+v", upsertSchema)
+	}
 	if _, ok := properties["textContentRef"]; !ok {
 		t.Fatalf("UpsertChunk schema missing textContentRef: %+v", upsertSchema)
 	}
-	if got := upsertSchema["required"]; !sameStrings(got, []string{"chunkId", "embeddingRef"}) {
+	if got := upsertSchema["required"]; !sameStrings(got, []string{
+		"chunkId",
+		"embeddingRef",
+		"document",
+		"sourceMetadata",
+		"provenance",
+		"facts",
+		"entities",
+		"relations",
+		"citations",
+	}) {
 		t.Fatalf("UpsertChunk required = %+v", got)
+	}
+	if got := properties["facts"].(map[string]any)["minItems"]; got != 1 {
+		t.Fatalf("UpsertChunk facts should require at least one evidence-backed fact: %+v", properties["facts"])
+	}
+	if got := properties["sourceMetadata"].(map[string]any)["minProperties"]; got != 1 {
+		t.Fatalf("UpsertChunk sourceMetadata should require source context: %+v", properties["sourceMetadata"])
+	}
+
+	querySchema := requestParameters("quark.indexer.v1.QueryRequest")
+	queryProperties := querySchema["properties"].(map[string]any)
+	if _, ok := queryProperties["queryVectorRef"]; !ok {
+		t.Fatalf("QueryRequest schema missing queryVectorRef: %+v", querySchema)
+	}
+	if _, ok := queryProperties["queryVector"]; ok {
+		t.Fatalf("QueryRequest schema exposed direct query vectors: %+v", querySchema)
+	}
+	if got := querySchema["required"]; !sameStrings(got, []string{"queryVectorRef"}) {
+		t.Fatalf("QueryRequest required = %+v", got)
 	}
 
 	deleteSchema := requestParameters("quark.indexer.v1.DeleteDocumentRequest")
 	if got := deleteSchema["required"]; !sameStrings(got, []string{"documentId"}) {
 		t.Fatalf("DeleteDocument required = %+v", got)
+	}
+}
+
+func TestRuntimeIndexRequestsRejectDirectEmbeddingVectors(t *testing.T) {
+	err := requireRuntimeReferenceArguments("quark.indexer.v1.UpsertChunkRequest", `{"chunkId":"chunk-1","embedding":[0.1,0.2]}`)
+	if err == nil || !strings.Contains(err.Error(), "embeddingRef") {
+		t.Fatalf("expected embeddingRef validation error, got %v", err)
+	}
+	if err := requireRuntimeReferenceArguments("quark.indexer.v1.UpsertChunkRequest", `{"chunkId":"chunk-1","embeddingRef":"emb_1"}`); err != nil {
+		t.Fatalf("embeddingRef should satisfy runtime validation: %v", err)
+	}
+	err = requireRuntimeReferenceArguments("quark.indexer.v1.QueryRequest", `{"queryVector":[0.1,0.2]}`)
+	if err == nil || !strings.Contains(err.Error(), "queryVectorRef") {
+		t.Fatalf("expected queryVectorRef validation error, got %v", err)
 	}
 }
 

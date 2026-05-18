@@ -5,11 +5,14 @@ package e2e
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/quarkloop/e2e/utils"
 )
+
+var trailingEURAmount = regexp.MustCompile(`(?i)\b([0-9][0-9,]*(?:\.[0-9]{2})?)\s*EUR\b`)
 
 func contains(values []string, want string) bool {
 	for _, value := range values {
@@ -33,6 +36,36 @@ func containsAnyText(value string, wants ...string) bool {
 	return false
 }
 
+func TestContainsTextNormalizesCurrencyOrder(t *testing.T) {
+	if !containsText("Total paid: 4,872.65 EUR", "EUR 4,872.65") {
+		t.Fatal("currency normalization should treat trailing EUR and leading EUR as equivalent")
+	}
+}
+
+func TestAssertIndexerQueryReturnedStructuredContextAcceptsTracePreview(t *testing.T) {
+	trace := utils.MessageTrace{
+		ToolResultEvents: []utils.ToolEvent{{
+			Name: "indexer_QueryContext",
+			Result: `{"chunks":[{"chunkId":"chunk-1","sourceUri":"docs/example.pdf","text":"` +
+				strings.Repeat("x", 2100) + `...(truncated)`,
+		}},
+	}
+
+	assertIndexerQueryReturnedStructuredContext(t, trace)
+}
+
+func TestAssertIndexerQueryReturnedStructuredContextAcceptsChunkIDPreview(t *testing.T) {
+	trace := utils.MessageTrace{
+		ToolResultEvents: []utils.ToolEvent{{
+			Name: "indexer_QueryContext",
+			Result: `{"chunks":[{"id":"chunk-german_health_insurance","text":"` +
+				strings.Repeat("source text before source metadata ", 100) + `...(truncated)`,
+		}},
+	}
+
+	assertIndexerQueryReturnedStructuredContext(t, trace)
+}
+
 func canonicalText(value string) string {
 	replacer := strings.NewReplacer(
 		"\u00ad", "",
@@ -49,6 +82,7 @@ func canonicalText(value string) string {
 		"\u20ac", "EUR",
 	)
 	value = replacer.Replace(value)
+	value = trailingEURAmount.ReplaceAllString(value, "EUR$1")
 	for strings.Contains(value, "EUR ") {
 		value = strings.ReplaceAll(value, "EUR ", "EUR")
 	}
@@ -72,6 +106,13 @@ func assertToolStartedAny(t *testing.T, trace utils.MessageTrace, names ...strin
 	t.Fatalf("agent did not start any of %v; starts=%v", names, trace.ToolStarts)
 }
 
+func assertToolNotStarted(t *testing.T, trace utils.MessageTrace, name string) {
+	t.Helper()
+	if contains(trace.ToolStarts, name) {
+		t.Fatalf("agent started unexpected %s tool; starts=%v", name, trace.ToolStarts)
+	}
+}
+
 func assertToolResultContains(t *testing.T, trace utils.MessageTrace, tool string, wants ...string) {
 	t.Helper()
 	for _, event := range trace.ToolResultEvents {
@@ -90,6 +131,45 @@ func assertToolResultContains(t *testing.T, trace utils.MessageTrace, tool strin
 		}
 	}
 	t.Fatalf("%s tool results missing %v: %+v", tool, wants, trace.ToolResultEvents)
+}
+
+func assertIndexerQueryReturnedStructuredContext(t *testing.T, trace utils.MessageTrace) {
+	t.Helper()
+	for _, event := range trace.ToolResultEvents {
+		if event.Name != "indexer_QueryContext" || !toolEventSucceeded(event) {
+			continue
+		}
+		if payload, ok := decodeJSONObject(event.Result); ok {
+			if !hasNonEmptyArray(payload, "chunks") {
+				t.Fatalf("indexer_QueryContext result missing retrieved chunks: %s", event.Result)
+			}
+			if !hasNonEmptyArray(payload, "citations") && !hasCitationEvidence(payload) && !containsText(event.Result, "sourceUri") && !containsText(event.Result, "resultRef") {
+				t.Fatalf("indexer_QueryContext result missing source evidence: %s", event.Result)
+			}
+			return
+		}
+
+		if containsStructuredContextPreview(event.Result) {
+			return
+		}
+		t.Fatalf("indexer_QueryContext result did not expose structured context evidence: %s", event.Result)
+	}
+	t.Fatalf("indexer_QueryContext had no successful structured result: %+v", trace.ToolResultEvents)
+}
+
+func decodeJSONObject(value string) (map[string]any, bool) {
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(value), &payload); err != nil {
+		return nil, false
+	}
+	return payload, true
+}
+
+func containsStructuredContextPreview(value string) bool {
+	hasChunks := containsText(value, `"chunks"`) || containsText(value, "resultRef")
+	hasChunkID := containsText(value, `"id"`) && containsText(value, "chunk-")
+	hasEvidence := containsText(value, "sourceUri") || containsText(value, "citations") || containsText(value, "resultRef") || hasChunkID
+	return hasChunks && hasEvidence
 }
 
 func assertEmbeddingToolResult(t *testing.T, trace utils.MessageTrace, provider, model string, dimensions int) {
@@ -145,8 +225,32 @@ func assertNoToolErrors(t *testing.T, trace utils.MessageTrace, tools ...string)
 		if !wanted[event.Name] {
 			continue
 		}
-		if strings.HasPrefix(strings.TrimSpace(event.Result), "error:") {
+		if event.Error || strings.HasPrefix(strings.TrimSpace(event.Result), "error:") {
 			t.Fatalf("%s returned an error: %s", event.Name, event.Result)
+		}
+	}
+}
+
+func assertToolLatestResultsSucceeded(t *testing.T, trace utils.MessageTrace, tools ...string) {
+	t.Helper()
+	latest := make(map[string]utils.ToolEvent, len(tools))
+	wanted := make(map[string]bool, len(tools))
+	for _, tool := range tools {
+		wanted[tool] = true
+	}
+	for _, event := range trace.ToolResultEvents {
+		if !wanted[event.Name] {
+			continue
+		}
+		latest[event.Name] = event
+	}
+	for _, tool := range tools {
+		event, ok := latest[tool]
+		if !ok {
+			t.Fatalf("%s had no result event: %+v", tool, trace.ToolResultEvents)
+		}
+		if !toolEventSucceeded(event) {
+			t.Fatalf("%s latest result was not successful: %s", tool, event.Result)
 		}
 	}
 }
@@ -158,8 +262,7 @@ func assertToolSuccessCount(t *testing.T, trace utils.MessageTrace, tool string,
 		if event.Name != tool {
 			continue
 		}
-		compact := strings.ReplaceAll(event.Result, " ", "")
-		if strings.Contains(compact, `"success":true`) {
+		if toolEventSucceeded(event) {
 			count++
 		}
 	}
@@ -175,7 +278,7 @@ func assertEmbeddingSuccessCount(t *testing.T, trace utils.MessageTrace, want in
 		if event.Name != "embedding_Embed" {
 			continue
 		}
-		if strings.HasPrefix(strings.TrimSpace(event.Result), "error:") {
+		if !toolEventSucceeded(event) {
 			continue
 		}
 		if containsText(event.Result, "embeddingRef") {
@@ -185,6 +288,21 @@ func assertEmbeddingSuccessCount(t *testing.T, trace utils.MessageTrace, want in
 	if count < want {
 		t.Fatalf("embedding_Embed successful results = %d, want at least %d: %+v", count, want, trace.ToolResultEvents)
 	}
+}
+
+func toolEventSucceeded(event utils.ToolEvent) bool {
+	if event.Error {
+		return false
+	}
+	trimmed := strings.TrimSpace(event.Result)
+	if trimmed == "" || strings.HasPrefix(trimmed, "error:") {
+		return false
+	}
+	compact := strings.ReplaceAll(trimmed, " ", "")
+	if strings.Contains(compact, `"success":false`) {
+		return false
+	}
+	return true
 }
 
 func assertAgentStructuredPDFIndexPayloads(t *testing.T, trace utils.MessageTrace, documents []indexedPDFDocument) {
