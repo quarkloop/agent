@@ -37,8 +37,26 @@ cd services/indexer && go test ./...
 cd services/embedding && go test ./...
 cd plugins/tools/fs && go test ./...
 cd cli && go test ./...
-go test -tags e2e ./e2e -run '^$'
+cd e2e && go test -tags e2e -run '^$' ./...
 ```
+
+## Service Manager
+
+The CLI talks to supervisor for service state. It does not inspect service
+files directly.
+
+```bash
+quark services list
+quark services status indexer
+quark services inspect indexer
+quark services logs indexer
+quark services doctor
+quark services restart indexer
+```
+
+Use these commands before debugging runtime prompts. If runtime cannot see a
+service function, first verify that supervisor discovered the service plugin,
+checked readiness, and included the function in the runtime service catalog.
 
 ## E2E
 
@@ -52,6 +70,7 @@ Provider-backed tests require a tool-calling model provider:
 
 ```bash
 export OPENROUTER_API_KEY=sk-or-v1-...
+export OPENROUTER_E2E_MODEL=openai/gpt-4o-mini
 make test-e2e
 ```
 
@@ -74,7 +93,7 @@ E2E startup order is standardized:
 
 E2E artifacts are written into the test temp directory and include redacted
 tool timelines, service timelines, prompt hashes, model/embedding snapshots,
-and manual verification files.
+model-usage timelines, diagnostics, and manual verification files.
 
 ## Troubleshooting
 
@@ -85,6 +104,10 @@ and manual verification files.
   the current Go toolchain.
 - Provider-backed E2E skips on quota/auth: verify `OPENROUTER_API_KEY` and
   provider model access.
+- Runtime cannot call a service function: run `quark services doctor` and
+  inspect the resolved service catalog before changing prompts.
+- Policy denied errors: check the active agent profile and any Quarkfile
+  permission narrowing.
 
 ## Release Readiness
 

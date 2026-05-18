@@ -68,6 +68,6 @@ Release:
 ## Audit Notes
 
 - The service currently owns the production release runner.
-- Task 13 will migrate the legacy tool plugin into a compatibility adapter,
-  finalize function names, and add deeper function-level cancellation and
-  artifact failure tests.
+- The legacy tool plugin is compatibility-only. New DevOps release behavior
+  should call `build_release_DryRun`, `build_release_Init`, and
+  `build_release_Release` through runtime service-function dispatch.

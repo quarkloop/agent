@@ -51,13 +51,15 @@ agent coordinates multi-step flows.
 Initial service stacks:
 
 - Quark Knowledge: document extraction, ingestion state, embedding, indexer,
-  citation, and memory.
+  citation, Core artifacts/audit, and model-mediated semantic extraction.
 - Quark DevOps: repo, build, test, container, release, deploy, and policy
   functions.
 - Quark System: Linux/system snapshot, process, network, logs, metrics, and
   policy-gated admin functions.
 - Quark Core: health, readiness, audit, artifacts, approval, config, events,
   policy, scheduler, and workspace mutation plans.
+- Quark Model: provider adapters, generation, embedding, fallback, usage, and
+  provider diagnostics.
 
 ## Knowledge Flow
 
@@ -67,12 +69,16 @@ call LLMs, generate embeddings, choose schemas, or answer the user.
 The agent-owned ingestion flow is:
 
 1. read or extract source content with tools/services,
-2. use LLM reasoning to classify and structure facts, entities, relations, and
-   citations,
-3. call `embedding_Embed`,
-4. call `indexer_IndexDocument` with canonical records,
-5. query with `embedding_Embed` and `indexer_GetContext`,
-6. answer from returned context and citations.
+2. track batch/source state with ingestion service functions,
+3. use LLM reasoning through the model boundary to classify and structure
+   facts, entities, relations, and citations,
+4. call `embedding_Embed`,
+5. call canonical indexer upsert functions for documents, chunks, facts,
+   entities, relations, and citations,
+6. query with `embedding_Embed` and `indexer_QueryContext` or
+   `indexer_GetContext`,
+7. verify grounding with citation functions,
+8. answer from returned context and citations.
 
 Directory indexing reads files in place. Sidecars, renames, and restructuring
 are optional workspace-organization actions that require explicit approval.
@@ -86,6 +92,23 @@ Supervisor passes runtime startup contracts through:
 
 Catalogs are versioned. Runtime rejects unsupported versions and does not fall
 back to filesystem discovery for supervisor-launched agents.
+
+## Observability
+
+Runtime emits redacted activity records for messages, workflow detection,
+tool/service-function starts and results, model usage, policy denials, and
+errors. Core can persist those records when the Core service is present.
+
+Correlation fields:
+
+- `session_id` identifies the user-visible conversation.
+- `run_id` identifies one user-message execution.
+- `workflow_id` identifies runtime workflow guard state.
+- `service_call_id` identifies one service-function/tool call.
+- `request_id` is provider-owned model request identity when available.
+
+E2E artifacts include prompt hashes, tool timelines, service timelines,
+model-usage timelines, diagnostics, and redacted manual verification files.
 
 ## Boundaries
 

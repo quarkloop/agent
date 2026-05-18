@@ -41,8 +41,10 @@ The workspace modules are listed in `go.work`:
 - `e2e`
 - `pkg/boundary`, `pkg/event`, `pkg/plugin`, `pkg/serviceapi`, `pkg/space`,
   `pkg/toolkit`
-- `services/build-release`, `services/embedding`, `services/indexer`,
-  `services/space`
+- `services/build-release`, `services/citation`, `services/core`,
+  `services/devops`, `services/document`, `services/embedding`,
+  `services/indexer`, `services/ingestion`, `services/model`,
+  `services/space`, `services/system`
 - `plugins/tools/bash`, `plugins/tools/build-release`, `plugins/tools/fs`,
   `plugins/tools/web-search`
 - `plugins/agents/quark-knowledge`, `plugins/agents/quark-devops`,
@@ -65,8 +67,12 @@ Important runtime packages:
 - `runtime/pkg/workspace`: approval-gated sidecar and directory mutation policy.
 - `runtime/pkg/pluginmanager`: runtime loading of supervisor-provided plugin
   catalog entries.
+- `runtime/pkg/modelusage`: redacted model usage persistence into
+  supervisor-owned space storage.
 - `runtime/pkg/message`, `runtime/pkg/api`, `runtime/pkg/channel/*`: request,
   stream, and channel boundaries.
+- `pkg/boundary`: boundary error categories, diagnostics, and shared redaction
+  helpers.
 
 ## Plugins And Services
 
@@ -92,6 +98,11 @@ runtime.
 Service plugins must declare gRPC health/readiness requirements. Supervisor
 checks health, endpoint availability, descriptor version, and exported RPCs
 before adding a service to the runtime catalog.
+
+Every runtime tool/service-function stream event must preserve redacted
+correlation fields where available: `session_id`, `run_id`, `workflow_id`,
+`service_call_id`, provider `request_id`, and artifact IDs. Diagnostics should
+use boundary categories instead of raw process noise.
 
 Supervisor-owned discovery passes runtime catalogs through:
 
@@ -138,6 +149,7 @@ Common focused commands:
 
 ```bash
 cd runtime && go test ./pkg/agent ./pkg/llm ./pkg/services ./pkg/extraction ./pkg/workspace
+cd runtime && go test ./pkg/activity ./pkg/modelusage ./pkg/permissions
 cd services/indexer && go test ./...
 cd services/embedding && go test ./...
 cd plugins/tools/fs && go test ./...

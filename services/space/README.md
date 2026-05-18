@@ -47,5 +47,5 @@ not discover local space state directly.
 
 - Environment lookup was moved out of domain flow into an injected startup
   snapshot during this audit.
-- Follow-up: Task 20 should decide which space operations become Quark Core
-  service functions and which remain supervisor-only control-plane behavior.
+- Space remains supervisor/control-plane owned. Core owns operational artifacts,
+  audit, approvals, policy, and workspace mutation plans.

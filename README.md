@@ -6,26 +6,26 @@
 
 Quark is a local operating environment for autonomous AI workspaces. It gives
 agents isolated spaces, plugin-defined identities, typed service functions,
-tool execution, and a supervisor that owns lifecycle and persistent state.
+tool execution, model/provider routing, and a supervisor that owns lifecycle
+and persistent state.
 
-The project is early, but it is intentionally production-shaped: explicit
-ownership boundaries, gRPC service contracts, real supervisor/runtime E2E
-tests, and strict data-flow rules.
+The project is production-shaped by design: explicit ownership boundaries,
+gRPC service contracts, supervisor-owned discovery, real supervisor/runtime E2E
+tests, redacted observability artifacts, and strict data-flow rules.
 
 ## What You Get
 
-- Local-first spaces with one `Quarkfile` in the working directory.
-- A supervisor control plane for spaces, sessions, plugins, service discovery,
-  readiness checks, catalogs, and runtime lifecycle.
-- A runtime execution engine for agent profiles, sessions, prompts, LLM calls,
-  tool execution, service functions, and activity streams.
-- Agent plugins for launch profiles: Quark Knowledge, Quark DevOps, and Quark
-  System.
-- Service plugins that expose gRPC-backed service functions through the normal
-  tool-call loop.
-- Knowledge flows where the agent reads files, uses the LLM for semantic
-  extraction, calls embeddings, stores canonical index records, and answers
-  from retrieved context.
+| Area | What it does |
+| --- | --- |
+| Spaces | Local-first workspaces configured by a `Quarkfile`. |
+| Supervisor | Control plane for spaces, sessions, plugin installs, service discovery, readiness, catalogs, and runtime lifecycle. |
+| Runtime | Agent loop, profile prompts, LLM/model calls, tool execution, service-function dispatch, permissions, activity, and workflow guards. |
+| Agents | Launch profiles for Quark Knowledge, Quark DevOps, and Quark System. |
+| Services | Typed gRPC-backed functions for model, core, document, ingestion, indexer, citation, DevOps, System, Space, embedding compatibility, and build-release compatibility. |
+| Observability | Redacted activity, tool/service timelines, model usage records, diagnostics, and E2E artifacts. |
+
+The core product shape is simple: the agent reasons and coordinates; services
+execute typed deterministic work; supervisor owns discovery and lifecycle.
 
 ## Quickstart
 
@@ -55,6 +55,9 @@ quark session create --title "Demo"
 
 The CLI is an HTTP client. The supervisor stores space state under
 `$QUARK_SPACES_ROOT` or `~/.quarkloop/spaces`.
+
+See [QUARKFILE.md](QUARKFILE.md) for Knowledge, DevOps, System, local model,
+OpenRouter model, local embedding, and OpenRouter embedding examples.
 
 ## Architecture
 
@@ -101,6 +104,7 @@ keys, troubleshooting, and release checks.
   catalogs, and strict boundaries.
 - [DEVELOPMENT.md](DEVELOPMENT.md) - build, test, E2E, provider keys, and
   debugging.
+- [QUARKFILE.md](QUARKFILE.md) - practical Quarkfile examples.
 - [RELEASE.md](RELEASE.md) - release readiness gates and manual checks.
 - [AGENTS.md](AGENTS.md) - coding-agent instructions and repository rules.
 - [CONTRIBUTING.md](CONTRIBUTING.md) - contribution expectations.
@@ -109,8 +113,8 @@ keys, troubleshooting, and release checks.
 ## Status
 
 Quark is under active development. The supervisor/runtime/plugin/service
-foundation is in place, and the Knowledge indexing flow is being hardened with
-real service-backed E2E tests.
+foundation is in place, with service-backed Knowledge, DevOps, and System
+flows covered by product-level tests and a final E2E verification gate.
 
 Issues and PRs are welcome. Please keep changes scoped, add tests that match
 the risk, and use conventional commit messages such as
