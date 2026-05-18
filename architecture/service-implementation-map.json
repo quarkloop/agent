@@ -35,18 +35,19 @@
     },
     "quark-knowledge": {
       "area": "Knowledge",
-      "declared_only_permissions": [
-        "memory_Delete",
-        "memory_Get",
-        "memory_Put",
-        "memory_Search"
-      ],
+      "declared_only_permissions": [],
       "implemented_permissions": [
         "citation_CreateCitation",
         "citation_RenderReferences",
         "citation_ResolveSpans",
         "citation_ScoreCoverage",
         "citation_VerifyGrounding",
+        "core_ApproveWorkspaceMutationPlan",
+        "core_CreateWorkspaceMutationPlan",
+        "core_EvaluatePolicy",
+        "core_PutArtifact",
+        "core_RecordAuditEvent",
+        "core_RequestApproval",
         "document_DetectType",
         "document_ExtractImages",
         "document_ExtractLayout",
@@ -59,11 +60,9 @@
         "indexer_DeleteChunk",
         "indexer_DeleteDocument",
         "indexer_GetContext",
-        "indexer_IndexDocument",
         "indexer_QueryContext",
         "indexer_UpsertChunk",
         "indexer_UpsertCitation",
-        "indexer_UpsertDocument",
         "indexer_UpsertEntity",
         "indexer_UpsertFact",
         "indexer_UpsertRelation",
@@ -222,23 +221,25 @@
   },
   "e2e_tests": {
     "direct_service_shortcut_suspect_count": 6,
-    "file_count": 23,
+    "file_count": 29,
     "files": [
       {
         "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
         "path": "e2e/artifacts_observability_test.go",
         "prompt_shortcut_suspects": [
-          "34: ToolStarts: []string{\"embedding_Embed\"},",
-          "37: Name:      \"embedding_Embed\",",
-          "42: Name:   \"embedding_Embed\","
+          "37: ToolStarts: []string{\"embedding_Embed\"},",
+          "41: Name:          \"embedding_Embed\",",
+          "50: Name:           \"embedding_Embed\","
         ]
       },
       {
         "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
         "path": "e2e/artifacts_test.go",
-        "prompt_shortcut_suspects": []
+        "prompt_shortcut_suspects": [
+          "255: \"message\":         \"Tool or service function returned an error.\","
+        ]
       },
       {
         "direct_service_shortcut_suspects": [],
@@ -251,11 +252,11 @@
         "has_process_flow": false,
         "path": "e2e/assertions_test.go",
         "prompt_shortcut_suspects": [
-          "88: if event.Name != \"embedding_Embed\" {",
-          "108: t.Fatalf(\"embedding_Embed tool results missing provider=%q model=%q dimensions=%d: %+v\", provider, model, dimensions, trace.ToolResultEvents)",
-          "165: if event.Name != \"embedding_Embed\" {",
-          "176: t.Fatalf(\"embedding_Embed successful results = %d, want at least %d: %+v\", count, want, trace.ToolResultEvents)",
-          "196: t.Fatalf(\"UpsertChunk payload %d missing embeddingRef from embedding_Embed: %+v\", i, payload)"
+          "178: if event.Name != \"embedding_Embed\" {",
+          "198: t.Fatalf(\"embedding_Embed tool results missing provider=%q model=%q dimensions=%d: %+v\", provider, model, dimensions, trace.ToolResultEvents)",
+          "278: if event.Name != \"embedding_Embed\" {",
+          "289: t.Fatalf(\"embedding_Embed successful results = %d, want at least %d: %+v\", count, want, trace.ToolResultEvents)",
+          "324: t.Fatalf(\"UpsertChunk payload %d missing embeddingRef from embedding_Embed: %+v\", i, payload)"
         ]
       },
       {
@@ -263,13 +264,25 @@
         "has_process_flow": false,
         "path": "e2e/build_release_agent_test.go",
         "prompt_shortcut_suspects": [
-          "55: Label:          \"build-release dry run through service function\","
+          "33: TraceOptions:   devOpsServiceTraceOptions(\"build-release dry run through service function\"),"
         ]
       },
       {
         "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
         "path": "e2e/build_release_prompts_test.go",
+        "prompt_shortcut_suspects": []
+      },
+      {
+        "direct_service_shortcut_suspects": [],
+        "has_process_flow": false,
+        "path": "e2e/chat_flow_test.go",
+        "prompt_shortcut_suspects": []
+      },
+      {
+        "direct_service_shortcut_suspects": [],
+        "has_process_flow": false,
+        "path": "e2e/devops_trace_options_test.go",
         "prompt_shortcut_suspects": []
       },
       {
@@ -294,9 +307,9 @@
         "has_process_flow": false,
         "path": "e2e/indexer_markdown_agent_test.go",
         "prompt_shortcut_suspects": [
-          "76: assertToolStarted(t, indexTrace, \"embedding_Embed\")",
-          "106: assertToolStarted(t, queryTrace, \"embedding_Embed\")",
-          "108: assertNoToolErrors(t, queryTrace, \"embedding_Embed\", \"indexer_QueryContext\")"
+          "67: assertToolStarted(t, indexTrace, \"embedding_Embed\")",
+          "89: assertToolStarted(t, queryTrace, \"embedding_Embed\")",
+          "92: assertNoToolErrors(t, queryTrace, \"embedding_Embed\", \"indexer_QueryContext\", \"citation_VerifyGrounding\", \"citation_RenderReferences\")"
         ]
       },
       {
@@ -304,9 +317,9 @@
         "has_process_flow": false,
         "path": "e2e/indexer_pdf_agent_test.go",
         "prompt_shortcut_suspects": [
-          "99: assertToolStarted(t, indexTrace, \"embedding_Embed\")",
-          "148: assertToolStarted(t, queryTrace, \"embedding_Embed\")",
-          "150: assertNoToolErrors(t, queryTrace, \"embedding_Embed\", \"indexer_QueryContext\")"
+          "90: assertToolStarted(t, indexTrace, \"embedding_Embed\")",
+          "131: assertToolStarted(t, queryTrace, \"embedding_Embed\")",
+          "134: assertNoToolErrors(t, queryTrace, \"embedding_Embed\", \"indexer_QueryContext\", \"citation_VerifyGrounding\", \"citation_RenderReferences\")"
         ]
       },
       {
@@ -316,6 +329,12 @@
         ],
         "has_process_flow": false,
         "path": "e2e/indexer_service_test.go",
+        "prompt_shortcut_suspects": []
+      },
+      {
+        "direct_service_shortcut_suspects": [],
+        "has_process_flow": false,
+        "path": "e2e/knowledge_trace_options_test.go",
         "prompt_shortcut_suspects": []
       },
       {
@@ -363,7 +382,9 @@
           "91: \"service function\",",
           "106: \"embedding_Embed\",",
           "107: \"indexer_GetContext\",",
-          "126: \"service function\","
+          "128: \"service function\",",
+          "147: \"service function\",",
+          "167: \"service function\","
         ]
       },
       {
@@ -390,6 +411,24 @@
       {
         "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
+        "path": "e2e/system_agent_test.go",
+        "prompt_shortcut_suspects": []
+      },
+      {
+        "direct_service_shortcut_suspects": [],
+        "has_process_flow": false,
+        "path": "e2e/system_prompts_test.go",
+        "prompt_shortcut_suspects": []
+      },
+      {
+        "direct_service_shortcut_suspects": [],
+        "has_process_flow": false,
+        "path": "e2e/system_trace_options_test.go",
+        "prompt_shortcut_suspects": []
+      },
+      {
+        "direct_service_shortcut_suspects": [],
+        "has_process_flow": false,
         "path": "e2e/tools_test.go",
         "prompt_shortcut_suspects": []
       },
@@ -408,13 +447,10 @@
         "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
         "path": "e2e/utils/process_test.go",
-        "prompt_shortcut_suspects": [
-          "19: got := formatProcessLogLine(\"TestFormat\", \"supervisor\", `time=now level=INFO msg=\"tool calls\" process=runtime`)",
-          "20: for _, want := range []string{\"[e2e]\", \"[test=TestFormat]\", \"[process=runtime]\", \"[parent_process=supervisor]\", \"tool calls\"} {"
-        ]
+        "prompt_shortcut_suspects": []
       }
     ],
-    "prompt_shortcut_suspect_count": 34
+    "prompt_shortcut_suspect_count": 35
   },
   "services": {
     "build-release": {
@@ -2297,7 +2333,7 @@
   "summary": {
     "agent_profile_count": 3,
     "declared_only_or_mismatched_function_count": 4,
-    "e2e_test_file_count": 23,
+    "e2e_test_file_count": 29,
     "implemented_service_function_count": 112,
     "runnable_service_module_count": 12,
     "service_function_count": 116,
