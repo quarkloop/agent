@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -283,6 +284,47 @@ func TestValidateServicePluginDescriptorsRejectsVersionMismatch(t *testing.T) {
 	}
 }
 
+func TestResolveServicePluginCatalogIgnoresUnboundInstalledServicePlugins(t *testing.T) {
+	srv := serviceTestServer(t)
+	writeInstalledServicePlugin(t, srv, "test-space")
+	writeInstalledServicePluginNamed(t, srv, "test-space", servicePluginFixture{
+		Name:         "build-release",
+		AddressEnv:   "QUARK_BUILD_RELEASE_ADDR",
+		ProtoService: "quark.buildrelease.v1.BuildReleaseService",
+		FunctionName: "build_release_DryRun",
+	})
+	qf := []byte(`quark: "1.0"
+meta:
+  name: test-space
+  version: "0.1.0"
+plugins:
+  - ref: quark/service-indexer
+  - ref: quark/service-build-release
+services:
+  - name: indexer
+    ref: quark/service-indexer
+    mode: local
+    address_env: QUARK_INDEXER_ADDR
+`)
+	if _, err := srv.store.UpdateQuarkfile("test-space", qf); err != nil {
+		t.Fatalf("update quarkfile: %v", err)
+	}
+	address, stop := startRegistryService(t)
+	defer stop()
+	t.Setenv("QUARK_INDEXER_ADDR", address)
+
+	descriptors, err := srv.resolveServicePluginCatalog(t.Context(), "test-space")
+	if err != nil {
+		t.Fatalf("resolve service catalog: %v", err)
+	}
+	if len(descriptors) != 1 {
+		t.Fatalf("descriptors = %+v", descriptors)
+	}
+	if descriptors[0].GetName() != "indexer" {
+		t.Fatalf("descriptor name = %q", descriptors[0].GetName())
+	}
+}
+
 func startHealthServer(t *testing.T, service string, status healthpb.HealthCheckResponse_ServingStatus) (string, func()) {
 	t.Helper()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -301,6 +343,59 @@ func startHealthServer(t *testing.T, service string, status healthpb.HealthCheck
 		server.Stop()
 		_ = ln.Close()
 		<-errCh
+	}
+}
+
+type servicePluginFixture struct {
+	Name         string
+	AddressEnv   string
+	ProtoService string
+	FunctionName string
+}
+
+func writeInstalledServicePluginNamed(t *testing.T, srv *Server, space string, fixture servicePluginFixture) {
+	t.Helper()
+	mgr, err := srv.store.Plugins(space)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(mgr.PluginsDir(), "services", fixture.Name)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := fmt.Sprintf(`name: %s
+version: "1.0.0"
+type: service
+mode: api
+description: %s service
+service:
+  address_env: %s
+  health:
+    protocol: grpc_health_v1
+    service: %s
+    timeout: 2s
+  readiness:
+    required: true
+    min_version: "1.0.0"
+  skill: SKILL.md
+  readme: README.md
+  proto_services:
+    - %s
+  functions:
+    - name: %s
+      service: %s
+      method: GetContext
+      request: quark.indexer.v1.QueryRequest
+      response: quark.indexer.v1.ContextResponse
+      description: Retrieve context.
+      risk_level: read
+      idempotent: true
+`, fixture.Name, fixture.Name, fixture.AddressEnv, fixture.ProtoService, fixture.ProtoService, fixture.FunctionName, fixture.ProtoService)
+	if err := os.WriteFile(filepath.Join(dir, "manifest.yaml"), []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte("# service-"+fixture.Name+"\n"), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }
 

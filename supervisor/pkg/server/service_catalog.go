@@ -146,7 +146,10 @@ func (s *Server) resolveServicePluginCatalog(ctx context.Context, space string) 
 
 	descriptors := make([]*servicev1.ServiceDescriptor, 0, len(installed))
 	for _, item := range installed {
-		configured := serviceConfig[item.Manifest.Name]
+		configured, selected := servicePluginConfig(serviceConfig, item.Manifest)
+		if !selected {
+			continue
+		}
 		address := s.serviceCatalogAddress(space, item.Manifest, configured)
 		if address == "" {
 			if servicePluginReadinessRequired(item.Manifest, configured) {
@@ -292,6 +295,14 @@ func (s *Server) serviceConfigByPluginName(space string) (map[string]spacemodel.
 		}
 	}
 	return out, nil
+}
+
+func servicePluginConfig(serviceConfig map[string]spacemodel.ServiceRef, manifest *plugin.Manifest) (spacemodel.ServiceRef, bool) {
+	if manifest == nil {
+		return spacemodel.ServiceRef{}, false
+	}
+	configured, ok := serviceConfig[manifest.Name]
+	return configured, ok
 }
 
 func pluginNameFromRef(ref string) string {

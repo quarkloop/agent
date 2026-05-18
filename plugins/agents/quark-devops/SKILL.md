@@ -38,3 +38,7 @@ For release automation, prefer the build-release service functions:
 
 Use the legacy `build-release` tool only as a compatibility fallback when the
 build-release service plugin is unavailable.
+
+Do not use build-release service functions for test-failure analysis,
+repository status, or build-debugging prompts unless the user explicitly asks
+for release/package/artifact planning.

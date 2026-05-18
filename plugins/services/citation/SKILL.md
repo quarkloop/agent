@@ -34,6 +34,14 @@ mechanical evidence service, not an answer generator.
 ## Contract Notes
 
 - The agent chooses claims and evidence candidates.
+- `CitationSpan` objects use exactly `id`, `sourceUri`, `textSpan`,
+  `startOffset`, `endOffset`, and `confidence`. Do not send `chunkId`,
+  `filename`, `source`, `sourceText`, or arbitrary metadata inside a citation
+  span.
+- `citation_ResolveSpans` requires exact `sourceText`. Use it while source
+  text is available during extraction/indexing; for retrieved index context,
+  prefer `citation_VerifyGrounding` or `citation_RenderReferences` with
+  citation spans from the retrieved chunks.
 - This service does not call LLMs, query the indexer, or generate final
   answers.
 - Verification results are evidence diagnostics; the agent decides how to use
