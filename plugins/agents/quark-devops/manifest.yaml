@@ -22,6 +22,26 @@ agent:
     - deploy.*
     - policy.*
     - build-release.*
+    - repo_Status
+    - repo_Diff
+    - repo_GetBranch
+    - repo_ListChangedFiles
+    - repo_ApplyPatch
+    - repo_Commit
+    - repo_GenerateReleaseNotes
+    - build_DetectProject
+    - build_ResolveTask
+    - build_RunTask
+    - build_CreateArtifact
+    - test_DiscoverTests
+    - test_RunTests
+    - test_ExplainFailure
+    - container_BuildImage
+    - container_ListImages
+    - container_PlanRun
+    - deploy_Plan
+    - deploy_Apply
+    - policy_EvaluateChange
     - build_release_Release
     - build_release_DryRun
     - build_release_Init

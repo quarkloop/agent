@@ -20,6 +20,7 @@ use (
 	./services/build-release
 	./services/citation
 	./services/core
+	./services/devops
 	./services/document
 	./services/embedding
 	./services/ingestion
@@ -48,6 +49,7 @@ replace (
 	github.com/quarkloop/services/build-release v0.0.0 => ./services/build-release
 	github.com/quarkloop/services/citation v0.0.0 => ./services/citation
 	github.com/quarkloop/services/core v0.0.0 => ./services/core
+	github.com/quarkloop/services/devops v0.0.0 => ./services/devops
 	github.com/quarkloop/services/document v0.0.0 => ./services/document
 	github.com/quarkloop/services/embedding v0.0.0 => ./services/embedding
 	github.com/quarkloop/services/ingestion v0.0.0 => ./services/ingestion

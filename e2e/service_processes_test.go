@@ -12,6 +12,7 @@ import (
 	"github.com/quarkloop/e2e/utils"
 	buildreleasev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/buildrelease/v1"
 	citationv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/citation/v1"
+	devopsv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/devops/v1"
 	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
 	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
@@ -86,6 +87,15 @@ func startBuildReleaseServiceAt(t *testing.T, binary, addr string) {
 		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "build-release"),
 	}, utils.ProcessEnv(nil))
 	waitForGRPCHealth(t, addr, buildreleasev1.BuildReleaseService_ServiceDesc.ServiceName, 10*time.Second, "build-release")
+}
+
+func startDevOpsServiceAt(t *testing.T, binary, addr string) {
+	t.Helper()
+	utils.StartProcess(t, "devops", binary, []string{
+		"--addr", addr,
+		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "devops"),
+	}, utils.ProcessEnv(nil))
+	waitForGRPCHealth(t, addr, devopsv1.RepoService_ServiceDesc.ServiceName, 10*time.Second, "devops")
 }
 
 func standardKnowledgeServicesStartOptions(t *testing.T, embedding utils.EmbeddingOptions, workingDir string) utils.StartOptions {

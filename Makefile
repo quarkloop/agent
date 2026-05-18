@@ -22,6 +22,7 @@ MODULES := \
 		services/build-release \
 		services/citation \
 		services/core \
+		services/devops \
 		services/document \
 		services/embedding \
 		services/ingestion \
@@ -68,6 +69,8 @@ build-services:
 		go build -o $(BINARY_DIR)/citation-service ./services/citation/cmd/citation
 		@echo "--- Building service: core ---"
 		go build -o $(BINARY_DIR)/core-service ./services/core/cmd/core
+		@echo "--- Building service: devops ---"
+		go build -o $(BINARY_DIR)/devops-service ./services/devops/cmd/devops
 		@echo "--- Building service: document ---"
 		go build -o $(BINARY_DIR)/document-service ./services/document/cmd/document
 		@echo "--- Building service: model ---"

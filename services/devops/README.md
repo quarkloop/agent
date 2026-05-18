@@ -1,11 +1,12 @@
 # DevOps Service
 
-`services/devops` is the planned Quark DevOps service boundary. It owns selected
-repository, build, test, container, deploy, and policy functions. It should wrap
+`services/devops` is the Quark DevOps service boundary. It owns selected
+repository, build, test, container, deploy, and policy functions. It wraps
 complex ecosystems only through narrow service functions that match Quark
 workflows.
 
-Release automation remains in `services/build-release`.
+Release automation remains available through `services/build-release` as a
+compatibility service while release-specific DevOps chat workflows are wired.
 
 ## Service Functions
 
@@ -39,7 +40,19 @@ Release automation remains in `services/build-release`.
   mutation plans.
 - Core/runtime owns approval state, policy gating, audit, and artifact
   persistence.
-- Build-release service owns release business logic.
+- Build-release compatibility service owns the existing release business logic
+  until a release-specific DevOps service function contract replaces it.
+
+## Configuration
+
+- `--addr`: gRPC listen address, default `127.0.0.1:7310`.
+- `--skill-dir`: directory containing the service plugin `SKILL.md`.
+
+## Health And Readiness
+
+- Health protocol: gRPC health v1.
+- Primary health service: `quark.devops.v1.RepoService`.
+- Descriptor registry: `quark.service.v1.ServiceRegistry`.
 
 ## Non-Goals
 
