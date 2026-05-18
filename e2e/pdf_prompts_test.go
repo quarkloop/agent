@@ -14,7 +14,7 @@ func indexPDFDocumentsPrompt(documents []indexedPDFDocument) string {
 	for _, document := range documents {
 		fmt.Fprintf(&b, "- %s (%s)\n", document.Path, document.Name)
 	}
-	b.WriteString("\nRead each PDF, understand what kind of document it is, extract the important facts, people, organizations, topics, and source evidence, and add each file to the knowledge index. Keep the original files unchanged; do not rename them, reorganize the directory, or create sidecar files. When all files are ready, reply briefly with the filenames I can ask questions about.")
+	b.WriteString("\nThese paths are the uploaded files to process. Read each PDF, understand what kind of document it is, extract the important facts, people, organizations, topics, and source evidence, and add each file to the knowledge index. Work through the listed files efficiently as one batch where possible. Keep the original files unchanged; do not rename them, reorganize the directory, or create sidecar files. When all files are ready, reply briefly with the filenames I can ask questions about.")
 	return b.String()
 }
 
@@ -23,5 +23,5 @@ func indexedPDFQuestionPrompt(question string) string {
 
 %s
 
-Use the knowledge you already indexed. Include the source filename when it helps verify the answer.`, question)
+Use the knowledge you already indexed. Answer in a compact bullet list and include the source filename when it helps verify the answer.`, question)
 }

@@ -15,11 +15,11 @@ Please find every Markdown file in that directory, read each one, understand wha
 func indexedMarkdownQuestionPrompt() string {
 	return `Search the indexed IT company documents and answer from the indexed context only.
 
-Return a concise structured answer covering:
+Return one compact bullet for each of these questions:
 - Which invoice is for Northwind Retail GmbH, what work was billed, and what total is due?
 - Which receipt came from ByteWorks Supply GmbH, what equipment was purchased, and what was the total paid?
 - Which QuarkOps catalog item has SKU QOP-OBS-START, and what are its monthly price and SLA?
 - Which support contract covers Acme Manufacturing AG, what plan is it on, and what is the critical incident response target?
 
-Use the indexed knowledge and include source filenames when available.`
+Use the indexed knowledge, keep each bullet short, and include source filenames when available.`
 }

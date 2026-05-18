@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,22 +25,52 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
+const (
+	defaultServiceHealthTimeout   = 10 * time.Second
+	embeddingServiceHealthTimeout = 30 * time.Second
+	indexerServiceHealthTimeout   = 60 * time.Second
+)
+
+var modelProviderEnvKeys = []string{
+	"OPENROUTER_API_KEY",
+	"OPENROUTER_BASE_URL",
+	"OPENAI_API_KEY",
+	"OPENAI_BASE_URL",
+	"ANTHROPIC_API_KEY",
+	"ANTHROPIC_BASE_URL",
+	"ZHIPU_API_KEY",
+	"ZHIPU_BASE_URL",
+}
+
+type grpcServiceProcessSpec struct {
+	Label         string
+	Binary        string
+	Address       string
+	Plugin        string
+	ServiceName   string
+	Args          []string
+	Env           []string
+	HealthTimeout time.Duration
+}
+
 func startIndexerService(t *testing.T, binary, dgraphAddr string) string {
 	t.Helper()
-	port := utils.ReservePort(t)
-	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	addr := reserveLoopbackAddress(t)
 	startIndexerServiceAt(t, binary, dgraphAddr, addr)
 	return addr
 }
 
 func startIndexerServiceAt(t *testing.T, binary, dgraphAddr, addr string) {
 	t.Helper()
-	utils.StartProcess(t, "indexer", binary, []string{
-		"--addr", addr,
-		"--dgraph", dgraphAddr,
-		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "indexer"),
-	}, utils.ServiceProcessEnv(nil))
-	waitForGRPCHealth(t, addr, indexerv1.IndexerService_ServiceDesc.ServiceName, 60*time.Second, "indexer")
+	startGRPCServiceProcess(t, grpcServiceProcessSpec{
+		Label:         "indexer",
+		Binary:        binary,
+		Address:       addr,
+		Plugin:        "indexer",
+		ServiceName:   indexerv1.IndexerService_ServiceDesc.ServiceName,
+		Args:          []string{"--dgraph", dgraphAddr},
+		HealthTimeout: indexerServiceHealthTimeout,
+	})
 }
 
 func startEmbeddingServiceAt(t *testing.T, binary, addr string, embedding utils.EmbeddingOptions) {
@@ -49,148 +80,142 @@ func startEmbeddingServiceAt(t *testing.T, binary, addr string, embedding utils.
 	if embedding.Provider == "openrouter" {
 		env = utils.ServiceProcessEnv(nil, "OPENROUTER_API_KEY", "OPENROUTER_BASE_URL")
 	}
-	utils.StartProcess(t, "embedding", binary, []string{
-		"--addr", addr,
-		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", embedding.Plugin),
-		"--provider", embedding.Provider,
-		"--model", embedding.Model,
-		"--dimensions", fmt.Sprint(embedding.Dimensions),
-	}, env)
-	waitForGRPCHealth(t, addr, embeddingv1.EmbeddingService_ServiceDesc.ServiceName, 30*time.Second, "embedding")
+	startGRPCServiceProcess(t, grpcServiceProcessSpec{
+		Label:         "embedding",
+		Binary:        binary,
+		Address:       addr,
+		Plugin:        embedding.Plugin,
+		ServiceName:   embeddingv1.EmbeddingService_ServiceDesc.ServiceName,
+		Args:          []string{"--provider", embedding.Provider, "--model", embedding.Model, "--dimensions", fmt.Sprint(embedding.Dimensions)},
+		Env:           env,
+		HealthTimeout: embeddingServiceHealthTimeout,
+	})
 }
 
 func startDocumentServiceAt(t *testing.T, binary, addr string) {
 	t.Helper()
-	utils.StartProcess(t, "document", binary, []string{
-		"--addr", addr,
-		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "document"),
-	}, utils.ServiceProcessEnv(nil))
-	waitForGRPCHealth(t, addr, documentv1.DocumentService_ServiceDesc.ServiceName, 10*time.Second, "document")
+	startGRPCServiceProcess(t, grpcServiceProcessSpec{
+		Label:       "document",
+		Binary:      binary,
+		Address:     addr,
+		Plugin:      "document",
+		ServiceName: documentv1.DocumentService_ServiceDesc.ServiceName,
+	})
 }
 
 func startIngestionServiceAt(t *testing.T, binary, addr, root string) {
 	t.Helper()
-	utils.StartProcess(t, "ingestion", binary, []string{
-		"--addr", addr,
-		"--root", root,
-		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "ingestion"),
-	}, utils.ServiceProcessEnv(nil))
-	waitForGRPCHealth(t, addr, ingestionv1.IngestionService_ServiceDesc.ServiceName, 10*time.Second, "ingestion")
+	startGRPCServiceProcess(t, grpcServiceProcessSpec{
+		Label:       "ingestion",
+		Binary:      binary,
+		Address:     addr,
+		Plugin:      "ingestion",
+		ServiceName: ingestionv1.IngestionService_ServiceDesc.ServiceName,
+		Args:        []string{"--root", root},
+	})
 }
 
 func startCitationServiceAt(t *testing.T, binary, addr string) {
 	t.Helper()
-	utils.StartProcess(t, "citation", binary, []string{
-		"--addr", addr,
-		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "citation"),
-	}, utils.ServiceProcessEnv(nil))
-	waitForGRPCHealth(t, addr, citationv1.CitationService_ServiceDesc.ServiceName, 10*time.Second, "citation")
+	startGRPCServiceProcess(t, grpcServiceProcessSpec{
+		Label:       "citation",
+		Binary:      binary,
+		Address:     addr,
+		Plugin:      "citation",
+		ServiceName: citationv1.CitationService_ServiceDesc.ServiceName,
+	})
 }
 
 func startCoreServiceAt(t *testing.T, binary, addr, root string) {
 	t.Helper()
-	utils.StartProcess(t, "core", binary, []string{
-		"--addr", addr,
-		"--root", root,
-		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "core"),
-	}, utils.ServiceProcessEnv(nil))
-	waitForGRPCHealth(t, addr, corev1.CoreService_ServiceDesc.ServiceName, 10*time.Second, "core")
+	startGRPCServiceProcess(t, grpcServiceProcessSpec{
+		Label:       "core",
+		Binary:      binary,
+		Address:     addr,
+		Plugin:      "core",
+		ServiceName: corev1.CoreService_ServiceDesc.ServiceName,
+		Args:        []string{"--root", root},
+	})
 }
 
 func startModelServiceAt(t *testing.T, binary, addr string) {
 	t.Helper()
-	utils.StartProcess(t, "model", binary, []string{
-		"--addr", addr,
-		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "model"),
-	}, utils.ServiceProcessEnv(nil, "OPENROUTER_API_KEY", "OPENROUTER_BASE_URL", "OPENAI_API_KEY", "OPENAI_BASE_URL", "ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "ZHIPU_API_KEY", "ZHIPU_BASE_URL"))
-	waitForGRPCHealth(t, addr, modelv1.ModelService_ServiceDesc.ServiceName, 10*time.Second, "model")
+	startGRPCServiceProcess(t, grpcServiceProcessSpec{
+		Label:       "model",
+		Binary:      binary,
+		Address:     addr,
+		Plugin:      "model",
+		ServiceName: modelv1.ModelService_ServiceDesc.ServiceName,
+		Env:         utils.ServiceProcessEnv(nil, modelProviderEnvKeys...),
+	})
 }
 
 func startBuildReleaseServiceAt(t *testing.T, binary, addr string) {
 	t.Helper()
-	utils.StartProcess(t, "build-release", binary, []string{
-		"--addr", addr,
-		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "build-release"),
-	}, utils.ServiceProcessEnv(nil))
-	waitForGRPCHealth(t, addr, buildreleasev1.BuildReleaseService_ServiceDesc.ServiceName, 10*time.Second, "build-release")
+	startGRPCServiceProcess(t, grpcServiceProcessSpec{
+		Label:       "build-release",
+		Binary:      binary,
+		Address:     addr,
+		Plugin:      "build-release",
+		ServiceName: buildreleasev1.BuildReleaseService_ServiceDesc.ServiceName,
+	})
 }
 
 func startDevOpsServiceAt(t *testing.T, binary, addr string) {
 	t.Helper()
-	utils.StartProcess(t, "devops", binary, []string{
-		"--addr", addr,
-		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "devops"),
-	}, utils.ServiceProcessEnv(nil))
-	waitForGRPCHealth(t, addr, devopsv1.RepoService_ServiceDesc.ServiceName, 10*time.Second, "devops")
+	startGRPCServiceProcess(t, grpcServiceProcessSpec{
+		Label:       "devops",
+		Binary:      binary,
+		Address:     addr,
+		Plugin:      "devops",
+		ServiceName: devopsv1.RepoService_ServiceDesc.ServiceName,
+	})
 }
 
 func startSystemServiceAt(t *testing.T, binary, addr string) {
 	t.Helper()
-	utils.StartProcess(t, "system", binary, []string{
-		"--addr", addr,
-		"--skill-dir", filepath.Join(utils.QuarkRoot(t), "plugins", "services", "system"),
-	}, utils.ServiceProcessEnv(nil))
-	waitForGRPCHealth(t, addr, systemv1.SystemService_ServiceDesc.ServiceName, 10*time.Second, "system")
+	startGRPCServiceProcess(t, grpcServiceProcessSpec{
+		Label:       "system",
+		Binary:      binary,
+		Address:     addr,
+		Plugin:      "system",
+		ServiceName: systemv1.SystemService_ServiceDesc.ServiceName,
+	})
 }
 
 func standardKnowledgeServicesStartOptions(t *testing.T, embedding utils.EmbeddingOptions, workingDir string) utils.StartOptions {
 	t.Helper()
-	indexerAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
-	embeddingAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
-	documentAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
-	ingestionAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
-	citationAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
-	coreAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
-	modelAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
+	addresses := reserveKnowledgeServiceAddresses(t)
 	return utils.StartOptions{
-		WorkingDir: workingDir,
-		Embedding:  embedding,
-		Agents:     []string{"quark-knowledge"},
-		SupervisorEnv: map[string]string{
-			"QUARK_INDEXER_ADDR":       indexerAddr,
-			"QUARK_EMBEDDING_ADDR":     embeddingAddr,
-			"QUARK_DOCUMENT_ADDR":      documentAddr,
-			"QUARK_INGESTION_ADDR":     ingestionAddr,
-			"QUARK_CITATION_ADDR":      citationAddr,
-			"QUARK_CORE_ADDR":          coreAddr,
-			"QUARK_MODEL_SERVICE_ADDR": modelAddr,
-		},
+		WorkingDir:    workingDir,
+		Embedding:     embedding,
+		Agents:        []string{"quark-knowledge"},
+		SupervisorEnv: addresses.supervisorEnv(),
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
 			dgraphAddr := utils.StartDgraph(t)
-			startCoreServiceAt(t, bins.Core, coreAddr, filepath.Join(setup.SpacesDir, setup.Space, "services", "core"))
-			startModelServiceAt(t, bins.Model, modelAddr)
-			startIndexerServiceAt(t, bins.Indexer, dgraphAddr, indexerAddr)
-			startDocumentServiceAt(t, bins.Document, documentAddr)
-			startIngestionServiceAt(t, bins.Ingestion, ingestionAddr, filepath.Join(setup.SpacesDir, setup.Space, "services", "ingestion"))
-			startCitationServiceAt(t, bins.Citation, citationAddr)
-			startEmbeddingServiceAt(t, bins.Embedding, embeddingAddr, embedding)
+			startCoreServiceAt(t, bins.Core, addresses.Core, filepath.Join(setup.SpacesDir, setup.Space, "services", "core"))
+			startModelServiceAt(t, bins.Model, addresses.Model)
+			startIndexerServiceAt(t, bins.Indexer, dgraphAddr, addresses.Indexer)
+			startDocumentServiceAt(t, bins.Document, addresses.Document)
+			startIngestionServiceAt(t, bins.Ingestion, addresses.Ingestion, filepath.Join(setup.SpacesDir, setup.Space, "services", "ingestion"))
+			startCitationServiceAt(t, bins.Citation, addresses.Citation)
+			startEmbeddingServiceAt(t, bins.Embedding, addresses.Embedding, embedding)
 		},
 	}
 }
 
 func standardDevOpsServicesStartOptions(t *testing.T, workingDir string) utils.StartOptions {
 	t.Helper()
-	devopsAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
-	buildReleaseAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
+	devopsAddr := reserveLoopbackAddress(t)
+	buildReleaseAddr := reserveLoopbackAddress(t)
 	return utils.StartOptions{
 		WorkingDir:               workingDir,
 		DisableKnowledgeServices: true,
 		Agents:                   []string{"quark-devops"},
-		Services: []utils.ServicePlugin{
-			{
-				Name:       "devops",
-				Plugin:     "devops",
-				Mode:       "local",
-				AddressEnv: "QUARK_DEVOPS_ADDR",
-			},
-			{
-				Name:       "build-release",
-				Plugin:     "build-release",
-				Mode:       "local",
-				AddressEnv: "QUARK_BUILD_RELEASE_ADDR",
-			},
-		},
+		ExtraServicePlugins:      []string{"build-release"},
+		AgentServicePermissions:  devOpsAgentServicePermissions(),
+		Services:                 localServicePlugins("devops", "build-release"),
 		SupervisorEnv: map[string]string{
 			"QUARK_DEVOPS_ADDR":        devopsAddr,
 			"QUARK_BUILD_RELEASE_ADDR": buildReleaseAddr,
@@ -203,25 +228,132 @@ func standardDevOpsServicesStartOptions(t *testing.T, workingDir string) utils.S
 	}
 }
 
+func standardDevOpsOnlyServicesStartOptions(t *testing.T, workingDir string) utils.StartOptions {
+	t.Helper()
+	devopsAddr := reserveLoopbackAddress(t)
+	return utils.StartOptions{
+		WorkingDir:               workingDir,
+		DisableKnowledgeServices: true,
+		Agents:                   []string{"quark-devops"},
+		ExtraServicePlugins:      []string{"build-release"},
+		AgentServicePermissions:  devOpsAgentServicePermissions(),
+		Services:                 localServicePlugins("devops"),
+		SupervisorEnv: map[string]string{
+			"QUARK_DEVOPS_ADDR": devopsAddr,
+		},
+		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
+			t.Helper()
+			startDevOpsServiceAt(t, bins.DevOps, devopsAddr)
+		},
+	}
+}
+
 func standardSystemServicesStartOptions(t *testing.T, workingDir string) utils.StartOptions {
 	t.Helper()
-	systemAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
+	systemAddr := reserveLoopbackAddress(t)
 	return utils.StartOptions{
 		WorkingDir:               workingDir,
 		DisableKnowledgeServices: true,
 		Agents:                   []string{"quark-system"},
-		Services: []utils.ServicePlugin{{
-			Name:       "system",
-			Plugin:     "system",
-			Mode:       "local",
-			AddressEnv: "QUARK_SYSTEM_ADDR",
-		}},
+		Services:                 localServicePlugins("system"),
 		SupervisorEnv: map[string]string{
 			"QUARK_SYSTEM_ADDR": systemAddr,
 		},
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
 			startSystemServiceAt(t, bins.System, systemAddr)
+		},
+	}
+}
+
+func startGRPCServiceProcess(t *testing.T, spec grpcServiceProcessSpec) {
+	t.Helper()
+	if spec.HealthTimeout == 0 {
+		spec.HealthTimeout = defaultServiceHealthTimeout
+	}
+	env := spec.Env
+	if env == nil {
+		env = utils.ServiceProcessEnv(nil)
+	}
+	args := []string{
+		"--addr", spec.Address,
+		"--skill-dir", servicePluginDir(t, spec.Plugin),
+	}
+	args = append(args, spec.Args...)
+	utils.StartProcess(t, spec.Label, spec.Binary, args, env)
+	waitForGRPCHealth(t, spec.Address, spec.ServiceName, spec.HealthTimeout, spec.Label)
+}
+
+func servicePluginDir(t *testing.T, plugin string) string {
+	t.Helper()
+	return filepath.Join(utils.QuarkRoot(t), "plugins", "services", plugin)
+}
+
+func reserveLoopbackAddress(t *testing.T) string {
+	t.Helper()
+	return fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
+}
+
+type knowledgeServiceAddresses struct {
+	Indexer   string
+	Embedding string
+	Document  string
+	Ingestion string
+	Citation  string
+	Core      string
+	Model     string
+}
+
+func reserveKnowledgeServiceAddresses(t *testing.T) knowledgeServiceAddresses {
+	t.Helper()
+	return knowledgeServiceAddresses{
+		Indexer:   reserveLoopbackAddress(t),
+		Embedding: reserveLoopbackAddress(t),
+		Document:  reserveLoopbackAddress(t),
+		Ingestion: reserveLoopbackAddress(t),
+		Citation:  reserveLoopbackAddress(t),
+		Core:      reserveLoopbackAddress(t),
+		Model:     reserveLoopbackAddress(t),
+	}
+}
+
+func (a knowledgeServiceAddresses) supervisorEnv() map[string]string {
+	return map[string]string{
+		"QUARK_INDEXER_ADDR":       a.Indexer,
+		"QUARK_EMBEDDING_ADDR":     a.Embedding,
+		"QUARK_DOCUMENT_ADDR":      a.Document,
+		"QUARK_INGESTION_ADDR":     a.Ingestion,
+		"QUARK_CITATION_ADDR":      a.Citation,
+		"QUARK_CORE_ADDR":          a.Core,
+		"QUARK_MODEL_SERVICE_ADDR": a.Model,
+	}
+}
+
+func localServicePlugins(names ...string) []utils.ServicePlugin {
+	plugins := make([]utils.ServicePlugin, 0, len(names))
+	for _, name := range names {
+		plugins = append(plugins, utils.ServicePlugin{
+			Name:       name,
+			Plugin:     name,
+			Mode:       "local",
+			AddressEnv: "QUARK_" + strings.ToUpper(strings.ReplaceAll(name, "-", "_")) + "_ADDR",
+		})
+	}
+	return plugins
+}
+
+func devOpsAgentServicePermissions() map[string][]string {
+	return map[string][]string{
+		"quark-devops": {
+			"repo_Status",
+			"repo_Diff",
+			"repo_GetBranch",
+			"repo_ListChangedFiles",
+			"build_DetectProject",
+			"test_DiscoverTests",
+			"test_RunTests",
+			"test_ExplainFailure",
+			"policy_EvaluateChange",
 		},
 	}
 }

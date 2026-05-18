@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/quarkloop/e2e/utils"
-	"github.com/quarkloop/supervisor/pkg/api"
 )
 
 func TestAgentUsesSystemServiceForReadOnlyInspection(t *testing.T) {
@@ -18,23 +17,14 @@ func TestAgentUsesSystemServiceForReadOnlyInspection(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
 	defer cancel()
 
-	session, err := env.Sup.CreateSession(ctx, env.Space, api.CreateSessionRequest{
-		Type:  api.SessionTypeChat,
-		Title: "system-read-only-inspection",
-	})
-	if err != nil {
-		t.Fatalf("create session: %v", err)
-	}
-	utils.WaitForAgentSession(t, env, session.ID, 10*time.Second)
-
 	prompt := systemReadOnlyInspectionPrompt()
-	trace := utils.PostMessageTraceWithOptions(t, ctx, env, session.ID, prompt, utils.MessageTraceOptions{
-		Label:          "system read-only inspection",
-		OverallTimeout: 3 * time.Minute,
-		IdleTimeout:    90 * time.Second,
+	trace := runChatPrompt(t, ctx, env, workingDir, chatPromptRun{
+		Title:          "system-read-only-inspection",
+		Label:          "system inspection",
+		ArtifactPrefix: "system-read-only-inspection",
+		Prompt:         prompt,
+		TraceOptions:   systemServiceTraceOptions("system read-only inspection"),
 	})
-	utils.Logf(t, "system inspection reply: %s", trace.Text)
-	writeAgentRunArtifacts(t, workingDir, "system-read-only-inspection", env, trace, prompt)
 
 	assertToolStarted(t, trace, "system_Snapshot")
 	assertToolStarted(t, trace, "system_GetDiskUsage")

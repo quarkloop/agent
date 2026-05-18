@@ -137,6 +137,8 @@ func TestDevOpsFailurePromptBuilderUsesUserLanguage(t *testing.T) {
 		"run its tests",
 		"explain the failure",
 		"captured evidence",
+		"I approve running",
+		"Do not change source files",
 	)
 	assertPromptExcludes(t, prompt,
 		"test_RunTests",

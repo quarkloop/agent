@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/quarkloop/e2e/utils"
-	"github.com/quarkloop/supervisor/pkg/api"
 )
 
 func TestAgentIndexesUploadedPDFDataset(t *testing.T) {
@@ -77,23 +76,14 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOp
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 
-	indexSession, err := env.Sup.CreateSession(ctx, env.Space, api.CreateSessionRequest{
-		Type:  api.SessionTypeChat,
-		Title: "pdf-indexer-agent-test",
-	})
-	if err != nil {
-		t.Fatalf("create index session: %v", err)
-	}
-	utils.WaitForAgentSession(t, env, indexSession.ID, 10*time.Second)
-
 	indexPrompt := indexPDFDocumentsPrompt(documents)
-	indexTrace := utils.PostMessageTraceWithOptions(t, ctx, env, indexSession.ID, indexPrompt, utils.MessageTraceOptions{
-		Label:          "index uploaded PDF dataset",
-		OverallTimeout: 8 * time.Minute,
-		IdleTimeout:    90 * time.Second,
+	indexTrace := runChatPrompt(t, ctx, env, workingDir, chatPromptRun{
+		Title:          "pdf-indexer-agent-test",
+		Label:          "index",
+		ArtifactPrefix: "agent-index",
+		Prompt:         indexPrompt,
+		TraceOptions:   knowledgeIndexTraceOptions("index uploaded PDF dataset", len(documents)),
 	})
-	utils.Logf(t, "index reply: %s", indexTrace.Text)
-	writeAgentRunArtifacts(t, workingDir, "agent-index", env, indexTrace, indexPrompt)
 
 	assertToolStarted(t, indexTrace, "ingestion_StartRun")
 	assertToolStarted(t, indexTrace, "document_ExtractText")
@@ -128,24 +118,15 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOp
 		WantAny: []string{"attention", "self-attention", "health insurance", "residence permit", "Productivity", "AI Business Productivity Assistant", "mini-app"},
 	}}
 	for _, queryCase := range queryCases {
-		querySession, err := env.Sup.CreateSession(ctx, env.Space, api.CreateSessionRequest{
-			Type:  api.SessionTypeChat,
-			Title: "pdf-indexer-query-" + queryCase.Title,
-		})
-		if err != nil {
-			t.Fatalf("create query session %s: %v", queryCase.Title, err)
-		}
-		utils.WaitForAgentSession(t, env, querySession.ID, 10*time.Second)
-
 		queryPrompt := indexedPDFQuestionPrompt(queryCase.Question)
-		queryTrace := utils.PostMessageTraceWithOptions(t, ctx, env, querySession.ID, queryPrompt, utils.MessageTraceOptions{
-			Label:          "query indexed PDF dataset: " + queryCase.Title,
-			OverallTimeout: 4 * time.Minute,
-			IdleTimeout:    90 * time.Second,
-		})
-		utils.Logf(t, "%s query reply: %s", queryCase.Title, queryTrace.Text)
 		artifactPrefix := "agent-query-" + queryCase.Title
-		writeAgentRunArtifacts(t, workingDir, artifactPrefix, env, queryTrace, queryPrompt)
+		queryTrace := runChatPrompt(t, ctx, env, workingDir, chatPromptRun{
+			Title:          "pdf-indexer-query-" + queryCase.Title,
+			Label:          queryCase.Title + " query",
+			ArtifactPrefix: artifactPrefix,
+			Prompt:         queryPrompt,
+			TraceOptions:   knowledgeQueryTraceOptions("query indexed PDF dataset: " + queryCase.Title),
+		})
 
 		assertToolStarted(t, queryTrace, "embedding_Embed")
 		assertToolStarted(t, queryTrace, "indexer_QueryContext")
@@ -154,7 +135,7 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOp
 		if contains(queryTrace.ToolStarts, "fs") {
 			t.Fatalf("%s query re-read source files instead of using the index; starts=%v", queryCase.Title, queryTrace.ToolStarts)
 		}
-		assertToolResultContains(t, queryTrace, "indexer_QueryContext", "reasoningContext")
+		assertIndexerQueryReturnedStructuredContext(t, queryTrace)
 		assertEmbeddingToolResult(t, queryTrace, env.Embedding.Provider, env.Embedding.Model, env.Embedding.Dimensions)
 		assertAnswerContains(t, queryTrace.Text, queryCase.Want...)
 		if len(queryCase.WantAny) > 0 {

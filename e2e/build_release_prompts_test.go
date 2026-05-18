@@ -13,5 +13,7 @@ Use version v9.9.9 and the project's build_release.json configuration. Do not pu
 func devOpsTestFailurePrompt(workingDir string) string {
 	return fmt.Sprintf(`Use Quark DevOps to inspect the repository for the Go project in %q, run its tests, and explain the failure from the captured evidence.
 
+I approve running the project's test suite now. Do not change source files, commits, or release artifacts.
+
 Keep the answer concise and include the failing test name or failure line if available.`, workingDir)
 }

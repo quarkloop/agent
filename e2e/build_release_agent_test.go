@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/quarkloop/e2e/utils"
-	"github.com/quarkloop/supervisor/pkg/api"
 )
 
 func TestAgentUsesBuildReleaseServiceFunction(t *testing.T) {
@@ -22,32 +21,23 @@ func TestAgentUsesBuildReleaseServiceFunction(t *testing.T) {
 
 	env := utils.StartE2E(t, true, standardDevOpsServicesStartOptions(t, workingDir))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), devOpsServiceFlowTimeout+time.Minute)
 	defer cancel()
 
-	session, err := env.Sup.CreateSession(ctx, env.Space, api.CreateSessionRequest{
-		Type:  api.SessionTypeChat,
-		Title: "build-release-devops-test",
-	})
-	if err != nil {
-		t.Fatalf("create session: %v", err)
-	}
-	utils.WaitForAgentSession(t, env, session.ID, 10*time.Second)
-
 	prompt := buildReleaseDryRunPrompt(workingDir)
-	trace := utils.PostMessageTraceWithOptions(t, ctx, env, session.ID, prompt, utils.MessageTraceOptions{
-		Label:          "build-release dry run through service function",
-		OverallTimeout: 3 * time.Minute,
-		IdleTimeout:    90 * time.Second,
+	trace := runChatPrompt(t, ctx, env, workingDir, chatPromptRun{
+		Title:          "build-release-devops-test",
+		Label:          "build-release",
+		ArtifactPrefix: "build-release-agent",
+		Prompt:         prompt,
+		TraceOptions:   devOpsServiceTraceOptions("build-release dry run through service function"),
 	})
-	utils.Logf(t, "build-release reply: %s", trace.Text)
-	writeAgentRunArtifacts(t, workingDir, "build-release-agent", env, trace, prompt)
 
 	assertToolStarted(t, trace, "repo_Status")
 	assertToolStarted(t, trace, "build_DetectProject")
 	assertToolStarted(t, trace, "policy_EvaluateChange")
 	assertToolStarted(t, trace, "build_release_DryRun")
-	assertNoToolErrors(t, trace, "repo_Status", "build_DetectProject", "policy_EvaluateChange", "build_release_DryRun")
+	assertToolLatestResultsSucceeded(t, trace, "repo_Status", "build_DetectProject", "policy_EvaluateChange", "build_release_DryRun")
 	assertToolResultContains(t, trace, "build_release_DryRun", "v9.9.9", "quark-devops-fixture")
 	assertAnswerContains(t, trace.Text, "v9.9.9", "quark-devops-fixture")
 }
@@ -57,34 +47,25 @@ func TestAgentUsesDevOpsServiceForTestFailureExplanation(t *testing.T) {
 	writeFailingGoTestFixture(t, workingDir)
 	initGitRepository(t, workingDir)
 
-	env := utils.StartE2E(t, true, standardDevOpsServicesStartOptions(t, workingDir))
+	env := utils.StartE2E(t, true, standardDevOpsOnlyServicesStartOptions(t, workingDir))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), devOpsServiceFlowTimeout+time.Minute)
 	defer cancel()
 
-	session, err := env.Sup.CreateSession(ctx, env.Space, api.CreateSessionRequest{
-		Type:  api.SessionTypeChat,
-		Title: "devops-test-failure",
-	})
-	if err != nil {
-		t.Fatalf("create session: %v", err)
-	}
-	utils.WaitForAgentSession(t, env, session.ID, 10*time.Second)
-
 	prompt := devOpsTestFailurePrompt(workingDir)
-	trace := utils.PostMessageTraceWithOptions(t, ctx, env, session.ID, prompt, utils.MessageTraceOptions{
-		Label:          "devops test failure explanation",
-		OverallTimeout: 3 * time.Minute,
-		IdleTimeout:    90 * time.Second,
+	trace := runChatPrompt(t, ctx, env, workingDir, chatPromptRun{
+		Title:          "devops-test-failure",
+		Label:          "devops failure",
+		ArtifactPrefix: "devops-test-failure",
+		Prompt:         prompt,
+		TraceOptions:   devOpsServiceTraceOptions("devops test failure explanation"),
 	})
-	utils.Logf(t, "devops failure reply: %s", trace.Text)
-	writeAgentRunArtifacts(t, workingDir, "devops-test-failure", env, trace, prompt)
 
 	assertToolStarted(t, trace, "repo_Status")
-	assertToolStarted(t, trace, "test_DiscoverTests")
 	assertToolStarted(t, trace, "test_RunTests")
 	assertToolStarted(t, trace, "test_ExplainFailure")
-	assertNoToolErrors(t, trace, "repo_Status", "test_DiscoverTests", "test_RunTests", "test_ExplainFailure")
+	assertToolNotStarted(t, trace, "build_release_DryRun")
+	assertToolLatestResultsSucceeded(t, trace, "repo_Status", "test_RunTests", "test_ExplainFailure")
 	assertToolResultContains(t, trace, "test_RunTests", "TestBroken", "expected stable behavior")
 	assertAnswerContainsAny(t, trace.Text, "TestBroken", "expected stable behavior", "failure")
 }

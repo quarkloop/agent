@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/quarkloop/e2e/utils"
-	"github.com/quarkloop/supervisor/pkg/api"
 )
 
 func TestAgentIndexesITCompanyMarkdownDocuments(t *testing.T) {
@@ -54,23 +53,14 @@ func TestAgentIndexesITCompanyMarkdownDocuments(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
 	defer cancel()
 
-	indexSession, err := env.Sup.CreateSession(ctx, env.Space, api.CreateSessionRequest{
-		Type:  api.SessionTypeChat,
-		Title: "it-company-markdown-index",
-	})
-	if err != nil {
-		t.Fatalf("create index session: %v", err)
-	}
-	utils.WaitForAgentSession(t, env, indexSession.ID, 10*time.Second)
-
 	indexPrompt := indexMarkdownDirectoryPrompt(documentsDir, len(documents))
-	indexTrace := utils.PostMessageTraceWithOptions(t, ctx, env, indexSession.ID, indexPrompt, utils.MessageTraceOptions{
-		Label:          "index IT company markdown documents",
-		OverallTimeout: 6 * time.Minute,
-		IdleTimeout:    90 * time.Second,
+	indexTrace := runChatPrompt(t, ctx, env, workingDir, chatPromptRun{
+		Title:          "it-company-markdown-index",
+		Label:          "markdown index",
+		ArtifactPrefix: "markdown-agent-index",
+		Prompt:         indexPrompt,
+		TraceOptions:   knowledgeIndexTraceOptions("index IT company markdown documents", len(documents)),
 	})
-	utils.Logf(t, "markdown index reply: %s", indexTrace.Text)
-	writeAgentRunArtifacts(t, workingDir, "markdown-agent-index", env, indexTrace, indexPrompt)
 
 	assertToolStarted(t, indexTrace, "ingestion_StartRun")
 	assertToolStarted(t, indexTrace, "fs")
@@ -87,23 +77,14 @@ func TestAgentIndexesITCompanyMarkdownDocuments(t *testing.T) {
 	}
 	verifyPersistedMarkdownIndexState(t, ctx, workingDir, env.ServiceAddress("indexer"), env.ServiceAddress("embedding"), documents)
 
-	querySession, err := env.Sup.CreateSession(ctx, env.Space, api.CreateSessionRequest{
-		Type:  api.SessionTypeChat,
-		Title: "it-company-markdown-query",
-	})
-	if err != nil {
-		t.Fatalf("create query session: %v", err)
-	}
-	utils.WaitForAgentSession(t, env, querySession.ID, 10*time.Second)
-
 	queryPrompt := indexedMarkdownQuestionPrompt()
-	queryTrace := utils.PostMessageTraceWithOptions(t, ctx, env, querySession.ID, queryPrompt, utils.MessageTraceOptions{
-		Label:          "query IT company markdown index",
-		OverallTimeout: 4 * time.Minute,
-		IdleTimeout:    90 * time.Second,
+	queryTrace := runChatPrompt(t, ctx, env, workingDir, chatPromptRun{
+		Title:          "it-company-markdown-query",
+		Label:          "markdown query",
+		ArtifactPrefix: "markdown-agent-query",
+		Prompt:         queryPrompt,
+		TraceOptions:   knowledgeQueryTraceOptions("query IT company markdown index"),
 	})
-	utils.Logf(t, "markdown query reply: %s", queryTrace.Text)
-	writeAgentRunArtifacts(t, workingDir, "markdown-agent-query", env, queryTrace, queryPrompt)
 
 	assertToolStarted(t, queryTrace, "embedding_Embed")
 	assertToolStarted(t, queryTrace, "indexer_QueryContext")
