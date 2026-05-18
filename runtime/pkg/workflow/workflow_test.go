@@ -38,8 +38,23 @@ func TestDetectSystemAndDevOpsWorkflows(t *testing.T) {
 		"test_RunTests",
 		"test_ExplainFailure",
 	))
-	if len(devops) != 1 || devops[0].Kind != KindDevOps || len(devops[0].Steps) != 2 {
+	if len(devops) != 1 || devops[0].Kind != KindDevOps || len(devops[0].Steps) != 3 {
 		t.Fatalf("devops intents = %+v", devops)
+	}
+}
+
+func TestDetectDevOpsReleaseWorkflowRequiresPolicyAndProjectContext(t *testing.T) {
+	devops := Detect("Inspect this repository for the Go project and preview the release plan without publishing.", toolSchemas(
+		"repo_Status",
+		"build_DetectProject",
+		"build_release_DryRun",
+		"policy_EvaluateChange",
+	))
+	if len(devops) != 1 || devops[0].Kind != KindDevOps {
+		t.Fatalf("devops intents = %+v", devops)
+	}
+	if len(devops[0].Steps) != 4 {
+		t.Fatalf("devops steps = %+v", devops[0].Steps)
 	}
 }
 

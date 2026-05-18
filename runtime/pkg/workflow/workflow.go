@@ -296,14 +296,23 @@ func devopsSteps(text string, available map[string]struct{}) []Step {
 	if containsAny(text, " repo ", " repository ", " git ", " status ", " changed ", " diff ") {
 		specs = append(specs, step("repo-status", "repository inspection", "repo_Status", "repo_ListChangedFiles", "repo_Diff"))
 	}
+	if containsAny(text, " project ", " project kind ", " detect project ", " go project ", " package ") {
+		specs = append(specs, step("project-detect", "project detection", "build_DetectProject"))
+	}
 	if containsAny(text, " test ", " tests ", " failing ", " failure ") {
 		specs = append(specs, step("tests", "test execution or discovery", "test_RunTests", "test_DiscoverTests"))
+	}
+	if containsAny(text, " explain ", " failure ", " failing ") {
+		specs = append(specs, step("explain-failure", "failure explanation", "test_ExplainFailure"))
 	}
 	if containsAny(text, " build ", " compile ", " package ") {
 		specs = append(specs, step("build", "build execution", "build_RunTask", "build_CreateArtifact"))
 	}
 	if containsAny(text, " release ", " publish ", " tag ") {
 		specs = append(specs, step("release", "release planning", "build_release_DryRun", "repo_GenerateReleaseNotes"))
+	}
+	if containsAny(text, " release ", " publish ", " deploy ", " apply ", " patch ", " commit ") {
+		specs = append(specs, step("policy", "policy evaluation", "policy_EvaluateChange"))
 	}
 	return requiredSteps(available, specs...)
 }

@@ -165,6 +165,40 @@ func standardKnowledgeServicesStartOptions(t *testing.T, embedding utils.Embeddi
 	}
 }
 
+func standardDevOpsServicesStartOptions(t *testing.T, workingDir string) utils.StartOptions {
+	t.Helper()
+	devopsAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
+	buildReleaseAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
+	return utils.StartOptions{
+		WorkingDir:               workingDir,
+		DisableKnowledgeServices: true,
+		Agents:                   []string{"quark-devops"},
+		Services: []utils.ServicePlugin{
+			{
+				Name:       "devops",
+				Plugin:     "devops",
+				Mode:       "local",
+				AddressEnv: "QUARK_DEVOPS_ADDR",
+			},
+			{
+				Name:       "build-release",
+				Plugin:     "build-release",
+				Mode:       "local",
+				AddressEnv: "QUARK_BUILD_RELEASE_ADDR",
+			},
+		},
+		SupervisorEnv: map[string]string{
+			"QUARK_DEVOPS_ADDR":        devopsAddr,
+			"QUARK_BUILD_RELEASE_ADDR": buildReleaseAddr,
+		},
+		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
+			t.Helper()
+			startDevOpsServiceAt(t, bins.DevOps, devopsAddr)
+			startBuildReleaseServiceAt(t, bins.BuildRelease, buildReleaseAddr)
+		},
+	}
+}
+
 func waitForGRPCHealth(t *testing.T, addr, service string, timeout time.Duration, label string) {
 	t.Helper()
 	deadline := time.Now().Add(timeout)

@@ -123,6 +123,25 @@ func TestBuildReleasePromptBuilderUsesServiceFunctionContract(t *testing.T) {
 	)
 	assertPromptExcludes(t, prompt,
 		"build_release_DryRun",
+		"repo_Status",
+		"build_DetectProject",
+		"service function",
+		"shell",
+	)
+}
+
+func TestDevOpsFailurePromptBuilderUsesUserLanguage(t *testing.T) {
+	prompt := devOpsTestFailurePrompt("/workspace/project")
+	assertPromptContains(t, prompt,
+		"/workspace/project",
+		"run its tests",
+		"explain the failure",
+		"captured evidence",
+	)
+	assertPromptExcludes(t, prompt,
+		"test_RunTests",
+		"test_ExplainFailure",
+		"build_DetectProject",
 		"service function",
 		"shell",
 	)
