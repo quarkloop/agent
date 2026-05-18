@@ -214,7 +214,7 @@ func standardDevOpsServicesStartOptions(t *testing.T, workingDir string) utils.S
 		DisableKnowledgeServices: true,
 		Agents:                   []string{"quark-devops"},
 		ExtraServicePlugins:      []string{"build-release"},
-		AgentServicePermissions:  devOpsAgentServicePermissions(),
+		AgentServicePermissions:  devOpsAgentServicePermissions(buildReleaseServiceFunctions()...),
 		Services:                 localServicePlugins("devops", "build-release"),
 		SupervisorEnv: map[string]string{
 			"QUARK_DEVOPS_ADDR":        devopsAddr,
@@ -342,19 +342,29 @@ func localServicePlugins(names ...string) []utils.ServicePlugin {
 	return plugins
 }
 
-func devOpsAgentServicePermissions() map[string][]string {
+func devOpsAgentServicePermissions(extra ...string) map[string][]string {
+	allowed := []string{
+		"repo_Status",
+		"repo_Diff",
+		"repo_GetBranch",
+		"repo_ListChangedFiles",
+		"build_DetectProject",
+		"test_DiscoverTests",
+		"test_RunTests",
+		"test_ExplainFailure",
+		"policy_EvaluateChange",
+	}
+	allowed = append(allowed, extra...)
 	return map[string][]string{
-		"quark-devops": {
-			"repo_Status",
-			"repo_Diff",
-			"repo_GetBranch",
-			"repo_ListChangedFiles",
-			"build_DetectProject",
-			"test_DiscoverTests",
-			"test_RunTests",
-			"test_ExplainFailure",
-			"policy_EvaluateChange",
-		},
+		"quark-devops": allowed,
+	}
+}
+
+func buildReleaseServiceFunctions() []string {
+	return []string{
+		"build_release_DryRun",
+		"build_release_Init",
+		"build_release_Release",
 	}
 }
 
