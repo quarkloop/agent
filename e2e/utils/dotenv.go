@@ -19,6 +19,10 @@ func IsRateLimit(err error) bool {
 func IsRateLimitText(msg string) bool {
 	msg = strings.ToLower(msg)
 	return strings.Contains(msg, "429") ||
+		strings.Contains(msg, "402") ||
+		strings.Contains(msg, "quota") ||
+		strings.Contains(msg, "credit") ||
+		strings.Contains(msg, "requires more credits") ||
 		strings.Contains(msg, "rate limit") ||
 		strings.Contains(msg, "rate-limit") ||
 		strings.Contains(msg, "rate-limited")
@@ -72,7 +76,7 @@ func CfgForTest(t *testing.T, envKey string) (ProviderConfig, bool) {
 	if key := os.Getenv(envKey); key != "" {
 		m := firstEnv("OPENROUTER_E2E_MODEL", "OPENROUTER_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL")
 		if m == "" {
-			m = "qwen/qwen3.6-plus:free"
+			m = "openai/gpt-4o-mini"
 		}
 		return ProviderConfig{Provider: "openrouter", Model: m, APIKey: key}, true
 	}

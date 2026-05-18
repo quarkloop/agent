@@ -58,6 +58,18 @@ func TestAssertIndexerQueryReturnedStructuredContextAcceptsChunkIDPreview(t *tes
 	trace := utils.MessageTrace{
 		ToolResultEvents: []utils.ToolEvent{{
 			Name: "indexer_QueryContext",
+			Result: `{"chunks":[{"id":"chunk_german_health_insurance","text":"` +
+				strings.Repeat("source text before source metadata ", 100) + `...(truncated)`,
+		}},
+	}
+
+	assertIndexerQueryReturnedStructuredContext(t, trace)
+}
+
+func TestAssertIndexerQueryReturnedStructuredContextAcceptsHyphenatedChunkIDPreview(t *testing.T) {
+	trace := utils.MessageTrace{
+		ToolResultEvents: []utils.ToolEvent{{
+			Name: "indexer_QueryContext",
 			Result: `{"chunks":[{"id":"chunk-german_health_insurance","text":"` +
 				strings.Repeat("source text before source metadata ", 100) + `...(truncated)`,
 		}},
@@ -167,7 +179,7 @@ func decodeJSONObject(value string) (map[string]any, bool) {
 
 func containsStructuredContextPreview(value string) bool {
 	hasChunks := containsText(value, `"chunks"`) || containsText(value, "resultRef")
-	hasChunkID := containsText(value, `"id"`) && containsText(value, "chunk-")
+	hasChunkID := containsText(value, `"id"`) && (containsText(value, "chunk_") || containsText(value, "chunk-"))
 	hasEvidence := containsText(value, "sourceUri") || containsText(value, "citations") || containsText(value, "resultRef") || hasChunkID
 	return hasChunks && hasEvidence
 }

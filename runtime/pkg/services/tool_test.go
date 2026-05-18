@@ -146,6 +146,48 @@ func TestInjectRuntimeContextArgumentsDoesNotOverrideExplicitSpace(t *testing.T)
 	}
 }
 
+func TestNormalizeDocumentInputArgumentsPromotesTopLevelSourceURI(t *testing.T) {
+	normalized, err := normalizeDocumentInputArguments("quark.document.v1.ExtractTextRequest", `{
+		"sourceUri": "/tmp/uploaded/source.pdf",
+		"mimeType": "application/pdf"
+	}`)
+	if err != nil {
+		t.Fatalf("normalize document input: %v", err)
+	}
+	var req documentv1.ExtractTextRequest
+	if err := protojson.Unmarshal([]byte(normalized), &req); err != nil {
+		t.Fatalf("decode normalized request: %v\n%s", err, normalized)
+	}
+	if got := req.GetInput().GetSourceUri(); got != "/tmp/uploaded/source.pdf" {
+		t.Fatalf("sourceUri = %q", got)
+	}
+	if got := req.GetInput().GetFilename(); got != "source.pdf" {
+		t.Fatalf("filename = %q", got)
+	}
+	if got := req.GetInput().GetMimeType(); got != "application/pdf" {
+		t.Fatalf("mimeType = %q", got)
+	}
+}
+
+func TestNormalizeDocumentInputArgumentsAcceptsStringInput(t *testing.T) {
+	normalized, err := normalizeDocumentInputArguments("quark.document.v1.GetPagesRequest", `{
+		"input": "/tmp/uploaded/report.pdf"
+	}`)
+	if err != nil {
+		t.Fatalf("normalize document input: %v", err)
+	}
+	var req documentv1.GetPagesRequest
+	if err := protojson.Unmarshal([]byte(normalized), &req); err != nil {
+		t.Fatalf("decode normalized request: %v\n%s", err, normalized)
+	}
+	if got := req.GetInput().GetSourceUri(); got != "/tmp/uploaded/report.pdf" {
+		t.Fatalf("sourceUri = %q", got)
+	}
+	if got := req.GetInput().GetFilename(); got != "report.pdf" {
+		t.Fatalf("filename = %q", got)
+	}
+}
+
 func TestExecutorCapturesFilesystemContentRefsForIndexRequests(t *testing.T) {
 	executor := NewExecutor(nil)
 
@@ -534,6 +576,86 @@ func TestExecutorAddsExpiringReferencesForLargeServiceResults(t *testing.T) {
 	executor.CleanupExpiredReferences(time.Now().Add(time.Hour))
 	if _, ok := executor.contentByRef(ref); ok {
 		t.Fatalf("expired result reference %s was not cleaned up", ref)
+	}
+}
+
+func TestExecutorCompactsReferencedIndexerContextForLLM(t *testing.T) {
+	executor := NewExecutor(nil)
+	longText := strings.Repeat("retrieved context evidence ", 200)
+	result := `{
+		"reasoningContext": "` + longText + `",
+		"chunks": [{
+			"id": "chunk-1",
+			"text": "` + longText + `",
+			"document": {"sourceUri": "/tmp/source.pdf"},
+			"citations": [{"sourceUri": "/tmp/source.pdf", "textSpan": "evidence"}]
+		}],
+		"contextPackage": {
+			"chunks": [{
+				"id": "chunk-1",
+				"text": "` + longText + `",
+				"document": {"sourceUri": "/tmp/source.pdf"}
+			}]
+		}
+	}`
+
+	withRef, err := executor.attachResultReference("indexer_QueryContext", "quark.indexer.v1.ContextResponse", []byte(result))
+	if err != nil {
+		t.Fatalf("attach result reference: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(withRef), &payload); err != nil {
+		t.Fatalf("decode referenced result: %v\n%s", err, withRef)
+	}
+	if payload["resultCompacted"] != true {
+		t.Fatalf("resultCompacted missing: %+v", payload)
+	}
+	ref, ok := payload["resultRef"].(string)
+	if !ok || ref == "" {
+		t.Fatalf("resultRef missing: %+v", payload)
+	}
+	stored, ok := executor.contentByRef(ref)
+	if !ok || stored != result {
+		t.Fatalf("stored full result mismatch ok=%t", ok)
+	}
+	chunks := payload["chunks"].([]any)
+	chunk := chunks[0].(map[string]any)
+	if chunk["textTruncated"] != true {
+		t.Fatalf("chunk text was not marked truncated: %+v", chunk)
+	}
+	if got := chunk["text"].(string); len([]rune(got)) >= len([]rune(longText)) {
+		t.Fatalf("chunk text was not compacted")
+	}
+}
+
+func TestExecutorCompactsLargeDocumentExtractionTextForLLM(t *testing.T) {
+	executor := NewExecutor(nil)
+	longText := strings.Repeat("source evidence paragraph ", 400)
+
+	result, err := executor.documentExtractTextToolResult(&documentv1.ExtractTextResponse{
+		Text:       longText,
+		SourceHash: "sha256:source",
+	}, `{"input":{"sourceUri":"/tmp/source.pdf","filename":"source.pdf"}}`)
+	if err != nil {
+		t.Fatalf("capture document result: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("decode document result: %v\n%s", err, result)
+	}
+	ref, ok := payload["contentRef"].(string)
+	if !ok || ref == "" {
+		t.Fatalf("contentRef missing: %+v", payload)
+	}
+	stored, ok := executor.contentByRef(ref)
+	if !ok || stored != longText {
+		t.Fatalf("stored full document text mismatch ok=%t", ok)
+	}
+	if payload["textTruncated"] != true {
+		t.Fatalf("textTruncated missing: %+v", payload)
+	}
+	if got := payload["text"].(string); len([]rune(got)) >= len([]rune(longText)) {
+		t.Fatalf("document text was not compacted")
 	}
 }
 

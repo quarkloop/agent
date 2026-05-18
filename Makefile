@@ -129,9 +129,14 @@ test:
 test-e2e-local:
 		go test -tags e2e -v -timeout 12m -run '^(TestLongE2EPromptsAreOwnedByBuilders|TestPDFPromptBuildersExposeAgentWorkflowContract|TestMarkdownPromptBuildersExposeAgentWorkflowContract|TestBuildReleasePromptBuilderUsesServiceFunctionContract|TestSupervisorSessionEventReachesAgent|TestLocalDeterministicSupervisorRuntimeAndServices|TestIndexerServiceWithRealDgraph)$$' ./e2e
 
+E2E_TIMEOUT ?= 20m
+E2E_PDF_TIMEOUT ?= 20m
+
 ## Run E2E tests (requires OPENROUTER_API_KEY or ZHIPU_API_KEY; loads quark/.env when present)
 test-e2e:
-		go test -tags e2e -v -timeout 20m ./e2e
+		go test -tags e2e -v -timeout $(E2E_PDF_TIMEOUT) -run '^TestAgentIndexesUploadedPDFDataset$$' ./e2e
+		go test -tags e2e -v -timeout $(E2E_PDF_TIMEOUT) -run '^TestAgentIndexesUploadedPDFDatasetOpenRouterEmbedding$$' ./e2e
+		go test -tags e2e -v -timeout $(E2E_TIMEOUT) -skip '^(TestAgentIndexesUploadedPDFDataset|TestAgentIndexesUploadedPDFDatasetOpenRouterEmbedding)$$' ./e2e
 
 ## Refresh the code-owned service implementation map
 service-inventory:

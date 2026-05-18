@@ -99,6 +99,9 @@ func NewExecutor(descriptors []*servicev1.ServiceDescriptor) *Executor {
 const (
 	defaultReferenceTTL     = 30 * time.Minute
 	largeResultReferenceMin = 2048
+	documentTextPreviewMax  = 6000
+	contextTextPreviewMax   = 1600
+	reasoningPreviewMax     = 9000
 )
 
 func (e *Executor) ToolSchemas() []ServiceFunctionSchema {
@@ -142,6 +145,10 @@ func (e *Executor) Execute(ctx context.Context, functionName, arguments string) 
 	arguments, err = normalizeServiceArgumentJSON(arguments)
 	if err != nil {
 		return "", boundary.Wrap(boundary.Service, boundary.InvalidArgument, "decode arguments "+functionName, err)
+	}
+	arguments, err = normalizeDocumentInputArguments(rpc.GetRequest(), arguments)
+	if err != nil {
+		return "", boundary.Wrap(boundary.Service, boundary.InvalidArgument, "normalize document input "+functionName, err)
 	}
 	arguments, err = injectRuntimeContextArguments(ctx, rpc.GetRequest(), arguments)
 	if err != nil {
@@ -422,6 +429,89 @@ func normalizeServiceArgumentJSON(arguments string) (string, error) {
 		}
 		return repaired, nil
 	}
+}
+
+func normalizeDocumentInputArguments(typeName, arguments string) (string, error) {
+	if !isDocumentInputRequest(typeName) || strings.TrimSpace(arguments) == "" {
+		return arguments, nil
+	}
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(arguments), &payload); err != nil {
+		return "", fmt.Errorf("decode document arguments: %w", err)
+	}
+
+	input := map[string]json.RawMessage{}
+	if raw, ok := payload["input"]; ok {
+		if stringValue, ok := rawJSONString(raw); ok {
+			input["sourceUri"] = mustJSONRaw(stringValue)
+			input["filename"] = mustJSONRaw(filepath.Base(stringValue))
+		} else if err := json.Unmarshal(raw, &input); err != nil {
+			return "", fmt.Errorf("decode document input: %w", err)
+		}
+	}
+	promoteDocumentInputString(payload, input, "sourceUri", "sourceUri", "source_uri", "uri", "url", "path", "filePath", "file_path", "source", "sourcePath", "source_path")
+	promoteDocumentInputString(payload, input, "contentRef", "contentRef", "content_ref", "inputRef", "input_ref")
+	promoteDocumentInputString(payload, input, "filename", "filename", "fileName", "file_name", "name")
+	promoteDocumentInputString(payload, input, "mimeType", "mimeType", "mime_type", "mediaType", "media_type")
+	if _, ok := input["filename"]; !ok {
+		if raw, ok := input["sourceUri"]; ok {
+			if sourceURI, ok := rawJSONString(raw); ok && strings.TrimSpace(sourceURI) != "" {
+				input["filename"] = mustJSONRaw(filepath.Base(sourceURI))
+			}
+		}
+	}
+	if len(input) == 0 {
+		return arguments, nil
+	}
+	payload["input"] = mustJSONRaw(input)
+	out, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("encode document arguments: %w", err)
+	}
+	return string(out), nil
+}
+
+func isDocumentInputRequest(typeName string) bool {
+	switch typeName {
+	case "quark.document.v1.DetectTypeRequest",
+		"quark.document.v1.ParseBytesRequest",
+		"quark.document.v1.ExtractTextRequest",
+		"quark.document.v1.ExtractLayoutRequest",
+		"quark.document.v1.GetPagesRequest",
+		"quark.document.v1.ExtractTablesRequest",
+		"quark.document.v1.ExtractImagesRequest",
+		"quark.document.v1.RunOCRRequest":
+		return true
+	default:
+		return false
+	}
+}
+
+func promoteDocumentInputString(payload, input map[string]json.RawMessage, target string, keys ...string) {
+	if _, exists := input[target]; exists {
+		return
+	}
+	for _, key := range keys {
+		raw, ok := payload[key]
+		if !ok {
+			continue
+		}
+		value, ok := rawJSONString(raw)
+		if !ok || strings.TrimSpace(value) == "" {
+			continue
+		}
+		input[target] = mustJSONRaw(value)
+		delete(payload, key)
+		return
+	}
+}
+
+func rawJSONString(raw json.RawMessage) (string, bool) {
+	var value string
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return "", false
+	}
+	return strings.TrimSpace(value), true
 }
 
 func serviceRequestUnmarshalOptions() protojson.UnmarshalOptions {
@@ -1003,6 +1093,7 @@ func (e *Executor) documentExtractTextToolResult(msg protoreflect.ProtoMessage, 
 	if sourceHash != "" {
 		payload["sourceHash"] = mustJSONRaw(sourceHash)
 	}
+	compactTextField(payload, "text", documentTextPreviewMax)
 	out, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
 		return "", fmt.Errorf("encode document text content reference: %w", err)
@@ -1670,11 +1761,68 @@ func (e *Executor) attachResultReference(functionName, responseType string, data
 	payload["resultRef"] = mustJSONRaw(ref)
 	payload["resultChars"] = mustJSONRaw(info["chars"])
 	payload["resultHash"] = mustJSONRaw(info["contentHash"])
+	compactReferencedResultPayload(responseType, payload)
 	out, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
 		return "", fmt.Errorf("encode service result reference: %w", err)
 	}
 	return string(out), nil
+}
+
+func compactReferencedResultPayload(responseType string, payload map[string]json.RawMessage) {
+	switch responseType {
+	case "quark.indexer.v1.ContextResponse", "quark.indexer.v1.QueryContextResponse":
+		compactContextResponsePayload(payload)
+	}
+}
+
+func compactContextResponsePayload(payload map[string]json.RawMessage) {
+	compactTextField(payload, "reasoningContext", reasoningPreviewMax)
+	compactChunkArrayField(payload, "chunks")
+	if raw, ok := payload["contextPackage"]; ok {
+		var contextPackage map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &contextPackage); err == nil {
+			compactChunkArrayField(contextPackage, "chunks")
+			payload["contextPackage"] = mustJSONRaw(contextPackage)
+		}
+	}
+	payload["resultCompacted"] = mustJSONRaw(true)
+}
+
+func compactChunkArrayField(payload map[string]json.RawMessage, key string) {
+	raw, ok := payload[key]
+	if !ok {
+		return
+	}
+	var chunks []map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &chunks); err != nil {
+		return
+	}
+	for i := range chunks {
+		compactTextField(chunks[i], "text", contextTextPreviewMax)
+	}
+	payload[key] = mustJSONRaw(chunks)
+}
+
+func compactTextField(payload map[string]json.RawMessage, key string, maxRunes int) {
+	if maxRunes <= 0 {
+		return
+	}
+	raw, ok := payload[key]
+	if !ok {
+		return
+	}
+	var value string
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return
+	}
+	runes := []rune(value)
+	if len(runes) <= maxRunes {
+		return
+	}
+	payload[key] = mustJSONRaw(string(runes[:maxRunes]) + "\n...[truncated; full content is available through the runtime reference in this tool result]")
+	payload[key+"Chars"] = mustJSONRaw(len(runes))
+	payload[key+"Truncated"] = mustJSONRaw(true)
 }
 
 func shouldReferenceResponse(responseType string) bool {

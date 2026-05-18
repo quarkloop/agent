@@ -221,7 +221,7 @@
   },
   "e2e_tests": {
     "direct_service_shortcut_suspect_count": 6,
-    "file_count": 29,
+    "file_count": 30,
     "files": [
       {
         "direct_service_shortcut_suspects": [],
@@ -252,11 +252,11 @@
         "has_process_flow": false,
         "path": "e2e/assertions_test.go",
         "prompt_shortcut_suspects": [
-          "178: if event.Name != \"embedding_Embed\" {",
-          "198: t.Fatalf(\"embedding_Embed tool results missing provider=%q model=%q dimensions=%d: %+v\", provider, model, dimensions, trace.ToolResultEvents)",
-          "278: if event.Name != \"embedding_Embed\" {",
-          "289: t.Fatalf(\"embedding_Embed successful results = %d, want at least %d: %+v\", count, want, trace.ToolResultEvents)",
-          "324: t.Fatalf(\"UpsertChunk payload %d missing embeddingRef from embedding_Embed: %+v\", i, payload)"
+          "190: if event.Name != \"embedding_Embed\" {",
+          "210: t.Fatalf(\"embedding_Embed tool results missing provider=%q model=%q dimensions=%d: %+v\", provider, model, dimensions, trace.ToolResultEvents)",
+          "290: if event.Name != \"embedding_Embed\" {",
+          "301: t.Fatalf(\"embedding_Embed successful results = %d, want at least %d: %+v\", count, want, trace.ToolResultEvents)",
+          "336: t.Fatalf(\"UpsertChunk payload %d missing embeddingRef from embedding_Embed: %+v\", i, payload)"
         ]
       },
       {
@@ -442,6 +442,12 @@
           "39: if len(trace.ToolStarts) != 1 || trace.ToolStarts[0] != \"embedding_Embed\" {",
           "45: if len(trace.ToolResults) != 1 || trace.ToolResults[0] != \"embedding_Embed\" {"
         ]
+      },
+      {
+        "direct_service_shortcut_suspects": [],
+        "has_process_flow": false,
+        "path": "e2e/utils/dotenv_test.go",
+        "prompt_shortcut_suspects": []
       },
       {
         "direct_service_shortcut_suspects": [],
@@ -2333,7 +2339,7 @@
   "summary": {
     "agent_profile_count": 3,
     "declared_only_or_mismatched_function_count": 4,
-    "e2e_test_file_count": 29,
+    "e2e_test_file_count": 30,
     "implemented_service_function_count": 112,
     "runnable_service_module_count": 12,
     "service_function_count": 116,
