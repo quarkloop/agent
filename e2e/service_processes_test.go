@@ -199,6 +199,29 @@ func standardDevOpsServicesStartOptions(t *testing.T, workingDir string) utils.S
 	}
 }
 
+func standardSystemServicesStartOptions(t *testing.T, workingDir string) utils.StartOptions {
+	t.Helper()
+	systemAddr := fmt.Sprintf("127.0.0.1:%d", utils.ReservePort(t))
+	return utils.StartOptions{
+		WorkingDir:               workingDir,
+		DisableKnowledgeServices: true,
+		Agents:                   []string{"quark-system"},
+		Services: []utils.ServicePlugin{{
+			Name:       "system",
+			Plugin:     "system",
+			Mode:       "local",
+			AddressEnv: "QUARK_SYSTEM_ADDR",
+		}},
+		SupervisorEnv: map[string]string{
+			"QUARK_SYSTEM_ADDR": systemAddr,
+		},
+		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
+			t.Helper()
+			startSystemServiceAt(t, bins.System, systemAddr)
+		},
+	}
+}
+
 func waitForGRPCHealth(t *testing.T, addr, service string, timeout time.Duration, label string) {
 	t.Helper()
 	deadline := time.Now().Add(timeout)

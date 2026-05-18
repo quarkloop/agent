@@ -81,8 +81,8 @@ func TestServicePluginInventoryHasE2ECoveragePlan(t *testing.T) {
 			Tests: []string{"TestSupervisorSessionEventReachesAgent", "TestLocalDeterministicSupervisorRuntimeAndServices"},
 		},
 		"system": {
-			Mode:  "contract-only",
-			Tests: []string{"TestServicePluginInventoryHasE2ECoveragePlan"},
+			Mode:  "runtime-backed",
+			Tests: []string{"TestAgentUsesSystemServiceForReadOnlyInspection"},
 		},
 	}
 

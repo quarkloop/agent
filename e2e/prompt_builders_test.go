@@ -147,6 +147,26 @@ func TestDevOpsFailurePromptBuilderUsesUserLanguage(t *testing.T) {
 	)
 }
 
+func TestSystemPromptBuilderUsesUserLanguage(t *testing.T) {
+	prompt := systemReadOnlyInspectionPrompt()
+	assertPromptContains(t, prompt,
+		"inspect this machine",
+		"without changing anything",
+		"operating system",
+		"kernel",
+		"uptime",
+		"listening ports",
+	)
+	assertPromptExcludes(t, prompt,
+		"system_Snapshot",
+		"system_GetMetrics",
+		"system_ListProcesses",
+		"system_ListPorts",
+		"service function",
+		"shell",
+	)
+}
+
 func TestLongE2EPromptsAreOwnedByBuilders(t *testing.T) {
 	files, err := os.ReadDir(".")
 	if err != nil {
