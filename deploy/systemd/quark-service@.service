@@ -1,0 +1,22 @@
+[Unit]
+Description=Quark Service %i
+Documentation=https://github.com/quarkloop/quark
+After=network-online.target quark-supervisor.service
+Wants=network-online.target
+Requires=quark-supervisor.service
+
+[Service]
+Type=simple
+User=quark
+Group=quark
+EnvironmentFile=/etc/quark/services/%i.env
+ExecStart=/usr/local/bin/quark-%i-service ${QUARK_SERVICE_ARGS}
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/quark /var/log/quark
+
+[Install]
+WantedBy=multi-user.target

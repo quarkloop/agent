@@ -38,10 +38,6 @@ func (s *Server) routes() {
 	app.Get("/v1/spaces/:name/services", s.handleListServices)
 	app.Post("/v1/spaces/:name/services/doctor", s.handleServiceDoctor)
 	app.Get("/v1/spaces/:name/services/:service", s.handleInspectService)
-	app.Get("/v1/spaces/:name/services/:service/logs", s.handleServiceLogs)
-	app.Post("/v1/spaces/:name/services/:service/start", s.handleStartService)
-	app.Post("/v1/spaces/:name/services/:service/stop", s.handleStopService)
-	app.Post("/v1/spaces/:name/services/:service/restart", s.handleRestartService)
 
 	// Sessions
 	app.Get("/v1/spaces/:name/sessions", s.handleListSessions)
@@ -54,7 +50,5 @@ func (s *Server) routes() {
 
 	// Agents (runtime)
 	app.Get("/v1/agents", s.handleListAgents)
-	app.Post("/v1/agents", s.handleStartRuntime)
 	app.Get("/v1/agents/:id", s.handleGetRuntime)
-	app.Post("/v1/agents/:id/stop", s.handleStopRuntime)
 }

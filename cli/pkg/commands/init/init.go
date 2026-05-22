@@ -87,7 +87,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	fmt.Println("Next steps:")
 	fmt.Println("  1. Edit Quarkfile")
 	fmt.Println("  2. quark plugin install <ref>")
-	fmt.Println("  3. quark run")
+	fmt.Println("  3. Start runtime and services through deploy/compose or systemd")
 
 	return nil
 }

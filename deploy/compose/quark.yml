@@ -1,0 +1,304 @@
+name: quark
+
+x-go-build: &go-build
+  context: ../..
+  dockerfile: deploy/docker/Dockerfile.go-binary
+
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  networks:
+    - quark
+  env_file:
+    - ../../.env.example
+
+services:
+  supervisor:
+    <<: *service-defaults
+    build:
+      <<: *go-build
+      args:
+        PACKAGE: ./supervisor/cmd/supervisor
+    command:
+      - start
+      - --port
+      - "7200"
+      - --nats-state-dir
+      - /var/lib/quark/nats
+      - --nats-client-port
+      - "4222"
+      - --nats-websocket-port
+      - "9222"
+      - --nats-monitor-port
+      - "8222"
+    ports:
+      - "7200:7200"
+      - "4222:4222"
+      - "8222:8222"
+      - "9222:9222"
+    volumes:
+      - supervisor-state:/var/lib/quark
+      - spaces:/var/lib/quark/spaces
+    environment:
+      QUARK_SPACES_ROOT: /var/lib/quark/spaces
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:7200/v1/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  runtime:
+    <<: *service-defaults
+    profiles: ["runtime"]
+    build:
+      <<: *go-build
+      args:
+        PACKAGE: ./runtime/cmd/runtime
+    command: ["start", "--port", "8765", "--channel", "web"]
+    depends_on:
+      supervisor:
+        condition: service_healthy
+    ports:
+      - "8765:8765"
+    volumes:
+      - spaces:/var/lib/quark/spaces
+    environment:
+      QUARK_SUPERVISOR_URL: http://supervisor:7200
+      QUARK_SPACE: ${QUARK_SPACE:-default}
+      QUARK_PLUGINS_DIR: /var/lib/quark/spaces/${QUARK_SPACE:-default}/plugins
+      QUARK_MODEL_PROVIDER: ${QUARK_MODEL_PROVIDER:-openrouter}
+      QUARK_MODEL_NAME: ${QUARK_MODEL_NAME:-openai/gpt-5-mini}
+
+  io:
+    <<: *service-defaults
+    profiles: ["services"]
+    build:
+      <<: *go-build
+      args:
+        PACKAGE: ./services/io/cmd/io
+    command: ["--addr", "0.0.0.0:7308", "--skill-dir", "/plugins/services/io"]
+    ports:
+      - "7308:7308"
+    volumes:
+      - ../../plugins:/plugins:ro
+      - spaces:/var/lib/quark/spaces
+
+  space:
+    <<: *service-defaults
+    profiles: ["services"]
+    build:
+      <<: *go-build
+      args:
+        PACKAGE: ./services/space/cmd/space
+    command: ["--addr", "0.0.0.0:7303", "--root", "/var/lib/quark/spaces", "--skill-dir", "/plugins/services/space"]
+    ports:
+      - "7303:7303"
+    volumes:
+      - ../../plugins:/plugins:ro
+      - spaces:/var/lib/quark/spaces
+
+  document:
+    <<: *service-defaults
+    profiles: ["services"]
+    build:
+      <<: *go-build
+      args:
+        PACKAGE: ./services/document/cmd/document
+    command: ["--addr", "0.0.0.0:7305", "--skill-dir", "/plugins/services/document"]
+    ports:
+      - "7305:7305"
+    volumes:
+      - ../../plugins:/plugins:ro
+
+  ingestion:
+    <<: *service-defaults
+    profiles: ["services"]
+    build:
+      <<: *go-build
+      args:
+        PACKAGE: ./services/ingestion/cmd/ingestion
+    command: ["--addr", "0.0.0.0:7306", "--root", "/var/lib/quark/ingestion", "--skill-dir", "/plugins/services/ingestion"]
+    ports:
+      - "7306:7306"
+    volumes:
+      - ../../plugins:/plugins:ro
+      - ingestion-state:/var/lib/quark/ingestion
+
+  indexer:
+    <<: *service-defaults
+    profiles: ["services", "knowledge"]
+    build:
+      <<: *go-build
+      args:
+        PACKAGE: ./services/indexer/cmd/indexer
+    command: ["--addr", "0.0.0.0:7301", "--dgraph", "dgraph:9080", "--skill-dir", "/plugins/services/indexer"]
+    depends_on:
+      dgraph:
+        condition: service_started
+    ports:
+      - "7301:7301"
+    volumes:
+      - ../../plugins:/plugins:ro
+
+  embedding:
+    <<: *service-defaults
+    profiles: ["services", "knowledge"]
+    build:
+      <<: *go-build
+      args:
+        PACKAGE: ./services/embedding/cmd/embedding
+    command: ["--addr", "0.0.0.0:7304", "--skill-dir", "/plugins/services/embedding"]
+    ports:
+      - "7304:7304"
+    environment:
+      QUARK_EMBEDDING_PROVIDER: ${QUARK_EMBEDDING_PROVIDER:-local}
+      QUARK_EMBEDDING_MODEL: ${QUARK_EMBEDDING_MODEL:-local-hash-v1}
+      QUARK_EMBEDDING_DIMENSIONS: ${QUARK_EMBEDDING_DIMENSIONS:-32}
+
+  model:
+    <<: *service-defaults
+    profiles: ["services", "gateway"]
+    build:
+      <<: *go-build
+      args:
+        PACKAGE: ./services/model/cmd/model
+    command: ["--addr", "0.0.0.0:7309", "--skill-dir", "/plugins/services/model"]
+    ports:
+      - "7309:7309"
+    volumes:
+      - ../../plugins:/plugins:ro
+
+  citation:
+    <<: *service-defaults
+    profiles: ["services", "knowledge"]
+    build:
+      <<: *go-build
+      args:
+        PACKAGE: ./services/citation/cmd/citation
+    command: ["--addr", "0.0.0.0:7310", "--skill-dir", "/plugins/services/citation"]
+    ports:
+      - "7310:7310"
+    volumes:
+      - ../../plugins:/plugins:ro
+
+  core:
+    <<: *service-defaults
+    profiles: ["services"]
+    build:
+      <<: *go-build
+      args:
+        PACKAGE: ./services/core/cmd/core
+    command: ["--addr", "0.0.0.0:7311", "--root", "/var/lib/quark/core", "--skill-dir", "/plugins/services/core"]
+    ports:
+      - "7311:7311"
+    volumes:
+      - ../../plugins:/plugins:ro
+      - core-state:/var/lib/quark/core
+
+  devops:
+    <<: *service-defaults
+    profiles: ["services", "devops"]
+    build:
+      <<: *go-build
+      args:
+        PACKAGE: ./services/devops/cmd/devops
+    command: ["--addr", "0.0.0.0:7312", "--skill-dir", "/plugins/services/devops"]
+    ports:
+      - "7312:7312"
+    volumes:
+      - ../../plugins:/plugins:ro
+
+  build-release:
+    <<: *service-defaults
+    profiles: ["services", "devops"]
+    build:
+      <<: *go-build
+      args:
+        PACKAGE: ./services/build-release/cmd/build-release
+    command: ["--addr", "0.0.0.0:7314", "--skill-dir", "/plugins/services/build-release"]
+    ports:
+      - "7314:7314"
+    volumes:
+      - ../../plugins:/plugins:ro
+
+  system:
+    <<: *service-defaults
+    profiles: ["services", "system"]
+    build:
+      <<: *go-build
+      args:
+        PACKAGE: ./services/system/cmd/system
+    command: ["--addr", "0.0.0.0:7313", "--skill-dir", "/plugins/services/system"]
+    ports:
+      - "7313:7313"
+    volumes:
+      - ../../plugins:/plugins:ro
+
+  dgraph:
+    image: dgraph/standalone:latest
+    profiles: ["knowledge"]
+    restart: unless-stopped
+    networks:
+      - quark
+    ports:
+      - "8080:8080"
+      - "9080:9080"
+    volumes:
+      - dgraph-data:/dgraph
+
+  vector:
+    image: timberio/vector:0.50.0-debian
+    profiles: ["observability"]
+    restart: unless-stopped
+    networks:
+      - quark
+    volumes:
+      - ../vector/vector.toml:/etc/vector/vector.toml:ro
+    command: ["--config", "/etc/vector/vector.toml"]
+
+  victoria-metrics:
+    image: victoriametrics/victoria-metrics:v1.129.1
+    profiles: ["observability"]
+    restart: unless-stopped
+    networks:
+      - quark
+    command: ["-storageDataPath=/victoria-metrics-data"]
+    ports:
+      - "8428:8428"
+    volumes:
+      - victoria-metrics-data:/victoria-metrics-data
+
+  openbao:
+    image: openbao/openbao:2.3
+    profiles: ["secrets"]
+    restart: unless-stopped
+    networks:
+      - quark
+    cap_add:
+      - IPC_LOCK
+    ports:
+      - "8200:8200"
+    environment:
+      BAO_DEV_ROOT_TOKEN_ID: ${BAO_DEV_ROOT_TOKEN_ID:-dev-root}
+    command: ["server", "-dev", "-dev-listen-address=0.0.0.0:8200"]
+
+  temporal:
+    image: temporalio/auto-setup:1.29
+    profiles: ["workflow"]
+    restart: unless-stopped
+    networks:
+      - quark
+    ports:
+      - "7233:7233"
+
+networks:
+  quark:
+    name: quark
+
+volumes:
+  supervisor-state:
+  spaces:
+  ingestion-state:
+  core-state:
+  dgraph-data:
+  victoria-metrics-data:

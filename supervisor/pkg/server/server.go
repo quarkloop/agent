@@ -24,9 +24,6 @@ import (
 	"github.com/quarkloop/supervisor/pkg/api"
 	"github.com/quarkloop/supervisor/pkg/events"
 	"github.com/quarkloop/supervisor/pkg/natshub"
-	"github.com/quarkloop/supervisor/pkg/runtime"
-	"github.com/quarkloop/supervisor/pkg/runtime/launchenv"
-	"github.com/quarkloop/supervisor/pkg/serviceprocess"
 	"github.com/quarkloop/supervisor/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/space/grpcstore"
 	"google.golang.org/grpc"
@@ -39,11 +36,6 @@ type Config struct {
 	// SpacesDir is the root directory for the filesystem-backed space store.
 	// When empty, fsstore.DefaultRoot() is used.
 	SpacesDir string
-	// RuntimeBin is the path (or name on $PATH) of the runtime binary to launch.
-	RuntimeBin string
-	// ServiceBinDir is the directory containing supervisor-managed service
-	// binaries such as indexer-service and embedding-service.
-	ServiceBinDir string
 	// SpaceServiceAddr is an existing SpaceService gRPC address. When empty,
 	// the supervisor starts an embedded local SpaceService and still talks to
 	// it through gRPC.
@@ -57,13 +49,9 @@ type Server struct {
 	cfg Config
 	app *fiber.App
 
-	store     space.Store
-	registry  *runtime.Registry
-	launcher  *runtime.Launcher
-	launchEnv launchenv.Builder
-	services  *serviceprocess.Manager
-	events    *events.Bus
-	natsHub   *natshub.Hub
+	store   space.Store
+	events  *events.Bus
+	natsHub *natshub.Hub
 
 	spaceConn        *grpcstore.Store
 	spaceServiceGRPC *grpc.Server
@@ -73,12 +61,6 @@ type Server struct {
 func New(cfg Config) (*Server, error) {
 	if cfg.Port == 0 {
 		cfg.Port = 7200
-	}
-	if cfg.RuntimeBin == "" {
-		cfg.RuntimeBin = "runtime"
-	}
-	if cfg.ServiceBinDir == "" {
-		cfg.ServiceBinDir = "bin"
 	}
 	if cfg.NATS.Mode == "" && cfg.NATS.StateDir == "" && cfg.NATS.ExternalURL == "" {
 		stateDir, err := natshub.DefaultStateDir()
@@ -121,21 +103,9 @@ func New(cfg Config) (*Server, error) {
 		return nil, fmt.Errorf("dial space service %s: %w", spaceServiceAddr, err)
 	}
 
-	supervisorURL := fmt.Sprintf("http://127.0.0.1:%d", cfg.Port)
-	runtimesReg := runtime.NewRegistry()
-	runtimesLauncher := runtime.NewLauncher(cfg.RuntimeBin, func(id string) {
-		runtimesReg.SetStopped(id)
-	})
-	runtimeEnvBuilder := launchenv.New(supervisorURL, []string{
-		"QUARK_SPACE_SERVICE_ADDR=" + spaceServiceAddr,
-	})
 	s := &Server{
 		cfg:              cfg,
 		store:            store,
-		registry:         runtimesReg,
-		launcher:         runtimesLauncher,
-		launchEnv:        runtimeEnvBuilder,
-		services:         serviceprocess.NewManager(),
 		events:           events.NewBus(),
 		natsHub:          natsHub,
 		spaceConn:        store,

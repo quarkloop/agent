@@ -19,7 +19,7 @@ const (
 	RuntimeStopped  RuntimeStatus = api.RuntimeStopped
 )
 
-// RuntimeInfo describes a supervisor-managed agent process.
+// RuntimeInfo describes runtime information observed by the supervisor API.
 type RuntimeInfo = api.RuntimeInfo
 
 // ListRuntimes returns every runtime tracked by the supervisor.
@@ -29,16 +29,6 @@ func (c *Client) ListRuntimes(ctx context.Context) ([]api.RuntimeInfo, error) {
 		return nil, err
 	}
 	return out, nil
-}
-
-// StartRuntime launches a runtime for the given registered space.
-func (c *Client) StartRuntime(ctx context.Context, space string, port int) (api.RuntimeInfo, error) {
-	var out api.RuntimeInfo
-	err := c.do(ctx, http.MethodPost, c.route.Agents(), api.StartRuntimeRequest{
-		Space: space,
-		Port:  port,
-	}, &out)
-	return out, err
 }
 
 // GetRuntime returns the current state of a single runtime by ID.
@@ -66,11 +56,4 @@ func (c *Client) RuntimeBySpace(ctx context.Context, space string) (api.RuntimeI
 		StatusCode: http.StatusNotFound,
 		Body:       fmt.Sprintf("no runtime running for space %q", space),
 	}
-}
-
-// StopRuntime requests termination of the runtime by ID.
-func (c *Client) StopRuntime(ctx context.Context, id string) (api.RuntimeInfo, error) {
-	var out api.RuntimeInfo
-	err := c.do(ctx, http.MethodPost, c.route.AgentStop(id), nil, &out)
-	return out, err
 }

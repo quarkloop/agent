@@ -311,8 +311,7 @@ func (o EmbeddingOptions) withDefaults() EmbeddingOptions {
 
 // startSupervisor launches a supervisor subprocess with an isolated spaces
 // root and returns the client, base URL, spaces dir, and process handle. The
-// handle lets tests wait for log markers from the supervisor or its agent
-// child (whose stdio is inherited into the same buffer).
+// handle lets tests wait for log markers from the supervisor.
 func startSupervisor(t *testing.T, bins BuiltBinaries, extraEnv map[string]string) (*supclient.Client, string, string, *StartedProcess) {
 	t.Helper()
 
@@ -336,7 +335,6 @@ func startSupervisor(t *testing.T, bins BuiltBinaries, extraEnv map[string]strin
 	proc := StartProcess(t, "supervisor", bins.Supervisor, []string{
 		"start",
 		"--port", fmt.Sprint(port),
-		"--runtime", bins.Agent,
 		"--nats-state-dir", natsStateDir,
 		"--nats-client-port", fmt.Sprint(natsClientPort),
 		"--nats-websocket-port", fmt.Sprint(natsWebSocketPort),
@@ -366,9 +364,7 @@ type StartOptions struct {
 	// DisableKnowledgeServices omits the default indexer and embedding service
 	// declarations for non-Knowledge e2e flows.
 	DisableKnowledgeServices bool
-	// SupervisorEnv is appended to the supervisor process environment. Runtime
-	// children inherit these values, so service discovery addresses should be
-	// supplied here before StartRuntime is called.
+	// SupervisorEnv is appended to the supervisor process environment.
 	SupervisorEnv map[string]string
 	// WorkingDir is the space working directory registered with the supervisor.
 	// When empty, StartE2E creates an isolated temp directory.
@@ -473,14 +469,33 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 	}
 
 	agentPort := ReservePort(t)
-	runtimeCtx, runtimeCancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer runtimeCancel()
-	info, err := sup.StartRuntime(runtimeCtx, spaceName, agentPort)
-	if err != nil {
-		t.Fatalf("start runtime: %v", err)
+	runtimeID := "e2e-runtime-" + spaceName
+	runtimeOverrides := map[string]string{
+		"QUARK_RUNTIME_ID":     runtimeID,
+		"QUARK_SUPERVISOR_URL": supURL,
+		"QUARK_SPACE":          spaceName,
+		"QUARK_PLUGINS_DIR":    filepath.Join(spacesDir, spaceName, "plugins"),
+		"QUARK_MODEL_PROVIDER": provider,
+		"QUARK_MODEL_NAME":     model,
 	}
-	env.Agent = info
-	env.AgentURL = fmt.Sprintf("http://127.0.0.1:%d", info.Port)
+	for _, key := range providerCredentialEnvKeys() {
+		if value := supervisorEnv[key]; value != "" {
+			runtimeOverrides[key] = value
+		}
+	}
+	runtimeEnv := RuntimeProcessEnv(runtimeOverrides)
+	StartProcess(t, "runtime", bins.Agent, []string{
+		"start",
+		"--port", fmt.Sprint(agentPort),
+		"--channel", "web",
+	}, runtimeEnv)
+	env.Agent = api.RuntimeInfo{
+		ID:     runtimeID,
+		Space:  spaceName,
+		Port:   agentPort,
+		Status: api.RuntimeRunning,
+	}
+	env.AgentURL = fmt.Sprintf("http://127.0.0.1:%d", agentPort)
 
 	WaitForURL(t, env.AgentURL+"/health", 30*time.Second)
 	// Wait for the agent's SSE subscription to the supervisor to go live,

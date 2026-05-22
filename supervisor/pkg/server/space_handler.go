@@ -66,9 +66,6 @@ func (s *Server) handleGetSpace(c *fiber.Ctx) error {
 // handleDeleteSpace serves DELETE /v1/spaces/:name.
 func (s *Server) handleDeleteSpace(c *fiber.Ctx) error {
 	name := c.Params("name")
-	if _, err := s.registry.GetBySpace(name); err == nil {
-		return writeError(c, fiber.StatusConflict, fmt.Sprintf("cannot delete space %q while a runtime is running", name))
-	}
 	if err := s.store.Delete(name); err != nil {
 		return s.writeSpaceError(c, name, err)
 	}

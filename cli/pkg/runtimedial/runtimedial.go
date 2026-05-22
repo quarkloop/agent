@@ -1,6 +1,6 @@
 // Package runtimedial provides helpers for connecting the CLI to the runtime
-// process of the current space. All lookups go through the supervisor —
-// the CLI never reads the filesystem to discover a running runtime.
+// process of the current space. This legacy HTTP resolver remains until the
+// CLI moves to NATS client contracts.
 package runtimedial
 
 import (
@@ -32,7 +32,7 @@ func CurrentWithTransportOptions(ctx context.Context, opts ...rtclient.Transport
 	rt, err := sup.RuntimeBySpace(ctx, name)
 	if err != nil {
 		if supclient.IsNotFound(err) {
-			return nil, supclient.RuntimeInfo{}, fmt.Errorf("no runtime running for space %q — start it with 'quark run'", name)
+			return nil, supclient.RuntimeInfo{}, fmt.Errorf("no runtime registered for space %q; runtime lifecycle is deployment-managed", name)
 		}
 		return nil, supclient.RuntimeInfo{}, err
 	}

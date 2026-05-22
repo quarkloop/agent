@@ -12,7 +12,6 @@ import (
 )
 
 var port int
-var runtimeBin string
 var spaceServiceAddr string
 var natsMode string
 var natsExternalURL string
@@ -34,7 +33,6 @@ Example:
 	}
 
 	cmd.Flags().IntVarP(&port, "port", "p", 7200, "HTTP listen port")
-	cmd.Flags().StringVar(&runtimeBin, "runtime", "runtime", "Path to agent runtime binary")
 	cmd.Flags().StringVar(&spaceServiceAddr, "space-service", "", "Existing SpaceService gRPC address (default: start embedded service)")
 	cmd.Flags().StringVar(&natsMode, "nats-mode", string(natshub.ModeEmbedded), "NATS mode: embedded or external")
 	cmd.Flags().StringVar(&natsExternalURL, "nats-url", "", "External NATS URL when --nats-mode=external")
@@ -62,7 +60,6 @@ func runStart(cmd *cobra.Command, args []string) error {
 	cfg := server.Config{
 		Port:             port,
 		SpacesDir:        spacesDir,
-		RuntimeBin:       runtimeBin,
 		SpaceServiceAddr: spaceServiceAddr,
 		NATS:             natsCfg,
 	}

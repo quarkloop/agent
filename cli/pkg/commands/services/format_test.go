@@ -29,8 +29,6 @@ func TestFormatServiceInspectIncludesDiagnostics(t *testing.T) {
 		Name:        "indexer",
 		Status:      api.ServiceStatusUnavailable,
 		Description: "Indexer",
-		PID:         1234,
-		LogPath:     "/tmp/indexer.log",
 		StartedAt:   &started,
 		Functions: []api.ServiceFunctionInfo{{
 			Name:    "indexer_GetContext",
@@ -39,22 +37,27 @@ func TestFormatServiceInspectIncludesDiagnostics(t *testing.T) {
 		}},
 		Diagnostics: []string{"health status is NOT_SERVING"},
 	})
-	for _, want := range []string{"indexer_GetContext", "Diagnostics", "NOT_SERVING", "PID", "/tmp/indexer.log", "2026-05-17T10:00:00Z"} {
+	for _, want := range []string{"indexer_GetContext", "Diagnostics", "NOT_SERVING", "2026-05-17T10:00:00Z"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("inspect missing %q:\n%s", want, out)
 		}
 	}
 }
 
-func TestServicesCommandIncludesLifecycleCommands(t *testing.T) {
+func TestServicesCommandExcludesLifecycleCommands(t *testing.T) {
 	cmd := NewServicesCommand()
 	names := make(map[string]bool)
 	for _, child := range cmd.Commands() {
 		names[child.Name()] = true
 	}
-	for _, want := range []string{"list", "status", "inspect", "logs", "start", "stop", "restart", "doctor"} {
+	for _, want := range []string{"list", "status", "inspect", "doctor"} {
 		if !names[want] {
 			t.Fatalf("services command missing %q", want)
+		}
+	}
+	for _, removed := range []string{"logs", "start", "stop", "restart"} {
+		if names[removed] {
+			t.Fatalf("services command still exposes supervisor-owned lifecycle command %q", removed)
 		}
 	}
 }

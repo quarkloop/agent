@@ -245,7 +245,8 @@ const (
 	RuntimeStopped  RuntimeStatus = "stopped"
 )
 
-// AgentInfo describes a supervisor-managed agent process.
+// RuntimeInfo describes a runtime observed through the supervisor API. Runtime
+// process lifecycle is deployment-managed in the NATS-native architecture.
 type RuntimeInfo struct {
 	ID         string        `json:"id"`
 	Space      string        `json:"space"`
@@ -263,12 +264,6 @@ func (a RuntimeInfo) URL() string {
 		return ""
 	}
 	return "http://127.0.0.1:" + itoa(a.Port)
-}
-
-// StartRuntimeRequest is the body for POST /v1/agents.
-type StartRuntimeRequest struct {
-	Space string `json:"space"`
-	Port  int    `json:"port,omitempty"`
 }
 
 // --- Plugin management types ---
@@ -372,20 +367,6 @@ type ServiceInfo struct {
 type ListServicesResponse struct {
 	Services []ServiceInfo `json:"services"`
 }
-
-type ServiceLogsResponse struct {
-	Name    string `json:"name"`
-	LogPath string `json:"log_path,omitempty"`
-	Content string `json:"content,omitempty"`
-	Message string `json:"message,omitempty"`
-}
-
-type ServiceLifecycleResponse struct {
-	Service ServiceInfo `json:"service"`
-	Message string      `json:"message,omitempty"`
-}
-
-type ServiceRestartResponse = ServiceLifecycleResponse
 
 type ServiceDoctorResponse struct {
 	Services []ServiceInfo `json:"services"`

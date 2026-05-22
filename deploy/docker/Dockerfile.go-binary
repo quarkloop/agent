@@ -1,0 +1,19 @@
+# syntax=docker/dockerfile:1.7
+
+ARG GO_VERSION=1.26
+
+FROM golang:${GO_VERSION}-alpine AS build
+ARG PACKAGE
+WORKDIR /src
+RUN apk add --no-cache ca-certificates git build-base
+COPY . .
+RUN test -n "${PACKAGE}" && \
+    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/quark "${PACKAGE}"
+
+FROM alpine:3.22
+RUN addgroup -S quark && adduser -S -G quark quark && \
+    apk add --no-cache ca-certificates curl tzdata
+USER quark
+WORKDIR /var/lib/quark
+COPY --from=build /out/quark /usr/local/bin/quark
+ENTRYPOINT ["/usr/local/bin/quark"]

@@ -1,0 +1,12 @@
+.git
+.claude
+.env
+bin
+docs
+e2e.test
+web/.next
+web/node_modules
+**/plugin.so
+**/*-service
+**/supervisor
+**/runtime

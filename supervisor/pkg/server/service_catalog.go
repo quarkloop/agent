@@ -13,7 +13,6 @@ import (
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	spacemodel "github.com/quarkloop/pkg/space"
-	"github.com/quarkloop/supervisor/pkg/api"
 	"github.com/quarkloop/supervisor/pkg/pluginmanager"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -338,13 +337,6 @@ func servicePluginAddress(manifest *plugin.Manifest, configured spacemodel.Servi
 }
 
 func (s *Server) serviceCatalogAddress(space string, manifest *plugin.Manifest, configured spacemodel.ServiceRef) string {
-	if manifest != nil {
-		if s.services != nil {
-			if state, ok := s.services.Inspect(space, manifest.Name); ok && state.Endpoint != "" && state.Status != api.ServiceStatusStopped {
-				return state.Endpoint
-			}
-		}
-	}
 	return servicePluginAddress(manifest, configured)
 }
 

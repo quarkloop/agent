@@ -212,6 +212,13 @@ func ServiceProcessEnv(overrides map[string]string, extraAllowed ...string) []st
 	return constrainedProcessEnv(overrides, extraAllowed...)
 }
 
+// RuntimeProcessEnv returns the constrained environment needed by a runtime
+// launched directly by the e2e harness. Runtime launch is deployment-owned in
+// the NATS-native architecture; the supervisor no longer spawns the process.
+func RuntimeProcessEnv(overrides map[string]string) []string {
+	return constrainedProcessEnv(overrides, providerCredentialEnvKeys()...)
+}
+
 func constrainedProcessEnv(overrides map[string]string, extraAllowed ...string) []string {
 	allowed := map[string]struct{}{}
 	for _, key := range baseProcessEnvKeys() {

@@ -44,17 +44,12 @@ const (
 	routeSpaceHubPlugin  = "/v1/spaces/%s/plugins/hub/%s"
 	routeSpaceServices   = "/v1/spaces/%s/services"
 	routeSpaceService    = "/v1/spaces/%s/services/%s"
-	routeServiceLogs     = "/v1/spaces/%s/services/%s/logs"
-	routeServiceStart    = "/v1/spaces/%s/services/%s/start"
-	routeServiceStop     = "/v1/spaces/%s/services/%s/stop"
-	routeServiceRestart  = "/v1/spaces/%s/services/%s/restart"
 	routeServiceDoctor   = "/v1/spaces/%s/services/doctor"
 	routeSpaceSessions   = "/v1/spaces/%s/sessions"
 	routeSpaceSession    = "/v1/spaces/%s/sessions/%s"
 	routeSpaceEventsStrm = "/v1/spaces/%s/events/stream"
 	routeAgents          = "/v1/agents"
 	routeAgent           = "/v1/agents/%s"
-	routeAgentStop       = "/v1/agents/%s/stop"
 )
 
 // Route returns concrete supervisor URL paths for the given space/agent ids.
@@ -83,18 +78,6 @@ func (RouteBuilder) SpaceServices(n string) string { return fmt.Sprintf(routeSpa
 func (RouteBuilder) SpaceService(n, service string) string {
 	return fmt.Sprintf(routeSpaceService, n, service)
 }
-func (RouteBuilder) SpaceServiceLogs(n, service string) string {
-	return fmt.Sprintf(routeServiceLogs, n, service)
-}
-func (RouteBuilder) SpaceServiceStart(n, service string) string {
-	return fmt.Sprintf(routeServiceStart, n, service)
-}
-func (RouteBuilder) SpaceServiceStop(n, service string) string {
-	return fmt.Sprintf(routeServiceStop, n, service)
-}
-func (RouteBuilder) SpaceServiceRestart(n, service string) string {
-	return fmt.Sprintf(routeServiceRestart, n, service)
-}
 func (RouteBuilder) SpaceServiceDoctor(n string) string { return fmt.Sprintf(routeServiceDoctor, n) }
 func (RouteBuilder) SpaceSessions(n string) string      { return fmt.Sprintf(routeSpaceSessions, n) }
 func (RouteBuilder) SpaceSession(n, id string) string {
@@ -103,9 +86,8 @@ func (RouteBuilder) SpaceSession(n, id string) string {
 func (RouteBuilder) SpaceEventStream(n string) string {
 	return fmt.Sprintf(routeSpaceEventsStrm, n)
 }
-func (RouteBuilder) Agents() string             { return routeAgents }
-func (RouteBuilder) Agent(id string) string     { return fmt.Sprintf(routeAgent, id) }
-func (RouteBuilder) AgentStop(id string) string { return fmt.Sprintf(routeAgentStop, id) }
+func (RouteBuilder) Agents() string         { return routeAgents }
+func (RouteBuilder) Agent(id string) string { return fmt.Sprintf(routeAgent, id) }
 
 // JoinPath concatenates a base path and a suffix, stripping trailing slashes.
 func JoinPath(basePath, suffix string) string {

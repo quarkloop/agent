@@ -11,10 +11,6 @@ func NewServicesCommand() *cobra.Command {
 	cmd.AddCommand(newListCmd())
 	cmd.AddCommand(newStatusCmd())
 	cmd.AddCommand(newInspectCmd())
-	cmd.AddCommand(newLogsCmd())
-	cmd.AddCommand(newStartCmd())
-	cmd.AddCommand(newStopCmd())
-	cmd.AddCommand(newRestartCmd())
 	cmd.AddCommand(newDoctorCmd())
 	return cmd
 }
