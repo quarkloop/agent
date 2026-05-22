@@ -1,16 +1,21 @@
 // Package plugincmd provides the root command for plugin management.
-// All operations are delegated to the supervisor HTTP API.
 package plugincmd
 
 import (
 	"github.com/spf13/cobra"
+
+	"github.com/quarkloop/cli/pkg/natsclient"
 )
+
+func connectControl(cmd *cobra.Command) (*natsclient.Client, error) {
+	return natsclient.ConnectFromEnv(cmd.Context())
+}
 
 // NewPluginCommand creates the plugin subcommand tree.
 func NewPluginCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "plugin",
-		Short: "Manage agent plugins (delegated to the supervisor)",
+		Short: "Manage agent plugins",
 	}
 
 	cmd.AddCommand(newSearchCmd())

@@ -6,20 +6,24 @@ import (
 	"github.com/spf13/cobra"
 
 	spacemodel "github.com/quarkloop/pkg/space"
-	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
 func newSearchCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "search <query>",
-		Short: "Search the plugin hub (via supervisor API)",
+		Short: "Search the plugin hub",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name, err := spacemodel.CurrentName()
 			if err != nil {
 				return err
 			}
-			results, err := supclient.New().SearchPlugins(cmd.Context(), name, args[0])
+			control, err := connectControl(cmd)
+			if err != nil {
+				return err
+			}
+			defer control.Close()
+			results, err := control.SearchPlugins(cmd.Context(), name, args[0])
 			if err != nil {
 				return fmt.Errorf("search failed: %w", err)
 			}

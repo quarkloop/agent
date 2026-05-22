@@ -6,13 +6,12 @@ import (
 	"github.com/spf13/cobra"
 
 	spacemodel "github.com/quarkloop/pkg/space"
-	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
 func newInstallCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "install <ref>",
-		Short: "Install a plugin into the current space (via supervisor API)",
+		Short: "Install a plugin into the current space",
 		Long: `Install a plugin into the current space. The supervisor performs the
 install and updates the Quarkfile — the CLI only sends the request.
 
@@ -25,7 +24,12 @@ install and updates the Quarkfile — the CLI only sends the request.
 			if err != nil {
 				return err
 			}
-			p, err := supclient.New().InstallPlugin(cmd.Context(), name, args[0])
+			control, err := connectControl(cmd)
+			if err != nil {
+				return err
+			}
+			defer control.Close()
+			p, err := control.InstallPlugin(cmd.Context(), name, args[0])
 			if err != nil {
 				return fmt.Errorf("install failed: %w", err)
 			}

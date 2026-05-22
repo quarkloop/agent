@@ -6,20 +6,24 @@ import (
 	"github.com/spf13/cobra"
 
 	spacemodel "github.com/quarkloop/pkg/space"
-	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
 func newInfoCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "info <name>",
-		Short: "Show installed plugin details (via supervisor API)",
+		Short: "Show installed plugin details",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name, err := spacemodel.CurrentName()
 			if err != nil {
 				return err
 			}
-			p, err := supclient.New().GetPlugin(cmd.Context(), name, args[0])
+			control, err := connectControl(cmd)
+			if err != nil {
+				return err
+			}
+			defer control.Close()
+			p, err := control.GetPlugin(cmd.Context(), name, args[0])
 			if err != nil {
 				return err
 			}

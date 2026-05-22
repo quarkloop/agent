@@ -4,7 +4,6 @@ import (
 	"github.com/spf13/cobra"
 
 	spacemodel "github.com/quarkloop/pkg/space"
-	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
 func newKBGetCmd() *cobra.Command {
@@ -21,7 +20,12 @@ func newKBGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			val, err := supclient.New().KBGet(cmd.Context(), name, ns, key)
+			control, err := connectControl(cmd)
+			if err != nil {
+				return err
+			}
+			defer control.Close()
+			val, err := control.KBGet(cmd.Context(), name, ns, key)
 			if err != nil {
 				return err
 			}

@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 
 	spacemodel "github.com/quarkloop/pkg/space"
-	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
 func newKBSetCmd() *cobra.Command {
@@ -34,7 +33,12 @@ func newKBSetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return supclient.New().KBSet(cmd.Context(), name, ns, key, value)
+			control, err := connectControl(cmd)
+			if err != nil {
+				return err
+			}
+			defer control.Close()
+			return control.KBSet(cmd.Context(), name, ns, key, value)
 		},
 	}
 }

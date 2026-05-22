@@ -4,7 +4,6 @@ import (
 	"github.com/spf13/cobra"
 
 	spacemodel "github.com/quarkloop/pkg/space"
-	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
 func newKBDeleteCmd() *cobra.Command {
@@ -21,7 +20,12 @@ func newKBDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return supclient.New().KBDelete(cmd.Context(), name, ns, key)
+			control, err := connectControl(cmd)
+			if err != nil {
+				return err
+			}
+			defer control.Close()
+			return control.KBDelete(cmd.Context(), name, ns, key)
 		},
 	}
 }

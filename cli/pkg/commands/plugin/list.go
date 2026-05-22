@@ -6,21 +6,25 @@ import (
 	"github.com/spf13/cobra"
 
 	spacemodel "github.com/quarkloop/pkg/space"
-	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
 func newListCmd() *cobra.Command {
 	var typeFilter string
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List installed plugins (via supervisor API)",
+		Short: "List installed plugins",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			name, err := spacemodel.CurrentName()
 			if err != nil {
 				return err
 			}
-			plugins, err := supclient.New().ListPlugins(cmd.Context(), name, typeFilter)
+			control, err := connectControl(cmd)
+			if err != nil {
+				return err
+			}
+			defer control.Close()
+			plugins, err := control.ListPlugins(cmd.Context(), name, typeFilter)
 			if err != nil {
 				return fmt.Errorf("list failed: %w", err)
 			}

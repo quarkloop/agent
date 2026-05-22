@@ -41,6 +41,40 @@ func TestSpaceAndSessionContracts(t *testing.T) {
 		t.Fatalf("spaces = %#v", listSpaces.Spaces)
 	}
 
+	_ = requestPayload[struct{}](t, fixture.client, clientcontract.SubjectKBSet, clientcontract.KBSetRequest{
+		SpaceID:   "docs",
+		Namespace: "config",
+		Key:       "model",
+		Value:     []byte("openrouter"),
+	})
+	kbValue := requestPayload[clientcontract.KBValueResponse](t, fixture.client, clientcontract.SubjectKBGet, clientcontract.KBRefRequest{
+		SpaceID:   "docs",
+		Namespace: "config",
+		Key:       "model",
+	})
+	if string(kbValue.Value) != "openrouter" {
+		t.Fatalf("kb value = %q", kbValue.Value)
+	}
+	kbKeys := requestPayload[clientcontract.KBListResponse](t, fixture.client, clientcontract.SubjectKBList, clientcontract.KBListRequest{
+		SpaceID:   "docs",
+		Namespace: "config",
+	})
+	if len(kbKeys.Keys) != 1 || kbKeys.Keys[0] != "model" {
+		t.Fatalf("kb keys = %#v", kbKeys.Keys)
+	}
+	_ = requestPayload[struct{}](t, fixture.client, clientcontract.SubjectKBDelete, clientcontract.KBRefRequest{
+		SpaceID:   "docs",
+		Namespace: "config",
+		Key:       "model",
+	})
+
+	plugins := requestPayload[clientcontract.ListPluginsResponse](t, fixture.client, clientcontract.SubjectPluginList, clientcontract.ListPluginsRequest{
+		SpaceID: "docs",
+	})
+	if len(plugins.Plugins) != 0 {
+		t.Fatalf("plugins = %#v", plugins.Plugins)
+	}
+
 	sessionEvents, unsubscribe := fixture.events.Subscribe("docs")
 	defer unsubscribe()
 	created := requestPayload[clientcontract.SessionInfo](t, fixture.client, clientcontract.SubjectSessionCreate, clientcontract.CreateSessionRequest{

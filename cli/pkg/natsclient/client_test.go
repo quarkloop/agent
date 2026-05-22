@@ -166,6 +166,50 @@ func TestTypedControlMethodsUseNATSContracts(t *testing.T) {
 	if err := client.DeleteSession(context.Background(), "docs", session.ID); err != nil {
 		t.Fatalf("delete session: %v", err)
 	}
+
+	if err := client.KBSet(context.Background(), "docs", "config", "model", []byte("openrouter")); err != nil {
+		t.Fatalf("kb set: %v", err)
+	}
+	value, err := client.KBGet(context.Background(), "docs", "config", "model")
+	if err != nil {
+		t.Fatalf("kb get: %v", err)
+	}
+	if string(value) != "openrouter" {
+		t.Fatalf("kb value = %q", value)
+	}
+	keys, err := client.KBList(context.Background(), "docs", "config")
+	if err != nil {
+		t.Fatalf("kb list: %v", err)
+	}
+	if len(keys) != 1 || keys[0] != "model" {
+		t.Fatalf("kb keys = %#v", keys)
+	}
+	if err := client.KBDelete(context.Background(), "docs", "config", "model"); err != nil {
+		t.Fatalf("kb delete: %v", err)
+	}
+
+	doctor, err := client.Doctor(context.Background(), "docs")
+	if err != nil {
+		t.Fatalf("doctor: %v", err)
+	}
+	if !doctor.OK {
+		t.Fatalf("doctor = %#v", doctor)
+	}
+
+	plugins, err := client.ListPlugins(context.Background(), "docs", "service")
+	if err != nil {
+		t.Fatalf("plugin list: %v", err)
+	}
+	if len(plugins) != 1 || plugins[0].Name != "io" {
+		t.Fatalf("plugins = %#v", plugins)
+	}
+	installed, err := client.InstallPlugin(context.Background(), "docs", "plugins/services/io")
+	if err != nil {
+		t.Fatalf("plugin install: %v", err)
+	}
+	if installed.Name != "io" {
+		t.Fatalf("installed = %#v", installed)
+	}
 }
 
 func startHub(t *testing.T) *natshub.Hub {
@@ -230,6 +274,43 @@ func registerTypedControlResponders(t *testing.T, responder *nats.Conn) {
 		},
 		clientcontract.SubjectSessionDelete: func(clientcontract.RequestEnvelope) any {
 			return struct{}{}
+		},
+		clientcontract.SubjectKBSet: func(req clientcontract.RequestEnvelope) any {
+			var payload clientcontract.KBSetRequest
+			if err := req.DecodePayload(&payload); err != nil {
+				t.Errorf("decode kb set: %v", err)
+			}
+			return struct{}{}
+		},
+		clientcontract.SubjectKBGet: func(req clientcontract.RequestEnvelope) any {
+			var payload clientcontract.KBRefRequest
+			if err := req.DecodePayload(&payload); err != nil {
+				t.Errorf("decode kb get: %v", err)
+			}
+			return clientcontract.KBValueResponse{Value: []byte("openrouter")}
+		},
+		clientcontract.SubjectKBList: func(clientcontract.RequestEnvelope) any {
+			return clientcontract.KBListResponse{Keys: []string{"model"}}
+		},
+		clientcontract.SubjectKBDelete: func(clientcontract.RequestEnvelope) any {
+			return struct{}{}
+		},
+		clientcontract.SubjectSpaceDoctor: func(clientcontract.RequestEnvelope) any {
+			return clientcontract.DoctorResponse{OK: true}
+		},
+		clientcontract.SubjectPluginList: func(clientcontract.RequestEnvelope) any {
+			return clientcontract.ListPluginsResponse{Plugins: []clientcontract.PluginInfo{{
+				Name: "io", Type: "service", Version: "1.0.0",
+			}}}
+		},
+		clientcontract.SubjectPluginInstall: func(req clientcontract.RequestEnvelope) any {
+			var payload clientcontract.InstallPluginRequest
+			if err := req.DecodePayload(&payload); err != nil {
+				t.Errorf("decode plugin install: %v", err)
+			}
+			return clientcontract.InstallPluginResponse{Plugin: clientcontract.PluginInfo{
+				Name: "io", Type: "service", Version: "1.0.0",
+			}}
 		},
 	}
 	for subject, buildPayload := range responders {

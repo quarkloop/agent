@@ -6,20 +6,24 @@ import (
 	"github.com/spf13/cobra"
 
 	spacemodel "github.com/quarkloop/pkg/space"
-	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
 func newUninstallCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "uninstall <name>",
-		Short: "Uninstall a plugin from the current space (via supervisor API)",
+		Short: "Uninstall a plugin from the current space",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name, err := spacemodel.CurrentName()
 			if err != nil {
 				return err
 			}
-			if err := supclient.New().UninstallPlugin(cmd.Context(), name, args[0]); err != nil {
+			control, err := connectControl(cmd)
+			if err != nil {
+				return err
+			}
+			defer control.Close()
+			if err := control.UninstallPlugin(cmd.Context(), name, args[0]); err != nil {
 				return fmt.Errorf("uninstall failed: %w", err)
 			}
 			fmt.Printf("Uninstalled %s\n", args[0])

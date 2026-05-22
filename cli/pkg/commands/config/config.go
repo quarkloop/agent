@@ -5,9 +5,15 @@ package configcmd
 
 import (
 	"github.com/spf13/cobra"
+
+	"github.com/quarkloop/cli/pkg/natsclient"
 )
 
 const configNamespace = "config"
+
+func connectControl(cmd *cobra.Command) (*natsclient.Client, error) {
+	return natsclient.ConnectFromEnv(cmd.Context())
+}
 
 func NewConfigCommand() *cobra.Command {
 	cmd := &cobra.Command{

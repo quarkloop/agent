@@ -1,5 +1,4 @@
 // Package kbcmd provides CLI commands for the per-space knowledge base.
-// All operations are HTTP calls against the supervisor.
 package kbcmd
 
 import (
@@ -7,7 +6,13 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/quarkloop/cli/pkg/natsclient"
 )
+
+func connectControl(cmd *cobra.Command) (*natsclient.Client, error) {
+	return natsclient.ConnectFromEnv(cmd.Context())
+}
 
 func NewKBCommand() *cobra.Command {
 	cmd := &cobra.Command{

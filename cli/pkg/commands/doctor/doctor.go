@@ -7,8 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/quarkloop/cli/pkg/natsclient"
 	spacemodel "github.com/quarkloop/pkg/space"
-	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
 // NewDoctorCommand returns the "doctor" command.
@@ -26,7 +26,12 @@ func NewDoctorCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			resp, err := supclient.New().Doctor(cmd.Context(), name)
+			control, err := natsclient.ConnectFromEnv(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer control.Close()
+			resp, err := control.Doctor(cmd.Context(), name)
 			if err != nil {
 				return err
 			}

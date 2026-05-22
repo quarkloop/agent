@@ -4,7 +4,6 @@ import (
 	"github.com/spf13/cobra"
 
 	spacemodel "github.com/quarkloop/pkg/space"
-	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
 func newConfigSetCmd() *cobra.Command {
@@ -17,7 +16,12 @@ func newConfigSetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return supclient.New().KBSet(cmd.Context(), name, configNamespace, args[0], []byte(args[1]))
+			control, err := connectControl(cmd)
+			if err != nil {
+				return err
+			}
+			defer control.Close()
+			return control.KBSet(cmd.Context(), name, configNamespace, args[0], []byte(args[1]))
 		},
 	}
 }

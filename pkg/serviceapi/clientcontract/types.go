@@ -49,9 +49,38 @@ type GetSpaceRequest struct {
 	Name string `json:"name"`
 }
 
+type DeleteSpaceRequest struct {
+	Name string `json:"name"`
+}
+
 type UpdateSpaceRequest struct {
 	Name      string `json:"name"`
 	Quarkfile []byte `json:"quarkfile"`
+}
+
+type QuarkfileRequest struct {
+	Name string `json:"name"`
+}
+
+type QuarkfileResponse struct {
+	Name      string    `json:"name"`
+	Version   string    `json:"version,omitempty"`
+	Quarkfile []byte    `json:"quarkfile"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type DoctorRequest struct {
+	Name string `json:"name"`
+}
+
+type DoctorIssue struct {
+	Severity string `json:"severity"`
+	Message  string `json:"message"`
+}
+
+type DoctorResponse struct {
+	OK     bool          `json:"ok"`
+	Issues []DoctorIssue `json:"issues"`
 }
 
 type ListSpacesResponse struct {
@@ -95,6 +124,32 @@ type ListSessionsResponse struct {
 	Sessions []SessionInfo `json:"sessions"`
 }
 
+type KBRefRequest struct {
+	SpaceID   string `json:"space_id"`
+	Namespace string `json:"namespace"`
+	Key       string `json:"key"`
+}
+
+type KBSetRequest struct {
+	SpaceID   string `json:"space_id"`
+	Namespace string `json:"namespace"`
+	Key       string `json:"key"`
+	Value     []byte `json:"value"`
+}
+
+type KBListRequest struct {
+	SpaceID   string `json:"space_id"`
+	Namespace string `json:"namespace"`
+}
+
+type KBValueResponse struct {
+	Value []byte `json:"value"`
+}
+
+type KBListResponse struct {
+	Keys []string `json:"keys"`
+}
+
 type SendMessageRequest struct {
 	SpaceID   string `json:"space_id"`
 	SessionID string `json:"session_id"`
@@ -110,6 +165,66 @@ type SessionEvent struct {
 
 type ListServicesRequest struct {
 	SpaceID string `json:"space_id"`
+}
+
+type PluginInfo struct {
+	Name        string `json:"name"`
+	Version     string `json:"version"`
+	Type        string `json:"type"`
+	Mode        string `json:"mode"`
+	Description string `json:"description"`
+}
+
+type ListPluginsRequest struct {
+	SpaceID    string `json:"space_id"`
+	TypeFilter string `json:"type_filter,omitempty"`
+}
+
+type ListPluginsResponse struct {
+	Plugins []PluginInfo `json:"plugins"`
+}
+
+type PluginRefRequest struct {
+	SpaceID string `json:"space_id"`
+	Plugin  string `json:"plugin"`
+}
+
+type InstallPluginRequest struct {
+	SpaceID string `json:"space_id"`
+	Ref     string `json:"ref"`
+}
+
+type InstallPluginResponse struct {
+	Plugin PluginInfo `json:"plugin"`
+}
+
+type SearchPluginsRequest struct {
+	SpaceID string `json:"space_id"`
+	Query   string `json:"query"`
+}
+
+type PluginSearchResult struct {
+	Name        string `json:"name"`
+	Version     string `json:"version"`
+	Type        string `json:"type"`
+	Description string `json:"description"`
+	Author      string `json:"author"`
+}
+
+type SearchPluginsResponse struct {
+	Results []PluginSearchResult `json:"results"`
+}
+
+type HubPluginInfo struct {
+	Name        string   `json:"name"`
+	Version     string   `json:"version"`
+	Type        string   `json:"type"`
+	Description string   `json:"description"`
+	Author      string   `json:"author"`
+	License     string   `json:"license"`
+	Repository  string   `json:"repository"`
+	Downloads   int      `json:"downloads"`
+	Versions    []string `json:"versions"`
 }
 
 type InspectRuntimeRequest struct {
