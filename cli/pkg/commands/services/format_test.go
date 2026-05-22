@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/quarkloop/supervisor/pkg/api"
+	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 )
 
 func TestFormatServiceTable(t *testing.T) {
-	out := formatServiceTable([]api.ServiceInfo{{
+	out := formatServiceTable([]clientcontract.ServiceInfo{{
 		Name:          "indexer",
-		Status:        api.ServiceStatusReady,
+		Status:        clientcontract.ServiceStatusReady,
 		Version:       "1.0.0",
 		Endpoint:      "127.0.0.1:7301",
 		FunctionCount: 2,
@@ -25,12 +25,12 @@ func TestFormatServiceTable(t *testing.T) {
 
 func TestFormatServiceInspectIncludesDiagnostics(t *testing.T) {
 	started := time.Date(2026, 5, 17, 10, 0, 0, 0, time.UTC)
-	out := formatServiceInspect(api.ServiceInfo{
+	out := formatServiceInspect(clientcontract.ServiceInfo{
 		Name:        "indexer",
-		Status:      api.ServiceStatusUnavailable,
+		Status:      clientcontract.ServiceStatusUnavailable,
 		Description: "Indexer",
 		StartedAt:   &started,
-		Functions: []api.ServiceFunctionInfo{{
+		Functions: []clientcontract.ServiceFunctionInfo{{
 			Name:    "indexer_GetContext",
 			Service: "quark.indexer.v1.IndexerService",
 			Method:  "GetContext",
@@ -63,8 +63,8 @@ func TestServicesCommandExcludesLifecycleCommands(t *testing.T) {
 }
 
 func TestFormatServiceDoctor(t *testing.T) {
-	out := formatServiceDoctor(api.ServiceDoctorResponse{
-		Services: []api.ServiceInfo{{Name: "indexer", Status: api.ServiceStatusMissing}},
+	out := formatServiceDoctor(clientcontract.ServiceDoctorResponse{
+		Services: []clientcontract.ServiceInfo{{Name: "indexer", Status: clientcontract.ServiceStatusMissing}},
 		Issues:   []string{"indexer: missing endpoint"},
 	})
 	if !strings.Contains(out, "Issues:") || !strings.Contains(out, "missing endpoint") {

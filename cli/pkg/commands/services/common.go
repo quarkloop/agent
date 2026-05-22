@@ -1,10 +1,11 @@
 package servicescmd
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/quarkloop/cli/pkg/natsclient"
 	spacemodel "github.com/quarkloop/pkg/space"
-	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
 func currentSpaceName() (string, error) {
@@ -15,8 +16,8 @@ func currentSpaceName() (string, error) {
 	return name, nil
 }
 
-func newSupervisorClient() *supclient.Client {
-	return supclient.New()
+func newControlClient(ctx context.Context) (*natsclient.Client, error) {
+	return natsclient.ConnectFromEnv(ctx)
 }
 
 func serviceCommandError(action string, err error) error {

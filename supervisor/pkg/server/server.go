@@ -164,7 +164,7 @@ func (s *Server) Start(ctx context.Context) error {
 			URL:      endpoints.ClientURL,
 			Username: controlCredential.Username,
 			Password: controlCredential.Password,
-		}, s.store, s.events, s.natsHub)
+		}, s.store, s.events, s.natsHub, natsapi.WithServiceInspector(natsServiceInspector{server: s}))
 		if err != nil {
 			return fmt.Errorf("start nats control api: %w", err)
 		}

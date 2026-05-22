@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/quarkloop/supervisor/pkg/api"
+	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 )
 
-func formatServiceTable(services []api.ServiceInfo) string {
+func formatServiceTable(services []clientcontract.ServiceInfo) string {
 	var b bytes.Buffer
 	if len(services) == 0 {
 		return "No services installed.\n"
@@ -23,7 +23,7 @@ func formatServiceTable(services []api.ServiceInfo) string {
 	return b.String()
 }
 
-func formatServiceInspect(service api.ServiceInfo) string {
+func formatServiceInspect(service clientcontract.ServiceInfo) string {
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "Name:        %s\n", service.Name)
 	fmt.Fprintf(&b, "Status:      %s\n", service.Status)
@@ -63,7 +63,7 @@ func formatServiceInspect(service api.ServiceInfo) string {
 	return b.String()
 }
 
-func formatServiceDoctor(resp api.ServiceDoctorResponse) string {
+func formatServiceDoctor(resp clientcontract.ServiceDoctorResponse) string {
 	var b bytes.Buffer
 	b.WriteString(formatServiceTable(resp.Services))
 	if len(resp.Issues) == 0 {

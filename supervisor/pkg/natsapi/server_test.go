@@ -75,6 +75,18 @@ func TestSpaceAndSessionContracts(t *testing.T) {
 		t.Fatalf("plugins = %#v", plugins.Plugins)
 	}
 
+	services := requestPayload[clientcontract.ListServicesResponse](t, fixture.client, clientcontract.SubjectServiceList, clientcontract.ListServicesRequest{SpaceID: "docs"})
+	if len(services.Services) != 1 || services.Services[0].Name != "indexer" {
+		t.Fatalf("services = %#v", services.Services)
+	}
+	service := requestPayload[clientcontract.ServiceInfo](t, fixture.client, clientcontract.SubjectServiceInspect, clientcontract.InspectServiceRequest{
+		SpaceID: "docs",
+		Service: "indexer",
+	})
+	if service.Status != clientcontract.ServiceStatusReady {
+		t.Fatalf("service = %#v", service)
+	}
+
 	sessionEvents, unsubscribe := fixture.events.Subscribe("docs")
 	defer unsubscribe()
 	created := requestPayload[clientcontract.SessionInfo](t, fixture.client, clientcontract.SubjectSessionCreate, clientcontract.CreateSessionRequest{
@@ -164,7 +176,7 @@ func startFixture(t *testing.T) fixture {
 		URL:      hub.Endpoints().ClientURL,
 		Username: controlCredential.Username,
 		Password: controlCredential.Password,
-	}, store, bus, hub)
+	}, store, bus, hub, WithServiceInspector(fakeServiceInspector{}))
 	if err != nil {
 		t.Fatalf("start nats api: %v", err)
 	}
@@ -182,6 +194,16 @@ func startFixture(t *testing.T) fixture {
 	t.Cleanup(client.Close)
 
 	return fixture{hub: hub, client: client, events: bus}
+}
+
+type fakeServiceInspector struct{}
+
+func (fakeServiceInspector) InspectServices(context.Context, string) ([]clientcontract.ServiceInfo, error) {
+	return []clientcontract.ServiceInfo{{
+		Name:    "indexer",
+		Status:  clientcontract.ServiceStatusReady,
+		Version: "1.0.0",
+	}}, nil
 }
 
 func requestPayload[T any](t *testing.T, client *nats.Conn, subject string, payload any) T {

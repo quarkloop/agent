@@ -16,15 +16,20 @@ func newStatusCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			control, err := newControlClient(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer control.Close()
 			if len(args) == 1 {
-				service, err := newSupervisorClient().InspectService(cmd.Context(), space, args[0])
+				service, err := control.InspectService(cmd.Context(), space, args[0])
 				if err != nil {
 					return serviceCommandError("service status", err)
 				}
 				fmt.Print(formatServiceInspect(service))
 				return nil
 			}
-			services, err := newSupervisorClient().ListServices(cmd.Context(), space)
+			services, err := control.ListServices(cmd.Context(), space)
 			if err != nil {
 				return serviceCommandError("service status", err)
 			}

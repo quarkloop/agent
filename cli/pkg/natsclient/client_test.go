@@ -210,6 +210,28 @@ func TestTypedControlMethodsUseNATSContracts(t *testing.T) {
 	if installed.Name != "io" {
 		t.Fatalf("installed = %#v", installed)
 	}
+
+	services, err := client.ListServices(context.Background(), "docs")
+	if err != nil {
+		t.Fatalf("service list: %v", err)
+	}
+	if len(services) != 1 || services[0].Name != "indexer" {
+		t.Fatalf("services = %#v", services)
+	}
+	service, err := client.InspectService(context.Background(), "docs", "indexer")
+	if err != nil {
+		t.Fatalf("service inspect: %v", err)
+	}
+	if service.Status != clientcontract.ServiceStatusReady {
+		t.Fatalf("service = %#v", service)
+	}
+	serviceDoctor, err := client.ServiceDoctor(context.Background(), "docs")
+	if err != nil {
+		t.Fatalf("service doctor: %v", err)
+	}
+	if len(serviceDoctor.Services) != 1 {
+		t.Fatalf("service doctor = %#v", serviceDoctor)
+	}
 }
 
 func startHub(t *testing.T) *natshub.Hub {
@@ -311,6 +333,23 @@ func registerTypedControlResponders(t *testing.T, responder *nats.Conn) {
 			return clientcontract.InstallPluginResponse{Plugin: clientcontract.PluginInfo{
 				Name: "io", Type: "service", Version: "1.0.0",
 			}}
+		},
+		clientcontract.SubjectServiceList: func(clientcontract.RequestEnvelope) any {
+			return clientcontract.ListServicesResponse{Services: []clientcontract.ServiceInfo{{
+				Name: "indexer", Status: clientcontract.ServiceStatusReady, Version: "1.0.0",
+			}}}
+		},
+		clientcontract.SubjectServiceInspect: func(req clientcontract.RequestEnvelope) any {
+			var payload clientcontract.InspectServiceRequest
+			if err := req.DecodePayload(&payload); err != nil {
+				t.Errorf("decode service inspect: %v", err)
+			}
+			return clientcontract.ServiceInfo{Name: payload.Service, Status: clientcontract.ServiceStatusReady, Version: "1.0.0"}
+		},
+		clientcontract.SubjectServiceDoctor: func(clientcontract.RequestEnvelope) any {
+			return clientcontract.ServiceDoctorResponse{Services: []clientcontract.ServiceInfo{{
+				Name: "indexer", Status: clientcontract.ServiceStatusReady, Version: "1.0.0",
+			}}}
 		},
 	}
 	for subject, buildPayload := range responders {

@@ -16,7 +16,12 @@ func newInspectCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			service, err := newSupervisorClient().InspectService(cmd.Context(), space, args[0])
+			control, err := newControlClient(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer control.Close()
+			service, err := control.InspectService(cmd.Context(), space, args[0])
 			if err != nil {
 				return serviceCommandError("inspect service", err)
 			}

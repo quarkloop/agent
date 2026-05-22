@@ -16,7 +16,12 @@ func newListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			services, err := newSupervisorClient().ListServices(cmd.Context(), space)
+			control, err := newControlClient(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer control.Close()
+			services, err := control.ListServices(cmd.Context(), space)
 			if err != nil {
 				return serviceCommandError("list services", err)
 			}

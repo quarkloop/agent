@@ -1,4 +1,4 @@
-// Package servicescmd provides service-manager commands backed by supervisor APIs.
+// Package servicescmd provides service-manager commands backed by NATS control subjects.
 package servicescmd
 
 import "github.com/spf13/cobra"

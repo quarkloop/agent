@@ -167,6 +167,63 @@ type ListServicesRequest struct {
 	SpaceID string `json:"space_id"`
 }
 
+type InspectServiceRequest struct {
+	SpaceID string `json:"space_id"`
+	Service string `json:"service"`
+}
+
+type ServiceStatus string
+
+const (
+	ServiceStatusStarting     ServiceStatus = "starting"
+	ServiceStatusReady        ServiceStatus = "ready"
+	ServiceStatusUnavailable  ServiceStatus = "unavailable"
+	ServiceStatusMissing      ServiceStatus = "missing"
+	ServiceStatusUnconfigured ServiceStatus = "unconfigured"
+	ServiceStatusStopping     ServiceStatus = "stopping"
+	ServiceStatusStopped      ServiceStatus = "stopped"
+)
+
+type ServiceFunctionInfo struct {
+	Name        string `json:"name"`
+	Service     string `json:"service"`
+	Method      string `json:"method"`
+	Request     string `json:"request"`
+	Response    string `json:"response"`
+	Description string `json:"description"`
+	RiskLevel   string `json:"risk_level,omitempty"`
+	Approval    bool   `json:"approval_required,omitempty"`
+	Idempotent  bool   `json:"idempotent,omitempty"`
+}
+
+type ServiceInfo struct {
+	Name          string                `json:"name"`
+	Type          string                `json:"type"`
+	Version       string                `json:"version"`
+	Mode          string                `json:"mode"`
+	Description   string                `json:"description"`
+	Status        ServiceStatus         `json:"status"`
+	PID           int                   `json:"pid,omitempty"`
+	Endpoint      string                `json:"endpoint,omitempty"`
+	LogPath       string                `json:"log_path,omitempty"`
+	StartedAt     *time.Time            `json:"started_at,omitempty"`
+	AddressEnv    string                `json:"address_env,omitempty"`
+	HealthService string                `json:"health_service,omitempty"`
+	MinVersion    string                `json:"min_version,omitempty"`
+	FunctionCount int                   `json:"function_count"`
+	Functions     []ServiceFunctionInfo `json:"functions,omitempty"`
+	Diagnostics   []string              `json:"diagnostics,omitempty"`
+}
+
+type ListServicesResponse struct {
+	Services []ServiceInfo `json:"services"`
+}
+
+type ServiceDoctorResponse struct {
+	Services []ServiceInfo `json:"services"`
+	Issues   []string      `json:"issues,omitempty"`
+}
+
 type PluginInfo struct {
 	Name        string `json:"name"`
 	Version     string `json:"version"`

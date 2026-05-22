@@ -16,7 +16,12 @@ func newDoctorCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			resp, err := newSupervisorClient().ServiceDoctor(cmd.Context(), space)
+			control, err := newControlClient(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer control.Close()
+			resp, err := control.ServiceDoctor(cmd.Context(), space)
 			if err != nil {
 				return serviceCommandError("service doctor", err)
 			}
