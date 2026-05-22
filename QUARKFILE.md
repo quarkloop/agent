@@ -21,7 +21,7 @@ model:
     - OPENROUTER_API_KEY
 plugins:
   - ref: quark/agent-quark-knowledge
-  - ref: quark/tool-fs
+  - ref: quark/service-io
   - ref: quark/service-core
   - ref: quark/service-model
   - ref: quark/service-document
@@ -33,6 +33,10 @@ agents:
   - profile: quark-knowledge
     enabled: true
 services:
+  - name: io
+    ref: quark/service-io
+    mode: local
+    address_env: QUARK_IO_ADDR
   - name: core
     ref: quark/service-core
     mode: local
@@ -98,7 +102,7 @@ model:
     - OPENROUTER_API_KEY
 plugins:
   - ref: quark/agent-quark-devops
-  - ref: quark/tool-fs
+  - ref: quark/service-io
   - ref: quark/service-devops
   - ref: quark/service-build-release
 agents:

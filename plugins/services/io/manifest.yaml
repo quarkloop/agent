@@ -1,0 +1,132 @@
+name: io
+version: "1.0.0"
+type: service
+mode: api
+description: "Mechanical filesystem, shell, web search, and HTTP fetch over gRPC"
+author: quarkloop
+license: Apache-2.0
+
+service:
+  address_env: QUARK_IO_ADDR
+  health:
+    protocol: grpc_health_v1
+    service: quark.io.v1.IOService
+    timeout: 5s
+  readiness:
+    required: true
+    min_version: "1.0.0"
+  skill: SKILL.md
+  readme: README.md
+  proto_services:
+    - quark.io.v1.IOService
+  functions:
+    - name: io_Read
+      service: quark.io.v1.IOService
+      method: Read
+      request: quark.io.v1.ReadRequest
+      response: quark.io.v1.ReadResponse
+      description: "Read a text file, optionally with a 1-based inclusive line range."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: io_List
+      service: quark.io.v1.IOService
+      method: List
+      request: quark.io.v1.ListRequest
+      response: quark.io.v1.ListResponse
+      description: "List directory entries with optional recursion and sha256 hashes."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: io_Stat
+      service: quark.io.v1.IOService
+      method: Stat
+      request: quark.io.v1.StatRequest
+      response: quark.io.v1.StatResponse
+      description: "Return file metadata and optional sha256 for regular files."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: io_ExtractPdf
+      service: quark.io.v1.IOService
+      method: ExtractPdf
+      request: quark.io.v1.ExtractPdfRequest
+      response: quark.io.v1.ExtractPdfResponse
+      description: "Extract PDF text with pdftotext; prefer document_ExtractText for knowledge indexing."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: io_SearchWeb
+      service: quark.io.v1.IOService
+      method: SearchWeb
+      request: quark.io.v1.SearchWebRequest
+      response: quark.io.v1.SearchWebResponse
+      description: "Search the web using Brave or SerpAPI when API keys are configured."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: io_Fetch
+      service: quark.io.v1.IOService
+      method: Fetch
+      request: quark.io.v1.FetchRequest
+      response: quark.io.v1.FetchResponse
+      description: "Fetch an HTTP or HTTPS URL with bounded size, timeout, and redirect limits."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: io_Write
+      service: quark.io.v1.IOService
+      method: Write
+      request: quark.io.v1.WriteRequest
+      response: quark.io.v1.WriteResponse
+      description: "Overwrite a file after explicit user approval."
+      risk_level: write
+      approval_required: true
+      streaming: false
+      idempotent: false
+    - name: io_Append
+      service: quark.io.v1.IOService
+      method: Append
+      request: quark.io.v1.AppendRequest
+      response: quark.io.v1.AppendResponse
+      description: "Append to a file after explicit user approval."
+      risk_level: write
+      approval_required: true
+      streaming: false
+      idempotent: false
+    - name: io_Replace
+      service: quark.io.v1.IOService
+      method: Replace
+      request: quark.io.v1.ReplaceRequest
+      response: quark.io.v1.ReplaceResponse
+      description: "Replace all occurrences of text in a file after explicit user approval."
+      risk_level: write
+      approval_required: true
+      streaming: false
+      idempotent: false
+    - name: io_Remove
+      service: quark.io.v1.IOService
+      method: Remove
+      request: quark.io.v1.RemoveRequest
+      response: quark.io.v1.RemoveResponse
+      description: "Remove a file or directory after explicit user approval."
+      risk_level: admin
+      approval_required: true
+      streaming: false
+      idempotent: false
+    - name: io_Execute
+      service: quark.io.v1.IOService
+      method: Execute
+      request: quark.io.v1.ExecuteRequest
+      response: quark.io.v1.ExecuteResponse
+      description: "Execute a shell command via bash -c after explicit user approval."
+      risk_level: admin
+      approval_required: true
+      streaming: false
+      idempotent: false

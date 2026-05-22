@@ -10,10 +10,10 @@ import (
 
 func TestAgentPluginValidationAcceptsConcreteInstalledContracts(t *testing.T) {
 	installed := validationInstalledPlugins(
-		validationTool("fs"),
 		validationProvider("openrouter"),
+		validationService("io", "io_Read"),
 		validationService("indexer", "indexer_QueryContext"),
-		validationAgent("quark-knowledge", []string{"fs"}, []string{"indexer_QueryContext"}),
+		validationAgent("quark-knowledge", nil, []string{"io_Read", "indexer_QueryContext"}),
 	)
 	catalog := newAgentPluginValidationCatalog(installed)
 	entries := []runtimePluginCatalogEntry{{
@@ -24,8 +24,7 @@ func TestAgentPluginValidationAcceptsConcreteInstalledContracts(t *testing.T) {
 			Name:  "Quark Knowledge",
 			Model: plugin.AgentProfileModel{Provider: "openrouter", Model: "openai/gpt-5-mini"},
 			Permissions: plugin.AgentProfilePermission{
-				Tools:    []string{"fs"},
-				Services: []string{"indexer_QueryContext"},
+				Services: []string{"io_Read", "indexer_QueryContext"},
 			},
 		},
 	}}
@@ -40,7 +39,7 @@ func TestAgentPluginValidationAcceptsConcreteInstalledContracts(t *testing.T) {
 
 func TestAgentPluginValidationRejectsMissingServiceFunction(t *testing.T) {
 	installed := validationInstalledPlugins(
-		validationTool("fs"),
+		validationService("io", "io_Read"),
 		validationService("indexer", "indexer_QueryContext"),
 	)
 	catalog := newAgentPluginValidationCatalog(installed)
@@ -51,7 +50,6 @@ func TestAgentPluginValidationRejectsMissingServiceFunction(t *testing.T) {
 			ID:   "quark-knowledge",
 			Name: "Quark Knowledge",
 			Permissions: plugin.AgentProfilePermission{
-				Tools:    []string{"fs"},
 				Services: []string{"indexer_Missing"},
 			},
 		},
@@ -63,7 +61,7 @@ func TestAgentPluginValidationRejectsMissingServiceFunction(t *testing.T) {
 	}
 }
 
-func TestAgentPluginValidationRejectsMissingToolAndProvider(t *testing.T) {
+func TestAgentPluginValidationRejectsMissingServiceAndProvider(t *testing.T) {
 	installed := validationInstalledPlugins(validationService("indexer", "indexer_QueryContext"))
 	catalog := newAgentPluginValidationCatalog(installed)
 	entries := []runtimePluginCatalogEntry{{
@@ -74,8 +72,7 @@ func TestAgentPluginValidationRejectsMissingToolAndProvider(t *testing.T) {
 			Name:  "Quark DevOps",
 			Model: plugin.AgentProfileModel{Provider: "openrouter", Model: "openai/gpt-5-mini"},
 			Permissions: plugin.AgentProfilePermission{
-				Tools:    []string{"fs"},
-				Services: []string{"indexer_QueryContext"},
+				Services: []string{"io_Read", "indexer_QueryContext"},
 			},
 		},
 	}}
@@ -88,16 +85,16 @@ func TestAgentPluginValidationRejectsMissingToolAndProvider(t *testing.T) {
 	installed = append(installed, validationProvider("openrouter"))
 	catalog = newAgentPluginValidationCatalog(installed)
 	err = validateRuntimeAgentProfiles(entries, catalog)
-	if err == nil || !strings.Contains(err.Error(), "fs") {
-		t.Fatalf("expected missing tool error, got: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "io_Read") {
+		t.Fatalf("expected missing service function error, got: %v", err)
 	}
 }
 
 func TestAgentPluginValidationRejectsWildcardServicePermissions(t *testing.T) {
 	installed := validationInstalledPlugins(
-		validationTool("fs"),
+		validationService("io", "io_Read"),
 		validationService("indexer", "indexer_QueryContext"),
-		validationAgent("quark-knowledge", []string{"fs"}, []string{"indexer.*"}),
+		validationAgent("quark-knowledge", nil, []string{"io_Read", "indexer.*"}),
 	)
 	catalog := newAgentPluginValidationCatalog(installed)
 	entries := []runtimePluginCatalogEntry{{
@@ -107,7 +104,6 @@ func TestAgentPluginValidationRejectsWildcardServicePermissions(t *testing.T) {
 			ID:   "quark-knowledge",
 			Name: "Quark Knowledge",
 			Permissions: plugin.AgentProfilePermission{
-				Tools:    []string{"fs"},
 				Services: []string{"indexer_QueryContext"},
 			},
 		},
@@ -119,7 +115,7 @@ func TestAgentPluginValidationRejectsWildcardServicePermissions(t *testing.T) {
 	}
 
 	entries[0].AgentProfile.Permissions.Services = []string{"indexer.*"}
-	installed[2] = validationAgent("quark-knowledge", []string{"fs"}, []string{"indexer_QueryContext"})
+	installed[2] = validationAgent("quark-knowledge", nil, []string{"io_Read", "indexer_QueryContext"})
 	catalog = newAgentPluginValidationCatalog(installed)
 	err = validateRuntimeAgentProfiles(entries, catalog)
 	if err == nil || !strings.Contains(err.Error(), "concrete service function") {
@@ -129,10 +125,6 @@ func TestAgentPluginValidationRejectsWildcardServicePermissions(t *testing.T) {
 
 func validationInstalledPlugins(items ...pluginmanager.InstalledPlugin) []pluginmanager.InstalledPlugin {
 	return items
-}
-
-func validationTool(name string) pluginmanager.InstalledPlugin {
-	return pluginmanager.InstalledPlugin{Manifest: &plugin.Manifest{Name: name, Type: plugin.TypeTool}}
 }
 
 func validationProvider(name string) pluginmanager.InstalledPlugin {

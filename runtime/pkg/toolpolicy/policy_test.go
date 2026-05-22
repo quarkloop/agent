@@ -6,51 +6,63 @@ import (
 	"github.com/quarkloop/pkg/boundary"
 )
 
-func TestValidateAllowsReadOnlyFSToolCalls(t *testing.T) {
+func TestValidateAllowsReadOnlyIOFunctions(t *testing.T) {
 	t.Parallel()
 
 	err := Validate(Invocation{
-		Name:      "fs",
-		Arguments: `{"command":"list","path":"/tmp"}`,
+		Name:      "io_List",
+		Arguments: `{"path":"/tmp"}`,
 	})
 	if err != nil {
-		t.Fatalf("read-only fs call was denied: %v", err)
+		t.Fatalf("read-only io call was denied: %v", err)
 	}
 }
 
-func TestValidateDeniesAutonomousFSMutationsEvenWithApprovedArgument(t *testing.T) {
+func TestValidateDeniesAutonomousIOMutations(t *testing.T) {
 	t.Parallel()
 
 	err := Validate(Invocation{
-		Name:      "fs",
-		Arguments: `{"command":"rm","path":"/tmp/quark-space","approved":true}`,
+		Name:      "io_Remove",
+		Arguments: `{"path":"/tmp/quark-space","approved":true}`,
 	})
 	if !boundary.IsCategory(err, boundary.ApprovalRequired) {
 		t.Fatalf("expected approval-required boundary error, got %v", err)
 	}
 }
 
-func TestValidateAllowsRuntimeApprovedFSMutations(t *testing.T) {
+func TestValidateAllowsRuntimeApprovedIOMutations(t *testing.T) {
 	t.Parallel()
 
 	err := Validate(Invocation{
-		Name:            "fs",
-		Arguments:       `{"command":"write","path":"/tmp/out.txt","content":"ok","approved":true}`,
+		Name:            "io_Write",
+		Arguments:       `{"path":"/tmp/out.txt","content":"ok","approved":true}`,
 		RuntimeApproved: true,
 	})
 	if err != nil {
-		t.Fatalf("runtime-approved fs mutation was denied: %v", err)
+		t.Fatalf("runtime-approved io mutation was denied: %v", err)
 	}
 }
 
-func TestValidateIgnoresMalformedArgumentsForPluginValidation(t *testing.T) {
+func TestValidateRequiresApprovalForExecute(t *testing.T) {
 	t.Parallel()
 
 	err := Validate(Invocation{
-		Name:      "fs",
-		Arguments: `{not-json`,
+		Name:      "io_Execute",
+		Arguments: `{"command":"echo ok","approved":true}`,
+	})
+	if !boundary.IsCategory(err, boundary.ApprovalRequired) {
+		t.Fatalf("expected approval-required boundary error, got %v", err)
+	}
+}
+
+func TestValidateIgnoresUnrelatedTools(t *testing.T) {
+	t.Parallel()
+
+	err := Validate(Invocation{
+		Name:      "document_ExtractText",
+		Arguments: `{}`,
 	})
 	if err != nil {
-		t.Fatalf("malformed arguments should be left to plugin validation: %v", err)
+		t.Fatalf("unrelated function should pass: %v", err)
 	}
 }

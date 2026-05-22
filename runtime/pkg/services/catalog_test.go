@@ -63,8 +63,8 @@ func TestCatalogExposesServiceFunctions(t *testing.T) {
 	if len(catalog.Descriptors()) != 1 {
 		t.Fatalf("descriptors = %d, want 1", len(catalog.Descriptors()))
 	}
-	if _, err := catalog.Execute(nil, "fs", "{}"); err == nil {
-		t.Fatal("non-service function unexpectedly executed")
+	if _, err := catalog.Execute(nil, "io_Read", "{}"); err == nil {
+		t.Fatal("non-catalog function unexpectedly executed without descriptor")
 	}
 }
 

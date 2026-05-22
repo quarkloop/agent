@@ -45,8 +45,8 @@ The workspace modules are listed in `go.work`:
   `services/devops`, `services/document`, `services/embedding`,
   `services/indexer`, `services/ingestion`, `services/model`,
   `services/space`, `services/system`
-- `plugins/tools/bash`, `plugins/tools/build-release`, `plugins/tools/fs`,
-  `plugins/tools/web-search`
+- `plugins/tools/build-release`
+- `services/io`
 - `plugins/agents/quark-knowledge`, `plugins/agents/quark-devops`,
   `plugins/agents/quark-system`
 - `plugins/providers/anthropic`, `plugins/providers/openai`,
@@ -152,7 +152,7 @@ cd runtime && go test ./pkg/agent ./pkg/llm ./pkg/services ./pkg/extraction ./pk
 cd runtime && go test ./pkg/activity ./pkg/modelusage ./pkg/permissions
 cd services/indexer && go test ./...
 cd services/embedding && go test ./...
-cd plugins/tools/fs && go test ./...
+cd services/io && go test ./...
 cd cli && go test ./pkg/commands/services
 cd e2e && go test -tags e2e -run '^$' ./...
 ```

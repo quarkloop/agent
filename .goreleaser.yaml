@@ -27,32 +27,10 @@ builds:
     ldflags:
       - -s -w -X github.com/quarkloop/cli/pkg/buildinfo.Version={{.Version}}
 
-  - id: bash
-    dir: plugins/tools/bash
-    main: ./cmd/bash
-    binary: bash
-    goos:
-      - linux
-      - darwin
-    goarch:
-      - amd64
-      - arm64
-
-  - id: fs
-    dir: plugins/tools/fs
-    main: ./cmd/fs
-    binary: fs
-    goos:
-      - linux
-      - darwin
-    goarch:
-      - amd64
-      - arm64
-
-  - id: web-search
-    dir: plugins/tools/web-search
-    main: ./cmd/web-search
-    binary: web-search
+  - id: io-service
+    dir: services/io
+    main: ./cmd/io
+    binary: io-service
     goos:
       - linux
       - darwin

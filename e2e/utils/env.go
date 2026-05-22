@@ -70,20 +70,6 @@ func installSpacePlugins(t *testing.T, env *E2EEnv, bins BuiltBinaries, includeK
 	// agent's pluginmanager prefers lib mode when the .so is present and
 	// falls back to api mode otherwise, so shipping both proves both
 	// code paths work.
-	installTool := func(name, binPath, libPath string) {
-		dst := filepath.Join(pluginsDir, "tools", name)
-		if err := os.MkdirAll(dst, 0o755); err != nil {
-			t.Fatalf("mkdir %s: %v", dst, err)
-		}
-		copyFile(t, filepath.Join(srcRoot, "tools", name, "manifest.yaml"), filepath.Join(dst, "manifest.yaml"), 0o644)
-		copyFile(t, binPath, filepath.Join(dst, name), 0o755)
-		if libPath != "" {
-			copyFile(t, libPath, filepath.Join(dst, "plugin.so"), 0o644)
-		}
-	}
-	installTool("bash", bins.Bash, bins.BashLib)
-	installTool("fs", bins.FS, bins.FSLib)
-
 	installAgent := func(name string) {
 		src := filepath.Join(srcRoot, "agents", name)
 		dst := filepath.Join(pluginsDir, "agents", name)
@@ -108,6 +94,7 @@ func installSpacePlugins(t *testing.T, env *E2EEnv, bins BuiltBinaries, includeK
 		copyFile(t, filepath.Join(src, "SKILL.md"), filepath.Join(dst, "SKILL.md"), 0o644)
 		copyFile(t, filepath.Join(src, "README.md"), filepath.Join(dst, "README.md"), 0o644)
 	}
+	installService("io")
 	if includeKnowledgeServices {
 		installService("core")
 		installService("model")
@@ -163,10 +150,13 @@ func quarkfileFor(name, provider, model string, embedding EmbeddingOptions, serv
 `
 	}
 	embedding = embedding.withDefaults()
-	pluginRefs := fmt.Sprintf(`  - ref: quark/tool-bash
-  - ref: quark/tool-fs
-`)
-	serviceBlocks := ""
+	pluginRefs := `  - ref: quark/service-io
+`
+	serviceBlocks := `  - name: io
+    ref: quark/service-io
+    mode: local
+    address_env: QUARK_IO_ADDR
+`
 	embeddingBlock := ""
 	agentBlocks := ""
 	for _, agent := range agents {
@@ -414,9 +404,6 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 	}
 
 	bins := BuildAllOnce(t)
-	if opt.ForceBinaryTools {
-		bins.BashLib, bins.FSLib = "", ""
-	}
 	embedding := opt.Embedding.withDefaults()
 
 	supervisorEnv := make(map[string]string, len(opt.SupervisorEnv)+1)
@@ -519,6 +506,9 @@ func serviceAddressesFromOptions(embedding EmbeddingOptions, services []ServiceP
 	}
 	if addr := supervisorEnv["QUARK_CITATION_ADDR"]; addr != "" {
 		addresses["citation"] = addr
+	}
+	if addr := supervisorEnv["QUARK_IO_ADDR"]; addr != "" {
+		addresses["io"] = addr
 	}
 	for _, service := range services {
 		service = service.withDefaults()

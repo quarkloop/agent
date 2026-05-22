@@ -622,10 +622,10 @@ func TestTrackerBlocksFutureKnowledgeIndexCallsBeforeCurrentStep(t *testing.T) {
 		t.Fatalf("guard instruction = %q retry=%t", instruction, retry)
 	}
 	instruction, retry = tracker.GuardToolCalls("", []plugin.ToolCall{{
-		Function: plugin.ToolCallFunction{Name: "fs"},
+		Function: plugin.ToolCallFunction{Name: "io_Read"},
 	}})
 	if !retry || !strings.Contains(instruction, "document content extraction") {
-		t.Fatalf("fs should be blocked after ingestion starts so extraction uses document services: %q retry=%t", instruction, retry)
+		t.Fatalf("io_Read should be blocked after ingestion starts so extraction uses document services: %q retry=%t", instruction, retry)
 	}
 }
 

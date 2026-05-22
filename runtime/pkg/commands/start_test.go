@@ -216,7 +216,7 @@ func TestRuntimeAgentProfileMapsResolvedProfileWithoutAliasing(t *testing.T) {
 func TestRuntimePermissionPolicyCombinesToolAndServiceFunctions(t *testing.T) {
 	got := runtimePermissionPolicy(&plugin.AgentProfile{
 		Permissions: plugin.AgentProfilePermission{
-			Tools:    []string{"fs", "fs"},
+			Tools:    []string{"io_Read", "io_Read"},
 			Services: []string{"indexer_QueryContext", "embedding_Embed"},
 		},
 	})
@@ -226,7 +226,7 @@ func TestRuntimePermissionPolicyCombinesToolAndServiceFunctions(t *testing.T) {
 	if !got.RestrictTools {
 		t.Fatal("resolved agent profile policy must restrict tools to its allowlist")
 	}
-	want := []string{"fs", "indexer_QueryContext", "embedding_Embed"}
+	want := []string{"io_Read", "indexer_QueryContext", "embedding_Embed"}
 	if len(got.AllowedTools) != len(want) {
 		t.Fatalf("allowed tools = %+v, want %+v", got.AllowedTools, want)
 	}
@@ -248,7 +248,7 @@ func TestRuntimePermissionPolicyWithEmptyResolvedPermissionsDeniesAll(t *testing
 	if got == nil || !got.RestrictTools || len(got.AllowedTools) != 0 {
 		t.Fatalf("expected restricted empty policy, got %+v", got)
 	}
-	if permissions.NewChecker(got).CanUseTool("fs") {
+	if permissions.NewChecker(got).CanUseTool("io_Read") {
 		t.Fatal("empty resolved permission set unexpectedly allowed tool call")
 	}
 }

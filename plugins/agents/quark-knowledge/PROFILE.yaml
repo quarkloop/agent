@@ -9,9 +9,15 @@ prompt:
   skills:
     - SKILL.md
 permissions:
-  tools:
-    - fs
   services:
+    - io_Read
+    - io_List
+    - io_Stat
+    - io_ExtractPdf
+    - io_Write
+    - io_Append
+    - io_Replace
+    - io_Remove
     - document_DetectType
     - document_ParseBytes
     - document_ExtractText
@@ -37,6 +43,7 @@ permissions:
     - indexer_UpsertEntity
     - indexer_UpsertRelation
     - indexer_UpsertCitation
+    - indexer_IndexDocument
     - indexer_QueryContext
     - indexer_GetContext
     - indexer_DeleteDocument

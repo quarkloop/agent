@@ -15,8 +15,7 @@ func TestAgentProfileOverrideResolverAppliesQuarkfileOverrides(t *testing.T) {
 		Agents: []spacemodel.AgentRef{{
 			Profile:  "quark-knowledge",
 			Enabled:  &enabled,
-			Services: []string{"indexer_QueryContext", "embedding_Embed"},
-			Tools:    []string{"fs"},
+			Services: []string{"io_Read", "indexer_QueryContext", "embedding_Embed"},
 			Model:    spacemodel.AgentModelOverride{Provider: "openrouter", Name: "openai/gpt-5-mini"},
 			Approval: spacemodel.AgentApprovalOverride{
 				Policy:      "required",
@@ -41,7 +40,7 @@ func TestAgentProfileOverrideResolverAppliesQuarkfileOverrides(t *testing.T) {
 	if profile.Model.Provider != "openrouter" || profile.Model.Model != "openai/gpt-5-mini" {
 		t.Fatalf("model = %+v", profile.Model)
 	}
-	if !sameStrings(profile.Permissions.Services, []string{"indexer_QueryContext", "embedding_Embed"}) {
+	if !sameStrings(profile.Permissions.Services, []string{"io_Read", "indexer_QueryContext", "embedding_Embed"}) {
 		t.Fatalf("services = %+v", profile.Permissions.Services)
 	}
 	if profile.Approval.Policy != "required" || !sameStrings(profile.Approval.RequiredFor, []string{"workspace.write"}) {
@@ -112,8 +111,7 @@ func agentEntry(id string) runtimePluginCatalogEntry {
 				Model:    "claude-sonnet-4",
 			},
 			Permissions: plugin.AgentProfilePermission{
-				Tools:    []string{"fs", "bash"},
-				Services: []string{"indexer_QueryContext", "embedding_Embed", "document_ExtractText"},
+				Services: []string{"io_Read", "io_Execute", "indexer_QueryContext", "embedding_Embed", "document_ExtractText"},
 			},
 			Approval: plugin.AgentProfileApproval{RequiredFor: []string{"workspace.write"}},
 			Memory:   plugin.AgentProfileMemory{Scope: "space", Collections: []string{"project_facts"}},

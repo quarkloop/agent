@@ -1,0 +1,160 @@
+syntax = "proto3";
+
+package quark.io.v1;
+
+option go_package = "github.com/quarkloop/pkg/serviceapi/gen/quark/io/v1;iov1";
+
+// IOService provides mechanical filesystem, shell, web search, and HTTP fetch
+// operations. It does not call LLMs or other Quark services.
+service IOService {
+  rpc Read(ReadRequest) returns (ReadResponse);
+  rpc List(ListRequest) returns (ListResponse);
+  rpc Stat(StatRequest) returns (StatResponse);
+  rpc Write(WriteRequest) returns (WriteResponse);
+  rpc Append(AppendRequest) returns (AppendResponse);
+  rpc Replace(ReplaceRequest) returns (ReplaceResponse);
+  rpc Remove(RemoveRequest) returns (RemoveResponse);
+  rpc ExtractPdf(ExtractPdfRequest) returns (ExtractPdfResponse);
+  rpc Execute(ExecuteRequest) returns (ExecuteResponse);
+  rpc SearchWeb(SearchWebRequest) returns (SearchWebResponse);
+  rpc Fetch(FetchRequest) returns (FetchResponse);
+}
+
+message FileEntry {
+  string name = 1;
+  string path = 2;
+  string relative_path = 3;
+  int64 size = 4;
+  string mode = 5;
+  string modified = 6;
+  bool is_dir = 7;
+  string sha256 = 8;
+}
+
+message ReadRequest {
+  string path = 1;
+  int32 start_line = 2;
+  int32 end_line = 3;
+}
+
+message ReadResponse {
+  string content = 1;
+  int32 total_lines = 2;
+  int32 start_line = 3;
+  int32 end_line = 4;
+}
+
+message ListRequest {
+  string path = 1;
+  bool recursive = 2;
+  bool include_hash = 3;
+}
+
+message ListResponse {
+  repeated string entries = 1;
+  repeated FileEntry files = 2;
+}
+
+message StatRequest {
+  string path = 1;
+  bool include_hash = 2;
+}
+
+message StatResponse {
+  FileEntry entry = 1;
+}
+
+message WriteRequest {
+  string path = 1;
+  string content = 2;
+  bool approved = 3;
+}
+
+message WriteResponse {
+  int32 written = 1;
+}
+
+message AppendRequest {
+  string path = 1;
+  string content = 2;
+  bool approved = 3;
+}
+
+message AppendResponse {
+  int32 appended = 1;
+}
+
+message ReplaceRequest {
+  string path = 1;
+  string find = 2;
+  string replace_with = 3;
+  bool approved = 4;
+}
+
+message ReplaceResponse {
+  int32 replacements = 1;
+}
+
+message RemoveRequest {
+  string path = 1;
+  bool approved = 2;
+}
+
+message RemoveResponse {}
+
+message ExtractPdfRequest {
+  string path = 1;
+  int32 max_chars = 2;
+}
+
+message ExtractPdfResponse {
+  string content = 1;
+  int32 chars = 2;
+  int32 original_chars = 3;
+  bool truncated = 4;
+}
+
+message ExecuteRequest {
+  string command = 1;
+  bool approved = 2;
+}
+
+message ExecuteResponse {
+  string output = 1;
+  int32 exit_code = 2;
+}
+
+message SearchWebRequest {
+  string query = 1;
+  int32 max_results = 2;
+}
+
+message WebResult {
+  string title = 1;
+  string url = 2;
+  string snippet = 3;
+}
+
+message SearchWebResponse {
+  string query = 1;
+  repeated WebResult results = 2;
+  int32 count = 3;
+}
+
+message FetchRequest {
+  string url = 1;
+  string method = 2;
+  int32 max_bytes = 3;
+  int32 timeout_seconds = 4;
+  int32 max_redirects = 5;
+}
+
+message FetchResponse {
+  string url = 1;
+  int32 status_code = 2;
+  string content_type = 3;
+  string body = 4;
+  bool truncated = 5;
+  int32 body_bytes = 6;
+  string error = 7;
+}

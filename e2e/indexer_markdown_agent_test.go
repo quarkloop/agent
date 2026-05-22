@@ -63,7 +63,7 @@ func TestAgentIndexesITCompanyMarkdownDocuments(t *testing.T) {
 	})
 
 	assertToolStarted(t, indexTrace, "ingestion_StartRun")
-	assertToolStarted(t, indexTrace, "fs")
+	assertToolStarted(t, indexTrace, "io_Read")
 	assertToolStarted(t, indexTrace, "embedding_Embed")
 	assertToolStarted(t, indexTrace, "indexer_UpsertChunk")
 	assertToolStarted(t, indexTrace, "ingestion_MarkComplete")
@@ -90,7 +90,7 @@ func TestAgentIndexesITCompanyMarkdownDocuments(t *testing.T) {
 	assertToolStarted(t, queryTrace, "indexer_QueryContext")
 	assertToolStartedAny(t, queryTrace, "citation_VerifyGrounding", "citation_RenderReferences")
 	assertNoToolErrors(t, queryTrace, "embedding_Embed", "indexer_QueryContext", "citation_VerifyGrounding", "citation_RenderReferences")
-	if contains(queryTrace.ToolStarts, "fs") {
+	if contains(queryTrace.ToolStarts, "io_Read") || contains(queryTrace.ToolStarts, "io_List") {
 		t.Fatalf("markdown query re-read source files instead of using the index; starts=%v", queryTrace.ToolStarts)
 	}
 	assertAnswerContains(t, queryTrace.Text,

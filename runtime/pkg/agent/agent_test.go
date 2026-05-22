@@ -291,23 +291,23 @@ func TestExecuteToolUsesAssistiveApprovalGate(t *testing.T) {
 	}
 }
 
-func TestExecuteToolRequiresRuntimeApprovalForFSMutations(t *testing.T) {
+func TestExecuteToolRequiresRuntimeApprovalForIOMutations(t *testing.T) {
 	a := newTestAgent(t)
 	executed := false
 	a.Plugins.RegisterRuntimeTool(pluginmanager.RuntimeTool{
-		Schema: plugin.ToolSchema{Name: "fs", Description: "filesystem"},
+		Schema: plugin.ToolSchema{Name: "io_Remove", Description: "remove path"},
 		Handler: func(context.Context, string) (string, error) {
 			executed = true
 			return "removed", nil
 		},
 	})
 
-	_, err := a.executeTool(context.Background(), "fs", `{"command":"rm","path":"/tmp/quark-e2e-space","approved":true}`)
+	_, err := a.executeTool(context.Background(), "io_Remove", `{"path":"/tmp/quark-e2e-space","approved":true}`)
 	if !boundary.IsCategory(err, boundary.ApprovalRequired) {
 		t.Fatalf("expected approval-required boundary error, got %v", err)
 	}
 	if executed {
-		t.Fatal("fs mutation executed without runtime approval")
+		t.Fatal("io_Remove executed without runtime approval")
 	}
 }
 
@@ -315,7 +315,7 @@ func TestExecuteToolDeniesUnpermittedServiceFunctionAndRecordsPolicyEvent(t *tes
 	a := newTestAgentWithConfig(t, Config{
 		ID:               "test-agent",
 		PluginsDir:       t.TempDir(),
-		PermissionPolicy: &permissions.Policy{AllowedTools: []string{"fs"}},
+		PermissionPolicy: &permissions.Policy{AllowedTools: []string{"io_Read"}},
 	})
 	executed := false
 	a.Plugins.RegisterRuntimeTool(pluginmanager.RuntimeTool{

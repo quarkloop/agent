@@ -13,27 +13,23 @@ import (
 	"github.com/quarkloop/e2e/utils"
 )
 
-// TestBashTool exercises the bash tool plugin end-to-end: supervisor creates
-// a session, the agent receives it via SSE, a normal user message asks for a
-// terminal check, and the final streamed reply must contain the expected
-// stdout. Tools load in lib mode (plugin.so shipped alongside the binary).
-func TestBashTool(t *testing.T) {
-	runBashTool(t, false)
-}
-
-// TestBashToolBinaryMode runs the same flow as TestBashTool but with the
-// tool plugin.so stripped from the installed space, forcing the agent's
-// pluginmanager to fall back to api-mode (HTTP daemon) loading.
-func TestBashToolBinaryMode(t *testing.T) {
-	runBashTool(t, true)
-}
-
-func runBashTool(t *testing.T, forceBinary bool) {
-	t.Helper()
+// TestIOExecute exercises io_Execute through the runtime service catalog.
+func TestIOExecute(t *testing.T) {
+	ioAddr := reserveLoopbackAddress(t)
 	env := utils.StartE2E(t, true, utils.StartOptions{
-		ForceBinaryTools:         forceBinary,
-		DisableServiceDiscovery:  true,
 		DisableKnowledgeServices: true,
+		Agents:                   []string{"quark-devops"},
+		Services:                 localServicePlugins("io"),
+		SupervisorEnv: map[string]string{
+			"QUARK_IO_ADDR": ioAddr,
+		},
+		AgentServicePermissions: map[string][]string{
+			"quark-devops": {"io_Execute"},
+		},
+		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
+			t.Helper()
+			startIOServiceAt(t, bins.IO, ioAddr)
+		},
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
@@ -41,20 +37,21 @@ func runBashTool(t *testing.T, forceBinary bool) {
 
 	sess, err := env.Sup.CreateSession(ctx, env.Space, api.CreateSessionRequest{
 		Type:  api.SessionTypeChat,
-		Title: "tools-test",
+		Title: "io-execute-test",
 	})
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
 	utils.WaitForAgentSession(t, env, sess.ID, 10*time.Second)
 
-	reply := utils.PostMessage(t, ctx, env, sess.ID,
-		"Please use the terminal to print the marker text quark-ok, then reply with only what the terminal printed.")
-	utils.Logf(t, "reply: %q", reply)
-	if reply == "" {
+	trace := utils.PostMessageTrace(t, ctx, env, sess.ID,
+		"Please run a shell command that prints the marker text quark-ok, then reply with only what the command printed.")
+	assertToolStarted(t, trace, "io_Execute")
+	utils.Logf(t, "reply: %q", trace.Text)
+	if trace.Text == "" {
 		t.Fatal("expected non-empty reply")
 	}
-	if !strings.Contains(reply, "quark-ok") {
-		t.Fatalf("expected reply to contain %q, got %q", "quark-ok", reply)
+	if !strings.Contains(trace.Text, "quark-ok") {
+		t.Fatalf("expected reply to contain %q, got %q", "quark-ok", trace.Text)
 	}
 }

@@ -676,8 +676,11 @@ func futureMissingStepSatisfiedBy(state State, tool string) Step {
 func workflowSupportToolAllowed(kind Kind, currentStepID, tool string) bool {
 	switch kind {
 	case KindKnowledgeIndex:
-		if tool == "fs" && currentStepID == "ingest-start" {
-			return true
+		switch tool {
+		case "io_Read", "io_List", "io_Stat":
+			if currentStepID == "ingest-start" {
+				return true
+			}
 		}
 		if strings.HasPrefix(tool, "ingestion_") && tool != "ingestion_StartRun" && tool != "ingestion_MarkComplete" {
 			return true
@@ -849,9 +852,9 @@ func continuationDetail(state State, stepID string) string {
 func knowledgeIndexContinuationDetail(stepID, runID string) string {
 	switch stepID {
 	case "ingest-start":
-		return "If the source list is not known, inspect the user-provided location with fs, then call ingestion_StartRun once with every discovered source."
+		return "If the source list is not known, inspect the user-provided location with io_List or io_Stat, then call ingestion_StartRun once with every discovered source."
 	case "extract":
-		return "Extract every remaining source with text/page extraction so source text is available for semantic structuring, embedding, and indexing. Metadata-only parsing does not satisfy this step. Do not use fs as a substitute for extraction and do not embed or index before extraction is complete."
+		return "Extract every remaining source with text/page extraction so source text is available for semantic structuring, embedding, and indexing. Metadata-only parsing does not satisfy this step. Do not use io_Read or io_ExtractPdf as a substitute for extraction and do not embed or index before extraction is complete."
 	case "embed":
 		return "Create embeddings for the remaining extracted canonical chunks. Batch all known remaining embedding calls in one assistant turn when possible."
 	case "index":

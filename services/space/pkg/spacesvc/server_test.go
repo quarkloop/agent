@@ -82,7 +82,7 @@ meta:
   name: env-space
   version: "0.1.0"
 plugins:
-  - ref: quark/tool-bash
+  - ref: quark/service-io
 model:
   provider: openrouter
   name: openai/gpt-5-mini
@@ -133,7 +133,7 @@ meta:
   name: missing-env-space
   version: "0.1.0"
 plugins:
-  - ref: quark/tool-bash
+  - ref: quark/service-io
 model:
   provider: openrouter
   name: openai/gpt-5-mini

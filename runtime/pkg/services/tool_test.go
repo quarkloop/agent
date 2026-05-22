@@ -13,6 +13,7 @@ import (
 	citationv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/citation/v1"
 	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
 	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
+	iov1 "github.com/quarkloop/pkg/serviceapi/gen/quark/io/v1"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	"github.com/quarkloop/runtime/pkg/modelservice"
@@ -191,7 +192,9 @@ func TestNormalizeDocumentInputArgumentsAcceptsStringInput(t *testing.T) {
 func TestExecutorCapturesFilesystemContentRefsForIndexRequests(t *testing.T) {
 	executor := NewExecutor(nil)
 
-	result, err := executor.CaptureToolResult("fs", `{"command":"read","path":"/tmp/invoice.md"}`, `{"content":"# Invoice\nTotal due: EUR 18,450.00\n"}`)
+	result, err := executor.ioReadToolResult(&iov1.ReadResponse{
+		Content: "# Invoice\nTotal due: EUR 18,450.00\n",
+	}, `{"path":"/tmp/invoice.md"}`)
 	if err != nil {
 		t.Fatalf("capture tool result: %v", err)
 	}
@@ -223,7 +226,7 @@ func TestExecutorCapturesFilesystemContentRefsForIndexRequests(t *testing.T) {
 func TestExecutorExpandsRuntimeRefsForCanonicalUpsertChunkRequests(t *testing.T) {
 	executor := NewExecutor(nil)
 
-	contentResult, err := executor.CaptureToolResult("fs", `{"command":"read","path":"/tmp/source.md"}`, `{"content":"Canonical text\n"}`)
+	contentResult, err := executor.ioReadToolResult(&iov1.ReadResponse{Content: "Canonical text\n"}, `{"path":"/tmp/source.md"}`)
 	if err != nil {
 		t.Fatalf("capture content result: %v", err)
 	}
@@ -660,13 +663,12 @@ func TestExecutorCompactsLargeDocumentExtractionTextForLLM(t *testing.T) {
 }
 
 func TestExecutorDoesNotCaptureFilesystemPDFExtractionAsContentSource(t *testing.T) {
-	executor := NewExecutor(nil)
-	result, err := executor.CaptureToolResult("fs", `{"command":"extract_pdf","path":"/tmp/paper.pdf"}`, `{"content":"Attention Is All You Need\n"}`)
+	data, err := protojson.Marshal(&iov1.ExtractPdfResponse{Content: "Attention Is All You Need\n"})
 	if err != nil {
-		t.Fatalf("capture tool result: %v", err)
+		t.Fatal(err)
 	}
-	if strings.Contains(result, "contentRef") {
-		t.Fatalf("fs extract_pdf should not produce runtime content refs after document service migration: %s", result)
+	if strings.Contains(string(data), "contentRef") {
+		t.Fatalf("io_ExtractPdf should not produce runtime content refs: %s", data)
 	}
 }
 

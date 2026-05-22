@@ -12,10 +12,7 @@ use (
 	./plugins/providers/anthropic
 	./plugins/providers/openai
 	./plugins/providers/openrouter
-	./plugins/tools/bash
 	./plugins/tools/build-release
-	./plugins/tools/fs
-	./plugins/tools/web-search
 	./runtime
 	./services/build-release
 	./services/citation
@@ -24,6 +21,7 @@ use (
 	./services/document
 	./services/embedding
 	./services/ingestion
+	./services/io
 	./services/indexer
 	./services/model
 	./services/space
@@ -42,11 +40,9 @@ replace (
 	github.com/quarkloop/plugins/providers/anthropic v0.0.0 => ./plugins/providers/anthropic
 	github.com/quarkloop/plugins/providers/openai v0.0.0 => ./plugins/providers/openai
 	github.com/quarkloop/plugins/providers/openrouter v0.0.0 => ./plugins/providers/openrouter
-	github.com/quarkloop/plugins/tools/bash v0.0.0 => ./plugins/tools/bash
 	github.com/quarkloop/plugins/tools/build-release v0.0.0 => ./plugins/tools/build-release
-	github.com/quarkloop/plugins/tools/fs v0.0.0 => ./plugins/tools/fs
-	github.com/quarkloop/plugins/tools/web-search v0.0.0 => ./plugins/tools/web-search
 	github.com/quarkloop/runtime v0.0.0 => ./runtime
+	github.com/quarkloop/services/io v0.0.0 => ./services/io
 	github.com/quarkloop/services/build-release v0.0.0 => ./services/build-release
 	github.com/quarkloop/services/citation v0.0.0 => ./services/citation
 	github.com/quarkloop/services/core v0.0.0 => ./services/core

@@ -41,12 +41,6 @@ replace (
 	github.com/quarkloop/supervisor v0.0.0 => ../supervisor
 )
 
-replace (
-	github.com/quarkloop/plugins/tools/bash v0.0.0 => ../plugins/tools/bash
-	github.com/quarkloop/plugins/tools/fs v0.0.0 => ../plugins/tools/fs
-	github.com/quarkloop/plugins/tools/web-search v0.0.0 => ../plugins/tools/web-search
-)
-
 replace gopkg.in/kr/pretty.v0 => github.com/kr/pretty v0.3.1
 
 replace github.com/quarkloop/pkg/plugin v0.0.0 => ../pkg/plugin

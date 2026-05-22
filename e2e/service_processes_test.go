@@ -17,6 +17,7 @@ import (
 	devopsv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/devops/v1"
 	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
 	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
+	iov1 "github.com/quarkloop/pkg/serviceapi/gen/quark/io/v1"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
 	ingestionv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/ingestion/v1"
 	modelv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/model/v1"
@@ -89,6 +90,17 @@ func startEmbeddingServiceAt(t *testing.T, binary, addr string, embedding utils.
 		Args:          []string{"--provider", embedding.Provider, "--model", embedding.Model, "--dimensions", fmt.Sprint(embedding.Dimensions)},
 		Env:           env,
 		HealthTimeout: embeddingServiceHealthTimeout,
+	})
+}
+
+func startIOServiceAt(t *testing.T, binary, addr string) {
+	t.Helper()
+	startGRPCServiceProcess(t, grpcServiceProcessSpec{
+		Label:       "io",
+		Binary:      binary,
+		Address:     addr,
+		Plugin:      "io",
+		ServiceName: iov1.IOService_ServiceDesc.ServiceName,
 	})
 }
 
@@ -194,6 +206,7 @@ func standardKnowledgeServicesStartOptions(t *testing.T, embedding utils.Embeddi
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
 			dgraphAddr := utils.StartDgraph(t)
+			startIOServiceAt(t, bins.IO, addresses.IO)
 			startCoreServiceAt(t, bins.Core, addresses.Core, filepath.Join(setup.SpacesDir, setup.Space, "services", "core"))
 			startModelServiceAt(t, bins.Model, addresses.Model)
 			startIndexerServiceAt(t, bins.Indexer, dgraphAddr, addresses.Indexer)
@@ -209,19 +222,22 @@ func standardDevOpsServicesStartOptions(t *testing.T, workingDir string) utils.S
 	t.Helper()
 	devopsAddr := reserveLoopbackAddress(t)
 	buildReleaseAddr := reserveLoopbackAddress(t)
+	ioAddr := reserveLoopbackAddress(t)
 	return utils.StartOptions{
 		WorkingDir:               workingDir,
 		DisableKnowledgeServices: true,
 		Agents:                   []string{"quark-devops"},
 		ExtraServicePlugins:      []string{"build-release"},
 		AgentServicePermissions:  devOpsAgentServicePermissions(buildReleaseServiceFunctions()...),
-		Services:                 localServicePlugins("devops", "build-release"),
+		Services:                 localServicePlugins("devops", "build-release", "io"),
 		SupervisorEnv: map[string]string{
 			"QUARK_DEVOPS_ADDR":        devopsAddr,
 			"QUARK_BUILD_RELEASE_ADDR": buildReleaseAddr,
+			"QUARK_IO_ADDR":            ioAddr,
 		},
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
+			startIOServiceAt(t, bins.IO, ioAddr)
 			startDevOpsServiceAt(t, bins.DevOps, devopsAddr)
 			startBuildReleaseServiceAt(t, bins.BuildRelease, buildReleaseAddr)
 		},
@@ -302,6 +318,7 @@ type knowledgeServiceAddresses struct {
 	Citation  string
 	Core      string
 	Model     string
+	IO        string
 }
 
 func reserveKnowledgeServiceAddresses(t *testing.T) knowledgeServiceAddresses {
@@ -314,6 +331,7 @@ func reserveKnowledgeServiceAddresses(t *testing.T) knowledgeServiceAddresses {
 		Citation:  reserveLoopbackAddress(t),
 		Core:      reserveLoopbackAddress(t),
 		Model:     reserveLoopbackAddress(t),
+		IO:        reserveLoopbackAddress(t),
 	}
 }
 
@@ -326,6 +344,7 @@ func (a knowledgeServiceAddresses) supervisorEnv() map[string]string {
 		"QUARK_CITATION_ADDR":      a.Citation,
 		"QUARK_CORE_ADDR":          a.Core,
 		"QUARK_MODEL_SERVICE_ADDR": a.Model,
+		"QUARK_IO_ADDR":            a.IO,
 	}
 }
 

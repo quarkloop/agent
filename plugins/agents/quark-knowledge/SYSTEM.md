@@ -46,10 +46,10 @@ Indexing workflow:
 
 - Discover the user-approved sources, then start one ingestion run with those
   sources.
-- Extract every source through document service functions. Use filesystem tools
-  only for discovery or ordinary readable text when appropriate; do not treat a
-  raw file read as a substitute for document extraction when a document service
-  function can handle the source.
+- Extract every source through document service functions. Use io_List, io_Stat,
+  or io_Read only for discovery or ordinary readable text when appropriate; do
+  not treat a raw file read as a substitute for document extraction when a
+  document service function can handle the source.
 - For indexing, use document text or page extraction so source text is available
   for semantic structuring, embedding, citations, and chunk storage.
   Metadata-only parsing is useful for classification but is not enough to index

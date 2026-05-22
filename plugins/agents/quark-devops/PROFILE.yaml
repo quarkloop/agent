@@ -9,9 +9,17 @@ prompt:
   skills:
     - SKILL.md
 permissions:
-  tools:
-    - fs
   services:
+    - io_Read
+    - io_List
+    - io_Stat
+    - io_Write
+    - io_Append
+    - io_Replace
+    - io_Remove
+    - io_Execute
+    - io_SearchWeb
+    - io_Fetch
     - repo_Status
     - repo_Diff
     - repo_GetBranch

@@ -105,7 +105,7 @@ Indexing must not depend on sidecar files, file renames, or directory restructur
 
 Sidecar metadata files are optional human-facing artifacts. Before creating sidecars, renaming files, or reorganizing a directory, ask the user for explicit approval and present the exact proposed layout. If approval is not present, do not mutate the user's directory.
 
-Deleted or missing sidecars must not break search, retrieval, or re-indexing. Use source path, hash, and modified timestamp from the filesystem tool plus indexer provenance as the source of truth.`)
+Deleted or missing sidecars must not break search, retrieval, or re-indexing. Use source path, hash, and modified timestamp from io_Stat or io_List plus indexer provenance as the source of truth.`)
 }
 
 var slugUnsafe = regexp.MustCompile(`[^a-zA-Z0-9]+`)

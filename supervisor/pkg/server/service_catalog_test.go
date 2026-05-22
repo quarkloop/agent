@@ -27,12 +27,12 @@ func TestRuntimePluginCatalogEntryIncludesToolSchemaAndSkill(t *testing.T) {
 	entry, err := runtimePluginCatalogEntryFromInstalled(pluginmanager.InstalledPlugin{
 		Path: dir,
 		Manifest: &plugin.Manifest{
-			Name: "fs",
+			Name: "build-release",
 			Type: plugin.TypeTool,
 			Tool: &plugin.ToolConfig{
 				Schema: plugin.ToolSchema{
-					Name:        "fs",
-					Description: "filesystem",
+					Name:        "build-release",
+					Description: "build release compatibility",
 				},
 			},
 		},
@@ -41,10 +41,10 @@ func TestRuntimePluginCatalogEntryIncludesToolSchemaAndSkill(t *testing.T) {
 		t.Fatalf("catalog entry: %v", err)
 	}
 
-	if entry.Name != "fs" || entry.Type != plugin.TypeTool || entry.Path != dir {
+	if entry.Name != "build-release" || entry.Type != plugin.TypeTool || entry.Path != dir {
 		t.Fatalf("unexpected entry identity: %+v", entry)
 	}
-	if entry.Schema == nil || entry.Schema.Name != "fs" {
+	if entry.Schema == nil || entry.Schema.Name != "build-release" {
 		t.Fatalf("tool schema missing: %+v", entry)
 	}
 	if entry.Skill != "Use the tool carefully." {

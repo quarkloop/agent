@@ -12,7 +12,7 @@ func base() *space.Quarkfile {
 		Quark:   "1.0",
 		Meta:    space.Meta{Name: "test-space", Version: "0.1.0"},
 		Model:   space.Model{Provider: "anthropic", Name: "claude-sonnet-4.6", Env: []string{"ANTHROPIC_API_KEY"}},
-		Plugins: []space.PluginRef{{Ref: "quark/tool-bash"}},
+		Plugins: []space.PluginRef{{Ref: "quark/service-io"}},
 	}
 }
 

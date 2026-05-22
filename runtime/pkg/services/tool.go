@@ -23,6 +23,7 @@ import (
 	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
 	ingestionv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/ingestion/v1"
+	iov1 "github.com/quarkloop/pkg/serviceapi/gen/quark/io/v1"
 	memoryv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/memory/v1"
 	modelv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/model/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
@@ -49,6 +50,7 @@ var _ = []any{
 	devopsv1.File_quark_devops_v1_devops_proto,
 	corev1.File_quark_core_v1_core_proto,
 	documentv1.File_quark_document_v1_document_proto,
+	iov1.File_quark_io_v1_io_proto,
 	ingestionv1.File_quark_ingestion_v1_ingestion_proto,
 	citationv1.File_quark_citation_v1_citation_proto,
 	memoryv1.File_quark_memory_v1_memory_proto,
@@ -200,6 +202,9 @@ func (e *Executor) Execute(ctx context.Context, functionName, arguments string) 
 	if rpc.GetResponse() == "quark.document.v1.ExtractTextResponse" {
 		return e.documentExtractTextToolResult(out, arguments)
 	}
+	if rpc.GetResponse() == "quark.io.v1.ReadResponse" {
+		return e.ioReadToolResult(out, arguments)
+	}
 	data, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(out)
 	if err != nil {
 		return "", fmt.Errorf("encode response: %w", err)
@@ -233,43 +238,7 @@ func categoryFromGRPCStatus(err error) boundary.Category {
 }
 
 func (e *Executor) CaptureToolResult(toolName, arguments, result string) (string, error) {
-	if e == nil || strings.TrimSpace(toolName) != "fs" {
-		return result, nil
-	}
-	e.CleanupExpiredReferences(time.Now())
-	command, path, ok := fsReadLikeCommand(arguments)
-	if !ok {
-		return result, nil
-	}
-	var payload map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(result), &payload); err != nil {
-		return result, nil
-	}
-	if _, hasError := payload["error"]; hasError {
-		return result, nil
-	}
-	rawContent, ok := payload["content"]
-	if !ok {
-		return result, nil
-	}
-	var content string
-	if err := json.Unmarshal(rawContent, &content); err != nil || content == "" {
-		return result, nil
-	}
-
-	ref, info := e.registerContent(content, map[string]any{
-		"tool":    toolName,
-		"command": command,
-		"path":    path,
-	})
-	payload["contentRef"] = mustJSONRaw(ref)
-	payload["contentChars"] = mustJSONRaw(len([]rune(content)))
-	payload["contentHash"] = mustJSONRaw(info["contentHash"])
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return "", fmt.Errorf("encode tool result content reference: %w", err)
-	}
-	return string(data), nil
+	return result, nil
 }
 
 func (e *Executor) resolve(functionName string) (resolvedRPC, error) {
@@ -612,21 +581,21 @@ func applyRuntimeReferenceFields(typeName string, schema map[string]any) {
 	switch typeName {
 	case "quark.embedding.v1.EmbedRequest":
 		if description, ok := schema["description"].(string); ok {
-			schema["description"] = description + " For input, prefer inputRef or contentRef returned from fs read or document_ExtractText results when embedding source files; otherwise provide explicit input. Provider, model, and dimensions are controlled by the resolved embedding service configuration."
+			schema["description"] = description + " For input, prefer inputRef or contentRef returned from io_Read or document_ExtractText results when embedding source files; otherwise provide explicit input. Provider, model, and dimensions are controlled by the resolved embedding service configuration."
 		}
 		delete(properties, "model")
 		delete(properties, "dimensions")
 		properties["inputRef"] = map[string]any{
 			"type":        "string",
-			"description": "Reference returned by fs read or document_ExtractText. Prefer this over copying source text into input.",
+			"description": "Reference returned by io_Read or document_ExtractText. Prefer this over copying source text into input.",
 		}
 		properties["contentRef"] = map[string]any{
 			"type":        "string",
-			"description": "Alias for inputRef. Reference returned by fs read or document_ExtractText.",
+			"description": "Alias for inputRef. Reference returned by io_Read or document_ExtractText.",
 		}
 	case "quark.indexer.v1.IndexRequest":
 		if description, ok := schema["description"].(string); ok {
-			schema["description"] = description + " Runtime tool calls must use embeddingRef returned from embedding_Embed; direct embedding vectors are not accepted. For textContent, prefer textContentRef returned from fs read or document_ExtractText results when indexing source files; otherwise provide explicit textContent."
+			schema["description"] = description + " Runtime tool calls must use embeddingRef returned from embedding_Embed; direct embedding vectors are not accepted. For textContent, prefer textContentRef returned from io_Read or document_ExtractText results when indexing source files; otherwise provide explicit textContent."
 		}
 		delete(properties, "embedding")
 		properties["embeddingRef"] = map[string]any{
@@ -635,11 +604,11 @@ func applyRuntimeReferenceFields(typeName string, schema map[string]any) {
 		}
 		properties["textContentRef"] = map[string]any{
 			"type":        "string",
-			"description": "Reference returned by fs read or document_ExtractText. Prefer this over copying source text into textContent.",
+			"description": "Reference returned by io_Read or document_ExtractText. Prefer this over copying source text into textContent.",
 		}
 	case "quark.indexer.v1.UpsertChunkRequest":
 		if description, ok := schema["description"].(string); ok {
-			schema["description"] = description + " Runtime tool calls must use embeddingRef returned from embedding_Embed; direct embedding vectors are not accepted. For textContent, prefer textContentRef returned from fs read or document_ExtractText results when indexing source files; otherwise provide explicit textContent. For document indexing, provide a complete canonical knowledge record: document, sourceMetadata, provenance, facts, entities, relations, and citations. Use an empty relations array only when no supported relation exists."
+			schema["description"] = description + " Runtime tool calls must use embeddingRef returned from embedding_Embed; direct embedding vectors are not accepted. For textContent, prefer textContentRef returned from io_Read or document_ExtractText results when indexing source files; otherwise provide explicit textContent. For document indexing, provide a complete canonical knowledge record: document, sourceMetadata, provenance, facts, entities, relations, and citations. Use an empty relations array only when no supported relation exists."
 		}
 		delete(properties, "embedding")
 		applyCanonicalUpsertChunkPropertyDescriptions(properties)
@@ -649,7 +618,7 @@ func applyRuntimeReferenceFields(typeName string, schema map[string]any) {
 		}
 		properties["textContentRef"] = map[string]any{
 			"type":        "string",
-			"description": "Reference returned by fs read or document_ExtractText. Prefer this over copying source text into textContent.",
+			"description": "Reference returned by io_Read or document_ExtractText. Prefer this over copying source text into textContent.",
 		}
 	case "quark.indexer.v1.QueryRequest":
 		delete(properties, "queryVector")
@@ -1101,6 +1070,53 @@ func (e *Executor) documentExtractTextToolResult(msg protoreflect.ProtoMessage, 
 	return string(out), nil
 }
 
+func (e *Executor) ioReadToolResult(msg protoreflect.ProtoMessage, requestArguments string) (string, error) {
+	reflected := msg.ProtoReflect()
+	contentField := reflected.Descriptor().Fields().ByName("content")
+	if contentField == nil {
+		return "", fmt.Errorf("io read response descriptor is missing content field")
+	}
+	content := reflected.Get(contentField).String()
+
+	data, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(msg)
+	if err != nil {
+		return "", fmt.Errorf("encode io read response: %w", err)
+	}
+	if strings.TrimSpace(content) == "" {
+		return string(data), nil
+	}
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return "", fmt.Errorf("decode io read response for content reference: %w", err)
+	}
+	sourceInfo := ioReadSourceInfo(requestArguments)
+	sourceInfo["serviceFunction"] = "io_Read"
+	ref, info := e.registerContent(content, sourceInfo)
+	payload["contentRef"] = mustJSONRaw(ref)
+	payload["contentChars"] = mustJSONRaw(len([]rune(content)))
+	payload["contentHash"] = mustJSONRaw(info["contentHash"])
+	out, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("encode io read content reference: %w", err)
+	}
+	return string(out), nil
+}
+
+func ioReadSourceInfo(arguments string) map[string]any {
+	info := make(map[string]any)
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(strings.TrimSpace(arguments)), &payload); err != nil {
+		return info
+	}
+	if rawPath, ok := payload["path"]; ok {
+		var path string
+		if err := json.Unmarshal(rawPath, &path); err == nil && strings.TrimSpace(path) != "" {
+			info["path"] = strings.TrimSpace(path)
+		}
+	}
+	return info
+}
+
 func documentExtractionSourceInfo(arguments string) map[string]any {
 	info := make(map[string]any)
 	var payload map[string]json.RawMessage
@@ -1288,7 +1304,7 @@ func (e *Executor) expandContentReference(arguments, refField, contentField stri
 	}
 	content, ok := e.contentByRef(ref)
 	if !ok {
-		return "", fmt.Errorf("%s %q was not produced by an fs read or document_ExtractText call in this runtime session", refField, ref)
+		return "", fmt.Errorf("%s %q was not produced by an io_Read or document_ExtractText call in this runtime session", refField, ref)
 	}
 	rawContent, err := json.Marshal(content)
 	if err != nil {
@@ -1690,24 +1706,6 @@ func firstNestedStringArgument(payload map[string]json.RawMessage, objectKey str
 
 func firstMapStringArgument(payload map[string]json.RawMessage, objectKey string, keys ...string) string {
 	return firstNestedStringArgument(payload, objectKey, keys...)
-}
-
-func fsReadLikeCommand(arguments string) (command, path string, ok bool) {
-	var payload map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(arguments), &payload); err != nil {
-		return "", "", false
-	}
-	if rawCommand, exists := payload["command"]; exists {
-		_ = json.Unmarshal(rawCommand, &command)
-	}
-	command = strings.TrimSpace(command)
-	if command != "read" {
-		return "", "", false
-	}
-	if rawPath, exists := payload["path"]; exists {
-		_ = json.Unmarshal(rawPath, &path)
-	}
-	return command, strings.TrimSpace(path), true
 }
 
 func (e *Executor) registerContent(content string, metadata map[string]any) (string, map[string]any) {

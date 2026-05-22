@@ -17,8 +17,7 @@ import (
 type BuiltBinaries struct {
 	Supervisor   string
 	Agent        string
-	Bash         string
-	FS           string
+	IO           string
 	Indexer      string
 	Embedding    string
 	Citation     string
@@ -32,9 +31,6 @@ type BuiltBinaries struct {
 
 	// Lib-mode tool .so paths. Empty if the build failed (e.g. no CGO);
 	// callers should fall back to api-mode installation.
-	BashLib string
-	FSLib   string
-
 	OpenRouterLib string
 }
 
@@ -101,8 +97,7 @@ func BuildAllOnce(t *testing.T) BuiltBinaries {
 
 		buildRes.Supervisor = build("./supervisor/cmd/supervisor", "supervisor")
 		buildRes.Agent = build("./runtime/cmd/runtime", "runtime")
-		buildRes.Bash = build("./plugins/tools/bash/cmd/bash", "bash")
-		buildRes.FS = build("./plugins/tools/fs/cmd/fs", "fs")
+		buildRes.IO = build("./services/io/cmd/io", "io")
 		buildRes.Indexer = build("./services/indexer/cmd/indexer", "indexer")
 		buildRes.Embedding = build("./services/embedding/cmd/embedding", "embedding")
 		buildRes.Citation = build("./services/citation/cmd/citation", "citation")
@@ -114,8 +109,6 @@ func BuildAllOnce(t *testing.T) BuiltBinaries {
 		buildRes.System = build("./services/system/cmd/system", "system")
 		buildRes.BuildRelease = build("./services/build-release/cmd/build-release", "build-release")
 
-		buildRes.BashLib = buildLib("./plugins/tools/bash", "bash")
-		buildRes.FSLib = buildLib("./plugins/tools/fs", "fs")
 		buildRes.OpenRouterLib = buildLib("./plugins/providers/openrouter", "openrouter")
 	})
 	if buildErr != nil {

@@ -4,7 +4,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev
 LDFLAGS := -X github.com/quarkloop/cli/pkg/buildinfo.Version=$(VERSION)
 
 # Tool plugins
-TOOLS := bash fs web-search build-release
+TOOLS := build-release
 
 # Provider plugins
 PROVIDERS := openrouter openai anthropic
@@ -30,9 +30,7 @@ MODULES := \
 		services/model \
 		services/space \
 		services/system \
-		plugins/tools/bash \
-		plugins/tools/fs \
-		plugins/tools/web-search \
+		services/io \
 		plugins/tools/build-release \
 		plugins/providers/openrouter \
 		plugins/providers/openai \
@@ -80,6 +78,8 @@ build-services:
 		go build -o $(BINARY_DIR)/space-service ./services/space/cmd/space
 		@echo "--- Building service: system ---"
 		go build -o $(BINARY_DIR)/system-service ./services/system/cmd/system
+		@echo "--- Building service: io ---"
+		go build -o $(BINARY_DIR)/io-service ./services/io/cmd/io
 
 ## Build tool plugins as .so files (lib mode, requires CGO)
 build-tools-lib:

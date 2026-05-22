@@ -33,7 +33,8 @@ func TestPDFPromptBuildersExposeAgentWorkflowContract(t *testing.T) {
 		"sidecar files",
 	)
 	assertPromptExcludes(t, indexPrompt,
-		"fs",
+		"io_Read",
+		"io_ExtractPdf",
 		"extract_pdf",
 		"document_ExtractText",
 		"embedding_Embed",
@@ -79,8 +80,8 @@ func TestMarkdownPromptBuildersExposeAgentWorkflowContract(t *testing.T) {
 		"sidecar files",
 	)
 	assertPromptExcludes(t, indexPrompt,
-		"fs list",
-		"fs read",
+		"io_List",
+		"io_Read",
 		"embedding_Embed",
 		"indexer_IndexDocument",
 		"indexer_UpsertChunk",
