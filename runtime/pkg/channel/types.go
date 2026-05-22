@@ -10,4 +10,5 @@ type ChannelInfo struct {
 var AllChannelTypes = []ChannelType{
 	WebChannelType,
 	TelegramChannelType,
+	NATSChannelType,
 }

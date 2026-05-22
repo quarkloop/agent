@@ -49,7 +49,8 @@ func ConfigFromEnv() Config {
 }
 
 type Client struct {
-	conn *nats.Conn
+	conn    *nats.Conn
+	timeout time.Duration
 }
 
 type ResponseError struct {
@@ -104,7 +105,7 @@ func Connect(ctx context.Context, cfg Config, opts ...nats.Option) (*Client, err
 		conn.Close()
 		return nil, fmt.Errorf("verify nats connection: %w", err)
 	}
-	return &Client{conn: conn}, nil
+	return &Client{conn: conn, timeout: normalized.Timeout}, nil
 }
 
 func (c *Client) Close() {
@@ -143,6 +144,19 @@ func (c *Client) Request(ctx context.Context, subject string, req clientcontract
 
 func ConnectFromEnv(ctx context.Context) (*Client, error) {
 	return Connect(ctx, ConfigFromEnv())
+}
+
+func ConnectWithCredential(ctx context.Context, credential clientcontract.NATSCredential) (*Client, error) {
+	cfg := ConfigFromEnv()
+	if strings.TrimSpace(credential.URL) != "" {
+		cfg.URL = credential.URL
+	}
+	cfg.Username = credential.Username
+	cfg.Password = credential.Password
+	if strings.TrimSpace(credential.SessionID) != "" {
+		cfg.Name = "quark-cli-session-" + credential.SessionID
+	}
+	return Connect(ctx, cfg)
 }
 
 func (c *Client) CreateSpace(ctx context.Context, req clientcontract.CreateSpaceRequest) (clientcontract.SpaceInfo, error) {
@@ -200,6 +214,74 @@ func (c *Client) DeleteSession(ctx context.Context, spaceID, sessionID string) e
 	return err
 }
 
+func (c *Client) IssueSessionCredential(ctx context.Context, spaceID, sessionID string) (clientcontract.NATSCredential, error) {
+	resp, err := requestPayload[clientcontract.SessionCredentialResponse](ctx, c, clientcontract.SubjectSessionCredential, spaceID, clientcontract.SessionCredentialRequest{
+		SpaceID:   spaceID,
+		SessionID: sessionID,
+	})
+	if err != nil {
+		return clientcontract.NATSCredential{}, err
+	}
+	return resp.Credential, nil
+}
+
+func (c *Client) SendSessionMessage(ctx context.Context, req clientcontract.SendMessageRequest) (clientcontract.SendMessageResponse, error) {
+	subject, err := clientcontract.SessionInputSubject(req.SessionID)
+	if err != nil {
+		return clientcontract.SendMessageResponse{}, err
+	}
+	return requestPayload[clientcontract.SendMessageResponse](ctx, c, subject, req.SpaceID, req)
+}
+
+func (c *Client) SubscribeSessionEvents(ctx context.Context, sessionID string) (<-chan clientcontract.SessionEvent, <-chan error, func(), error) {
+	if c == nil || c.conn == nil {
+		return nil, nil, nil, errors.New("nats client is not connected")
+	}
+	subject, err := clientcontract.SessionEventsSubject(sessionID)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	events := make(chan clientcontract.SessionEvent, 64)
+	errs := make(chan error, 8)
+	sub, err := c.conn.Subscribe(subject, func(msg *nats.Msg) {
+		var event clientcontract.SessionEvent
+		if err := json.Unmarshal(msg.Data, &event); err != nil {
+			notifySubscriptionError(errs, fmt.Errorf("decode session event: %w", err))
+			return
+		}
+		event.Payload = append(json.RawMessage(nil), event.Payload...)
+		select {
+		case events <- event:
+		case <-ctx.Done():
+		}
+	})
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("subscribe %s: %w", subject, err)
+	}
+	stopOnce := make(chan struct{})
+	stop := func() {
+		select {
+		case <-stopOnce:
+			return
+		default:
+			close(stopOnce)
+			_ = sub.Unsubscribe()
+		}
+	}
+	go func() {
+		select {
+		case <-ctx.Done():
+			stop()
+		case <-stopOnce:
+		}
+	}()
+	if err := c.flush(ctx); err != nil {
+		stop()
+		return nil, nil, nil, fmt.Errorf("flush session event subscription: %w", err)
+	}
+	return events, errs, stop, nil
+}
+
 func (c *Client) KBGet(ctx context.Context, spaceID, namespace, key string) ([]byte, error) {
 	resp, err := requestPayload[clientcontract.KBValueResponse](ctx, c, clientcontract.SubjectKBGet, spaceID, clientcontract.KBRefRequest{
 		SpaceID:   spaceID,
@@ -210,6 +292,24 @@ func (c *Client) KBGet(ctx context.Context, spaceID, namespace, key string) ([]b
 		return nil, err
 	}
 	return append([]byte(nil), resp.Value...), nil
+}
+
+func notifySubscriptionError(errs chan<- error, err error) {
+	select {
+	case errs <- err:
+	default:
+	}
+}
+
+func (c *Client) flush(ctx context.Context) error {
+	if _, ok := ctx.Deadline(); ok {
+		return c.conn.FlushWithContext(ctx)
+	}
+	timeout := c.timeout
+	if timeout <= 0 {
+		timeout = 5 * time.Second
+	}
+	return c.conn.FlushTimeout(timeout)
 }
 
 func (c *Client) KBSet(ctx context.Context, spaceID, namespace, key string, value []byte) error {

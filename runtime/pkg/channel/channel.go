@@ -11,6 +11,7 @@ type ChannelType string
 const (
 	WebChannelType      ChannelType = "web"
 	TelegramChannelType ChannelType = "telegram"
+	NATSChannelType     ChannelType = "nats"
 )
 
 // Channel is a communication transport that can be started and stopped.

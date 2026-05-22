@@ -116,6 +116,26 @@ type SessionRefRequest struct {
 	SessionID string `json:"session_id"`
 }
 
+type SessionCredentialRequest struct {
+	SpaceID   string `json:"space_id"`
+	SessionID string `json:"session_id"`
+}
+
+type NATSCredential struct {
+	URL       string `json:"url,omitempty"`
+	Username  string `json:"username"`
+	Password  string `json:"password"`
+	Account   string `json:"account"`
+	Role      string `json:"role"`
+	SpaceID   string `json:"space_id,omitempty"`
+	SessionID string `json:"session_id,omitempty"`
+	AgentID   string `json:"agent_id,omitempty"`
+}
+
+type SessionCredentialResponse struct {
+	Credential NATSCredential `json:"credential"`
+}
+
 type ListSessionsRequest struct {
 	SpaceID string `json:"space_id"`
 }
@@ -154,6 +174,11 @@ type SendMessageRequest struct {
 	SpaceID   string `json:"space_id"`
 	SessionID string `json:"session_id"`
 	Content   string `json:"content"`
+}
+
+type SendMessageResponse struct {
+	SessionID string `json:"session_id"`
+	Accepted  bool   `json:"accepted"`
 }
 
 type SessionEvent struct {

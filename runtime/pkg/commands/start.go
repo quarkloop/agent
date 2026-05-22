@@ -13,6 +13,7 @@ import (
 
 	"github.com/quarkloop/pkg/plugin"
 	"github.com/quarkloop/runtime/pkg/agent"
+	natschannel "github.com/quarkloop/runtime/pkg/channel/nats"
 	"github.com/quarkloop/runtime/pkg/channel/telegram"
 	"github.com/quarkloop/runtime/pkg/channel/web"
 	"github.com/quarkloop/runtime/pkg/coreevents"
@@ -74,6 +75,7 @@ func runStart(port int, channels []string) error {
 		if ch == "all" {
 			activeChannels["web"] = true
 			activeChannels["telegram"] = true
+			activeChannels["nats"] = true
 		} else {
 			activeChannels[ch] = true
 		}
@@ -87,7 +89,7 @@ func runStart(port int, channels []string) error {
 	var validChannels []string
 	for ch := range activeChannels {
 		switch ch {
-		case "web", "telegram":
+		case "web", "telegram", "nats":
 			validChannels = append(validChannels, ch)
 		default:
 			return fmt.Errorf("unknown channel requested: %q", ch)
@@ -188,6 +190,9 @@ func runStart(port int, channels []string) error {
 				a,
 				func(id, chType, title string) { a.Sessions.GetOrCreate(id, chType, title) },
 			))
+		case "nats":
+			slog.Info("registering nats channel")
+			srv.Bus().Register(natschannel.New(natschannel.ConfigFromEnv(), a, a.Sessions))
 		}
 	}
 

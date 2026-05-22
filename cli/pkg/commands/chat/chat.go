@@ -6,17 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/quarkloop/cli/pkg/natsclient"
-	"github.com/quarkloop/cli/pkg/runtimedial"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 	spacemodel "github.com/quarkloop/pkg/space"
-	rtclient "github.com/quarkloop/runtime/pkg/client"
 )
 
 // NewChatCommand returns the "chat" command.
@@ -46,14 +43,18 @@ func NewChatCommand() *cobra.Command {
 			}
 			defer cancel()
 
-			rtClient, _, err := runtimedial.CurrentWithTransportOptions(ctx, rtclient.WithHTTPClient(&http.Client{}))
+			space, err := spacemodel.CurrentName()
 			if err != nil {
 				return err
 			}
-
+			control, err := natsclient.ConnectFromEnv(ctx)
+			if err != nil {
+				return err
+			}
+			defer control.Close()
 			targetSession := sessionID
 			if createSession {
-				created, err := createChatSession(ctx, title)
+				created, err := createChatSession(ctx, control, space, title)
 				if err != nil {
 					return err
 				}
@@ -63,16 +64,31 @@ func NewChatCommand() *cobra.Command {
 			if targetSession == "" {
 				return fmt.Errorf("session is required; pass --session <id> or --new")
 			}
-			if err := waitForRuntimeSession(ctx, rtClient, targetSession); err != nil {
+			credential, err := control.IssueSessionCredential(ctx, space, targetSession)
+			if err != nil {
+				return fmt.Errorf("issue session credential: %w", err)
+			}
+			sessionClient, err := natsclient.ConnectWithCredential(ctx, credential)
+			if err != nil {
 				return err
 			}
+			defer sessionClient.Close()
 
 			stdout := cmd.OutOrStdout()
 			stderr := cmd.ErrOrStderr()
-			err = rtClient.PostSessionMessage(ctx, targetSession, content, func(event rtclient.SSEEvent) error {
-				return printEvent(stdout, stderr, event, showTools)
-			})
+			events, errs, stop, err := sessionClient.SubscribeSessionEvents(ctx, targetSession)
 			if err != nil {
+				return err
+			}
+			defer stop()
+			if _, err := sessionClient.SendSessionMessage(ctx, clientcontract.SendMessageRequest{
+				SpaceID:   space,
+				SessionID: targetSession,
+				Content:   content,
+			}); err != nil {
+				return err
+			}
+			if err := streamSessionEvents(ctx, stdout, stderr, events, errs, showTools); err != nil {
 				return err
 			}
 			fmt.Fprintln(stdout)
@@ -88,16 +104,7 @@ func NewChatCommand() *cobra.Command {
 	return cmd
 }
 
-func createChatSession(ctx context.Context, title string) (clientcontract.SessionInfo, error) {
-	space, err := spacemodel.CurrentName()
-	if err != nil {
-		return clientcontract.SessionInfo{}, err
-	}
-	control, err := natsclient.ConnectFromEnv(ctx)
-	if err != nil {
-		return clientcontract.SessionInfo{}, err
-	}
-	defer control.Close()
+func createChatSession(ctx context.Context, control *natsclient.Client, space, title string) (clientcontract.SessionInfo, error) {
 	session, err := control.CreateSession(ctx, clientcontract.CreateSessionRequest{
 		SpaceID: space,
 		Type:    clientcontract.SessionTypeChat,
@@ -109,59 +116,63 @@ func createChatSession(ctx context.Context, title string) (clientcontract.Sessio
 	return session, nil
 }
 
-func waitForRuntimeSession(ctx context.Context, rtClient *rtclient.Client, sessionID string) error {
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-
+func streamSessionEvents(
+	ctx context.Context,
+	stdout io.Writer,
+	stderr io.Writer,
+	events <-chan clientcontract.SessionEvent,
+	errs <-chan error,
+	showTools bool,
+) error {
 	for {
-		_, err := rtClient.ListSessionMessages(ctx, sessionID)
-		if err == nil {
-			return nil
-		}
-		if !rtclient.IsNotFound(err) {
-			return fmt.Errorf("lookup runtime session: %w", err)
-		}
-
 		select {
+		case event := <-events:
+			if event.Type == "done" {
+				return nil
+			}
+			if err := printEvent(stdout, stderr, event, showTools); err != nil {
+				return err
+			}
+		case err := <-errs:
+			return err
 		case <-ctx.Done():
-			return fmt.Errorf("runtime did not mirror session %q: %w", sessionID, ctx.Err())
-		case <-ticker.C:
+			return fmt.Errorf("session stream ended before completion: %w", ctx.Err())
 		}
 	}
 }
 
-func printEvent(stdout, stderr io.Writer, event rtclient.SSEEvent, showTools bool) error {
+func printEvent(stdout, stderr io.Writer, event clientcontract.SessionEvent, showTools bool) error {
 	switch event.Type {
 	case "text", "token":
 		var token string
-		if err := json.Unmarshal(event.Data, &token); err != nil {
+		if err := json.Unmarshal(event.Payload, &token); err != nil {
 			return fmt.Errorf("decode token event: %w", err)
 		}
 		_, err := fmt.Fprint(stdout, token)
 		return err
 	case "tool_start":
 		if showTools {
-			fmt.Fprintf(stderr, "tool start: %s\n", eventToolName(event.Data))
+			fmt.Fprintf(stderr, "tool start: %s\n", eventToolName(event.Payload))
 		}
 	case "tool_result":
 		if showTools {
-			fmt.Fprintf(stderr, "tool result: %s\n", eventToolName(event.Data))
+			fmt.Fprintf(stderr, "tool result: %s\n", eventToolName(event.Payload))
 		}
 	case "error":
 		var message string
-		if err := json.Unmarshal(event.Data, &message); err != nil {
+		if err := json.Unmarshal(event.Payload, &message); err != nil {
 			var payload struct {
 				Message  string `json:"message"`
 				Boundary string `json:"boundary"`
 				Category string `json:"category"`
 			}
-			if err := json.Unmarshal(event.Data, &payload); err == nil && payload.Message != "" {
+			if err := json.Unmarshal(event.Payload, &payload); err == nil && payload.Message != "" {
 				message = payload.Message
 				if payload.Category != "" {
 					message = fmt.Sprintf("%s [%s/%s]", message, payload.Boundary, payload.Category)
 				}
 			} else {
-				message = strings.TrimSpace(string(event.Data))
+				message = strings.TrimSpace(string(event.Payload))
 			}
 		}
 		return fmt.Errorf("agent error: %s", message)

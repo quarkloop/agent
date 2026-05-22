@@ -25,6 +25,10 @@ type SpaceProvisioner interface {
 	ProvisionSpace(spaceID string) (natshub.SpaceCredentials, error)
 }
 
+type CredentialIssuer interface {
+	IssueSessionCredential(spaceID, sessionID string) (natshub.Credential, error)
+}
+
 type ServiceInspector interface {
 	InspectServices(ctx context.Context, spaceID string) ([]clientcontract.ServiceInfo, error)
 }
@@ -37,11 +41,19 @@ func WithServiceInspector(inspector ServiceInspector) Option {
 	}
 }
 
+func WithCredentialIssuer(issuer CredentialIssuer) Option {
+	return func(s *Server) {
+		s.credentialIssuer = issuer
+	}
+}
+
 type Server struct {
 	conn             *nats.Conn
+	url              string
 	store            space.Store
 	events           *events.Bus
 	provisioner      SpaceProvisioner
+	credentialIssuer CredentialIssuer
 	serviceInspector ServiceInspector
 	subs             []*nats.Subscription
 }
@@ -75,7 +87,14 @@ func Start(ctx context.Context, cfg Config, store space.Store, bus *events.Bus, 
 		conn.Close()
 		return nil, fmt.Errorf("verify nats api connection: %w", err)
 	}
-	server := &Server{conn: conn, store: store, events: bus, provisioner: provisioner}
+	server := &Server{
+		conn:             conn,
+		url:              cfg.URL,
+		store:            store,
+		events:           bus,
+		provisioner:      provisioner,
+		credentialIssuer: credentialIssuerFromProvisioner(provisioner),
+	}
 	for _, opt := range opts {
 		opt(server)
 	}
@@ -84,6 +103,11 @@ func Start(ctx context.Context, cfg Config, store space.Store, bus *events.Bus, 
 		return nil, err
 	}
 	return server, nil
+}
+
+func credentialIssuerFromProvisioner(provisioner SpaceProvisioner) CredentialIssuer {
+	issuer, _ := provisioner.(CredentialIssuer)
+	return issuer
 }
 
 func verifyConnection(ctx context.Context, conn *nats.Conn) error {
@@ -110,30 +134,31 @@ func (s *Server) Close() {
 
 func (s *Server) subscribe() error {
 	handlers := map[string]func(clientcontract.RequestEnvelope) (any, error){
-		clientcontract.SubjectSpaceCreate:     s.createSpace,
-		clientcontract.SubjectSpaceList:       s.listSpaces,
-		clientcontract.SubjectSpaceGet:        s.getSpace,
-		clientcontract.SubjectSpaceUpdate:     s.updateSpace,
-		clientcontract.SubjectSpaceDelete:     s.deleteSpace,
-		clientcontract.SubjectSpaceQuarkfile:  s.getQuarkfile,
-		clientcontract.SubjectSpaceDoctor:     s.doctor,
-		clientcontract.SubjectSessionCreate:   s.createSession,
-		clientcontract.SubjectSessionList:     s.listSessions,
-		clientcontract.SubjectSessionGet:      s.getSession,
-		clientcontract.SubjectSessionDelete:   s.deleteSession,
-		clientcontract.SubjectKBGet:           s.getKB,
-		clientcontract.SubjectKBSet:           s.setKB,
-		clientcontract.SubjectKBDelete:        s.deleteKB,
-		clientcontract.SubjectKBList:          s.listKB,
-		clientcontract.SubjectPluginList:      s.listPlugins,
-		clientcontract.SubjectPluginGet:       s.getPlugin,
-		clientcontract.SubjectPluginInstall:   s.installPlugin,
-		clientcontract.SubjectPluginUninstall: s.uninstallPlugin,
-		clientcontract.SubjectPluginSearch:    s.searchPlugins,
-		clientcontract.SubjectPluginHubInfo:   s.hubPluginInfo,
-		clientcontract.SubjectServiceList:     s.listServices,
-		clientcontract.SubjectServiceInspect:  s.inspectService,
-		clientcontract.SubjectServiceDoctor:   s.serviceDoctor,
+		clientcontract.SubjectSpaceCreate:       s.createSpace,
+		clientcontract.SubjectSpaceList:         s.listSpaces,
+		clientcontract.SubjectSpaceGet:          s.getSpace,
+		clientcontract.SubjectSpaceUpdate:       s.updateSpace,
+		clientcontract.SubjectSpaceDelete:       s.deleteSpace,
+		clientcontract.SubjectSpaceQuarkfile:    s.getQuarkfile,
+		clientcontract.SubjectSpaceDoctor:       s.doctor,
+		clientcontract.SubjectSessionCreate:     s.createSession,
+		clientcontract.SubjectSessionList:       s.listSessions,
+		clientcontract.SubjectSessionGet:        s.getSession,
+		clientcontract.SubjectSessionDelete:     s.deleteSession,
+		clientcontract.SubjectSessionCredential: s.sessionCredential,
+		clientcontract.SubjectKBGet:             s.getKB,
+		clientcontract.SubjectKBSet:             s.setKB,
+		clientcontract.SubjectKBDelete:          s.deleteKB,
+		clientcontract.SubjectKBList:            s.listKB,
+		clientcontract.SubjectPluginList:        s.listPlugins,
+		clientcontract.SubjectPluginGet:         s.getPlugin,
+		clientcontract.SubjectPluginInstall:     s.installPlugin,
+		clientcontract.SubjectPluginUninstall:   s.uninstallPlugin,
+		clientcontract.SubjectPluginSearch:      s.searchPlugins,
+		clientcontract.SubjectPluginHubInfo:     s.hubPluginInfo,
+		clientcontract.SubjectServiceList:       s.listServices,
+		clientcontract.SubjectServiceInspect:    s.inspectService,
+		clientcontract.SubjectServiceDoctor:     s.serviceDoctor,
 	}
 	for subject, handler := range handlers {
 		subject := subject
@@ -358,6 +383,30 @@ func (s *Server) getSession(req clientcontract.RequestEnvelope) (any, error) {
 		return nil, err
 	}
 	return toContractSession(sess), nil
+}
+
+func (s *Server) sessionCredential(req clientcontract.RequestEnvelope) (any, error) {
+	var payload clientcontract.SessionCredentialRequest
+	if err := req.DecodePayload(&payload); err != nil {
+		return nil, err
+	}
+	if s.credentialIssuer == nil {
+		return nil, boundary.New(boundary.Supervisor, boundary.Unavailable, clientcontract.SubjectSessionCredential, "session credential issuer is not configured")
+	}
+	store, err := s.store.Sessions(payload.SpaceID)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := store.Get(payload.SessionID); err != nil {
+		return nil, err
+	}
+	credential, err := s.credentialIssuer.IssueSessionCredential(payload.SpaceID, payload.SessionID)
+	if err != nil {
+		return nil, err
+	}
+	return clientcontract.SessionCredentialResponse{
+		Credential: toContractCredential(s.url, credential),
+	}, nil
 }
 
 func (s *Server) deleteSession(req clientcontract.RequestEnvelope) (any, error) {
@@ -673,5 +722,18 @@ func toContractSession(sess *sessions.Session) clientcontract.SessionInfo {
 		Title:     sess.Title,
 		CreatedAt: sess.CreatedAt,
 		UpdatedAt: sess.UpdatedAt,
+	}
+}
+
+func toContractCredential(url string, credential natshub.Credential) clientcontract.NATSCredential {
+	return clientcontract.NATSCredential{
+		URL:       url,
+		Username:  credential.Username,
+		Password:  credential.Password,
+		Account:   credential.Account,
+		Role:      string(credential.Role),
+		SpaceID:   credential.SpaceID,
+		SessionID: credential.SessionID,
+		AgentID:   credential.AgentID,
 	}
 }

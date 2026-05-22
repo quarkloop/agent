@@ -4,17 +4,17 @@ import (
 	"bytes"
 	"testing"
 
-	rtclient "github.com/quarkloop/runtime/pkg/client"
+	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 )
 
 func TestPrintEventWritesTokensAndToolProgressSeparately(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	if err := printEvent(&stdout, &stderr, rtclient.SSEEvent{Type: "token", Data: []byte(`"hello"`)}, true); err != nil {
+	if err := printEvent(&stdout, &stderr, clientcontract.SessionEvent{Type: "token", Payload: []byte(`"hello"`)}, true); err != nil {
 		t.Fatalf("token event returned error: %v", err)
 	}
-	if err := printEvent(&stdout, &stderr, rtclient.SSEEvent{Type: "tool_start", Data: []byte(`{"name":"fs"}`)}, true); err != nil {
+	if err := printEvent(&stdout, &stderr, clientcontract.SessionEvent{Type: "tool_start", Payload: []byte(`{"name":"fs"}`)}, true); err != nil {
 		t.Fatalf("tool event returned error: %v", err)
 	}
 
@@ -30,7 +30,7 @@ func TestPrintEventReturnsAgentError(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	err := printEvent(&stdout, &stderr, rtclient.SSEEvent{Type: "error", Data: []byte(`"boom"`)}, true)
+	err := printEvent(&stdout, &stderr, clientcontract.SessionEvent{Type: "error", Payload: []byte(`"boom"`)}, true)
 	if err == nil {
 		t.Fatal("expected agent error")
 	}

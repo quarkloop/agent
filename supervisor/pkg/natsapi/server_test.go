@@ -107,6 +107,24 @@ func TestSpaceAndSessionContracts(t *testing.T) {
 		t.Fatalf("session = %#v", got)
 	}
 
+	credential := requestPayload[clientcontract.SessionCredentialResponse](t, fixture.client, clientcontract.SubjectSessionCredential, clientcontract.SessionCredentialRequest{
+		SpaceID:   "docs",
+		SessionID: created.ID,
+	})
+	if credential.Credential.Username == "" || credential.Credential.Password == "" {
+		t.Fatalf("session credential = %#v", credential.Credential)
+	}
+	sessionClient, err := nats.Connect(
+		fixture.hub.Endpoints().ClientURL,
+		nats.UserInfo(credential.Credential.Username, credential.Credential.Password),
+		nats.Name("natsapi-session-client"),
+		nats.Timeout(time.Second),
+	)
+	if err != nil {
+		t.Fatalf("connect with session credential: %v", err)
+	}
+	t.Cleanup(sessionClient.Close)
+
 	listSessions := requestPayload[clientcontract.ListSessionsResponse](t, fixture.client, clientcontract.SubjectSessionList, clientcontract.ListSessionsRequest{SpaceID: "docs"})
 	if len(listSessions.Sessions) != 1 || listSessions.Sessions[0].ID != created.ID {
 		t.Fatalf("sessions = %#v", listSessions.Sessions)

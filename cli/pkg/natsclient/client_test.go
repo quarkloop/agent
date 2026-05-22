@@ -111,7 +111,7 @@ func TestClientReportsPermissionDeniedRequest(t *testing.T) {
 func TestTypedControlMethodsUseNATSContracts(t *testing.T) {
 	hub := startHub(t)
 	responder := connectRaw(t, hub, natshub.DefaultControlUser, natshub.DefaultControlPassword)
-	registerTypedControlResponders(t, responder)
+	registerTypedControlResponders(t, responder, hub)
 
 	client, err := Connect(context.Background(), Config{
 		URL:      hub.Endpoints().ClientURL,
@@ -153,6 +153,63 @@ func TestTypedControlMethodsUseNATSContracts(t *testing.T) {
 	}
 	if session.ID == "" {
 		t.Fatal("session id is empty")
+	}
+	credential, err := client.IssueSessionCredential(context.Background(), "docs", session.ID)
+	if err != nil {
+		t.Fatalf("issue session credential: %v", err)
+	}
+	if credential.Username == "" || credential.Password == "" || credential.SessionID != session.ID {
+		t.Fatalf("credential = %#v", credential)
+	}
+
+	sessionClient, err := ConnectWithCredential(context.Background(), credential)
+	if err != nil {
+		t.Fatalf("connect with session credential: %v", err)
+	}
+	defer sessionClient.Close()
+
+	spaceCredentials, err := hub.ProvisionSpace("docs")
+	if err != nil {
+		t.Fatalf("provision space: %v", err)
+	}
+	runtimeResponder := connectRaw(t, hub, spaceCredentials.Runtime.Username, spaceCredentials.Runtime.Password)
+
+	events, errs, stop, err := sessionClient.SubscribeSessionEvents(context.Background(), session.ID)
+	if err != nil {
+		t.Fatalf("subscribe session events: %v", err)
+	}
+	defer stop()
+	eventSubject, err := clientcontract.SessionEventsSubject(session.ID)
+	if err != nil {
+		t.Fatalf("session events subject: %v", err)
+	}
+	publishSessionEvent(t, runtimeResponder, eventSubject, clientcontract.SessionEvent{
+		Type:      "token",
+		SessionID: session.ID,
+		Payload:   json.RawMessage(`"hello"`),
+	})
+	select {
+	case event := <-events:
+		if event.Type != "token" || string(event.Payload) != `"hello"` {
+			t.Fatalf("session event = %#v", event)
+		}
+	case err := <-errs:
+		t.Fatalf("session event error: %v", err)
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for session event")
+	}
+
+	registerSessionInputResponder(t, runtimeResponder, session.ID)
+	ack, err := sessionClient.SendSessionMessage(context.Background(), clientcontract.SendMessageRequest{
+		SpaceID:   "docs",
+		SessionID: session.ID,
+		Content:   "hello",
+	})
+	if err != nil {
+		t.Fatalf("send session message: %v", err)
+	}
+	if !ack.Accepted || ack.SessionID != session.ID {
+		t.Fatalf("message ack = %#v", ack)
 	}
 
 	list, err := client.ListSessions(context.Background(), "docs")
@@ -266,7 +323,7 @@ func connectRaw(t *testing.T, hub *natshub.Hub, user, password string) *nats.Con
 	return nc
 }
 
-func registerTypedControlResponders(t *testing.T, responder *nats.Conn) {
+func registerTypedControlResponders(t *testing.T, responder *nats.Conn, hub *natshub.Hub) {
 	t.Helper()
 	sessionID := "session-1"
 	responders := map[string]func(clientcontract.RequestEnvelope) any{
@@ -296,6 +353,25 @@ func registerTypedControlResponders(t *testing.T, responder *nats.Conn) {
 		},
 		clientcontract.SubjectSessionDelete: func(clientcontract.RequestEnvelope) any {
 			return struct{}{}
+		},
+		clientcontract.SubjectSessionCredential: func(req clientcontract.RequestEnvelope) any {
+			var payload clientcontract.SessionCredentialRequest
+			if err := req.DecodePayload(&payload); err != nil {
+				t.Errorf("decode session credential: %v", err)
+			}
+			credential, err := hub.IssueSessionCredential(payload.SpaceID, payload.SessionID)
+			if err != nil {
+				t.Errorf("issue session credential: %v", err)
+			}
+			return clientcontract.SessionCredentialResponse{Credential: clientcontract.NATSCredential{
+				URL:       hub.Endpoints().ClientURL,
+				Username:  credential.Username,
+				Password:  credential.Password,
+				Account:   credential.Account,
+				Role:      string(credential.Role),
+				SpaceID:   credential.SpaceID,
+				SessionID: credential.SessionID,
+			}}
 		},
 		clientcontract.SubjectKBSet: func(req clientcontract.RequestEnvelope) any {
 			var payload clientcontract.KBSetRequest
@@ -369,6 +445,48 @@ func registerTypedControlResponders(t *testing.T, responder *nats.Conn) {
 		}
 	}
 	responder.Flush()
+}
+
+func registerSessionInputResponder(t *testing.T, responder *nats.Conn, sessionID string) {
+	t.Helper()
+	inputSubject, err := clientcontract.SessionInputSubject(sessionID)
+	if err != nil {
+		t.Fatalf("session input subject: %v", err)
+	}
+	if _, err := responder.Subscribe(inputSubject, func(msg *nats.Msg) {
+		req := decodeRequest(t, msg.Data)
+		var payload clientcontract.SendMessageRequest
+		if err := req.DecodePayload(&payload); err != nil {
+			t.Errorf("decode send message: %v", err)
+		}
+		resp, err := clientcontract.OK(req.RequestID, clientcontract.SendMessageResponse{
+			SessionID: payload.SessionID,
+			Accepted:  true,
+		})
+		if err != nil {
+			t.Errorf("build send response: %v", err)
+			return
+		}
+		data, _ := json.Marshal(resp)
+		_ = msg.Respond(data)
+	}); err != nil {
+		t.Fatalf("subscribe %s: %v", inputSubject, err)
+	}
+	responder.Flush()
+}
+
+func publishSessionEvent(t *testing.T, conn *nats.Conn, subject string, event clientcontract.SessionEvent) {
+	t.Helper()
+	data, err := json.Marshal(event)
+	if err != nil {
+		t.Fatalf("marshal session event: %v", err)
+	}
+	if err := conn.Publish(subject, data); err != nil {
+		t.Fatalf("publish session event: %v", err)
+	}
+	if err := conn.FlushTimeout(time.Second); err != nil {
+		t.Fatalf("flush session event: %v", err)
+	}
 }
 
 func decodeRequest(t *testing.T, data []byte) clientcontract.RequestEnvelope {
