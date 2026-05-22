@@ -35,8 +35,11 @@ func TestBuildOptionsDefaultsAreDeterministic(t *testing.T) {
 	if len(opts.Accounts) != 3 {
 		t.Fatalf("accounts = %d", len(opts.Accounts))
 	}
-	if len(opts.Users) != 3 {
+	if len(opts.Users) != 0 {
 		t.Fatalf("users = %d", len(opts.Users))
+	}
+	if opts.CustomClientAuthentication == nil {
+		t.Fatal("custom client authentication is not configured")
 	}
 	if opts.Websocket.Host != defaultWebSocketHost || opts.Websocket.Port != 0 || !opts.Websocket.NoTLS {
 		t.Fatalf("websocket config = %+v", opts.Websocket)

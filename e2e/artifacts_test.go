@@ -34,12 +34,17 @@ func writeAgentRunArtifacts(t *testing.T, dir, prefix string, env *utils.E2EEnv,
 	writeArtifact(t, dir, prefix+"-tools.txt", strings.Join(trace.ToolStarts, "\n"))
 	writeTraceArtifact(t, dir, prefix+"-tool-events.json", trace)
 	writeJSONArtifact(t, dir, prefix+"-observability.json", map[string]any{
-		"artifact_id":   prefix + "-observability",
-		"space":         env.Space,
-		"session_id":    trace.SessionID,
-		"run_id":        trace.RunID,
-		"agent_url":     env.AgentURL,
-		"supervisor":    env.SupURL,
+		"artifact_id": prefix + "-observability",
+		"space":       env.Space,
+		"session_id":  trace.SessionID,
+		"run_id":      trace.RunID,
+		"agent_url":   env.AgentURL,
+		"supervisor":  env.SupURL,
+		"nats": map[string]any{
+			"client_url":     env.NATS.ClientURL,
+			"websocket_url":  env.NATS.WebSocketURL,
+			"monitoring_url": env.NATS.MonitoringURL,
+		},
 		"prompt_sha256": promptHash(prompt),
 		"prompt": map[string]any{
 			"preview": previewPrompt(prompt, 500),

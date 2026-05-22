@@ -23,6 +23,7 @@ type E2EEnv struct {
 	Space               string
 	SupURL              string
 	Sup                 *supclient.Client
+	NATS                NATSEndpoints
 	Agent               api.RuntimeInfo
 	AgentURL            string
 	HTTPC               *http.Client
@@ -34,6 +35,13 @@ type E2EEnv struct {
 	ExtraServicePlugins []string
 
 	ServiceAddresses map[string]string
+}
+
+type NATSEndpoints struct {
+	ClientURL     string
+	WebSocketURL  string
+	MonitoringURL string
+	StateDir      string
 }
 
 func (e *E2EEnv) ServiceAddress(name string) string {
@@ -50,6 +58,7 @@ type RuntimeSetup struct {
 	SpacesDir  string
 	Space      string
 	SupURL     string
+	NATS       NATSEndpoints
 	WorkingDir string
 }
 
@@ -312,7 +321,7 @@ func (o EmbeddingOptions) withDefaults() EmbeddingOptions {
 // startSupervisor launches a supervisor subprocess with an isolated spaces
 // root and returns the client, base URL, spaces dir, and process handle. The
 // handle lets tests wait for log markers from the supervisor.
-func startSupervisor(t *testing.T, bins BuiltBinaries, extraEnv map[string]string) (*supclient.Client, string, string, *StartedProcess) {
+func startSupervisor(t *testing.T, bins BuiltBinaries, extraEnv map[string]string) (*supclient.Client, string, string, NATSEndpoints, *StartedProcess) {
 	t.Helper()
 
 	spacesDir := filepath.Join(t.TempDir(), "spaces")
@@ -342,11 +351,17 @@ func startSupervisor(t *testing.T, bins BuiltBinaries, extraEnv map[string]strin
 	}, env)
 
 	supURL := fmt.Sprintf("http://127.0.0.1:%d", port)
+	natsEndpoints := NATSEndpoints{
+		ClientURL:     fmt.Sprintf("nats://127.0.0.1:%d", natsClientPort),
+		WebSocketURL:  fmt.Sprintf("ws://127.0.0.1:%d", natsWebSocketPort),
+		MonitoringURL: fmt.Sprintf("http://127.0.0.1:%d", natsMonitorPort),
+		StateDir:      natsStateDir,
+	}
 	// Supervisor exposes GET /v1/spaces for liveness.
 	WaitForURL(t, supURL+"/v1/spaces", 10*time.Second)
 
 	sup := supclient.New(supclient.WithBaseURL(supURL))
-	return sup, supURL, spacesDir, proc
+	return sup, supURL, spacesDir, natsEndpoints, proc
 }
 
 // StartOptions tunes the fixture StartE2E builds. Zero-valued options yield
@@ -417,7 +432,7 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 	if opt.DisableServiceDiscovery {
 		supervisorEnv["QUARK_DISABLE_SERVICE_DISCOVERY"] = "true"
 	}
-	sup, supURL, spacesDir, proc := startSupervisor(t, bins, supervisorEnv)
+	sup, supURL, spacesDir, natsEndpoints, proc := startSupervisor(t, bins, supervisorEnv)
 
 	spaceName := fmt.Sprintf("e2e-%d", time.Now().UnixNano())
 	provider := "openrouter"
@@ -446,6 +461,7 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 		Space:               spaceName,
 		SupURL:              supURL,
 		Sup:                 sup,
+		NATS:                natsEndpoints,
 		HTTPC:               &http.Client{Timeout: 30 * time.Second},
 		Provider:            provider,
 		Model:               model,
@@ -464,6 +480,7 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 			SpacesDir:  env.SpacesDir,
 			Space:      env.Space,
 			SupURL:     env.SupURL,
+			NATS:       env.NATS,
 			WorkingDir: workingDir,
 		}, bins)
 	}

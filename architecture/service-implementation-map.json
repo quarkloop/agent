@@ -257,7 +257,7 @@
         "has_process_flow": false,
         "path": "e2e/artifacts_test.go",
         "prompt_shortcut_suspects": [
-          "255: \"message\":         \"Tool or service function returned an error.\","
+          "260: \"message\":         \"Tool or service function returned an error.\","
         ]
       },
       {

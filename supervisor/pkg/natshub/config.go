@@ -125,7 +125,7 @@ func DefaultAccounts() []AccountConfig {
 			Users: []UserConfig{{
 				Name:        DefaultControlUser,
 				Password:    DefaultControlPassword,
-				Permissions: allowAllPermissions(),
+				Permissions: SupervisorPermissions(),
 			}},
 		},
 		{
@@ -187,28 +187,36 @@ func Normalize(cfg Config) (Config, error) {
 }
 
 func BuildOptions(cfg Config) (*natsserver.Options, error) {
+	opts, _, _, err := buildOptionsAndRegistry(cfg)
+	return opts, err
+}
+
+func buildOptionsAndRegistry(cfg Config) (*natsserver.Options, map[string]*natsserver.Account, *credentialRegistry, error) {
 	normalized, err := Normalize(cfg)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	if normalized.Mode != ModeEmbedded {
-		return nil, errors.New("embedded nats options requested for external mode")
+		return nil, nil, nil, errors.New("embedded nats options requested for external mode")
 	}
-	accounts, users := buildAccounts(normalized.Accounts)
+	accounts, accountMap, credentials, err := buildAccounts(normalized.Accounts)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	opts := &natsserver.Options{
-		ServerName:         normalized.ServerName,
-		Host:               normalized.Client.Host,
-		Port:               normalized.Client.Port,
-		NoSigs:             true,
-		NoLog:              normalized.NoLog,
-		Accounts:           accounts,
-		Users:              users,
-		SystemAccount:      normalized.SystemAccount,
-		JetStream:          normalized.JetStream.Enabled,
-		StoreDir:           normalized.JetStream.StoreDir,
-		JetStreamDomain:    normalized.JetStream.Domain,
-		JetStreamMaxMemory: normalized.JetStream.MaxMemory,
-		JetStreamMaxStore:  normalized.JetStream.MaxStore,
+		ServerName:                 normalized.ServerName,
+		Host:                       normalized.Client.Host,
+		Port:                       normalized.Client.Port,
+		NoSigs:                     true,
+		NoLog:                      normalized.NoLog,
+		Accounts:                   accounts,
+		SystemAccount:              normalized.SystemAccount,
+		CustomClientAuthentication: registryAuthenticator{registry: credentials},
+		JetStream:                  normalized.JetStream.Enabled,
+		StoreDir:                   normalized.JetStream.StoreDir,
+		JetStreamDomain:            normalized.JetStream.Domain,
+		JetStreamMaxMemory:         normalized.JetStream.MaxMemory,
+		JetStreamMaxStore:          normalized.JetStream.MaxStore,
 	}
 	if normalized.Monitoring.Enabled {
 		opts.HTTPHost = normalized.Monitoring.Host
@@ -221,7 +229,7 @@ func BuildOptions(cfg Config) (*natsserver.Options, error) {
 			NoTLS: true,
 		}
 	}
-	return opts, nil
+	return opts, accountMap, credentials, nil
 }
 
 func validateAccounts(systemAccount string, accounts []AccountConfig) error {
@@ -260,22 +268,27 @@ func validateAccounts(systemAccount string, accounts []AccountConfig) error {
 	return nil
 }
 
-func buildAccounts(configs []AccountConfig) ([]*natsserver.Account, []*natsserver.User) {
+func buildAccounts(configs []AccountConfig) ([]*natsserver.Account, map[string]*natsserver.Account, *credentialRegistry, error) {
 	accounts := make([]*natsserver.Account, 0, len(configs))
-	users := make([]*natsserver.User, 0)
+	accountMap := make(map[string]*natsserver.Account, len(configs))
+	credentials := newCredentialRegistry()
 	for _, config := range configs {
 		account := natsserver.NewAccount(strings.TrimSpace(config.Name))
 		accounts = append(accounts, account)
+		accountMap[account.Name] = account
 		for _, user := range config.Users {
-			users = append(users, &natsserver.User{
+			credential := Credential{
 				Username:    strings.TrimSpace(user.Name),
 				Password:    user.Password,
-				Account:     account,
-				Permissions: toServerPermissions(user.Permissions),
-			})
+				Account:     account.Name,
+				Permissions: clonePermissions(user.Permissions),
+			}
+			if err := credentials.add(account, credential); err != nil {
+				return nil, nil, nil, err
+			}
 		}
 	}
-	return accounts, users
+	return accounts, accountMap, credentials, nil
 }
 
 func toServerPermissions(config PermissionConfig) *natsserver.Permissions {

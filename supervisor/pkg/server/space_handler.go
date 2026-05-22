@@ -49,6 +49,14 @@ func (s *Server) handleCreateSpace(c *fiber.Ctx) error {
 			return writeError(c, fiber.StatusBadRequest, err.Error())
 		}
 	}
+	if s.natsHub != nil {
+		if _, err := s.natsHub.ProvisionSpace(req.Name); err != nil {
+			if rollbackErr := s.store.Delete(req.Name); rollbackErr != nil {
+				return writeError(c, fiber.StatusInternalServerError, fmt.Sprintf("provision nats space account: %v; rollback space: %v", err, rollbackErr))
+			}
+			return writeError(c, fiber.StatusInternalServerError, "provision nats space account: "+err.Error())
+		}
+	}
 
 	return writeJSON(c, fiber.StatusCreated, toSpaceInfo(sp))
 }
