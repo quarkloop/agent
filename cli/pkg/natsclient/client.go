@@ -2,6 +2,8 @@ package natsclient
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +12,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/quarkloop/pkg/boundary"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 )
 
@@ -18,7 +21,9 @@ const (
 	EnvUser     = "QUARK_NATS_USER"
 	EnvPassword = "QUARK_NATS_PASSWORD"
 
-	DefaultURL = "nats://127.0.0.1:4222"
+	DefaultURL      = "nats://127.0.0.1:4222"
+	DefaultUser     = "quark-control"
+	DefaultPassword = "quark-control-dev"
 )
 
 type Config struct {
@@ -34,8 +39,8 @@ type Config struct {
 func ConfigFromEnv() Config {
 	return Config{
 		URL:           firstNonEmpty(os.Getenv(EnvURL), DefaultURL),
-		Username:      os.Getenv(EnvUser),
-		Password:      os.Getenv(EnvPassword),
+		Username:      firstNonEmpty(os.Getenv(EnvUser), DefaultUser),
+		Password:      firstNonEmpty(os.Getenv(EnvPassword), DefaultPassword),
 		Name:          "quark-cli",
 		Timeout:       5 * time.Second,
 		ReconnectWait: 250 * time.Millisecond,
@@ -45,6 +50,29 @@ func ConfigFromEnv() Config {
 
 type Client struct {
 	conn *nats.Conn
+}
+
+type ResponseError struct {
+	Category boundary.Category
+	Message  string
+}
+
+func (e *ResponseError) Error() string {
+	if e == nil {
+		return ""
+	}
+	if e.Category == "" {
+		return e.Message
+	}
+	return string(e.Category) + ": " + e.Message
+}
+
+func IsNotFound(err error) bool {
+	return responseHasCategory(err, boundary.NotFound)
+}
+
+func IsConflict(err error) bool {
+	return responseHasCategory(err, boundary.Conflict)
 }
 
 func Connect(ctx context.Context, cfg Config, opts ...nats.Option) (*Client, error) {
@@ -111,6 +139,97 @@ func (c *Client) Request(ctx context.Context, subject string, req clientcontract
 		return clientcontract.ResponseEnvelope{}, err
 	}
 	return resp, nil
+}
+
+func ConnectFromEnv(ctx context.Context) (*Client, error) {
+	return Connect(ctx, ConfigFromEnv())
+}
+
+func (c *Client) CreateSpace(ctx context.Context, req clientcontract.CreateSpaceRequest) (clientcontract.SpaceInfo, error) {
+	return requestPayload[clientcontract.SpaceInfo](ctx, c, clientcontract.SubjectSpaceCreate, "", req)
+}
+
+func (c *Client) ListSpaces(ctx context.Context) (clientcontract.ListSpacesResponse, error) {
+	return requestPayload[clientcontract.ListSpacesResponse](ctx, c, clientcontract.SubjectSpaceList, "", struct{}{})
+}
+
+func (c *Client) GetSpace(ctx context.Context, name string) (clientcontract.SpaceInfo, error) {
+	return requestPayload[clientcontract.SpaceInfo](ctx, c, clientcontract.SubjectSpaceGet, "", clientcontract.GetSpaceRequest{Name: name})
+}
+
+func (c *Client) UpdateSpace(ctx context.Context, name string, quarkfile []byte) (clientcontract.SpaceInfo, error) {
+	return requestPayload[clientcontract.SpaceInfo](ctx, c, clientcontract.SubjectSpaceUpdate, name, clientcontract.UpdateSpaceRequest{
+		Name:      name,
+		Quarkfile: append([]byte(nil), quarkfile...),
+	})
+}
+
+func (c *Client) CreateSession(ctx context.Context, req clientcontract.CreateSessionRequest) (clientcontract.SessionInfo, error) {
+	return requestPayload[clientcontract.SessionInfo](ctx, c, clientcontract.SubjectSessionCreate, req.SpaceID, req)
+}
+
+func (c *Client) ListSessions(ctx context.Context, spaceID string) (clientcontract.ListSessionsResponse, error) {
+	return requestPayload[clientcontract.ListSessionsResponse](ctx, c, clientcontract.SubjectSessionList, spaceID, clientcontract.ListSessionsRequest{SpaceID: spaceID})
+}
+
+func (c *Client) GetSession(ctx context.Context, spaceID, sessionID string) (clientcontract.SessionInfo, error) {
+	return requestPayload[clientcontract.SessionInfo](ctx, c, clientcontract.SubjectSessionGet, spaceID, clientcontract.SessionRefRequest{
+		SpaceID:   spaceID,
+		SessionID: sessionID,
+	})
+}
+
+func (c *Client) DeleteSession(ctx context.Context, spaceID, sessionID string) error {
+	_, err := requestPayload[struct{}](ctx, c, clientcontract.SubjectSessionDelete, spaceID, clientcontract.SessionRefRequest{
+		SpaceID:   spaceID,
+		SessionID: sessionID,
+	})
+	return err
+}
+
+func requestPayload[T any](ctx context.Context, c *Client, subject, spaceID string, payload any) (T, error) {
+	var out T
+	req, err := clientcontract.NewRequest(newRequestID(), spaceID, payload)
+	if err != nil {
+		return out, err
+	}
+	resp, err := c.Request(ctx, subject, req)
+	if err != nil {
+		return out, err
+	}
+	if resp.Status == "error" {
+		return out, responseError(resp)
+	}
+	if err := resp.DecodePayload(&out); err != nil {
+		return out, err
+	}
+	return out, nil
+}
+
+func responseError(resp clientcontract.ResponseEnvelope) error {
+	if resp.Error == nil {
+		return &ResponseError{Category: boundary.Internal, Message: "missing response error"}
+	}
+	return &ResponseError{
+		Category: boundary.Category(resp.Error.Category),
+		Message:  resp.Error.Message,
+	}
+}
+
+func responseHasCategory(err error, category boundary.Category) bool {
+	var responseErr *ResponseError
+	if errors.As(err, &responseErr) {
+		return responseErr.Category == category
+	}
+	return boundary.IsCategory(err, category)
+}
+
+func newRequestID() string {
+	var buf [12]byte
+	if _, err := rand.Read(buf[:]); err != nil {
+		return fmt.Sprintf("req-%d", time.Now().UnixNano())
+	}
+	return "req-" + hex.EncodeToString(buf[:])
 }
 
 func normalizeConfig(cfg Config) Config {

@@ -6,8 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/quarkloop/cli/pkg/natsclient"
+	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 	spacemodel "github.com/quarkloop/pkg/space"
-	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
 var workDir string
@@ -57,21 +58,30 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	sup := supclient.New()
-	_, err = sup.GetSpace(cmd.Context(), name)
+	control, err := natsclient.ConnectFromEnv(cmd.Context())
+	if err != nil {
+		return err
+	}
+	defer control.Close()
+
+	_, err = control.GetSpace(cmd.Context(), name)
 	if err == nil {
 		fmt.Printf("Space %q is already registered.\n", name)
 		return nil
 	}
-	if !supclient.IsNotFound(err) {
+	if !natsclient.IsNotFound(err) {
 		return fmt.Errorf("check space: %w", err)
 	}
 
 	data := spacemodel.DefaultQuarkfile(name)
 
-	info, err := sup.CreateSpace(cmd.Context(), name, data, abs)
+	info, err := control.CreateSpace(cmd.Context(), clientcontract.CreateSpaceRequest{
+		Name:       name,
+		Quarkfile:  data,
+		WorkingDir: abs,
+	})
 	if err != nil {
-		if supclient.IsConflict(err) {
+		if natsclient.IsConflict(err) {
 			fmt.Printf("Space %q is already registered.\n", name)
 			return nil
 		}

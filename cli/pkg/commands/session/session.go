@@ -9,8 +9,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/quarkloop/cli/pkg/natsclient"
+	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 	spacemodel "github.com/quarkloop/pkg/space"
-	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
 // currentSpace returns the space name from the Quarkfile in the current
@@ -41,10 +42,15 @@ func newSessionCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			c := supclient.New()
-			sess, err := c.CreateSession(cmd.Context(), space, supclient.CreateSessionRequest{
-				Type:  supclient.SessionType(sessType),
-				Title: title,
+			c, err := natsclient.ConnectFromEnv(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer c.Close()
+			sess, err := c.CreateSession(cmd.Context(), clientcontract.CreateSessionRequest{
+				SpaceID: space,
+				Type:    clientcontract.SessionType(sessType),
+				Title:   title,
 			})
 			if err != nil {
 				return fmt.Errorf("create session: %w", err)
@@ -68,7 +74,11 @@ func newSessionGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			c := supclient.New()
+			c, err := natsclient.ConnectFromEnv(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer c.Close()
 			sess, err := c.GetSession(cmd.Context(), space, args[0])
 			if err != nil {
 				return fmt.Errorf("get session: %w", err)
@@ -90,7 +100,11 @@ func newSessionDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			c := supclient.New()
+			c, err := natsclient.ConnectFromEnv(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer c.Close()
 			if err := c.DeleteSession(cmd.Context(), space, args[0]); err != nil {
 				return fmt.Errorf("delete session: %w", err)
 			}
@@ -109,16 +123,20 @@ func newSessionListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			c := supclient.New()
+			c, err := natsclient.ConnectFromEnv(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer c.Close()
 			sessions, err := c.ListSessions(cmd.Context(), space)
 			if err != nil {
 				return fmt.Errorf("list sessions: %w", err)
 			}
-			if len(sessions) == 0 {
+			if len(sessions.Sessions) == 0 {
 				fmt.Println("No sessions.")
 				return nil
 			}
-			for _, s := range sessions {
+			for _, s := range sessions.Sessions {
 				fmt.Printf("%-10s %s  %s\n", s.Type, s.ID, s.Title)
 			}
 			return nil

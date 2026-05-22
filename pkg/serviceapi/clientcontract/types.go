@@ -49,6 +49,11 @@ type GetSpaceRequest struct {
 	Name string `json:"name"`
 }
 
+type UpdateSpaceRequest struct {
+	Name      string `json:"name"`
+	Quarkfile []byte `json:"quarkfile"`
+}
+
 type ListSpacesResponse struct {
 	Spaces []SpaceInfo `json:"spaces"`
 }
@@ -56,8 +61,11 @@ type ListSpacesResponse struct {
 type SessionType string
 
 const (
-	SessionTypeChat SessionType = "chat"
-	SessionTypeTask SessionType = "task"
+	SessionTypeMain     SessionType = "main"
+	SessionTypeChat     SessionType = "chat"
+	SessionTypeTask     SessionType = "task"
+	SessionTypeSubAgent SessionType = "subagent"
+	SessionTypeCron     SessionType = "cron"
 )
 
 type SessionInfo struct {

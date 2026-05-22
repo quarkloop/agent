@@ -7,8 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/quarkloop/cli/pkg/natsclient"
 	spacemodel "github.com/quarkloop/pkg/space"
-	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
 // NewInspectCommand returns the "inspect" command.
@@ -26,8 +26,12 @@ func NewInspectCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			sup := supclient.New()
-			info, err := sup.GetSpace(cmd.Context(), name)
+			control, err := natsclient.ConnectFromEnv(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer control.Close()
+			info, err := control.GetSpace(cmd.Context(), name)
 			if err != nil {
 				return err
 			}

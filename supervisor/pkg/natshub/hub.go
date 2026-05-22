@@ -198,6 +198,28 @@ func (h *Hub) Endpoints() Endpoints {
 	return out
 }
 
+func (h *Hub) ControlCredential() (Credential, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for _, account := range h.cfg.Accounts {
+		if account.Name != ControlAccountName {
+			continue
+		}
+		if len(account.Users) == 0 {
+			return Credential{}, errors.New("nats control account has no users")
+		}
+		user := cloneUserConfig(account.Users[0])
+		return Credential{
+			Username:    user.Name,
+			Password:    user.Password,
+			Account:     ControlAccountName,
+			Role:        RoleSupervisor,
+			Permissions: clonePermissions(user.Permissions),
+		}, nil
+	}
+	return Credential{}, errors.New("nats control account is not configured")
+}
+
 func (h *Hub) ServerForTest() *natsserver.Server {
 	h.mu.Lock()
 	defer h.mu.Unlock()

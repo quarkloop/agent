@@ -23,6 +23,7 @@ import (
 	"github.com/quarkloop/supervisor/internal/supervisor"
 	"github.com/quarkloop/supervisor/pkg/api"
 	"github.com/quarkloop/supervisor/pkg/events"
+	"github.com/quarkloop/supervisor/pkg/natsapi"
 	"github.com/quarkloop/supervisor/pkg/natshub"
 	"github.com/quarkloop/supervisor/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/space/grpcstore"
@@ -52,6 +53,7 @@ type Server struct {
 	store   space.Store
 	events  *events.Bus
 	natsHub *natshub.Hub
+	natsAPI *natsapi.Server
 
 	spaceConn        *grpcstore.Store
 	spaceServiceGRPC *grpc.Server
@@ -154,6 +156,23 @@ func (s *Server) Start(ctx context.Context) error {
 			"monitoring_url", endpoints.MonitoringURL,
 			"jetstream_dir", endpoints.JetStreamDir,
 		)
+		controlCredential, err := s.natsHub.ControlCredential()
+		if err != nil {
+			return fmt.Errorf("resolve nats control credential: %w", err)
+		}
+		apiServer, err := natsapi.Start(ctx, natsapi.Config{
+			URL:      endpoints.ClientURL,
+			Username: controlCredential.Username,
+			Password: controlCredential.Password,
+		}, s.store, s.events, s.natsHub)
+		if err != nil {
+			return fmt.Errorf("start nats control api: %w", err)
+		}
+		s.natsAPI = apiServer
+		defer func() {
+			s.natsAPI.Close()
+			s.natsAPI = nil
+		}()
 	}
 	// Write state before accepting traffic
 	if err := sup.Save(supervisor.State{Port: s.cfg.Port, PID: os.Getpid()}); err != nil {

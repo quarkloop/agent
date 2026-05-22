@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/quarkloop/cli/pkg/natsclient"
 	spacemodel "github.com/quarkloop/pkg/space"
-	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
 // NewSyncCommand returns the "sync" command.
@@ -32,7 +32,12 @@ func NewSyncCommand() *cobra.Command {
 			if _, err := spacemodel.ParseAndValidateQuarkfileForSpace(data, name); err != nil {
 				return err
 			}
-			info, err := supclient.New().UpdateQuarkfile(cmd.Context(), name, data)
+			control, err := natsclient.ConnectFromEnv(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer control.Close()
+			info, err := control.UpdateSpace(cmd.Context(), name, data)
 			if err != nil {
 				return fmt.Errorf("sync Quarkfile: %w", err)
 			}

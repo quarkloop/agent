@@ -108,6 +108,66 @@ func TestClientReportsPermissionDeniedRequest(t *testing.T) {
 	}
 }
 
+func TestTypedControlMethodsUseNATSContracts(t *testing.T) {
+	hub := startHub(t)
+	responder := connectRaw(t, hub, natshub.DefaultControlUser, natshub.DefaultControlPassword)
+	registerTypedControlResponders(t, responder)
+
+	client, err := Connect(context.Background(), Config{
+		URL:      hub.Endpoints().ClientURL,
+		Username: natshub.DefaultControlUser,
+		Password: natshub.DefaultControlPassword,
+	})
+	if err != nil {
+		t.Fatalf("connect client: %v", err)
+	}
+	defer client.Close()
+
+	space, err := client.CreateSpace(context.Background(), clientcontract.CreateSpaceRequest{
+		Name:       "docs",
+		Quarkfile:  []byte("meta:\n  name: docs\n"),
+		WorkingDir: filepath.Join(t.TempDir(), "workspace"),
+	})
+	if err != nil {
+		t.Fatalf("create space: %v", err)
+	}
+	if space.Name != "docs" {
+		t.Fatalf("space = %#v", space)
+	}
+
+	updated, err := client.UpdateSpace(context.Background(), "docs", []byte("meta:\n  name: docs\n"))
+	if err != nil {
+		t.Fatalf("update space: %v", err)
+	}
+	if updated.Name != "docs" {
+		t.Fatalf("updated space = %#v", updated)
+	}
+
+	session, err := client.CreateSession(context.Background(), clientcontract.CreateSessionRequest{
+		SpaceID: "docs",
+		Type:    clientcontract.SessionTypeChat,
+		Title:   "nats",
+	})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if session.ID == "" {
+		t.Fatal("session id is empty")
+	}
+
+	list, err := client.ListSessions(context.Background(), "docs")
+	if err != nil {
+		t.Fatalf("list sessions: %v", err)
+	}
+	if len(list.Sessions) != 1 || list.Sessions[0].ID != session.ID {
+		t.Fatalf("sessions = %#v", list.Sessions)
+	}
+
+	if err := client.DeleteSession(context.Background(), "docs", session.ID); err != nil {
+		t.Fatalf("delete session: %v", err)
+	}
+}
+
 func startHub(t *testing.T) *natshub.Hub {
 	t.Helper()
 	cfg := natshub.DefaultConfig(filepath.Join(t.TempDir(), "nats"))
@@ -138,6 +198,57 @@ func connectRaw(t *testing.T, hub *natshub.Hub, user, password string) *nats.Con
 	}
 	t.Cleanup(nc.Close)
 	return nc
+}
+
+func registerTypedControlResponders(t *testing.T, responder *nats.Conn) {
+	t.Helper()
+	sessionID := "session-1"
+	responders := map[string]func(clientcontract.RequestEnvelope) any{
+		clientcontract.SubjectSpaceCreate: func(req clientcontract.RequestEnvelope) any {
+			var payload clientcontract.CreateSpaceRequest
+			if err := req.DecodePayload(&payload); err != nil {
+				t.Errorf("decode create space: %v", err)
+			}
+			return clientcontract.SpaceInfo{Name: payload.Name}
+		},
+		clientcontract.SubjectSpaceUpdate: func(req clientcontract.RequestEnvelope) any {
+			var payload clientcontract.UpdateSpaceRequest
+			if err := req.DecodePayload(&payload); err != nil {
+				t.Errorf("decode update space: %v", err)
+			}
+			return clientcontract.SpaceInfo{Name: payload.Name}
+		},
+		clientcontract.SubjectSessionCreate: func(req clientcontract.RequestEnvelope) any {
+			var payload clientcontract.CreateSessionRequest
+			if err := req.DecodePayload(&payload); err != nil {
+				t.Errorf("decode create session: %v", err)
+			}
+			return clientcontract.SessionInfo{ID: sessionID, Type: payload.Type, Title: payload.Title}
+		},
+		clientcontract.SubjectSessionList: func(clientcontract.RequestEnvelope) any {
+			return clientcontract.ListSessionsResponse{Sessions: []clientcontract.SessionInfo{{ID: sessionID, Type: clientcontract.SessionTypeChat}}}
+		},
+		clientcontract.SubjectSessionDelete: func(clientcontract.RequestEnvelope) any {
+			return struct{}{}
+		},
+	}
+	for subject, buildPayload := range responders {
+		subject := subject
+		buildPayload := buildPayload
+		if _, err := responder.Subscribe(subject, func(msg *nats.Msg) {
+			req := decodeRequest(t, msg.Data)
+			resp, err := clientcontract.OK(req.RequestID, buildPayload(req))
+			if err != nil {
+				t.Errorf("build response: %v", err)
+				return
+			}
+			data, _ := json.Marshal(resp)
+			_ = msg.Respond(data)
+		}); err != nil {
+			t.Fatalf("subscribe %s: %v", subject, err)
+		}
+	}
+	responder.Flush()
 }
 
 func decodeRequest(t *testing.T, data []byte) clientcontract.RequestEnvelope {

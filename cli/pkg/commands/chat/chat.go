@@ -12,10 +12,11 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/quarkloop/cli/pkg/natsclient"
 	"github.com/quarkloop/cli/pkg/runtimedial"
+	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 	spacemodel "github.com/quarkloop/pkg/space"
 	rtclient "github.com/quarkloop/runtime/pkg/client"
-	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
 // NewChatCommand returns the "chat" command.
@@ -87,17 +88,23 @@ func NewChatCommand() *cobra.Command {
 	return cmd
 }
 
-func createChatSession(ctx context.Context, title string) (supclient.Session, error) {
+func createChatSession(ctx context.Context, title string) (clientcontract.SessionInfo, error) {
 	space, err := spacemodel.CurrentName()
 	if err != nil {
-		return supclient.Session{}, err
+		return clientcontract.SessionInfo{}, err
 	}
-	session, err := supclient.New().CreateSession(ctx, space, supclient.CreateSessionRequest{
-		Type:  supclient.SessionTypeChat,
-		Title: title,
+	control, err := natsclient.ConnectFromEnv(ctx)
+	if err != nil {
+		return clientcontract.SessionInfo{}, err
+	}
+	defer control.Close()
+	session, err := control.CreateSession(ctx, clientcontract.CreateSessionRequest{
+		SpaceID: space,
+		Type:    clientcontract.SessionTypeChat,
+		Title:   title,
 	})
 	if err != nil {
-		return supclient.Session{}, fmt.Errorf("create session: %w", err)
+		return clientcontract.SessionInfo{}, fmt.Errorf("create session: %w", err)
 	}
 	return session, nil
 }

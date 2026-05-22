@@ -14,6 +14,7 @@ import (
 type CredentialRole string
 
 const (
+	RoleSupervisor    CredentialRole = "supervisor"
 	RoleRuntime       CredentialRole = "runtime"
 	RoleSession       CredentialRole = "session"
 	RoleAgent         CredentialRole = "agent"
