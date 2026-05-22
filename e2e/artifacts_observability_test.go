@@ -117,6 +117,9 @@ func TestAgentRunArtifactsAreRedactedAndStructured(t *testing.T) {
 	if len(payload.ServiceTimeline) != 2 || payload.ServiceTimeline[0]["service"] != "embedding" {
 		t.Fatalf("unexpected service timeline: %+v", payload.ServiceTimeline)
 	}
+	if payload.ServiceTimeline[0]["subject"] != "svc.embedding.v1.embed" {
+		t.Fatalf("service timeline missing NATS subject: %+v", payload.ServiceTimeline[0])
+	}
 	if len(payload.Diagnostics) != 0 {
 		t.Fatalf("unexpected diagnostics for successful trace: %+v", payload.Diagnostics)
 	}

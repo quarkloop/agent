@@ -13,6 +13,7 @@ import (
 
 	"github.com/quarkloop/e2e/utils"
 	"github.com/quarkloop/pkg/boundary/redaction"
+	"github.com/quarkloop/pkg/serviceapi/servicefunction"
 )
 
 type agentRunArtifacts struct {
@@ -226,7 +227,7 @@ func serviceTimeline(trace utils.MessageTrace) []map[string]any {
 		if !ok {
 			continue
 		}
-		timeline = append(timeline, map[string]any{
+		entry := map[string]any{
 			"service":         service,
 			"tool":            event.Name,
 			"call_id":         event.CallID,
@@ -236,7 +237,11 @@ func serviceTimeline(trace utils.MessageTrace) []map[string]any {
 			"session_id":      event.SessionID,
 			"run_id":          event.RunID,
 			"observed_at":     event.ObservedAt,
-		})
+		}
+		if subject := serviceSubjectFromTool(event.Name); subject != "" {
+			entry["subject"] = subject
+		}
+		timeline = append(timeline, entry)
 	}
 	return timeline
 }
@@ -281,6 +286,28 @@ func serviceNameFromTool(name string) (string, bool) {
 		return "", false
 	}
 	return before, true
+}
+
+func serviceSubjectFromTool(name string) string {
+	service, ok := serviceNameFromTool(name)
+	if !ok {
+		return ""
+	}
+	function := ""
+	if strings.HasPrefix(name, "build_release_") {
+		function = strings.TrimPrefix(name, "build_release_")
+	} else {
+		_, after, ok := strings.Cut(name, "_")
+		if !ok {
+			return ""
+		}
+		function = after
+	}
+	subject, err := servicefunction.Subject(service, servicefunction.DefaultVersion, function)
+	if err != nil {
+		return ""
+	}
+	return subject
 }
 
 func redactValue(value any) any {

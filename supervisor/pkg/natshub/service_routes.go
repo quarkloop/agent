@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	natsserver "github.com/nats-io/nats-server/v2/server"
+	"github.com/quarkloop/pkg/serviceapi/servicefunction"
 )
 
 type ServiceFunctionRoute struct {
@@ -15,15 +15,12 @@ type ServiceFunctionRoute struct {
 }
 
 func NewServiceFunctionRoute(service, version, function string) (ServiceFunctionRoute, error) {
-	service = subjectToken(service)
-	version = subjectToken(version)
-	function = subjectToken(function)
-	if service == "_" || version == "_" || function == "_" {
-		return ServiceFunctionRoute{}, errors.New("service, version, and function are required")
+	subject, err := servicefunction.Subject(service, version, function)
+	if err != nil {
+		return ServiceFunctionRoute{}, err
 	}
-	subject := fmt.Sprintf("svc.%s.%s.%s", service, version, function)
 	return ServiceFunctionRoute{
-		Name:          strings.Join([]string{service, version, function}, "_"),
+		Name:          strings.ReplaceAll(strings.TrimPrefix(subject, servicefunction.SubjectPrefix+"."), ".", "_"),
 		ExportSubject: subject,
 		ImportSubject: subject,
 	}, nil
@@ -66,10 +63,10 @@ func normalizeServiceFunctionRoute(route ServiceFunctionRoute) (ServiceFunctionR
 	if route.ImportSubject == "" {
 		route.ImportSubject = route.ExportSubject
 	}
-	if !natsserver.IsValidLiteralSubject(route.ExportSubject) {
+	if err := servicefunction.ValidateSubject(route.ExportSubject); err != nil {
 		return ServiceFunctionRoute{}, fmt.Errorf("invalid service function export subject %q", route.ExportSubject)
 	}
-	if !natsserver.IsValidLiteralSubject(route.ImportSubject) {
+	if err := servicefunction.ValidateSubject(route.ImportSubject); err != nil {
 		return ServiceFunctionRoute{}, fmt.Errorf("invalid service function import subject %q", route.ImportSubject)
 	}
 	if route.Name == "" {
