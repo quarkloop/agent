@@ -321,6 +321,10 @@ func startSupervisor(t *testing.T, bins BuiltBinaries, extraEnv map[string]strin
 		t.Fatalf("mkdir spaces: %v", err)
 	}
 	port := ReservePort(t)
+	natsClientPort := ReservePort(t)
+	natsWebSocketPort := ReservePort(t)
+	natsMonitorPort := ReservePort(t)
+	natsStateDir := filepath.Join(t.TempDir(), "nats")
 
 	overrides := map[string]string{
 		"QUARK_SPACES_ROOT": spacesDir,
@@ -333,6 +337,10 @@ func startSupervisor(t *testing.T, bins BuiltBinaries, extraEnv map[string]strin
 		"start",
 		"--port", fmt.Sprint(port),
 		"--runtime", bins.Agent,
+		"--nats-state-dir", natsStateDir,
+		"--nats-client-port", fmt.Sprint(natsClientPort),
+		"--nats-websocket-port", fmt.Sprint(natsWebSocketPort),
+		"--nats-monitor-port", fmt.Sprint(natsMonitorPort),
 	}, env)
 
 	supURL := fmt.Sprintf("http://127.0.0.1:%d", port)

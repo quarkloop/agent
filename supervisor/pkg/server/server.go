@@ -23,6 +23,7 @@ import (
 	"github.com/quarkloop/supervisor/internal/supervisor"
 	"github.com/quarkloop/supervisor/pkg/api"
 	"github.com/quarkloop/supervisor/pkg/events"
+	"github.com/quarkloop/supervisor/pkg/natshub"
 	"github.com/quarkloop/supervisor/pkg/runtime"
 	"github.com/quarkloop/supervisor/pkg/runtime/launchenv"
 	"github.com/quarkloop/supervisor/pkg/serviceprocess"
@@ -47,6 +48,8 @@ type Config struct {
 	// the supervisor starts an embedded local SpaceService and still talks to
 	// it through gRPC.
 	SpaceServiceAddr string
+	// NATS configures the supervisor-owned NATS hub.
+	NATS natshub.Config
 }
 
 // Server is the Supervisor HTTP API server.
@@ -60,6 +63,7 @@ type Server struct {
 	launchEnv launchenv.Builder
 	services  *serviceprocess.Manager
 	events    *events.Bus
+	natsHub   *natshub.Hub
 
 	spaceConn        *grpcstore.Store
 	spaceServiceGRPC *grpc.Server
@@ -75,6 +79,17 @@ func New(cfg Config) (*Server, error) {
 	}
 	if cfg.ServiceBinDir == "" {
 		cfg.ServiceBinDir = "bin"
+	}
+	if cfg.NATS.Mode == "" && cfg.NATS.StateDir == "" && cfg.NATS.ExternalURL == "" {
+		stateDir, err := natshub.DefaultStateDir()
+		if err != nil {
+			return nil, fmt.Errorf("resolve nats state dir: %w", err)
+		}
+		cfg.NATS = natshub.DefaultConfig(stateDir)
+	}
+	natsHub, err := natshub.New(cfg.NATS)
+	if err != nil {
+		return nil, fmt.Errorf("configure nats hub: %w", err)
 	}
 	root := cfg.SpacesDir
 	if root == "" {
@@ -122,6 +137,7 @@ func New(cfg Config) (*Server, error) {
 		launchEnv:        runtimeEnvBuilder,
 		services:         serviceprocess.NewManager(),
 		events:           events.NewBus(),
+		natsHub:          natsHub,
 		spaceConn:        store,
 		spaceServiceGRPC: spaceGRPC,
 	}
@@ -149,6 +165,26 @@ func (s *Server) Start(ctx context.Context) error {
 	defer stop()
 
 	sup := supervisor.New()
+	if s.natsHub != nil {
+		if err := s.natsHub.Start(ctx); err != nil {
+			return fmt.Errorf("start nats hub: %w", err)
+		}
+		defer func() {
+			shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if err := s.natsHub.Stop(shutCtx); err != nil {
+				slog.Error("failed to stop nats hub", "error", err)
+			}
+		}()
+		endpoints := s.natsHub.Endpoints()
+		slog.Info("nats hub ready",
+			"mode", endpoints.Mode,
+			"client_url", endpoints.ClientURL,
+			"websocket_url", endpoints.WebSocketURL,
+			"monitoring_url", endpoints.MonitoringURL,
+			"jetstream_dir", endpoints.JetStreamDir,
+		)
+	}
 	// Write state before accepting traffic
 	if err := sup.Save(supervisor.State{Port: s.cfg.Port, PID: os.Getpid()}); err != nil {
 		return fmt.Errorf("writing state: %w", err)

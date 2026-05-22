@@ -2,15 +2,24 @@ package commands
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/quarkloop/supervisor/pkg/natshub"
 	"github.com/quarkloop/supervisor/pkg/server"
 )
 
 var port int
 var runtimeBin string
 var spaceServiceAddr string
+var natsMode string
+var natsExternalURL string
+var natsStateDir string
+var natsClientPort int
+var natsWebSocketPort int
+var natsMonitorPort int
 
 // StartCmd creates the "supervisor start" command.
 func StartCmd() *cobra.Command {
@@ -27,6 +36,12 @@ Example:
 	cmd.Flags().IntVarP(&port, "port", "p", 7200, "HTTP listen port")
 	cmd.Flags().StringVar(&runtimeBin, "runtime", "runtime", "Path to agent runtime binary")
 	cmd.Flags().StringVar(&spaceServiceAddr, "space-service", "", "Existing SpaceService gRPC address (default: start embedded service)")
+	cmd.Flags().StringVar(&natsMode, "nats-mode", string(natshub.ModeEmbedded), "NATS mode: embedded or external")
+	cmd.Flags().StringVar(&natsExternalURL, "nats-url", "", "External NATS URL when --nats-mode=external")
+	cmd.Flags().StringVar(&natsStateDir, "nats-state-dir", "", "Supervisor-owned embedded NATS state directory")
+	cmd.Flags().IntVar(&natsClientPort, "nats-client-port", 4222, "Embedded NATS client listen port")
+	cmd.Flags().IntVar(&natsWebSocketPort, "nats-websocket-port", 9222, "Embedded NATS WebSocket listen port")
+	cmd.Flags().IntVar(&natsMonitorPort, "nats-monitor-port", 8222, "Embedded NATS HTTP monitoring listen port")
 
 	return cmd
 }
@@ -40,11 +55,16 @@ func runStart(cmd *cobra.Command, args []string) error {
 		spacesDir = args[0]
 	}
 
+	natsCfg, err := startNATSConfig()
+	if err != nil {
+		return err
+	}
 	cfg := server.Config{
 		Port:             port,
 		SpacesDir:        spacesDir,
 		RuntimeBin:       runtimeBin,
 		SpaceServiceAddr: spaceServiceAddr,
+		NATS:             natsCfg,
 	}
 	srv, err := server.New(cfg)
 	if err != nil {
@@ -52,4 +72,31 @@ func runStart(cmd *cobra.Command, args []string) error {
 	}
 
 	return srv.Start(context.Background())
+}
+
+func startNATSConfig() (natshub.Config, error) {
+	switch natshub.Mode(strings.TrimSpace(natsMode)) {
+	case natshub.ModeEmbedded, "":
+		stateDir := strings.TrimSpace(natsStateDir)
+		if stateDir == "" {
+			defaultDir, err := natshub.DefaultStateDir()
+			if err != nil {
+				return natshub.Config{}, err
+			}
+			stateDir = defaultDir
+		}
+		cfg := natshub.DefaultConfig(stateDir)
+		cfg.Client.Port = natsClientPort
+		cfg.WebSocket.Port = natsWebSocketPort
+		cfg.Monitoring.Port = natsMonitorPort
+		return cfg, nil
+	case natshub.ModeExternal:
+		return natshub.Config{
+			Mode:        natshub.ModeExternal,
+			ExternalURL: strings.TrimSpace(natsExternalURL),
+			Accounts:    natshub.DefaultAccounts(),
+		}, nil
+	default:
+		return natshub.Config{}, fmt.Errorf("unsupported nats mode %q", natsMode)
+	}
 }
