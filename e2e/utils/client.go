@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -405,41 +404,32 @@ func previewString(value string, limit int) string {
 	return string(runes[:limit]) + "...(truncated)"
 }
 
-// AgentSessionsCount reads GET /v1/info on the agent and returns the session
-// count from the response.
+// AgentSessionsCount reads the runtime NATS info subject and returns the
+// mirrored session count.
 func AgentSessionsCount(t *testing.T, env *E2EEnv) int {
 	t.Helper()
-	resp, err := env.HTTPC.Get(env.AgentURL + "/v1/info")
-	if err != nil {
-		t.Fatalf("get /v1/info: %v", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		t.Fatalf("GET /v1/info: status=%d body=%s", resp.StatusCode, string(body))
-	}
-	var payload struct {
-		Sessions int `json:"sessions"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		t.Fatalf("decode /v1/info: %v", err)
-	}
-	return payload.Sessions
+	credential := issueSpaceScopedCredential(t, env.NATS, clientcontract.SubjectSpaceCredential, env.Space)
+	conn := connectNATSCredential(t, credential)
+	defer conn.Close()
+	resp := requestNATSPayload[clientcontract.RuntimeInfoResponse](t, conn, clientcontract.SubjectRuntimeInfoGet, env.Space, clientcontract.RuntimeInfoRequest{SpaceID: env.Space})
+	return resp.Sessions
 }
 
-// WaitForAgentSession polls the agent's /v1/info until the session count
-// reflects that a session has been mirrored from the supervisor.
+// WaitForAgentSession polls the runtime NATS session subject until the
+// supervisor-created session has been mirrored by the agent.
 func WaitForAgentSession(t *testing.T, env *E2EEnv, id string, timeout time.Duration) {
 	t.Helper()
+	credential := issueSpaceScopedCredential(t, env.NATS, clientcontract.SubjectSpaceCredential, env.Space)
+	conn := connectNATSCredential(t, credential)
+	defer conn.Close()
 	deadline := time.Now().Add(timeout)
-	url := fmt.Sprintf("%s/v1/sessions/%s/messages", env.AgentURL, id)
 	for time.Now().Before(deadline) {
-		resp, err := env.HTTPC.Get(url)
-		if err == nil {
-			resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
-				return
-			}
+		resp, err := tryRequestNATSPayload[clientcontract.RuntimeSessionResponse](conn, clientcontract.SubjectRuntimeSessionGet, env.Space, clientcontract.RuntimeSessionRequest{
+			SpaceID:   env.Space,
+			SessionID: id,
+		}, 2*time.Second)
+		if err == nil && resp.Found {
+			return
 		}
 		time.Sleep(100 * time.Millisecond)
 	}

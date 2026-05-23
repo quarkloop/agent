@@ -100,6 +100,18 @@ func TestChannelAcceptsSessionInputAndPublishesEvents(t *testing.T) {
 	assertSessionEvent(t, events, "token")
 	assertSessionEvent(t, events, "done")
 
+	infoResp := requestPayload[clientcontract.RuntimeInfoResponse](t, client, clientcontract.SubjectRuntimeInfoGet, clientcontract.RuntimeInfoRequest{SpaceID: "docs"})
+	if infoResp.Sessions != 1 {
+		t.Fatalf("info response = %#v", infoResp)
+	}
+	sessionResp := requestPayload[clientcontract.RuntimeSessionResponse](t, client, clientcontract.SubjectRuntimeSessionGet, clientcontract.RuntimeSessionRequest{
+		SpaceID:   "docs",
+		SessionID: "chat",
+	})
+	if !sessionResp.Found {
+		t.Fatalf("session response = %#v", sessionResp)
+	}
+
 	activityStore.Add("chat", "message.user", map[string]string{"source": "test"})
 	assertActivityEvent(t, activityEvents, "message.user")
 

@@ -45,6 +45,8 @@ const (
 )
 
 const (
+	SubjectRuntimeInfoGet      = "runtime.info.v1.get"
+	SubjectRuntimeSessionGet   = "runtime.session.v1.get"
 	SubjectRuntimePlanGet      = "runtime.plan.v1.get"
 	SubjectRuntimePlanApprove  = "runtime.plan.v1.approve"
 	SubjectRuntimePlanReject   = "runtime.plan.v1.reject"

@@ -29,6 +29,8 @@ func RuntimePermissions() PermissionConfig {
 		},
 		SubscribeAllow: []string{
 			"session.*.input",
+			"runtime.info.v1.get",
+			"runtime.session.v1.get",
 			"runtime.plan.v1.*",
 			"runtime.activity.v1.list",
 			"agent.*.invoke",
@@ -41,6 +43,8 @@ func RuntimePermissions() PermissionConfig {
 func UserPermissions() PermissionConfig {
 	return PermissionConfig{
 		PublishAllow: []string{
+			"runtime.info.v1.get",
+			"runtime.session.v1.get",
 			"runtime.plan.v1.get",
 			"runtime.plan.v1.approve",
 			"runtime.plan.v1.reject",

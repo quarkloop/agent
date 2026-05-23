@@ -47,6 +47,7 @@ type Config struct {
 
 type SessionStore interface {
 	Has(id string) bool
+	List() []*session.Conversation
 	GetOrCreate(id, sessionType, title string) *session.Conversation
 }
 
@@ -154,6 +155,8 @@ func (c *Channel) Start(ctx context.Context) error {
 func (c *Channel) subscribe(conn *natsgo.Conn, cfg Config) ([]*natsgo.Subscription, error) {
 	handlers := map[string]func(*natsgo.Msg){
 		"session.*.input":                         c.handleInput,
+		clientcontract.SubjectRuntimeInfoGet:      c.handleInfoGet,
+		clientcontract.SubjectRuntimeSessionGet:   c.handleSessionGet,
 		clientcontract.SubjectRuntimePlanGet:      c.handlePlanGet,
 		clientcontract.SubjectRuntimePlanApprove:  c.handlePlanApprove,
 		clientcontract.SubjectRuntimePlanReject:   c.handlePlanReject,
@@ -242,6 +245,49 @@ func (c *Channel) handleInput(msg *natsgo.Msg) {
 	respond(msg, ack)
 
 	go c.postAndStream(c.requestContext(), payload)
+}
+
+func (c *Channel) handleInfoGet(msg *natsgo.Msg) {
+	req, ok := decodeRequest(msg)
+	if !ok {
+		respond(msg, clientcontract.Error("unknown", string(boundary.InvalidArgument), "invalid request envelope"))
+		return
+	}
+	var payload clientcontract.RuntimeInfoRequest
+	if err := req.DecodePayload(&payload); err != nil {
+		respond(msg, clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), err.Error()))
+		return
+	}
+	if strings.TrimSpace(payload.SpaceID) == "" {
+		respond(msg, clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), "space_id is required"))
+		return
+	}
+	respondPayload(msg, req.RequestID, clientcontract.RuntimeInfoResponse{Sessions: len(c.sessions.List())})
+}
+
+func (c *Channel) handleSessionGet(msg *natsgo.Msg) {
+	req, ok := decodeRequest(msg)
+	if !ok {
+		respond(msg, clientcontract.Error("unknown", string(boundary.InvalidArgument), "invalid request envelope"))
+		return
+	}
+	var payload clientcontract.RuntimeSessionRequest
+	if err := req.DecodePayload(&payload); err != nil {
+		respond(msg, clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), err.Error()))
+		return
+	}
+	if strings.TrimSpace(payload.SpaceID) == "" {
+		respond(msg, clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), "space_id is required"))
+		return
+	}
+	if strings.TrimSpace(payload.SessionID) == "" {
+		respond(msg, clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), "session_id is required"))
+		return
+	}
+	respondPayload(msg, req.RequestID, clientcontract.RuntimeSessionResponse{
+		SessionID: payload.SessionID,
+		Found:     c.sessions.Has(payload.SessionID),
+	})
 }
 
 func (c *Channel) handlePlanGet(msg *natsgo.Msg) {

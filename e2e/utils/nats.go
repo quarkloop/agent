@@ -78,35 +78,43 @@ func connectNATSCredential(t *testing.T, credential clientcontract.NATSCredentia
 
 func requestNATSPayload[T any](t *testing.T, conn *nats.Conn, subject, spaceID string, payload any) T {
 	t.Helper()
+	out, err := tryRequestNATSPayload[T](conn, subject, spaceID, payload, 10*time.Second)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	return out
+}
+
+func tryRequestNATSPayload[T any](conn *nats.Conn, subject, spaceID string, payload any, timeout time.Duration) (T, error) {
+	var out T
 	req, err := clientcontract.NewRequest("e2e-"+subject, spaceID, payload)
 	if err != nil {
-		t.Fatalf("new nats request: %v", err)
+		return out, fmt.Errorf("new nats request: %w", err)
 	}
 	data, err := json.Marshal(req)
 	if err != nil {
-		t.Fatalf("marshal nats request: %v", err)
+		return out, fmt.Errorf("marshal nats request: %w", err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	reply, err := conn.RequestWithContext(ctx, subject, data)
 	if err != nil {
-		t.Fatalf("nats request %s: %v", subject, err)
+		return out, fmt.Errorf("nats request %s: %w", subject, err)
 	}
 	var resp clientcontract.ResponseEnvelope
 	if err := json.Unmarshal(reply.Data, &resp); err != nil {
-		t.Fatalf("decode nats response: %v", err)
+		return out, fmt.Errorf("decode nats response: %w", err)
 	}
 	if resp.Status != "ok" {
 		if resp.Error != nil {
-			t.Fatalf("nats response %s failed: %s: %s", subject, resp.Error.Category, resp.Error.Message)
+			return out, fmt.Errorf("nats response %s failed: %s: %s", subject, resp.Error.Category, resp.Error.Message)
 		}
-		t.Fatalf("nats response %s failed: %#v", subject, resp)
+		return out, fmt.Errorf("nats response %s failed: %#v", subject, resp)
 	}
-	var out T
 	if err := resp.DecodePayload(&out); err != nil {
-		t.Fatalf("decode nats payload %s: %v", subject, err)
+		return out, fmt.Errorf("decode nats payload %s: %w", subject, err)
 	}
-	return out
+	return out, nil
 }
 
 func requestNATSMessage(ctx context.Context, conn *nats.Conn, subject string, req clientcontract.RequestEnvelope) error {

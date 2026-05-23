@@ -332,6 +332,24 @@ type RuntimePlanRequest struct {
 	PlanID  string `json:"plan_id,omitempty"`
 }
 
+type RuntimeInfoRequest struct {
+	SpaceID string `json:"space_id"`
+}
+
+type RuntimeInfoResponse struct {
+	Sessions int `json:"sessions"`
+}
+
+type RuntimeSessionRequest struct {
+	SpaceID   string `json:"space_id"`
+	SessionID string `json:"session_id"`
+}
+
+type RuntimeSessionResponse struct {
+	SessionID string `json:"session_id"`
+	Found     bool   `json:"found"`
+}
+
 type RuntimePlanStep struct {
 	ID          string `json:"id"`
 	Agent       string `json:"agent"`
