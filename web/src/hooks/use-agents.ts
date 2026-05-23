@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { useAgentContext } from "@/context/agent-context";
-import { useAgents, useAddAgent, useRemoveAgent } from "@/hooks/use-agents-query";
+import {
+  useAgents,
+  useAddAgent,
+  useRemoveAgent,
+} from "@/hooks/use-agents-query";
 import type { AgentConnection } from "@/lib/types";
 
 export function useAgentsList() {

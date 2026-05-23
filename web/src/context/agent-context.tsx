@@ -58,7 +58,12 @@ function reducer(state: AgentState, action: AgentAction): AgentState {
           state.activeAgentId === action.id ? null : state.activeAgentId,
       };
     case "SET_ACTIVE":
-      return { ...state, activeAgentId: action.id, sessions: [], activeSessionKey: null };
+      return {
+        ...state,
+        activeAgentId: action.id,
+        sessions: [],
+        activeSessionKey: null,
+      };
     case "UPDATE_STATUS":
       return {
         ...state,
@@ -72,7 +77,11 @@ function reducer(state: AgentState, action: AgentAction): AgentState {
         const main = action.sessions.find((s) => s.type === "main");
         activeKey = main?.key ?? action.sessions[0].key;
       }
-      return { ...state, sessions: action.sessions, activeSessionKey: activeKey };
+      return {
+        ...state,
+        sessions: action.sessions,
+        activeSessionKey: activeKey,
+      };
     }
     case "SET_ACTIVE_SESSION":
       return { ...state, activeSessionKey: action.key };
@@ -88,7 +97,7 @@ function reducer(state: AgentState, action: AgentAction): AgentState {
         sessions: state.sessions.filter((s) => s.key !== action.key),
         activeSessionKey:
           state.activeSessionKey === action.key
-            ? state.sessions.find((s) => s.type === "main")?.key ?? null
+            ? (state.sessions.find((s) => s.type === "main")?.key ?? null)
             : state.activeSessionKey,
       };
     default:
@@ -125,7 +134,9 @@ export function AgentProvider({ children }: { children: ReactNode }) {
   }, [state.agents, setSavedAgents]);
 
   const activeAgent = state.agents.find((a) => a.id === state.activeAgentId);
-  const activeSession = state.sessions.find((s) => s.key === state.activeSessionKey);
+  const activeSession = state.sessions.find(
+    (s) => s.key === state.activeSessionKey,
+  );
 
   return (
     <AgentContext value={{ state, dispatch, activeAgent, activeSession }}>
@@ -136,6 +147,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
 
 export function useAgentContext() {
   const ctx = useContext(AgentContext);
-  if (!ctx) throw new Error("useAgentContext must be used within AgentProvider");
+  if (!ctx)
+    throw new Error("useAgentContext must be used within AgentProvider");
   return ctx;
 }

@@ -28,9 +28,7 @@ export function PhaseItem({ eventType, data }: PhaseItemProps) {
       <span>
         <span className="font-mono">{phaseId}</span> {label}
       </span>
-      {data?.error && (
-        <span className="text-destructive">{data.error}</span>
-      )}
+      {data?.error && <span className="text-destructive">{data.error}</span>}
     </div>
   );
 }

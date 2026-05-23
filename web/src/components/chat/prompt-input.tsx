@@ -21,7 +21,12 @@ interface PromptInputProps {
   provider?: string;
 }
 
-export function PromptInput({ onSend, disabled, model, provider }: PromptInputProps) {
+export function PromptInput({
+  onSend,
+  disabled,
+  model,
+  provider,
+}: PromptInputProps) {
   const [files, setFiles] = useState<FileAttachment[]>([]);
   const [mode, setMode] = useState<AgentMode>("ask");
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
@@ -141,7 +146,9 @@ export function PromptInput({ onSend, disabled, model, provider }: PromptInputPr
           {/* Model badge — static display, not interactive */}
           {model && (
             <div className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-muted-foreground">
-              {provider && <span className="text-muted-foreground/60">{provider}/</span>}
+              {provider && (
+                <span className="text-muted-foreground/60">{provider}/</span>
+              )}
               <span className="font-medium">{model}</span>
             </div>
           )}

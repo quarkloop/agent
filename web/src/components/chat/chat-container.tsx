@@ -6,7 +6,12 @@ import { useAgentContext } from "@/context/agent-context";
 import { ActivityRenderer } from "./activity-renderer";
 import { PromptInput } from "./prompt-input";
 import { StatusIndicator } from "@/components/layout/status-indicator";
-import { MessageSquare, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  MessageSquare,
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 
 export function ChatContainer() {
   const { activeAgent, activeSession } = useAgentContext();
@@ -78,7 +83,13 @@ export function ChatContainer() {
   );
 }
 
-function ErrorMessage({ error, onDismiss }: { error: string; onDismiss: () => void }) {
+function ErrorMessage({
+  error,
+  onDismiss,
+}: {
+  error: string;
+  onDismiss: () => void;
+}) {
   const [expanded, setExpanded] = useState(false);
   const friendly = humanizeError(error);
   const hasDetails = friendly !== error;
@@ -103,7 +114,11 @@ function ErrorMessage({ error, onDismiss }: { error: string; onDismiss: () => vo
                 className="flex items-center gap-0.5 text-[11px] text-red-400 hover:text-red-600 dark:text-red-500 dark:hover:text-red-300"
               >
                 {expanded ? "hide" : "details"}
-                {expanded ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
+                {expanded ? (
+                  <ChevronUp className="size-3" />
+                ) : (
+                  <ChevronDown className="size-3" />
+                )}
               </button>
             )}
             <button
@@ -127,7 +142,9 @@ function ErrorMessage({ error, onDismiss }: { error: string; onDismiss: () => vo
 }
 
 function humanizeError(raw: string): string {
-  const providerMatch = raw.match(/gateway:.*?http (\d+).*?"message"\s*:\s*"([^"]+)"/);
+  const providerMatch = raw.match(
+    /gateway:.*?http (\d+).*?"message"\s*:\s*"([^"]+)"/,
+  );
   if (providerMatch) {
     return `Model provider returned HTTP ${providerMatch[1]}: ${providerMatch[2]}`;
   }

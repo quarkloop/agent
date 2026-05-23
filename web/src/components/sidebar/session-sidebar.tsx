@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { useAgentContext } from "@/context/agent-context";
-import { useSessions, useCreateSession, useDeleteSession } from "@/hooks/use-sessions-query";
+import {
+  useSessions,
+  useCreateSession,
+  useDeleteSession,
+} from "@/hooks/use-sessions-query";
 import { Button } from "@/components/themed/button";
 import { Plus, Trash2, MessageCircle, Bot } from "lucide-react";
 
@@ -12,43 +16,54 @@ export function SessionSidebar() {
 
   const { data: sessions = [], isSuccess } = useSessions(
     activeAgent?.id,
-    activeAgent?.baseUrl,
     activeAgent?.spaceId,
   );
-  const createMut = useCreateSession(
+  const { mutate: createSession, isPending: isCreatingSession } =
+    useCreateSession(activeAgent?.id ?? "", activeAgent?.spaceId);
+  const { mutate: deleteSession } = useDeleteSession(
     activeAgent?.id ?? "",
-    activeAgent?.baseUrl ?? "",
     activeAgent?.spaceId,
   );
-  const deleteMut = useDeleteSession(
-    activeAgent?.id ?? "",
-    activeAgent?.baseUrl ?? "",
-    activeAgent?.spaceId,
-  );
+  const syncedSessionRef = useRef<string | null>(null);
+  const sessionSignature = sessions
+    .map((session) => `${session.key}:${session.updated_at}`)
+    .join("|");
 
   useEffect(() => {
     if (!activeAgent || !isSuccess) return;
-    dispatch({ type: "SET_SESSIONS", sessions });
+    const syncKey = `${activeAgent.id}:${sessionSignature}`;
+    if (syncedSessionRef.current !== syncKey) {
+      syncedSessionRef.current = syncKey;
+      dispatch({ type: "SET_SESSIONS", sessions });
+    }
 
     if (
       sessions.length === 0 &&
       initializedAgentRef.current !== activeAgent.id &&
-      !createMut.isPending
+      !isCreatingSession
     ) {
       initializedAgentRef.current = activeAgent.id;
-      createMut.mutate({ type: "chat", title: "Chat" });
+      createSession({ type: "chat", title: "Chat" });
     }
-  }, [activeAgent, createMut, dispatch, isSuccess, sessions]);
+  }, [
+    activeAgent,
+    createSession,
+    dispatch,
+    isCreatingSession,
+    isSuccess,
+    sessionSignature,
+    sessions,
+  ]);
 
   const handleCreate = useCallback(() => {
-    createMut.mutate({ type: "chat" });
-  }, [createMut]);
+    createSession({ type: "chat" });
+  }, [createSession]);
 
   const handleDelete = useCallback(
     (key: string) => {
-      deleteMut.mutate(key);
+      deleteSession(key);
     },
-    [deleteMut],
+    [deleteSession],
   );
 
   if (!activeAgent) return null;

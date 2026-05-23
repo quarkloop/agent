@@ -2,10 +2,12 @@
 
 import { useAgentContext } from "@/context/agent-context";
 import { StatusIndicator } from "./status-indicator";
-import { Zap } from "lucide-react";
+import { useNatsStatusState } from "@/lib/nats/status-context";
+import { Radio, Zap } from "lucide-react";
 
 export function Header() {
   const { activeAgent } = useAgentContext();
+  const nats = useNatsStatusState();
 
   return (
     <header className="flex h-14 shrink-0 items-center border-b border-border/60 bg-background px-5">
@@ -25,11 +27,19 @@ export function Header() {
               {activeAgent.name}
             </span>
             <span className="font-mono text-sm text-muted-foreground">
-              :{activeAgent.port}
+              {activeAgent.spaceId ?? activeAgent.id}
             </span>
           </div>
         </>
       )}
+
+      <div className="ml-auto flex items-center gap-2 rounded-md border border-border/60 px-2 py-1 text-xs text-muted-foreground">
+        <Radio className="size-3" />
+        <span className="capitalize">{nats.status}</span>
+        <span className="max-w-40 truncate font-mono text-[11px]">
+          {nats.detail}
+        </span>
+      </div>
     </header>
   );
 }

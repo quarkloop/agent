@@ -12,7 +12,7 @@ import { Button } from "@/components/themed/button";
 import { Input } from "@/components/themed/input";
 import { Plus } from "lucide-react";
 import type { AgentConnection } from "@/lib/types";
-import { RUNTIME_PORT_DEFAULT } from "@/lib/constants";
+import { browserNatsConfig } from "@/lib/nats/config";
 
 interface AddAgentDialogProps {
   onAdd: (agent: AgentConnection) => void;
@@ -20,21 +20,24 @@ interface AddAgentDialogProps {
 
 export function AddAgentDialog({ onAdd }: AddAgentDialogProps) {
   const [open, setOpen] = useState(false);
-  const [port, setPort] = useState("");
+  const [spaceId, setSpaceId] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const p = parseInt(port, 10);
-    if (isNaN(p) || p < 1 || p > 65535) return;
+    const name = spaceId.trim();
+    if (!name) return;
+    const wsUrl = browserNatsConfig().wsUrl;
+    const port = new URL(wsUrl).port;
     onAdd({
-      id: `manual-${p}`,
-      name: `Agent :${p}`,
+      id: name,
+      name,
       mode: "direct",
-      baseUrl: `http://127.0.0.1:${p}`,
-      port: p,
+      baseUrl: wsUrl,
+      port: port ? Number(port) : 0,
       status: "unknown",
+      spaceId: name,
     });
-    setPort("");
+    setSpaceId("");
     setOpen(false);
   };
 
@@ -42,7 +45,11 @@ export function AddAgentDialog({ onAdd }: AddAgentDialogProps) {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger
         render={
-          <Button variant="ghost" size="sm" className="w-full justify-start gap-2" />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2"
+          />
         }
       >
         <Plus className="size-4" />
@@ -54,12 +61,10 @@ export function AddAgentDialog({ onAdd }: AddAgentDialogProps) {
         </SheetHeader>
         <form onSubmit={handleSubmit} className="mt-4 space-y-3">
           <Input
-            type="number"
-            placeholder={`Port (e.g. ${RUNTIME_PORT_DEFAULT})`}
-            value={port}
-            onChange={(e) => setPort(e.target.value)}
-            min={1}
-            max={65535}
+            type="text"
+            placeholder="Space ID"
+            value={spaceId}
+            onChange={(e) => setSpaceId(e.target.value)}
           />
           <Button type="submit" size="sm" className="w-full">
             Connect

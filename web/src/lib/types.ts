@@ -113,7 +113,7 @@ export interface ActivityRecord {
 
 // ─── Session ─────────────────────────────────────────────────
 
-export type SessionType = "main" | "chat" | "subagent" | "cron";
+export type SessionType = "main" | "chat" | "task" | "subagent" | "cron";
 
 export interface SessionRecord {
   id: string;

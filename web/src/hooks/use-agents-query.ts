@@ -1,12 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { get, AGENTS_KEY } from "./http";
+import { listAgents } from "@/lib/nats/client";
 import type { AgentConnection } from "@/lib/types";
+
+export const AGENTS_KEY = ["agents"] as const;
 
 export function useAgents() {
   return useQuery<AgentConnection[]>({
     queryKey: AGENTS_KEY,
-    queryFn: () => get("/api/v1/agents/discover"),
-    refetchInterval: 30_000,
+    queryFn: listAgents,
   });
 }
 

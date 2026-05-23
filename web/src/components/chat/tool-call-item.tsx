@@ -20,7 +20,10 @@ export function ToolCallItem({
 }: ToolCallItemProps) {
   const [expanded, setExpanded] = useState(false);
   const completed = result !== undefined;
-  const parsed = useMemo(() => parseToolData(toolName, args, result), [toolName, args, result]);
+  const parsed = useMemo(
+    () => parseToolData(toolName, args, result),
+    [toolName, args, result],
+  );
 
   return (
     <div className="px-5 py-0.5">
@@ -79,9 +82,7 @@ export function ToolCallItem({
             <pre
               className={cn(
                 "whitespace-pre-wrap break-all px-3 py-1.5 font-mono text-[12px]",
-                isError
-                  ? "bg-red-50 text-red-600"
-                  : "bg-white text-zinc-600",
+                isError ? "bg-red-50 text-red-600" : "bg-white text-zinc-600",
               )}
             >
               {truncate(parsed.output.trim(), 1500)}
@@ -92,9 +93,7 @@ export function ToolCallItem({
             <pre
               className={cn(
                 "whitespace-pre-wrap break-all px-3 py-1.5 font-mono text-[12px]",
-                isError
-                  ? "bg-red-50 text-red-600"
-                  : "bg-white text-zinc-600",
+                isError ? "bg-red-50 text-red-600" : "bg-white text-zinc-600",
               )}
             >
               {truncate(result, 1500)}
@@ -135,7 +134,9 @@ function parseToolData(
       } else {
         const entries = Object.entries(parsed);
         if (entries.length > 0) {
-          summary = entries.map(([k, v]) => `${k}=${truncate(String(v), 20)}`).join(" ");
+          summary = entries
+            .map(([k, v]) => `${k}=${truncate(String(v), 20)}`)
+            .join(" ");
         }
       }
     } catch {
@@ -146,7 +147,8 @@ function parseToolData(
   if (result) {
     try {
       const parsed = JSON.parse(result);
-      output = parsed.output ?? parsed.content_preview ?? parsed.content ?? undefined;
+      output =
+        parsed.output ?? parsed.content_preview ?? parsed.content ?? undefined;
       if (parsed.error && typeof parsed.error === "string") {
         output = parsed.error;
       }

@@ -26,7 +26,7 @@ export function AgentCard({ agent, active, onSelect }: AgentCardProps) {
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">{agent.name}</div>
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span className="font-mono">:{agent.port}</span>
+          <span className="font-mono">{agent.spaceId ?? agent.id}</span>
           <span className="text-border">|</span>
           <span>{agent.mode}</span>
         </div>

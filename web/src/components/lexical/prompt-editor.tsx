@@ -80,10 +80,19 @@ export function PromptEditor({
         <OnChangePlugin onChange={handleChange} />
         <SubmitPlugin onSubmit={handleSubmit} />
         <AttachmentPlugin onFilesAdded={onFilesAdded} />
+        <EditableStatePlugin disabled={disabled} />
         <EditorRefPlugin editorRef={editorRef} />
       </div>
     </LexicalComposer>
   );
+}
+
+function EditableStatePlugin({ disabled }: { disabled?: boolean }) {
+  const [editor] = useLexicalComposerContext();
+  useEffect(() => {
+    editor.setEditable(!disabled);
+  }, [disabled, editor]);
+  return null;
 }
 
 function EditorRefPlugin({

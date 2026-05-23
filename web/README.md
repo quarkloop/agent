@@ -1,36 +1,73 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Quark Web
 
-## Getting Started
+Quark Web is the browser client for the NATS-native Quark stack. It is a
+Next.js app that connects directly to the local NATS WebSocket listener and
+uses the same NATS subjects as the CLI and runtime contracts.
 
-First, run the development server:
+## Requirements
+
+- Node.js 22.14 or newer
+- npm 11.3 or newer
+- A Quark supervisor or local NATS server with the WebSocket listener enabled
+
+## Local Development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000/chat`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The app expects these browser-safe environment variables:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable                     | Purpose                                                       | Default               |
+| ---------------------------- | ------------------------------------------------------------- | --------------------- |
+| `NEXT_PUBLIC_NATS_WS_URL`    | NATS WebSocket URL used by `@nats-io/nats-core` `wsconnect()` | `ws://127.0.0.1:9222` |
+| `NEXT_PUBLIC_NATS_USER`      | Local browser credential username                             | empty                 |
+| `NEXT_PUBLIC_NATS_PASSWORD`  | Local browser credential password                             | empty                 |
+| `NEXT_PUBLIC_QUARK_SPACE_ID` | Optional comma-separated space allowlist shown by the UI      | all spaces            |
 
-## Learn More
+Do not expose production control-plane credentials through `NEXT_PUBLIC_*`.
+Browser credentials must be scoped by NATS permissions to the subjects the web
+client actually needs.
 
-To learn more about Next.js, take a look at the following resources:
+## NATS Contract
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+All product data flow uses NATS. The browser opens a module-scope singleton
+connection in `src/lib/nats/connection.ts`; React consumes that promise through
+Suspense in `src/components/nats/nats-client-boundary.tsx`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Main subjects used by the UI:
 
-## Deploy on Vercel
+- `control.space.v1.list`
+- `control.space.v1.credential`
+- `control.session.v1.list`
+- `control.session.v1.create`
+- `control.session.v1.delete`
+- `control.session.v1.credential`
+- `runtime.info.v1.get`
+- `runtime.plan.v1.get`
+- `runtime.plan.v1.approve`
+- `runtime.plan.v1.reject`
+- `runtime.activity.v1.list`
+- `session.<session_id>.input`
+- `session.<session_id>.events`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The web project does not expose Next.js API proxy routes for Quark operations.
+Requests, replies, and subscriptions are implemented under `src/lib/nats/`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Verification
+
+```bash
+npm run lint
+npm run format:check
+npx tsc --noEmit
+npm run build
+npm run e2e
+npm audit --audit-level=moderate
+```
+
+The E2E suite starts a real local `nats-server`, connects the browser over
+WebSocket, connects the harness through `@nats-io/transport-node`, and records
+NATS CLI diagnostics for subject/subscription inspection.

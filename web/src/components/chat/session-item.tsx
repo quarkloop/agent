@@ -15,7 +15,9 @@ export function SessionItem({ eventType, data, timestamp }: SessionItemProps) {
     <div className="flex items-center justify-center py-4">
       <div className="flex items-center gap-2 text-[11px] text-zinc-400">
         <div className="h-px w-8 bg-zinc-200" />
-        <span>{label} {time}</span>
+        <span>
+          {label} {time}
+        </span>
         <div className="h-px w-8 bg-zinc-200" />
       </div>
     </div>

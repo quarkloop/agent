@@ -1,36 +1,45 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { get, post, agentKey, DISABLED_KEY, BASE } from "./http";
+import {
+  approveRuntimePlan,
+  rejectRuntimePlan,
+  runtimePlan,
+} from "@/lib/nats/client";
 import type { Plan } from "@/lib/types";
 
-export function usePlan(agentId: string | undefined, baseUrl: string | undefined) {
+const DISABLED_KEY = ["disabled"] as const;
+
+function agentKey(agentId: string, path: string) {
+  return ["agents", agentId, path] as const;
+}
+
+export function usePlan(agentId: string | undefined, spaceId?: string) {
   return useQuery<Plan | null>({
     queryKey: agentId ? agentKey(agentId, "plan") : DISABLED_KEY,
     queryFn: async () => {
       try {
-        return await get(`/api/v1/agents/${agentId}/plan?${BASE(baseUrl!)}`);
+        return await runtimePlan(spaceId ?? agentId!);
       } catch {
         return null;
       }
     },
-    enabled: !!agentId && !!baseUrl,
-    refetchInterval: 5000,
+    enabled: !!agentId && !!spaceId,
   });
 }
 
-export function useApprovePlan(agentId: string, baseUrl: string) {
+export function useApprovePlan(agentId: string, spaceId?: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => post<Plan>(`/api/v1/agents/${agentId}/plan/approve?${BASE(baseUrl)}`),
+    mutationFn: () => approveRuntimePlan(spaceId ?? agentId),
     onSuccess(plan) {
       qc.setQueryData<Plan | null>(agentKey(agentId, "plan"), plan);
     },
   });
 }
 
-export function useRejectPlan(agentId: string, baseUrl: string) {
+export function useRejectPlan(agentId: string, spaceId?: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => post<void>(`/api/v1/agents/${agentId}/plan/reject?${BASE(baseUrl)}`),
+    mutationFn: () => rejectRuntimePlan(spaceId ?? agentId),
     onSuccess() {
       qc.setQueryData<Plan | null>(agentKey(agentId, "plan"), null);
     },
