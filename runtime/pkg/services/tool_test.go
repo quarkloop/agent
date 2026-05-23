@@ -3,23 +3,22 @@ package services
 import (
 	"context"
 	"encoding/json"
-	"net"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	natsserver "github.com/nats-io/nats-server/v2/server"
+	natsgo "github.com/nats-io/nats.go"
 	"github.com/quarkloop/pkg/boundary"
 	citationv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/citation/v1"
 	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
 	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
-	iov1 "github.com/quarkloop/pkg/serviceapi/gen/quark/io/v1"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
+	iov1 "github.com/quarkloop/pkg/serviceapi/gen/quark/io/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
+	"github.com/quarkloop/pkg/serviceapi/servicefunction"
 	"github.com/quarkloop/runtime/pkg/modelservice"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -673,24 +672,13 @@ func TestExecutorDoesNotCaptureFilesystemPDFExtractionAsContentSource(t *testing
 }
 
 func TestExecutorRetriesRetryableServiceFunctionFailures(t *testing.T) {
-	server := grpc.NewServer()
+	ns := startServicesNATSServer(t)
 	fake := &flakyEmbeddingServer{}
-	embeddingv1.RegisterEmbeddingServiceServer(server, fake)
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen: %v", err)
-	}
-	errCh := make(chan error, 1)
-	go func() { errCh <- server.Serve(ln) }()
-	defer func() {
-		server.Stop()
-		_ = ln.Close()
-		<-errCh
-	}()
+	subscribeEmbeddingService(t, ns.ClientURL(), fake.handle)
 
-	executor := NewExecutor([]*servicev1.ServiceDescriptor{{
+	executor := NewExecutorWithCaller([]*servicev1.ServiceDescriptor{{
 		Name:    "embedding",
-		Address: ln.Addr().String(),
+		Address: "nats://service-functions",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:       embeddingv1.EmbeddingService_ServiceDesc.ServiceName,
 			Method:        "Embed",
@@ -704,7 +692,7 @@ func TestExecutorRetriesRetryableServiceFunctionFailures(t *testing.T) {
 				RetryableCodes: []string{"Unavailable"},
 			},
 		}},
-	}})
+	}}, NewNATSCaller(NATSCallerConfig{URL: ns.ClientURL(), SpaceID: "test-space"}))
 
 	result, err := executor.Execute(context.Background(), "embedding_Embed", `{"input":"hello"}`)
 	if err != nil {
@@ -732,23 +720,12 @@ func TestExecutorWrapsMissingServiceFunctionAsDiagnosticNotFound(t *testing.T) {
 }
 
 func TestExecutorMapsServiceInvalidArgumentToDiagnostics(t *testing.T) {
-	server := grpc.NewServer()
-	embeddingv1.RegisterEmbeddingServiceServer(server, invalidArgumentEmbeddingServer{})
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen: %v", err)
-	}
-	errCh := make(chan error, 1)
-	go func() { errCh <- server.Serve(ln) }()
-	defer func() {
-		server.Stop()
-		_ = ln.Close()
-		<-errCh
-	}()
+	ns := startServicesNATSServer(t)
+	subscribeEmbeddingService(t, ns.ClientURL(), invalidArgumentEmbeddingServer{}.handle)
 
-	executor := NewExecutor([]*servicev1.ServiceDescriptor{{
+	executor := NewExecutorWithCaller([]*servicev1.ServiceDescriptor{{
 		Name:    "embedding",
-		Address: ln.Addr().String(),
+		Address: "nats://service-functions",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:      embeddingv1.EmbeddingService_ServiceDesc.ServiceName,
 			Method:       "Embed",
@@ -756,30 +733,27 @@ func TestExecutorMapsServiceInvalidArgumentToDiagnostics(t *testing.T) {
 			Response:     "quark.embedding.v1.EmbedResponse",
 			FunctionName: "embedding_Embed",
 		}},
-	}})
+	}}, NewNATSCaller(NATSCallerConfig{URL: ns.ClientURL(), SpaceID: "test-space"}))
 
-	_, err = executor.Execute(context.Background(), "embedding_Embed", `{"input":"bad"}`)
+	_, err := executor.Execute(context.Background(), "embedding_Embed", `{"input":"bad"}`)
 	if !boundary.IsCategory(err, boundary.InvalidArgument) {
 		t.Fatalf("expected invalid argument boundary error, got %v", err)
 	}
 }
 
 type flakyEmbeddingServer struct {
-	embeddingv1.UnimplementedEmbeddingServiceServer
 	calls int32
 }
 
-type invalidArgumentEmbeddingServer struct {
-	embeddingv1.UnimplementedEmbeddingServiceServer
+type invalidArgumentEmbeddingServer struct{}
+
+func (invalidArgumentEmbeddingServer) handle(req *embeddingv1.EmbedRequest) (*embeddingv1.EmbedResponse, error) {
+	return nil, boundary.New(boundary.Service, boundary.InvalidArgument, "svc.embedding.v1.embed", "parser rejected input")
 }
 
-func (invalidArgumentEmbeddingServer) Embed(context.Context, *embeddingv1.EmbedRequest) (*embeddingv1.EmbedResponse, error) {
-	return nil, status.Error(codes.InvalidArgument, "parser rejected input")
-}
-
-func (s *flakyEmbeddingServer) Embed(context.Context, *embeddingv1.EmbedRequest) (*embeddingv1.EmbedResponse, error) {
+func (s *flakyEmbeddingServer) handle(req *embeddingv1.EmbedRequest) (*embeddingv1.EmbedResponse, error) {
 	if atomic.AddInt32(&s.calls, 1) == 1 {
-		return nil, status.Error(codes.Unavailable, "try again")
+		return nil, boundary.New(boundary.Service, boundary.Unavailable, "svc.embedding.v1.embed", "try again")
 	}
 	return &embeddingv1.EmbedResponse{
 		Vector:      []float32{0.1, 0.2},
@@ -788,6 +762,76 @@ func (s *flakyEmbeddingServer) Embed(context.Context, *embeddingv1.EmbedRequest)
 		Provider:    "test",
 		ContentHash: "abc123",
 	}, nil
+}
+
+func startServicesNATSServer(t *testing.T) *natsserver.Server {
+	t.Helper()
+	ns, err := natsserver.NewServer(&natsserver.Options{Host: "127.0.0.1", Port: -1, NoLog: true, NoSigs: true})
+	if err != nil {
+		t.Fatalf("new nats server: %v", err)
+	}
+	go ns.Start()
+	if !ns.ReadyForConnections(time.Second) {
+		ns.Shutdown()
+		t.Fatal("nats server did not become ready")
+	}
+	t.Cleanup(ns.Shutdown)
+	return ns
+}
+
+func subscribeEmbeddingService(t *testing.T, url string, handler func(*embeddingv1.EmbedRequest) (*embeddingv1.EmbedResponse, error)) {
+	t.Helper()
+	conn, err := natsgo.Connect(url)
+	if err != nil {
+		t.Fatalf("connect nats service: %v", err)
+	}
+	t.Cleanup(conn.Close)
+	subject, err := servicefunction.Subject("embedding", "v1", "embed")
+	if err != nil {
+		t.Fatalf("subject: %v", err)
+	}
+	sub, err := conn.QueueSubscribe(subject, "q.embedding.test", func(msg *natsgo.Msg) {
+		var envelope servicefunction.RequestEnvelope
+		if err := json.Unmarshal(msg.Data, &envelope); err != nil {
+			respondServiceFunction(t, msg, servicefunction.ErrorResponse("", err, boundary.Service, subject))
+			return
+		}
+		var req embeddingv1.EmbedRequest
+		if err := protojson.Unmarshal(envelope.Payload, &req); err != nil {
+			respondServiceFunction(t, msg, servicefunction.ErrorResponse(envelope.CallID, err, boundary.Service, subject))
+			return
+		}
+		resp, err := handler(&req)
+		if err != nil {
+			respondServiceFunction(t, msg, servicefunction.ErrorResponse(envelope.CallID, err, boundary.Service, subject))
+			return
+		}
+		payload, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(resp)
+		if err != nil {
+			respondServiceFunction(t, msg, servicefunction.ErrorResponse(envelope.CallID, err, boundary.Service, subject))
+			return
+		}
+		respondServiceFunction(t, msg, servicefunction.OKResponse(envelope.CallID, payload))
+	})
+	if err != nil {
+		t.Fatalf("subscribe embedding service: %v", err)
+	}
+	t.Cleanup(func() { _ = sub.Unsubscribe() })
+	if err := conn.FlushTimeout(time.Second); err != nil {
+		t.Fatalf("flush subscription: %v", err)
+	}
+}
+
+func respondServiceFunction(t *testing.T, msg *natsgo.Msg, response servicefunction.ResponseEnvelope) {
+	t.Helper()
+	data, err := json.Marshal(response)
+	if err != nil {
+		t.Errorf("marshal response: %v", err)
+		return
+	}
+	if err := msg.Respond(data); err != nil {
+		t.Errorf("respond: %v", err)
+	}
 }
 
 func sameStrings(raw any, want []string) bool {

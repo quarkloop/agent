@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -29,11 +30,9 @@ import (
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	spacev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/space/v1"
 	systemv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/system/v1"
+	"github.com/quarkloop/pkg/serviceapi/servicefunction"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/runtime/pkg/modelservice"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -62,6 +61,7 @@ var _ = []any{
 
 type Executor struct {
 	descriptors   []*servicev1.ServiceDescriptor
+	caller        serviceFunctionCaller
 	mu            sync.RWMutex
 	refTTL        time.Duration
 	nextEmbedding int
@@ -81,12 +81,17 @@ type resolvedRPC struct {
 }
 
 func NewExecutor(descriptors []*servicev1.ServiceDescriptor) *Executor {
+	return NewExecutorWithCaller(descriptors, NewNATSCaller(NATSCallerConfigFromEnv()))
+}
+
+func NewExecutorWithCaller(descriptors []*servicev1.ServiceDescriptor, caller serviceFunctionCaller) *Executor {
 	out := make([]*servicev1.ServiceDescriptor, 0, len(descriptors))
 	for _, desc := range descriptors {
 		out = append(out, servicekit.CloneDescriptor(desc))
 	}
 	return &Executor{
 		descriptors:   out,
+		caller:        caller,
 		refTTL:        defaultReferenceTTL,
 		embeddings:    make(map[string][]float32),
 		embeddingInfo: make(map[string]map[string]any),
@@ -112,9 +117,6 @@ func (e *Executor) ToolSchemas() []ServiceFunctionSchema {
 	}
 	schemas := make([]ServiceFunctionSchema, 0)
 	for _, desc := range e.descriptors {
-		if desc.GetAddress() == "" {
-			continue
-		}
 		for _, rpc := range desc.GetRpcs() {
 			if rpc.GetStreaming() {
 				continue
@@ -183,18 +185,16 @@ func (e *Executor) Execute(ctx context.Context, functionName, arguments string) 
 	if err != nil {
 		return "", fmt.Errorf("response type %s not registered: %w", rpc.GetResponse(), err)
 	}
-	conn, err := servicekit.Dial(ctx, resolved.address)
-	if err != nil {
-		return "", boundary.Wrap(boundary.Service, boundary.Transport, "dial "+resolved.address, err)
-	}
-	defer conn.Close()
 
-	fullMethod := "/" + rpc.GetService() + "/" + rpc.GetMethod()
 	callCtx, cancel := serviceFunctionContext(ctx, rpc)
 	defer cancel()
-	out, err := invokeServiceFunction(callCtx, conn, fullMethod, in, respType.Descriptor(), rpc)
+	payload, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(in)
 	if err != nil {
-		return "", boundary.Wrap(boundary.Service, categoryFromGRPCStatus(err), "call "+fullMethod, err)
+		return "", boundary.Wrap(boundary.Runtime, boundary.InvalidArgument, "encode "+rpc.GetRequest(), err)
+	}
+	out, err := e.invokeNATSServiceFunction(callCtx, resolved, payload, respType.Descriptor())
+	if err != nil {
+		return "", err
 	}
 	if rpc.GetResponse() == "quark.embedding.v1.EmbedResponse" {
 		return e.embeddingToolResult(out)
@@ -212,40 +212,12 @@ func (e *Executor) Execute(ctx context.Context, functionName, arguments string) 
 	return e.attachResultReference(functionName, rpc.GetResponse(), data)
 }
 
-func categoryFromGRPCStatus(err error) boundary.Category {
-	switch status.Code(err) {
-	case codes.OK:
-		return boundary.Unknown
-	case codes.Canceled:
-		return boundary.Canceled
-	case codes.InvalidArgument, codes.FailedPrecondition, codes.OutOfRange:
-		return boundary.InvalidArgument
-	case codes.DeadlineExceeded:
-		return boundary.Deadline
-	case codes.NotFound:
-		return boundary.NotFound
-	case codes.AlreadyExists, codes.Aborted:
-		return boundary.Conflict
-	case codes.PermissionDenied, codes.Unauthenticated:
-		return boundary.Auth
-	case codes.ResourceExhausted:
-		return boundary.RateLimit
-	case codes.Unavailable:
-		return boundary.Unavailable
-	default:
-		return boundary.Unavailable
-	}
-}
-
 func (e *Executor) CaptureToolResult(toolName, arguments, result string) (string, error) {
 	return result, nil
 }
 
 func (e *Executor) resolve(functionName string) (resolvedRPC, error) {
 	for _, desc := range e.descriptors {
-		if desc.GetAddress() == "" {
-			continue
-		}
 		for _, rpc := range desc.GetRpcs() {
 			if FunctionNameFor(desc.GetName(), rpc) != functionName {
 				continue
@@ -299,24 +271,99 @@ func serviceFunctionContext(ctx context.Context, rpc *servicev1.RpcDescriptor) (
 	return context.WithTimeout(ctx, timeout)
 }
 
-func invokeServiceFunction(ctx context.Context, conn *grpc.ClientConn, method string, in *dynamicpb.Message, response protoreflect.MessageDescriptor, rpc *servicev1.RpcDescriptor) (*dynamicpb.Message, error) {
-	attempts := serviceFunctionMaxAttempts(rpc)
+func (e *Executor) invokeNATSServiceFunction(ctx context.Context, resolved resolvedRPC, payload json.RawMessage, response protoreflect.MessageDescriptor) (*dynamicpb.Message, error) {
+	if e == nil || e.caller == nil {
+		return nil, boundary.New(boundary.Runtime, boundary.Unavailable, "service function", "NATS service function caller is not configured")
+	}
+	subject, serviceName, functionName, err := serviceFunctionSubject(resolved)
+	if err != nil {
+		return nil, boundary.Wrap(boundary.Service, boundary.InvalidArgument, "service function subject", err)
+	}
+	attempts := serviceFunctionMaxAttempts(resolved.rpc)
 	var lastErr error
 	for attempt := 1; attempt <= attempts; attempt++ {
-		out := dynamicpb.NewMessage(response)
-		err := conn.Invoke(ctx, method, in, out)
-		if err == nil {
+		envelope, err := e.caller.Call(ctx, serviceFunctionCall{
+			Subject:  subject,
+			Service:  serviceName,
+			Function: functionName,
+			Payload:  payload,
+			RPC:      resolved.rpc,
+		})
+		if err == nil && envelope.Status == servicefunction.StatusOK {
+			out := dynamicpb.NewMessage(response)
+			if len(envelope.Payload) > 0 {
+				if err := protojson.Unmarshal(envelope.Payload, out); err != nil {
+					return nil, boundary.Wrap(boundary.Service, boundary.InvalidArgument, subject, err)
+				}
+			}
 			return out, nil
 		}
-		lastErr = err
-		if attempt == attempts || !serviceFunctionRetryable(rpc, err) {
-			return nil, err
+		if err == nil && envelope.Error != nil {
+			err = boundary.New(envelope.Error.Boundary, envelope.Error.Category, envelope.Error.Operation, envelope.Error.Message)
 		}
-		if err := waitServiceFunctionRetry(ctx, rpc, attempt); err != nil {
+		if err == nil {
+			err = boundary.New(boundary.Service, boundary.Unknown, subject, "service function returned non-ok response without an error payload")
+		}
+		lastErr = err
+		if attempt == attempts || !serviceFunctionRetryable(resolved.rpc, err) {
+			return nil, boundary.FromError(boundary.Service, subject, err)
+		}
+		if err := waitServiceFunctionRetry(ctx, resolved.rpc, attempt); err != nil {
 			return nil, err
 		}
 	}
 	return nil, lastErr
+}
+
+func serviceFunctionSubject(resolved resolvedRPC) (subject string, serviceName string, functionName string, err error) {
+	rpc := resolved.rpc
+	if rpc == nil {
+		return "", "", "", fmt.Errorf("rpc descriptor is required")
+	}
+	serviceName = strings.TrimSpace(rpc.GetOwner())
+	if serviceName == "" {
+		serviceName = serviceNameFromFunctionName(rpc.GetFunctionName())
+	}
+	if serviceName == "" {
+		serviceName = serviceNameFromProtoService(rpc.GetService())
+	}
+	if serviceName == "" {
+		return "", "", "", fmt.Errorf("service owner is required for %s/%s", rpc.GetService(), rpc.GetMethod())
+	}
+	functionSource := strings.TrimSpace(rpc.GetFunctionName())
+	if functionSource == "" {
+		functionSource = strings.TrimSpace(rpc.GetMethod())
+	}
+	subject, err = servicefunction.SubjectFromOwnerAndFunctionName(serviceName, functionSource)
+	if err != nil {
+		return "", "", "", err
+	}
+	functionName, err = servicefunction.FunctionTokenFromOwnerAndFunctionName(serviceName, functionSource)
+	if err != nil {
+		return "", "", "", err
+	}
+	return subject, serviceName, functionName, nil
+}
+
+func serviceNameFromFunctionName(functionName string) string {
+	owner, _, ok := strings.Cut(strings.TrimSpace(functionName), "_")
+	if !ok {
+		return ""
+	}
+	return owner
+}
+
+func serviceNameFromProtoService(protoService string) string {
+	protoService = strings.TrimSpace(protoService)
+	if protoService == "" {
+		return ""
+	}
+	parts := strings.Split(protoService, ".")
+	if len(parts) < 2 {
+		return protoService
+	}
+	name := strings.TrimSuffix(parts[len(parts)-1], "Service")
+	return name
 }
 
 func serviceFunctionMaxAttempts(rpc *servicev1.RpcDescriptor) int {
@@ -330,13 +377,21 @@ func serviceFunctionRetryable(rpc *servicev1.RpcDescriptor, err error) bool {
 	if rpc == nil || rpc.GetRetryPolicy() == nil {
 		return false
 	}
-	code := normalizeRetryCode(status.Code(err).String())
+	code := normalizeRetryCode(serviceFunctionErrorCode(err))
 	for _, retryable := range rpc.GetRetryPolicy().GetRetryableCodes() {
 		if normalizeRetryCode(retryable) == code {
 			return true
 		}
 	}
 	return false
+}
+
+func serviceFunctionErrorCode(err error) string {
+	var boundaryErr *boundary.Error
+	if errors.As(err, &boundaryErr) {
+		return string(boundaryErr.Category)
+	}
+	return string(boundary.Unknown)
 }
 
 func normalizeRetryCode(value string) string {

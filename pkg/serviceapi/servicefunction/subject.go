@@ -39,6 +39,36 @@ func SubjectFromFunctionName(functionName string) (string, error) {
 	return Subject(owner, DefaultVersion, function)
 }
 
+func SubjectFromOwnerAndFunctionName(owner, functionName string) (string, error) {
+	ownerToken, err := normalizeSubjectToken("owner", owner)
+	if err != nil {
+		return "", err
+	}
+	function := strings.TrimSpace(functionName)
+	if function == "" {
+		return "", fmt.Errorf("service function name is required")
+	}
+	for _, prefix := range []string{owner + "_", ownerToken + "_"} {
+		if strings.HasPrefix(function, prefix) {
+			function = strings.TrimPrefix(function, prefix)
+			break
+		}
+	}
+	return Subject(ownerToken, DefaultVersion, function)
+}
+
+func FunctionTokenFromOwnerAndFunctionName(owner, functionName string) (string, error) {
+	subject, err := SubjectFromOwnerAndFunctionName(owner, functionName)
+	if err != nil {
+		return "", err
+	}
+	parts := strings.Split(subject, ".")
+	if len(parts) != 4 {
+		return "", fmt.Errorf("service function subject %q is invalid", subject)
+	}
+	return parts[3], nil
+}
+
 func ValidateSubject(subject string) error {
 	parts := strings.Split(strings.TrimSpace(subject), ".")
 	if len(parts) != 4 || parts[0] != SubjectPrefix {

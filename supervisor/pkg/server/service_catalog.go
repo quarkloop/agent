@@ -245,11 +245,14 @@ func (s *Server) importServiceFunctionRoutes(space string, descriptors []*servic
 			if owner == "" && desc != nil {
 				owner = desc.GetName()
 			}
-			method := strings.TrimSpace(rpc.GetMethod())
-			if owner == "" || method == "" {
+			functionName := strings.TrimSpace(rpc.GetFunctionName())
+			if functionName == "" {
+				functionName = strings.TrimSpace(rpc.GetMethod())
+			}
+			if owner == "" || functionName == "" {
 				continue
 			}
-			route, err := natshub.NewServiceFunctionRoute(owner, "v1", method)
+			route, err := natshub.NewServiceFunctionRouteFromFunctionName(owner, functionName)
 			if err != nil {
 				return err
 			}

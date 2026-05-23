@@ -26,6 +26,18 @@ func NewServiceFunctionRoute(service, version, function string) (ServiceFunction
 	}, nil
 }
 
+func NewServiceFunctionRouteFromFunctionName(owner, functionName string) (ServiceFunctionRoute, error) {
+	subject, err := servicefunction.SubjectFromOwnerAndFunctionName(owner, functionName)
+	if err != nil {
+		return ServiceFunctionRoute{}, err
+	}
+	return ServiceFunctionRoute{
+		Name:          strings.ReplaceAll(strings.TrimPrefix(subject, servicefunction.SubjectPrefix+"."), ".", "_"),
+		ExportSubject: subject,
+		ImportSubject: subject,
+	}, nil
+}
+
 func NormalizeServiceFunctionRoutes(routes []ServiceFunctionRoute) ([]ServiceFunctionRoute, error) {
 	if len(routes) == 0 {
 		return nil, errors.New("at least one service function route is required")

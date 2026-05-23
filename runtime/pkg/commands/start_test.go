@@ -37,16 +37,17 @@ func TestLoadPluginCatalogUsesEmptyCatalogWithoutEnv(t *testing.T) {
 	}
 }
 
-func TestLoadPluginCatalogRejectsUnsupportedVersion(t *testing.T) {
-	t.Setenv("QUARK_RUNTIME_PLUGIN_CATALOG", `{"version":999,"plugins":[]}`)
+func TestLoadPluginCatalogRejectsUnsupportedSnapshotVersion(t *testing.T) {
+	snapshot := &clientcontract.RuntimeCatalogResponse{
+		PluginCatalog: json.RawMessage(`{"version":999,"plugins":[]}`),
+	}
 
-	if _, err := loadPluginCatalog(nil); err == nil {
+	if _, err := loadPluginCatalog(snapshot); err == nil {
 		t.Fatal("expected unsupported catalog version error")
 	}
 }
 
 func TestLoadPluginCatalogPrefersNATSSnapshot(t *testing.T) {
-	t.Setenv("QUARK_RUNTIME_PLUGIN_CATALOG", `{"version":999,"plugins":[]}`)
 	payload, err := json.Marshal(plugin.NewRuntimeCatalog([]plugin.RuntimeCatalogPlugin{{
 		Name: "quark-devops",
 		Type: plugin.TypeAgent,

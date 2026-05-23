@@ -395,22 +395,12 @@ func loadServiceCatalog(snapshot *clientcontract.RuntimeCatalogResponse) (*runti
 		}
 		return runtimeservices.NewCatalog(descriptors), nil
 	}
-	catalog, err := runtimeservices.CatalogFromEnv()
-	if err != nil {
-		return nil, err
-	}
-	if catalog == nil || catalog.Empty() {
-		slog.Info("no supervisor-resolved service catalog provided")
-		return nil, nil
-	}
-	for _, desc := range catalog.Descriptors() {
-		slog.Info("service plugin loaded", "name", desc.GetName(), "type", desc.GetType(), "addr", desc.GetAddress())
-	}
-	return catalog, nil
+	slog.Info("no supervisor-resolved service catalog provided")
+	return nil, nil
 }
 
 func loadPluginCatalog(snapshot *clientcontract.RuntimeCatalogResponse) (*pluginmanager.Catalog, error) {
-	raw := strings.TrimSpace(os.Getenv("QUARK_RUNTIME_PLUGIN_CATALOG"))
+	raw := ""
 	if snapshot != nil && len(snapshot.PluginCatalog) > 0 {
 		raw = string(snapshot.PluginCatalog)
 	}
