@@ -1,0 +1,143 @@
+syntax = "proto3";
+
+package quark.workflow.v1;
+
+option go_package = "github.com/quarkloop/pkg/serviceapi/gen/quark/workflow/v1;workflowv1";
+
+// WorkflowService owns durable workflow orchestration.
+//
+// Temporal is an implementation detail behind this service. Agents and runtime
+// interact with workflow service functions over NATS.
+service WorkflowService {
+  rpc Start(StartWorkflowRequest) returns (StartWorkflowResponse);
+  rpc Signal(SignalWorkflowRequest) returns (SignalWorkflowResponse);
+  rpc Query(QueryWorkflowRequest) returns (QueryWorkflowResponse);
+  rpc Cancel(CancelWorkflowRequest) returns (CancelWorkflowResponse);
+  rpc Describe(DescribeWorkflowRequest) returns (DescribeWorkflowResponse);
+  rpc List(ListWorkflowsRequest) returns (ListWorkflowsResponse);
+  rpc StreamEvents(StreamWorkflowEventsRequest) returns (stream WorkflowEvent);
+}
+
+message StartWorkflowRequest {
+  string space_id = 1;
+  string session_id = 2;
+  string agent_id = 3;
+  string workflow_id = 4;
+  string workflow_type = 5;
+  DocumentIngestionWorkflow document_ingestion = 6;
+  map<string, string> metadata = 7;
+}
+
+message SignalWorkflowRequest {
+  string workflow_id = 1;
+  string run_id = 2;
+  string signal = 3;
+  string payload_json = 4;
+}
+
+message QueryWorkflowRequest {
+  string workflow_id = 1;
+  string run_id = 2;
+  string query = 3;
+  string payload_json = 4;
+}
+
+message CancelWorkflowRequest {
+  string workflow_id = 1;
+  string run_id = 2;
+  string reason = 3;
+}
+
+message DescribeWorkflowRequest {
+  string workflow_id = 1;
+  string run_id = 2;
+}
+
+message ListWorkflowsRequest {
+  string space_id = 1;
+  WorkflowStatus status = 2;
+  int32 limit = 3;
+  string query = 4;
+}
+
+message StreamWorkflowEventsRequest {
+  string workflow_id = 1;
+  bool include_history = 2;
+}
+
+message StartWorkflowResponse {
+  WorkflowInfo workflow = 1;
+}
+
+message SignalWorkflowResponse {
+  WorkflowInfo workflow = 1;
+}
+
+message QueryWorkflowResponse {
+  string result_json = 1;
+}
+
+message CancelWorkflowResponse {
+  WorkflowInfo workflow = 1;
+}
+
+message DescribeWorkflowResponse {
+  WorkflowInfo workflow = 1;
+}
+
+message ListWorkflowsResponse {
+  repeated WorkflowInfo workflows = 1;
+}
+
+message DocumentIngestionWorkflow {
+  string title = 1;
+  repeated WorkflowSource sources = 2;
+  repeated ServiceFunctionCall steps = 3;
+}
+
+message WorkflowSource {
+  string uri = 1;
+  string path = 2;
+  string filename = 3;
+  string digest = 4;
+  map<string, string> metadata = 5;
+}
+
+message ServiceFunctionCall {
+  string id = 1;
+  string service = 2;
+  string function = 3;
+  string subject = 4;
+  string payload_json = 5;
+  bool required = 6;
+}
+
+message WorkflowInfo {
+  string workflow_id = 1;
+  string run_id = 2;
+  string workflow_type = 3;
+  WorkflowStatus status = 4;
+  string started_at = 5;
+  string updated_at = 6;
+  string completed_at = 7;
+  string last_error = 8;
+  map<string, string> metadata = 9;
+}
+
+message WorkflowEvent {
+  string workflow_id = 1;
+  string run_id = 2;
+  string type = 3;
+  string step_id = 4;
+  string message = 5;
+  string occurred_at = 6;
+  string payload_json = 7;
+}
+
+enum WorkflowStatus {
+  WORKFLOW_STATUS_UNSPECIFIED = 0;
+  WORKFLOW_STATUS_RUNNING = 1;
+  WORKFLOW_STATUS_SUCCEEDED = 2;
+  WORKFLOW_STATUS_FAILED = 3;
+  WORKFLOW_STATUS_CANCELLED = 4;
+}

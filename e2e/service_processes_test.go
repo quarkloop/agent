@@ -22,6 +22,7 @@ import (
 	iov1 "github.com/quarkloop/pkg/serviceapi/gen/quark/io/v1"
 	modelv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/model/v1"
 	systemv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/system/v1"
+	workflowv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/workflow/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/supervisor/pkg/natshub"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -198,6 +199,22 @@ func startSystemServiceAt(t *testing.T, binary, addr string) {
 		Address:     addr,
 		Plugin:      "system",
 		ServiceName: systemv1.SystemService_ServiceDesc.ServiceName,
+	})
+}
+
+func startWorkflowServiceAt(t *testing.T, binary, addr, temporalAddr, natsURL string) {
+	t.Helper()
+	args := []string{"--temporal-addr", temporalAddr}
+	if natsURL != "" {
+		args = append(args, "--nats-url", natsURL, "--nats-user", natshub.DefaultControlUser, "--nats-password", natshub.DefaultControlPassword)
+	}
+	startGRPCServiceProcess(t, grpcServiceProcessSpec{
+		Label:       "workflow",
+		Binary:      binary,
+		Address:     addr,
+		Plugin:      "workflow",
+		ServiceName: workflowv1.WorkflowService_ServiceDesc.ServiceName,
+		Args:        args,
 	})
 }
 

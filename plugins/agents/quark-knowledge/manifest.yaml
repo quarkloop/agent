@@ -60,5 +60,11 @@ agent:
     - core_EvaluatePolicy
     - core_RecordAuditEvent
     - core_PutArtifact
+    - workflow_Start
+    - workflow_Query
+    - workflow_Describe
+    - workflow_List
+    - workflow_StreamEvents
+    - workflow_Cancel
   skills:
     - SKILL.md

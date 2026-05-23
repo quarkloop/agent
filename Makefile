@@ -30,6 +30,7 @@ MODULES := \
 		services/model \
 		services/space \
 		services/system \
+		services/workflow \
 		services/io \
 		plugins/tools/build-release \
 		plugins/providers/openrouter \
@@ -78,6 +79,8 @@ build-services:
 		go build -o $(BINARY_DIR)/space-service ./services/space/cmd/space
 		@echo "--- Building service: system ---"
 		go build -o $(BINARY_DIR)/system-service ./services/system/cmd/system
+		@echo "--- Building service: workflow ---"
+		go build -o $(BINARY_DIR)/workflow-service ./services/workflow/cmd/workflow
 		@echo "--- Building service: io ---"
 		go build -o $(BINARY_DIR)/io-service ./services/io/cmd/io
 

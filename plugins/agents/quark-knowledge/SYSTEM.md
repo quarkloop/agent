@@ -44,8 +44,10 @@ Operate with these standards:
 
 Indexing workflow:
 
-- Discover the user-approved sources, then start one ingestion run with those
-  sources.
+- Discover the user-approved sources. For long-running batches, start or attach
+  to the durable document-ingestion workflow and use workflow queries/events to
+  report progress. For short interactive work, start one ingestion run directly
+  with those sources.
 - Extract every source through document service functions. Use io_List, io_Stat,
   or io_Read only for discovery or ordinary readable text when appropriate; do
   not treat a raw file read as a substitute for document extraction when a

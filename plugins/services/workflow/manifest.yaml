@@ -1,0 +1,94 @@
+name: workflow
+version: "1.0.0"
+type: service
+mode: api
+description: "Durable workflow orchestration boundary backed by Temporal"
+author: quarkloop
+license: Apache-2.0
+
+service:
+  address_env: QUARK_WORKFLOW_ADDR
+  health:
+    protocol: grpc_health_v1
+    service: quark.workflow.v1.WorkflowService
+    timeout: 5s
+  readiness:
+    required: true
+    min_version: "1.0.0"
+  skill: SKILL.md
+  readme: README.md
+  proto_services:
+    - quark.workflow.v1.WorkflowService
+  functions:
+    - name: workflow_Start
+      service: quark.workflow.v1.WorkflowService
+      method: Start
+      request: quark.workflow.v1.StartWorkflowRequest
+      response: quark.workflow.v1.StartWorkflowResponse
+      description: "Start a durable workflow, usually document ingestion/indexing."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: workflow_Signal
+      service: quark.workflow.v1.WorkflowService
+      method: Signal
+      request: quark.workflow.v1.SignalWorkflowRequest
+      response: quark.workflow.v1.SignalWorkflowResponse
+      description: "Send a durable signal to a running workflow."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: workflow_Query
+      service: quark.workflow.v1.WorkflowService
+      method: Query
+      request: quark.workflow.v1.QueryWorkflowRequest
+      response: quark.workflow.v1.QueryWorkflowResponse
+      description: "Read workflow state without mutating execution."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: workflow_Cancel
+      service: quark.workflow.v1.WorkflowService
+      method: Cancel
+      request: quark.workflow.v1.CancelWorkflowRequest
+      response: quark.workflow.v1.CancelWorkflowResponse
+      description: "Cancel a running workflow."
+      risk_level: write
+      approval_required: true
+      approval_requirements:
+        - workflow.cancel
+      streaming: false
+      idempotent: false
+    - name: workflow_Describe
+      service: quark.workflow.v1.WorkflowService
+      method: Describe
+      request: quark.workflow.v1.DescribeWorkflowRequest
+      response: quark.workflow.v1.DescribeWorkflowResponse
+      description: "Describe one workflow execution."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: workflow_List
+      service: quark.workflow.v1.WorkflowService
+      method: List
+      request: quark.workflow.v1.ListWorkflowsRequest
+      response: quark.workflow.v1.ListWorkflowsResponse
+      description: "List workflow executions visible to the caller."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: workflow_StreamEvents
+      service: quark.workflow.v1.WorkflowService
+      method: StreamEvents
+      request: quark.workflow.v1.StreamWorkflowEventsRequest
+      response: quark.workflow.v1.WorkflowEvent
+      description: "Stream progress events for a workflow."
+      risk_level: read
+      approval_required: false
+      streaming: true
+      idempotent: true

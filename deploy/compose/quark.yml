@@ -171,6 +171,24 @@ services:
     volumes:
       - ../../plugins:/plugins:ro
 
+  workflow:
+    <<: *service-defaults
+    profiles: ["services", "workflow"]
+    build:
+      <<: *go-build
+      args:
+        PACKAGE: ./services/workflow/cmd/workflow
+    command: ["--addr", "0.0.0.0:7315", "--skill-dir", "/plugins/services/workflow", "--temporal-addr", "temporal:7233", "--nats-url", "nats://supervisor:4222", "--nats-user", "quark-control", "--nats-password", "quark-control-dev"]
+    depends_on:
+      supervisor:
+        condition: service_healthy
+      temporal:
+        condition: service_started
+    ports:
+      - "7315:7315"
+    volumes:
+      - ../../plugins:/plugins:ro
+
   citation:
     <<: *service-defaults
     profiles: ["services", "knowledge"]

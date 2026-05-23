@@ -28,6 +28,7 @@ type BuiltBinaries struct {
 	Ingestion    string
 	System       string
 	BuildRelease string
+	Workflow     string
 }
 
 var (
@@ -89,6 +90,7 @@ func BuildAllOnce(t *testing.T) BuiltBinaries {
 		buildRes.Ingestion = build("./services/ingestion/cmd/ingestion", "ingestion")
 		buildRes.System = build("./services/system/cmd/system", "system")
 		buildRes.BuildRelease = build("./services/build-release/cmd/build-release", "build-release")
+		buildRes.Workflow = build("./services/workflow/cmd/workflow", "workflow")
 	})
 	if buildErr != nil {
 		t.Fatal(buildErr)

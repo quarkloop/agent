@@ -88,6 +88,10 @@ func TestServicePluginInventoryHasE2ECoveragePlan(t *testing.T) {
 			Mode:  "runtime-backed",
 			Tests: []string{"TestAgentUsesSystemServiceForReadOnlyInspection"},
 		},
+		"workflow": {
+			Mode:  "runtime-backed",
+			Tests: []string{"TestWorkflowServiceNATSContract"},
+		},
 	}
 
 	seen := make(map[string]bool, len(manifests))

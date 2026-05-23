@@ -95,12 +95,18 @@
         "io_Remove",
         "io_Replace",
         "io_Stat",
-        "io_Write"
+        "io_Write",
+        "workflow_Cancel",
+        "workflow_Describe",
+        "workflow_List",
+        "workflow_Query",
+        "workflow_Start",
+        "workflow_StreamEvents"
       ],
       "missing_permissions": [],
       "name": "Quark Knowledge",
       "path": "plugins/agents/quark-knowledge/PROFILE.yaml",
-      "service_permission_count": 49
+      "service_permission_count": 55
     },
     "quark-system": {
       "area": "System",
@@ -240,7 +246,7 @@
   },
   "e2e_tests": {
     "direct_service_shortcut_suspect_count": 6,
-    "file_count": 30,
+    "file_count": 31,
     "files": [
       {
         "direct_service_shortcut_suspects": [],
@@ -411,8 +417,8 @@
         "has_process_flow": false,
         "path": "e2e/service_plugin_inventory_test.go",
         "prompt_shortcut_suspects": [
-          "144: t.Fatalf(\"%s README does not document service function %s\", manifest.Name, function.Name)",
-          "147: t.Fatalf(\"%s SKILL does not document service function %s\", manifest.Name, function.Name)"
+          "148: t.Fatalf(\"%s README does not document service function %s\", manifest.Name, function.Name)",
+          "151: t.Fatalf(\"%s SKILL does not document service function %s\", manifest.Name, function.Name)"
         ]
       },
       {
@@ -472,6 +478,12 @@
         "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
         "path": "e2e/utils/process_test.go",
+        "prompt_shortcut_suspects": []
+      },
+      {
+        "direct_service_shortcut_suspects": [],
+        "has_process_flow": false,
+        "path": "e2e/workflow_service_test.go",
         "prompt_shortcut_suspects": []
       }
     ],
@@ -2554,16 +2566,133 @@
       "readiness_required": true,
       "readme_path": "plugins/services/system/README.md",
       "skill_path": "plugins/services/system/SKILL.md"
+    },
+    "workflow": {
+      "address_env": "QUARK_WORKFLOW_ADDR",
+      "declared_only_function_count": 0,
+      "function_count": 7,
+      "functions": [
+        {
+          "approval_required": false,
+          "idempotent": false,
+          "method": "Start",
+          "method_implemented": true,
+          "name": "workflow_Start",
+          "proto_rpc_exists": true,
+          "request": "quark.workflow.v1.StartWorkflowRequest",
+          "response": "quark.workflow.v1.StartWorkflowResponse",
+          "risk_level": "write",
+          "service": "quark.workflow.v1.WorkflowService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": false,
+          "method": "Signal",
+          "method_implemented": true,
+          "name": "workflow_Signal",
+          "proto_rpc_exists": true,
+          "request": "quark.workflow.v1.SignalWorkflowRequest",
+          "response": "quark.workflow.v1.SignalWorkflowResponse",
+          "risk_level": "write",
+          "service": "quark.workflow.v1.WorkflowService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "Query",
+          "method_implemented": true,
+          "name": "workflow_Query",
+          "proto_rpc_exists": true,
+          "request": "quark.workflow.v1.QueryWorkflowRequest",
+          "response": "quark.workflow.v1.QueryWorkflowResponse",
+          "risk_level": "read",
+          "service": "quark.workflow.v1.WorkflowService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": true,
+          "idempotent": false,
+          "method": "Cancel",
+          "method_implemented": true,
+          "name": "workflow_Cancel",
+          "proto_rpc_exists": true,
+          "request": "quark.workflow.v1.CancelWorkflowRequest",
+          "response": "quark.workflow.v1.CancelWorkflowResponse",
+          "risk_level": "write",
+          "service": "quark.workflow.v1.WorkflowService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "Describe",
+          "method_implemented": true,
+          "name": "workflow_Describe",
+          "proto_rpc_exists": true,
+          "request": "quark.workflow.v1.DescribeWorkflowRequest",
+          "response": "quark.workflow.v1.DescribeWorkflowResponse",
+          "risk_level": "read",
+          "service": "quark.workflow.v1.WorkflowService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "List",
+          "method_implemented": true,
+          "name": "workflow_List",
+          "proto_rpc_exists": true,
+          "request": "quark.workflow.v1.ListWorkflowsRequest",
+          "response": "quark.workflow.v1.ListWorkflowsResponse",
+          "risk_level": "read",
+          "service": "quark.workflow.v1.WorkflowService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "StreamEvents",
+          "method_implemented": true,
+          "name": "workflow_StreamEvents",
+          "proto_rpc_exists": true,
+          "request": "quark.workflow.v1.StreamWorkflowEventsRequest",
+          "response": "quark.workflow.v1.WorkflowEvent",
+          "risk_level": "read",
+          "service": "quark.workflow.v1.WorkflowService",
+          "status": "implemented_end_to_end",
+          "streaming": true
+        }
+      ],
+      "health_service": "quark.workflow.v1.WorkflowService",
+      "implemented_function_count": 7,
+      "manifest_path": "plugins/services/workflow/manifest.yaml",
+      "module_exists": true,
+      "module_path": "services/workflow",
+      "proto_mismatch_count": 0,
+      "proto_services": [
+        "quark.workflow.v1.WorkflowService"
+      ],
+      "readiness_required": true,
+      "readme_path": "plugins/services/workflow/README.md",
+      "skill_path": "plugins/services/workflow/SKILL.md"
     }
   },
   "summary": {
     "agent_profile_count": 3,
     "declared_only_or_mismatched_function_count": 4,
-    "e2e_test_file_count": 30,
-    "implemented_service_function_count": 125,
-    "runnable_service_module_count": 13,
-    "service_function_count": 129,
-    "service_plugin_count": 14
+    "e2e_test_file_count": 31,
+    "implemented_service_function_count": 132,
+    "runnable_service_module_count": 14,
+    "service_function_count": 136,
+    "service_plugin_count": 15
   },
   "version": 1
 }
