@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/quarkloop/e2e/utils"
+	"github.com/quarkloop/supervisor/pkg/api"
 )
 
 func TestAgentRunArtifactsAreRedactedAndStructured(t *testing.T) {
@@ -16,9 +17,11 @@ func TestAgentRunArtifactsAreRedactedAndStructured(t *testing.T) {
 	t.Setenv("OPENROUTER_API_KEY", secret)
 	dir := t.TempDir()
 	env := &utils.E2EEnv{
-		Space:    "e2e-artifact-test",
-		SupURL:   "http://127.0.0.1:7200",
-		AgentURL: "http://127.0.0.1:7300",
+		Space:  "e2e-artifact-test",
+		SupURL: "http://127.0.0.1:7200",
+		Agent: api.RuntimeInfo{
+			ID: "runtime-1",
+		},
 		Provider: "openrouter",
 		Model:    "test/model",
 		Embedding: utils.EmbeddingOptions{
@@ -131,9 +134,11 @@ func TestAgentRunArtifactsAreRedactedAndStructured(t *testing.T) {
 func TestAgentRunArtifactsIncludeToolFailureDiagnostics(t *testing.T) {
 	dir := t.TempDir()
 	env := &utils.E2EEnv{
-		Space:    "e2e-artifact-test",
-		SupURL:   "http://127.0.0.1:7200",
-		AgentURL: "http://127.0.0.1:7300",
+		Space:  "e2e-artifact-test",
+		SupURL: "http://127.0.0.1:7200",
+		Agent: api.RuntimeInfo{
+			ID: "runtime-1",
+		},
 		Provider: "openrouter",
 		Model:    "test/model",
 		Embedding: utils.EmbeddingOptions{

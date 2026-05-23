@@ -5,7 +5,6 @@ package utils
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,8 +24,6 @@ type E2EEnv struct {
 	Sup                 *supclient.Client
 	NATS                NATSEndpoints
 	Agent               api.RuntimeInfo
-	AgentURL            string
-	HTTPC               *http.Client
 	Provider            string
 	Model               string
 	Embedding           EmbeddingOptions
@@ -432,7 +429,7 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 	if opt.DisableServiceDiscovery {
 		supervisorEnv["QUARK_DISABLE_SERVICE_DISCOVERY"] = "true"
 	}
-	sup, supURL, spacesDir, natsEndpoints, proc := startSupervisor(t, bins, supervisorEnv)
+	sup, supURL, spacesDir, natsEndpoints, _ := startSupervisor(t, bins, supervisorEnv)
 
 	spaceName := fmt.Sprintf("e2e-%d", time.Now().UnixNano())
 	provider := "openrouter"
@@ -463,7 +460,6 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 		SupURL:              supURL,
 		Sup:                 sup,
 		NATS:                natsEndpoints,
-		HTTPC:               &http.Client{Timeout: 30 * time.Second},
 		Provider:            provider,
 		Model:               model,
 		Embedding:           embedding,
@@ -486,7 +482,6 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 		}, bins)
 	}
 
-	agentPort := ReservePort(t)
 	runtimeID := "e2e-runtime-" + spaceName
 	runtimeOverrides := map[string]string{
 		"QUARK_RUNTIME_ID":     runtimeID,
@@ -505,25 +500,22 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 		}
 	}
 	runtimeEnv := RuntimeProcessEnv(runtimeOverrides)
-	StartProcess(t, "runtime", bins.Agent, []string{
+	runtimeProc := StartProcess(t, "runtime", bins.Agent, []string{
 		"start",
-		"--port", fmt.Sprint(agentPort),
-		"--channel", "web,nats",
+		"--channel", "nats",
 	}, runtimeEnv)
 	env.Agent = api.RuntimeInfo{
 		ID:     runtimeID,
 		Space:  spaceName,
-		Port:   agentPort,
 		Status: api.RuntimeRunning,
 	}
-	env.AgentURL = fmt.Sprintf("http://127.0.0.1:%d", agentPort)
 
-	WaitForURL(t, env.AgentURL+"/health", 30*time.Second)
-	// Wait for the agent's SSE subscription to the supervisor to go live,
+	runtimeProc.WaitForLog(t, "nats channel listening", 30*time.Second)
+	// Wait for the agent's event subscription to the supervisor to go live,
 	// otherwise the very first session event can be published before any
 	// subscriber is attached and silently dropped.
-	proc.WaitForLog(t, "supervisor event stream ready", 10*time.Second)
-	Logf(t, "supervisor at %s, agent at %s (space=%s)", supURL, env.AgentURL, spaceName)
+	runtimeProc.WaitForLog(t, "supervisor event stream ready", 10*time.Second)
+	Logf(t, "supervisor at %s, runtime=%s nats=%s (space=%s)", supURL, runtimeID, natsEndpoints.ClientURL, spaceName)
 	return env
 }
 
