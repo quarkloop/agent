@@ -97,8 +97,27 @@ func TestHubProvisionsControlStreamsAndCoordinationBuckets(t *testing.T) {
 			t.Fatalf("write kv bucket %s: %v", bucket, err)
 		}
 	}
+	objects, err := js.ObjectStore(ObjectArtifactHandoff)
+	if err != nil {
+		t.Fatalf("artifact handoff object store missing: %v", err)
+	}
+	if _, err := objects.PutBytes("probe", []byte("large-payload-ref")); err != nil {
+		t.Fatalf("write artifact handoff object: %v", err)
+	}
 	if _, err := js.Publish("audit.space_1.service_calls", []byte(`{"type":"service_call"}`)); err != nil {
 		t.Fatalf("publish audit event: %v", err)
+	}
+	replay, err := js.SubscribeSync("audit.space_1.service_calls", nats.BindStream(StreamAudit), nats.DeliverAll())
+	if err != nil {
+		t.Fatalf("subscribe audit replay: %v", err)
+	}
+	t.Cleanup(func() { _ = replay.Unsubscribe() })
+	msg, err := replay.NextMsg(time.Second)
+	if err != nil {
+		t.Fatalf("replay audit event: %v", err)
+	}
+	if string(msg.Data) == "" {
+		t.Fatal("replayed audit event was empty")
 	}
 	info, err := js.StreamInfo(StreamAudit)
 	if err != nil {

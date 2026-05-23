@@ -22,6 +22,8 @@ const (
 	KVServiceLeases      = "service_leases"
 	KVAccountMetadata    = "account_metadata"
 	KVCatalogCursors     = "catalog_cursors"
+
+	ObjectArtifactHandoff = "artifact_handoff"
 )
 
 type streamSpec struct {
@@ -37,6 +39,13 @@ type kvSpec struct {
 	Bucket      string
 	Description string
 	TTL         time.Duration
+}
+
+type objectStoreSpec struct {
+	Bucket      string
+	Description string
+	TTL         time.Duration
+	MaxBytes    int64
 }
 
 func controlStreams() []streamSpec {
@@ -149,6 +158,15 @@ func coordinationBuckets() []kvSpec {
 	}
 }
 
+func objectStores() []objectStoreSpec {
+	return []objectStoreSpec{{
+		Bucket:      ObjectArtifactHandoff,
+		Description: "Temporary large payload handoff for artifacts that should not fit in request/reply envelopes.",
+		TTL:         24 * time.Hour,
+		MaxBytes:    10 * 1024 * 1024 * 1024,
+	}}
+}
+
 func (h *Hub) provisionJetStreamLocked(ctx context.Context) error {
 	if h == nil || h.server == nil || !h.cfg.JetStream.Enabled {
 		return nil
@@ -181,6 +199,11 @@ func (h *Hub) provisionJetStreamLocked(ctx context.Context) error {
 	}
 	for _, spec := range coordinationBuckets() {
 		if err := ensureBucket(js, spec); err != nil {
+			return err
+		}
+	}
+	for _, spec := range objectStores() {
+		if err := ensureObjectStore(js, spec); err != nil {
 			return err
 		}
 	}
@@ -244,6 +267,23 @@ func ensureBucket(js nats.JetStreamContext, spec kvSpec) error {
 	})
 	if err != nil {
 		return fmt.Errorf("create kv bucket %s: %w", spec.Bucket, err)
+	}
+	return nil
+}
+
+func ensureObjectStore(js nats.JetStreamContext, spec objectStoreSpec) error {
+	if _, err := js.ObjectStore(spec.Bucket); err == nil {
+		return nil
+	}
+	_, err := js.CreateObjectStore(&nats.ObjectStoreConfig{
+		Bucket:      spec.Bucket,
+		Description: spec.Description,
+		TTL:         spec.TTL,
+		MaxBytes:    spec.MaxBytes,
+		Storage:     nats.FileStorage,
+	})
+	if err != nil {
+		return fmt.Errorf("create object store %s: %w", spec.Bucket, err)
 	}
 	return nil
 }
