@@ -101,7 +101,7 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOp
 			t.Fatalf("index confirmation missing filename %q:\n%s", document.Filename, indexTrace.Text)
 		}
 	}
-	verifyPersistedPDFIndexState(t, ctx, workingDir, env.ServiceAddress("indexer"), env.ServiceAddress("embedding"), documents)
+	verifyPersistedPDFIndexState(t, ctx, workingDir, env, documents)
 
 	queryCases := []indexedPDFQueryCase{{
 		Title:    "dataset-summary",

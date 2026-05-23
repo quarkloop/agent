@@ -3,7 +3,6 @@
 package e2e
 
 import (
-	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -11,28 +10,17 @@ import (
 	"time"
 
 	"github.com/quarkloop/e2e/utils"
-	buildreleasev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/buildrelease/v1"
-	citationv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/citation/v1"
-	corev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/core/v1"
-	devopsv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/devops/v1"
-	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
-	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
-	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
-	ingestionv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/ingestion/v1"
-	iov1 "github.com/quarkloop/pkg/serviceapi/gen/quark/io/v1"
-	modelv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/model/v1"
-	secretsv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/secrets/v1"
-	systemv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/system/v1"
-	workflowv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/workflow/v1"
-	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/supervisor/pkg/natshub"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 const (
-	defaultServiceHealthTimeout   = 10 * time.Second
-	embeddingServiceHealthTimeout = 30 * time.Second
-	indexerServiceHealthTimeout   = 60 * time.Second
+	defaultServiceReadyTimeout   = 10 * time.Second
+	embeddingServiceReadyTimeout = 30 * time.Second
+	indexerServiceReadyTimeout   = 60 * time.Second
+	natsServiceBridgeReadyLog    = "nats service bridge ready"
+	gatewayServiceReadyLog       = "gateway service listening"
+	workflowServiceReadyLog      = "workflow service listening"
+	secretsServiceReadyLog       = "secrets service listening"
 )
 
 var gatewayProviderEnvKeys = []string{
@@ -46,110 +34,104 @@ var gatewayProviderEnvKeys = []string{
 	"ZHIPU_BASE_URL",
 }
 
-type grpcServiceProcessSpec struct {
-	Label         string
-	Binary        string
-	Address       string
-	Plugin        string
-	ServiceName   string
-	Args          []string
-	Env           []string
-	HealthTimeout time.Duration
+type natsServiceProcessSpec struct {
+	Label        string
+	Binary       string
+	Address      string
+	Plugin       string
+	NATS         utils.NATSEndpoints
+	Args         []string
+	Env          []string
+	ReadyLog     string
+	ReadyTimeout time.Duration
 }
 
-func startIndexerService(t *testing.T, binary, dgraphAddr string) string {
+func startIndexerServiceAt(t *testing.T, binary, dgraphAddr, addr string, nats utils.NATSEndpoints) {
 	t.Helper()
-	addr := reserveLoopbackAddress(t)
-	startIndexerServiceAt(t, binary, dgraphAddr, addr)
-	return addr
-}
-
-func startIndexerServiceAt(t *testing.T, binary, dgraphAddr, addr string) {
-	t.Helper()
-	startGRPCServiceProcess(t, grpcServiceProcessSpec{
-		Label:         "indexer",
-		Binary:        binary,
-		Address:       addr,
-		Plugin:        "indexer",
-		ServiceName:   indexerv1.IndexerService_ServiceDesc.ServiceName,
-		Args:          []string{"--dgraph", dgraphAddr},
-		HealthTimeout: indexerServiceHealthTimeout,
+	startNATSServiceProcess(t, natsServiceProcessSpec{
+		Label:        "indexer",
+		Binary:       binary,
+		Address:      addr,
+		Plugin:       "indexer",
+		NATS:         nats,
+		Args:         []string{"--dgraph", dgraphAddr},
+		ReadyTimeout: indexerServiceReadyTimeout,
 	})
 }
 
-func startEmbeddingServiceAt(t *testing.T, binary, addr string, embedding utils.EmbeddingOptions) {
+func startEmbeddingServiceAt(t *testing.T, binary, addr string, embedding utils.EmbeddingOptions, nats utils.NATSEndpoints) {
 	t.Helper()
 	embedding = embedding.WithDefaults()
 	env := utils.ServiceProcessEnv(nil)
 	if embedding.Provider == "openrouter" {
 		env = utils.ServiceProcessEnv(nil, "OPENROUTER_API_KEY", "OPENROUTER_BASE_URL")
 	}
-	startGRPCServiceProcess(t, grpcServiceProcessSpec{
-		Label:         "embedding",
-		Binary:        binary,
-		Address:       addr,
-		Plugin:        embedding.Plugin,
-		ServiceName:   embeddingv1.EmbeddingService_ServiceDesc.ServiceName,
-		Args:          []string{"--provider", embedding.Provider, "--model", embedding.Model, "--dimensions", fmt.Sprint(embedding.Dimensions)},
-		Env:           env,
-		HealthTimeout: embeddingServiceHealthTimeout,
+	startNATSServiceProcess(t, natsServiceProcessSpec{
+		Label:        "embedding",
+		Binary:       binary,
+		Address:      addr,
+		Plugin:       embedding.Plugin,
+		NATS:         nats,
+		Args:         []string{"--provider", embedding.Provider, "--model", embedding.Model, "--dimensions", fmt.Sprint(embedding.Dimensions)},
+		Env:          env,
+		ReadyTimeout: embeddingServiceReadyTimeout,
 	})
 }
 
-func startIOServiceAt(t *testing.T, binary, addr string) {
+func startIOServiceAt(t *testing.T, binary, addr string, nats utils.NATSEndpoints) {
 	t.Helper()
-	startGRPCServiceProcess(t, grpcServiceProcessSpec{
-		Label:       "io",
-		Binary:      binary,
-		Address:     addr,
-		Plugin:      "io",
-		ServiceName: iov1.IOService_ServiceDesc.ServiceName,
+	startNATSServiceProcess(t, natsServiceProcessSpec{
+		Label:   "io",
+		Binary:  binary,
+		Address: addr,
+		Plugin:  "io",
+		NATS:    nats,
 	})
 }
 
-func startDocumentServiceAt(t *testing.T, binary, addr string) {
+func startDocumentServiceAt(t *testing.T, binary, addr string, nats utils.NATSEndpoints) {
 	t.Helper()
-	startGRPCServiceProcess(t, grpcServiceProcessSpec{
-		Label:       "document",
-		Binary:      binary,
-		Address:     addr,
-		Plugin:      "document",
-		ServiceName: documentv1.DocumentService_ServiceDesc.ServiceName,
+	startNATSServiceProcess(t, natsServiceProcessSpec{
+		Label:   "document",
+		Binary:  binary,
+		Address: addr,
+		Plugin:  "document",
+		NATS:    nats,
 	})
 }
 
-func startIngestionServiceAt(t *testing.T, binary, addr, root string) {
+func startIngestionServiceAt(t *testing.T, binary, addr, root string, nats utils.NATSEndpoints) {
 	t.Helper()
-	startGRPCServiceProcess(t, grpcServiceProcessSpec{
-		Label:       "ingestion",
-		Binary:      binary,
-		Address:     addr,
-		Plugin:      "ingestion",
-		ServiceName: ingestionv1.IngestionService_ServiceDesc.ServiceName,
-		Args:        []string{"--root", root},
+	startNATSServiceProcess(t, natsServiceProcessSpec{
+		Label:   "ingestion",
+		Binary:  binary,
+		Address: addr,
+		Plugin:  "ingestion",
+		NATS:    nats,
+		Args:    []string{"--root", root},
 	})
 }
 
-func startCitationServiceAt(t *testing.T, binary, addr string) {
+func startCitationServiceAt(t *testing.T, binary, addr string, nats utils.NATSEndpoints) {
 	t.Helper()
-	startGRPCServiceProcess(t, grpcServiceProcessSpec{
-		Label:       "citation",
-		Binary:      binary,
-		Address:     addr,
-		Plugin:      "citation",
-		ServiceName: citationv1.CitationService_ServiceDesc.ServiceName,
+	startNATSServiceProcess(t, natsServiceProcessSpec{
+		Label:   "citation",
+		Binary:  binary,
+		Address: addr,
+		Plugin:  "citation",
+		NATS:    nats,
 	})
 }
 
-func startCoreServiceAt(t *testing.T, binary, addr, root string) {
+func startCoreServiceAt(t *testing.T, binary, addr, root string, nats utils.NATSEndpoints) {
 	t.Helper()
-	startGRPCServiceProcess(t, grpcServiceProcessSpec{
-		Label:       "core",
-		Binary:      binary,
-		Address:     addr,
-		Plugin:      "core",
-		ServiceName: corev1.CoreService_ServiceDesc.ServiceName,
-		Args:        []string{"--root", root},
+	startNATSServiceProcess(t, natsServiceProcessSpec{
+		Label:   "core",
+		Binary:  binary,
+		Address: addr,
+		Plugin:  "core",
+		NATS:    nats,
+		Args:    []string{"--root", root},
 	})
 }
 
@@ -159,47 +141,47 @@ func startGatewayServiceAt(t *testing.T, binary, addr, natsURL string) {
 	if natsURL != "" {
 		args = append(args, "--nats-url", natsURL, "--nats-user", natshub.DefaultControlUser, "--nats-password", natshub.DefaultControlPassword)
 	}
-	startGRPCServiceProcess(t, grpcServiceProcessSpec{
-		Label:       "gateway",
-		Binary:      binary,
-		Address:     addr,
-		Plugin:      "gateway",
-		ServiceName: modelv1.ModelService_ServiceDesc.ServiceName,
-		Args:        args,
-		Env:         utils.ServiceProcessEnv(nil, gatewayProviderEnvKeys...),
+	startNATSServiceProcess(t, natsServiceProcessSpec{
+		Label:    "gateway",
+		Binary:   binary,
+		Address:  addr,
+		Plugin:   "gateway",
+		Args:     args,
+		Env:      utils.ServiceProcessEnv(nil, gatewayProviderEnvKeys...),
+		ReadyLog: gatewayServiceReadyLog,
 	})
 }
 
-func startBuildReleaseServiceAt(t *testing.T, binary, addr string) {
+func startBuildReleaseServiceAt(t *testing.T, binary, addr string, nats utils.NATSEndpoints) {
 	t.Helper()
-	startGRPCServiceProcess(t, grpcServiceProcessSpec{
-		Label:       "build-release",
-		Binary:      binary,
-		Address:     addr,
-		Plugin:      "build-release",
-		ServiceName: buildreleasev1.BuildReleaseService_ServiceDesc.ServiceName,
+	startNATSServiceProcess(t, natsServiceProcessSpec{
+		Label:   "build-release",
+		Binary:  binary,
+		Address: addr,
+		Plugin:  "build-release",
+		NATS:    nats,
 	})
 }
 
-func startDevOpsServiceAt(t *testing.T, binary, addr string) {
+func startDevOpsServiceAt(t *testing.T, binary, addr string, nats utils.NATSEndpoints) {
 	t.Helper()
-	startGRPCServiceProcess(t, grpcServiceProcessSpec{
-		Label:       "devops",
-		Binary:      binary,
-		Address:     addr,
-		Plugin:      "devops",
-		ServiceName: devopsv1.RepoService_ServiceDesc.ServiceName,
+	startNATSServiceProcess(t, natsServiceProcessSpec{
+		Label:   "devops",
+		Binary:  binary,
+		Address: addr,
+		Plugin:  "devops",
+		NATS:    nats,
 	})
 }
 
-func startSystemServiceAt(t *testing.T, binary, addr string) {
+func startSystemServiceAt(t *testing.T, binary, addr string, nats utils.NATSEndpoints) {
 	t.Helper()
-	startGRPCServiceProcess(t, grpcServiceProcessSpec{
-		Label:       "system",
-		Binary:      binary,
-		Address:     addr,
-		Plugin:      "system",
-		ServiceName: systemv1.SystemService_ServiceDesc.ServiceName,
+	startNATSServiceProcess(t, natsServiceProcessSpec{
+		Label:   "system",
+		Binary:  binary,
+		Address: addr,
+		Plugin:  "system",
+		NATS:    nats,
 	})
 }
 
@@ -209,13 +191,13 @@ func startWorkflowServiceAt(t *testing.T, binary, addr, temporalAddr, natsURL st
 	if natsURL != "" {
 		args = append(args, "--nats-url", natsURL, "--nats-user", natshub.DefaultControlUser, "--nats-password", natshub.DefaultControlPassword)
 	}
-	startGRPCServiceProcess(t, grpcServiceProcessSpec{
-		Label:       "workflow",
-		Binary:      binary,
-		Address:     addr,
-		Plugin:      "workflow",
-		ServiceName: workflowv1.WorkflowService_ServiceDesc.ServiceName,
-		Args:        args,
+	startNATSServiceProcess(t, natsServiceProcessSpec{
+		Label:    "workflow",
+		Binary:   binary,
+		Address:  addr,
+		Plugin:   "workflow",
+		Args:     args,
+		ReadyLog: workflowServiceReadyLog,
 	})
 }
 
@@ -225,13 +207,13 @@ func startSecretsServiceAt(t *testing.T, binary, addr, openBaoAddr, token, natsU
 	if natsURL != "" {
 		args = append(args, "--nats-url", natsURL, "--nats-user", natshub.DefaultControlUser, "--nats-password", natshub.DefaultControlPassword)
 	}
-	startGRPCServiceProcess(t, grpcServiceProcessSpec{
-		Label:       "secrets",
-		Binary:      binary,
-		Address:     addr,
-		Plugin:      "secrets",
-		ServiceName: secretsv1.SecretsService_ServiceDesc.ServiceName,
-		Args:        args,
+	startNATSServiceProcess(t, natsServiceProcessSpec{
+		Label:    "secrets",
+		Binary:   binary,
+		Address:  addr,
+		Plugin:   "secrets",
+		Args:     args,
+		ReadyLog: secretsServiceReadyLog,
 	})
 }
 
@@ -246,14 +228,14 @@ func standardKnowledgeServicesStartOptions(t *testing.T, embedding utils.Embeddi
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
 			dgraphAddr := utils.StartDgraph(t)
-			startIOServiceAt(t, bins.IO, addresses.IO)
-			startCoreServiceAt(t, bins.Core, addresses.Core, filepath.Join(setup.SpacesDir, setup.Space, "services", "core"))
+			startIOServiceAt(t, bins.IO, addresses.IO, setup.NATS)
+			startCoreServiceAt(t, bins.Core, addresses.Core, filepath.Join(setup.SpacesDir, setup.Space, "services", "core"), setup.NATS)
 			startGatewayServiceAt(t, bins.Model, addresses.Gateway, setup.NATS.ClientURL)
-			startIndexerServiceAt(t, bins.Indexer, dgraphAddr, addresses.Indexer)
-			startDocumentServiceAt(t, bins.Document, addresses.Document)
-			startIngestionServiceAt(t, bins.Ingestion, addresses.Ingestion, filepath.Join(setup.SpacesDir, setup.Space, "services", "ingestion"))
-			startCitationServiceAt(t, bins.Citation, addresses.Citation)
-			startEmbeddingServiceAt(t, bins.Embedding, addresses.Embedding, embedding)
+			startIndexerServiceAt(t, bins.Indexer, dgraphAddr, addresses.Indexer, setup.NATS)
+			startDocumentServiceAt(t, bins.Document, addresses.Document, setup.NATS)
+			startIngestionServiceAt(t, bins.Ingestion, addresses.Ingestion, filepath.Join(setup.SpacesDir, setup.Space, "services", "ingestion"), setup.NATS)
+			startCitationServiceAt(t, bins.Citation, addresses.Citation, setup.NATS)
+			startEmbeddingServiceAt(t, bins.Embedding, addresses.Embedding, embedding, setup.NATS)
 		},
 	}
 }
@@ -277,9 +259,9 @@ func standardDevOpsServicesStartOptions(t *testing.T, workingDir string) utils.S
 		},
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
-			startIOServiceAt(t, bins.IO, ioAddr)
-			startDevOpsServiceAt(t, bins.DevOps, devopsAddr)
-			startBuildReleaseServiceAt(t, bins.BuildRelease, buildReleaseAddr)
+			startIOServiceAt(t, bins.IO, ioAddr, setup.NATS)
+			startDevOpsServiceAt(t, bins.DevOps, devopsAddr, setup.NATS)
+			startBuildReleaseServiceAt(t, bins.BuildRelease, buildReleaseAddr, setup.NATS)
 		},
 	}
 }
@@ -299,7 +281,7 @@ func standardDevOpsOnlyServicesStartOptions(t *testing.T, workingDir string) uti
 		},
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
-			startDevOpsServiceAt(t, bins.DevOps, devopsAddr)
+			startDevOpsServiceAt(t, bins.DevOps, devopsAddr, setup.NATS)
 		},
 	}
 }
@@ -317,15 +299,18 @@ func standardSystemServicesStartOptions(t *testing.T, workingDir string) utils.S
 		},
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
-			startSystemServiceAt(t, bins.System, systemAddr)
+			startSystemServiceAt(t, bins.System, systemAddr, setup.NATS)
 		},
 	}
 }
 
-func startGRPCServiceProcess(t *testing.T, spec grpcServiceProcessSpec) {
+func startNATSServiceProcess(t *testing.T, spec natsServiceProcessSpec) {
 	t.Helper()
-	if spec.HealthTimeout == 0 {
-		spec.HealthTimeout = defaultServiceHealthTimeout
+	if spec.ReadyTimeout == 0 {
+		spec.ReadyTimeout = defaultServiceReadyTimeout
+	}
+	if spec.ReadyLog == "" {
+		spec.ReadyLog = natsServiceBridgeReadyLog
 	}
 	env := spec.Env
 	if env == nil {
@@ -335,9 +320,16 @@ func startGRPCServiceProcess(t *testing.T, spec grpcServiceProcessSpec) {
 		"--addr", spec.Address,
 		"--skill-dir", servicePluginDir(t, spec.Plugin),
 	}
+	if spec.NATS.ClientURL != "" {
+		args = append(args,
+			"--nats-url", spec.NATS.ClientURL,
+			"--nats-user", natshub.DefaultControlUser,
+			"--nats-password", natshub.DefaultControlPassword,
+		)
+	}
 	args = append(args, spec.Args...)
-	utils.StartProcess(t, spec.Label, spec.Binary, args, env)
-	waitForGRPCHealth(t, spec.Address, spec.ServiceName, spec.HealthTimeout, spec.Label)
+	process := utils.StartProcess(t, spec.Label, spec.Binary, args, env)
+	process.WaitForLog(t, spec.ReadyLog, spec.ReadyTimeout)
 }
 
 func servicePluginDir(t *testing.T, plugin string) string {
@@ -425,25 +417,4 @@ func buildReleaseServiceFunctions() []string {
 		"build_release_Init",
 		"build_release_Release",
 	}
-}
-
-func waitForGRPCHealth(t *testing.T, addr, service string, timeout time.Duration, label string) {
-	t.Helper()
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		conn, err := servicekit.Dial(ctx, addr)
-		if err == nil {
-			resp, checkErr := healthpb.NewHealthClient(conn).Check(ctx, &healthpb.HealthCheckRequest{Service: service})
-			conn.Close()
-			err = checkErr
-			if err == nil && resp.GetStatus() == healthpb.HealthCheckResponse_SERVING {
-				cancel()
-				return
-			}
-		}
-		cancel()
-		time.Sleep(100 * time.Millisecond)
-	}
-	t.Fatalf("%s service did not become healthy at %s", label, addr)
 }

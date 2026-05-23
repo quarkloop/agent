@@ -6,33 +6,31 @@ import (
 	"context"
 	"testing"
 
+	"github.com/nats-io/nats.go"
+	"github.com/quarkloop/e2e/utils"
 	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
-	"github.com/quarkloop/pkg/serviceapi/servicekit"
+	"github.com/quarkloop/supervisor/pkg/natshub"
 )
 
-func verifyPersistedPDFIndexState(t *testing.T, ctx context.Context, artifactDir, indexerAddr, embeddingAddr string, documents []indexedPDFDocument) {
+func verifyPersistedPDFIndexState(t *testing.T, ctx context.Context, artifactDir string, env *utils.E2EEnv, documents []indexedPDFDocument) {
 	t.Helper()
-	embeddingClient, indexerClient, closeClients := openIndexVerificationClients(t, ctx, embeddingAddr, indexerAddr, "persisted-state")
-	defer closeClients()
+	conn := openIndexVerificationConn(t, env)
+	defer conn.Close()
 
 	report := make([]map[string]any, 0, len(documents))
 	for _, document := range documents {
-		embedding, err := embeddingClient.Embed(ctx, &embeddingv1.EmbedRequest{
+		var embedding embeddingv1.EmbedResponse
+		requestServiceFunction(t, ctx, conn, env.Space, "svc.embedding.v1.embed", "embedding", "embed", &embeddingv1.EmbedRequest{
 			Input: document.Name + " " + document.Filename,
-		})
-		if err != nil {
-			t.Fatalf("embed verification query for %s: %v", document.Filename, err)
-		}
-		resp, err := indexerClient.GetContext(ctx, &indexerv1.QueryRequest{
+		}, &embedding)
+		var resp indexerv1.ContextResponse
+		requestServiceFunction(t, ctx, conn, env.Space, "svc.indexer.v1.get_context", "indexer", "get_context", &indexerv1.QueryRequest{
 			QueryVector: embedding.GetVector(),
 			Limit:       1,
 			Depth:       1,
 			Filters:     map[string]string{"filename": document.Filename},
-		})
-		if err != nil {
-			t.Fatalf("query persisted index state for %s: %v", document.Filename, err)
-		}
+		}, &resp)
 		if len(resp.GetChunks()) == 0 {
 			t.Fatalf("persisted index state missing chunk for %s", document.Filename)
 		}
@@ -57,28 +55,24 @@ func verifyPersistedPDFIndexState(t *testing.T, ctx context.Context, artifactDir
 	writeJSONArtifact(t, artifactDir, "direct-index-state.json", report)
 }
 
-func verifyPersistedMarkdownIndexState(t *testing.T, ctx context.Context, artifactDir, indexerAddr, embeddingAddr string, documents []indexedMarkdownDocument) {
+func verifyPersistedMarkdownIndexState(t *testing.T, ctx context.Context, artifactDir string, env *utils.E2EEnv, documents []indexedMarkdownDocument) {
 	t.Helper()
-	embeddingClient, indexerClient, closeClients := openIndexVerificationClients(t, ctx, embeddingAddr, indexerAddr, "markdown verification")
-	defer closeClients()
+	conn := openIndexVerificationConn(t, env)
+	defer conn.Close()
 
 	report := make([]map[string]any, 0, len(documents))
 	for _, document := range documents {
-		embedding, err := embeddingClient.Embed(ctx, &embeddingv1.EmbedRequest{
+		var embedding embeddingv1.EmbedResponse
+		requestServiceFunction(t, ctx, conn, env.Space, "svc.embedding.v1.embed", "embedding", "embed", &embeddingv1.EmbedRequest{
 			Input: document.Query,
-		})
-		if err != nil {
-			t.Fatalf("embed markdown verification query for %s: %v", document.Filename, err)
-		}
-		resp, err := indexerClient.GetContext(ctx, &indexerv1.QueryRequest{
+		}, &embedding)
+		var resp indexerv1.ContextResponse
+		requestServiceFunction(t, ctx, conn, env.Space, "svc.indexer.v1.get_context", "indexer", "get_context", &indexerv1.QueryRequest{
 			QueryVector: embedding.GetVector(),
 			Limit:       1,
 			Depth:       1,
 			Filters:     map[string]string{"filename": document.Filename},
-		})
-		if err != nil {
-			t.Fatalf("query persisted markdown index for %s: %v", document.Filename, err)
-		}
+		}, &resp)
 		if len(resp.GetChunks()) == 0 {
 			t.Fatalf("persisted markdown index state missing chunk for %s", document.Filename)
 		}
@@ -108,20 +102,15 @@ func verifyPersistedMarkdownIndexState(t *testing.T, ctx context.Context, artifa
 	writeJSONArtifact(t, artifactDir, "markdown-direct-index-state.json", report)
 }
 
-func openIndexVerificationClients(t *testing.T, ctx context.Context, embeddingAddr, indexerAddr, label string) (embeddingv1.EmbeddingServiceClient, indexerv1.IndexerServiceClient, func()) {
+func openIndexVerificationConn(t *testing.T, env *utils.E2EEnv) *nats.Conn {
 	t.Helper()
-	embeddingConn, err := servicekit.Dial(ctx, embeddingAddr)
+	conn, err := nats.Connect(
+		env.NATS.ClientURL,
+		nats.UserInfo(natshub.DefaultControlUser, natshub.DefaultControlPassword),
+		nats.Name("quark-e2e-index-verification"),
+	)
 	if err != nil {
-		t.Fatalf("dial embedding service for %s: %v", label, err)
+		t.Fatalf("connect control nats for index verification: %v", err)
 	}
-	indexerConn, err := servicekit.Dial(ctx, indexerAddr)
-	if err != nil {
-		embeddingConn.Close()
-		t.Fatalf("dial indexer service for %s: %v", label, err)
-	}
-	closeClients := func() {
-		indexerConn.Close()
-		embeddingConn.Close()
-	}
-	return embeddingv1.NewEmbeddingServiceClient(embeddingConn), indexerv1.NewIndexerServiceClient(indexerConn), closeClients
+	return conn
 }

@@ -26,7 +26,7 @@ func TestIOExecute(t *testing.T) {
 		},
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
-			startIOServiceAt(t, bins.IO, ioAddr)
+			startIOServiceAt(t, bins.IO, ioAddr, setup.NATS)
 		},
 	})
 

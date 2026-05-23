@@ -140,17 +140,41 @@ func quarkfileFor(name, provider, model string, embedding EmbeddingOptions, serv
 `
 	}
 	embedding = embedding.withDefaults()
-	pluginRefs := `  - ref: quark/service-io
-`
-	serviceBlocks := `  - name: io
-    ref: quark/service-io
-    mode: local
-    address_env: QUARK_IO_ADDR
-`
+	pluginRefs := ""
+	seenPluginRefs := make(map[string]struct{})
+	addPluginRef := func(ref string) {
+		if ref == "" {
+			return
+		}
+		if _, ok := seenPluginRefs[ref]; ok {
+			return
+		}
+		seenPluginRefs[ref] = struct{}{}
+		pluginRefs += fmt.Sprintf("  - ref: %s\n", ref)
+	}
+	serviceBlocks := ""
+	seenServices := make(map[string]struct{})
+	addService := func(service ServicePlugin) {
+		service = service.withDefaults()
+		if service.Name == "" {
+			return
+		}
+		if _, ok := seenServices[service.Name]; ok {
+			return
+		}
+		seenServices[service.Name] = struct{}{}
+		addPluginRef("quark/service-" + service.Plugin)
+		serviceBlocks += fmt.Sprintf(`  - name: %s
+    ref: quark/service-%s
+    mode: %s
+    address_env: %s
+`, service.Name, service.Plugin, service.Mode, service.AddressEnv)
+	}
+	addService(ServicePlugin{Name: "io", Plugin: "io", Mode: "local", AddressEnv: "QUARK_IO_ADDR"})
 	embeddingBlock := ""
 	agentBlocks := ""
 	for _, agent := range agents {
-		pluginRefs += fmt.Sprintf("  - ref: quark/agent-%s\n", agent)
+		addPluginRef("quark/agent-" + agent)
 		agentBlocks += fmt.Sprintf(`  - profile: %s
     enabled: true
 `, agent)
@@ -166,43 +190,13 @@ func quarkfileFor(name, provider, model string, embedding EmbeddingOptions, serv
 		agentsSection = "agents:\n" + agentBlocks
 	}
 	if includeKnowledgeServices {
-		pluginRefs += fmt.Sprintf(`  - ref: quark/service-core
-  - ref: quark/service-gateway
-  - ref: quark/service-indexer
-  - ref: quark/service-document
-  - ref: quark/service-ingestion
-  - ref: quark/service-citation
-  - ref: quark/service-%s
-`, embedding.Plugin)
-		serviceBlocks += fmt.Sprintf(`  - name: core
-    ref: quark/service-core
-    mode: local
-    address_env: QUARK_CORE_ADDR
-  - name: gateway
-    ref: quark/service-gateway
-    mode: local
-    address_env: QUARK_GATEWAY_SERVICE_ADDR
-  - name: indexer
-    ref: quark/service-indexer
-    mode: local
-    address_env: QUARK_INDEXER_ADDR
-  - name: document
-    ref: quark/service-document
-    mode: local
-    address_env: QUARK_DOCUMENT_ADDR
-  - name: ingestion
-    ref: quark/service-ingestion
-    mode: local
-    address_env: QUARK_INGESTION_ADDR
-  - name: citation
-    ref: quark/service-citation
-    mode: local
-    address_env: QUARK_CITATION_ADDR
-  - name: embedding
-    ref: quark/service-%s
-    mode: %s
-    address_env: QUARK_EMBEDDING_ADDR
-`, embedding.Plugin, embedding.Mode)
+		addService(ServicePlugin{Name: "core", Plugin: "core", Mode: "local", AddressEnv: "QUARK_CORE_ADDR"})
+		addService(ServicePlugin{Name: "gateway", Plugin: "gateway", Mode: "local", AddressEnv: "QUARK_GATEWAY_SERVICE_ADDR"})
+		addService(ServicePlugin{Name: "indexer", Plugin: "indexer", Mode: "local", AddressEnv: "QUARK_INDEXER_ADDR"})
+		addService(ServicePlugin{Name: "document", Plugin: "document", Mode: "local", AddressEnv: "QUARK_DOCUMENT_ADDR"})
+		addService(ServicePlugin{Name: "ingestion", Plugin: "ingestion", Mode: "local", AddressEnv: "QUARK_INGESTION_ADDR"})
+		addService(ServicePlugin{Name: "citation", Plugin: "citation", Mode: "local", AddressEnv: "QUARK_CITATION_ADDR"})
+		addService(ServicePlugin{Name: "embedding", Plugin: embedding.Plugin, Mode: embedding.Mode, AddressEnv: "QUARK_EMBEDDING_ADDR"})
 		embeddingBlock = fmt.Sprintf(`embedding:
   service: embedding
   provider: %s
@@ -211,16 +205,10 @@ func quarkfileFor(name, provider, model string, embedding EmbeddingOptions, serv
 `, embedding.Provider, embedding.Model, embedding.Dimensions)
 	}
 	for _, service := range services {
-		service = service.withDefaults()
-		pluginRefs += fmt.Sprintf("  - ref: quark/service-%s\n", service.Plugin)
-		serviceBlocks += fmt.Sprintf(`  - name: %s
-    ref: quark/service-%s
-    mode: %s
-    address_env: %s
-`, service.Name, service.Plugin, service.Mode, service.AddressEnv)
+		addService(service)
 	}
 	for _, plugin := range extraServicePlugins {
-		pluginRefs += fmt.Sprintf("  - ref: quark/service-%s\n", plugin)
+		addPluginRef("quark/service-" + plugin)
 	}
 	qf := fmt.Sprintf(`quark: "1.0"
 meta:

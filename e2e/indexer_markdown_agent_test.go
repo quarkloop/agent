@@ -75,7 +75,7 @@ func TestAgentIndexesITCompanyMarkdownDocuments(t *testing.T) {
 			t.Fatalf("markdown index confirmation missing filename %q:\n%s", document.Filename, indexTrace.Text)
 		}
 	}
-	verifyPersistedMarkdownIndexState(t, ctx, workingDir, env.ServiceAddress("indexer"), env.ServiceAddress("embedding"), documents)
+	verifyPersistedMarkdownIndexState(t, ctx, workingDir, env, documents)
 
 	queryPrompt := indexedMarkdownQuestionPrompt()
 	queryTrace := runChatPrompt(t, ctx, env, workingDir, chatPromptRun{
