@@ -6,11 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"net"
-	"net/http"
-	"os"
 	"os/exec"
-	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -18,9 +14,6 @@ import (
 	"time"
 )
 
-// testLogWriter writes lines to t.Logf, prefixing each with a label. It is
-// useful for streaming subprocess output to the test log so hangs can be
-// diagnosed without waiting for Cleanup.
 type testLogWriter struct {
 	t      *testing.T
 	prefix string
@@ -153,157 +146,3 @@ func StartProcess(t *testing.T, name, binary string, args, env []string) *Starte
 }
 
 // ReservePort allocates a free TCP port on loopback and immediately releases
-// it. Callers race with any other process for the port, but this is good
-// enough for e2e tests.
-func ReservePort(t *testing.T) int {
-	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("reserve port: %v", err)
-	}
-	defer ln.Close()
-	return ln.Addr().(*net.TCPAddr).Port
-}
-
-// WaitForURL polls url until it returns a non-5xx status or timeout elapses.
-func WaitForURL(t *testing.T, url string, timeout time.Duration) {
-	t.Helper()
-	deadline := time.Now().Add(timeout)
-	client := &http.Client{Timeout: 2 * time.Second}
-	for time.Now().Before(deadline) {
-		resp, err := client.Get(url)
-		if err == nil {
-			resp.Body.Close()
-			if resp.StatusCode < 500 {
-				return
-			}
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	t.Fatalf("timed out waiting for %s", url)
-}
-
-// WaitForTCP polls addr until a TCP connection succeeds or timeout elapses.
-func WaitForTCP(t *testing.T, addr string, timeout time.Duration) {
-	t.Helper()
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
-		if err == nil {
-			conn.Close()
-			return
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	t.Fatalf("timed out waiting for tcp %s", addr)
-}
-
-// SupervisorProcessEnv returns the constrained environment needed by the e2e
-// supervisor: non-secret process basics plus provider credentials that the
-// space service may resolve only when Quarkfile explicitly declares them.
-func SupervisorProcessEnv(overrides map[string]string) []string {
-	return constrainedProcessEnv(overrides, providerCredentialEnvKeys()...)
-}
-
-// ServiceProcessEnv returns a constrained service process environment. Service
-// start helpers must pass provider keys explicitly when that service requires
-// provider access.
-func ServiceProcessEnv(overrides map[string]string, extraAllowed ...string) []string {
-	return constrainedProcessEnv(overrides, extraAllowed...)
-}
-
-// RuntimeProcessEnv returns the constrained environment needed by a runtime
-// launched directly by the e2e harness. Runtime launch is deployment-owned in
-// the NATS-native architecture; the supervisor no longer spawns the process.
-func RuntimeProcessEnv(overrides map[string]string) []string {
-	return constrainedProcessEnv(overrides, providerCredentialEnvKeys()...)
-}
-
-func constrainedProcessEnv(overrides map[string]string, extraAllowed ...string) []string {
-	allowed := map[string]struct{}{}
-	for _, key := range baseProcessEnvKeys() {
-		allowed[key] = struct{}{}
-	}
-	for _, key := range extraAllowed {
-		if key != "" {
-			allowed[key] = struct{}{}
-		}
-	}
-	values := make(map[string]string, len(allowed)+len(overrides))
-	order := make([]string, 0, len(allowed)+len(overrides))
-	add := func(key, value string) {
-		if key == "" {
-			return
-		}
-		if _, exists := values[key]; !exists {
-			order = append(order, key)
-		}
-		values[key] = value
-	}
-	for _, entry := range os.Environ() {
-		key, value, ok := strings.Cut(entry, "=")
-		if !ok {
-			continue
-		}
-		if _, keep := allowed[key]; keep {
-			add(key, value)
-		}
-	}
-	overrideKeys := make([]string, 0, len(overrides))
-	for key := range overrides {
-		overrideKeys = append(overrideKeys, key)
-	}
-	sort.Strings(overrideKeys)
-	for _, key := range overrideKeys {
-		add(key, overrides[key])
-	}
-	out := make([]string, 0, len(order))
-	for _, key := range order {
-		out = append(out, key+"="+values[key])
-	}
-	return out
-}
-
-func baseProcessEnvKeys() []string {
-	return []string{
-		"PATH",
-		"HOME",
-		"USER",
-		"LOGNAME",
-		"TMPDIR",
-		"TEMP",
-		"TMP",
-		"LANG",
-		"LC_ALL",
-		"SSL_CERT_FILE",
-		"SSL_CERT_DIR",
-		"TZ",
-		"TERM",
-		"XDG_CACHE_HOME",
-		"XDG_CONFIG_HOME",
-		"XDG_DATA_HOME",
-		"GOCACHE",
-		"GOMODCACHE",
-		"GOPATH",
-		"GOROOT",
-		"GOENV",
-		"GOFLAGS",
-		"CGO_ENABLED",
-		"DOCKER_CONFIG",
-		"DOCKER_CONTEXT",
-		"DOCKER_HOST",
-	}
-}
-
-func providerCredentialEnvKeys() []string {
-	return []string{
-		"OPENROUTER_API_KEY",
-		"OPENROUTER_BASE_URL",
-		"OPENAI_API_KEY",
-		"OPENAI_BASE_URL",
-		"ANTHROPIC_API_KEY",
-		"ANTHROPIC_BASE_URL",
-		"ZHIPU_API_KEY",
-		"ZHIPU_BASE_URL",
-	}
-}
