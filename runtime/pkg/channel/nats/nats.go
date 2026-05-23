@@ -404,6 +404,7 @@ func (c *Channel) requestContext() context.Context {
 func (c *Channel) postAndStream(ctx context.Context, payload clientcontract.SendMessageRequest) {
 	resp := make(chan message.StreamMessage, 64)
 	c.poster.Post(ctx, message.PostRequest{
+		SpaceID:   payload.SpaceID,
 		SessionID: payload.SessionID,
 		Content:   payload.Content,
 	}, resp)

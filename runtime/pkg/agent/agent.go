@@ -310,7 +310,11 @@ func (a *Agent) handleUserMessage(ctx context.Context, msg loop.Message) error {
 
 	runID := newRunID()
 	requestCtx, cancel := context.WithCancel(ctx)
-	requestCtx = modelservice.WithSpaceID(requestCtx, a.Space)
+	spaceID := userMsg.SpaceID
+	if spaceID == "" {
+		spaceID = a.Space
+	}
+	requestCtx = modelservice.WithSpaceID(requestCtx, spaceID)
 	requestCtx = modelservice.WithSessionID(requestCtx, userMsg.SessionID)
 	requestCtx = modelservice.WithRunID(requestCtx, runID)
 	defer cancel()

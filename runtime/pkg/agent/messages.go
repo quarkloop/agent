@@ -24,6 +24,7 @@ const (
 type UserMessageMsg struct {
 	loop.BaseMessage
 	Context   context.Context
+	SpaceID   string
 	SessionID string
 	Content   string
 	Response  chan message.StreamMessage
@@ -37,6 +38,7 @@ func NewUserMessage(ctx context.Context, request message.PostRequest, resp chan 
 	return UserMessageMsg{
 		BaseMessage: loop.NewMessage(MsgTypeUserMessage),
 		Context:     ctx,
+		SpaceID:     request.SpaceID,
 		SessionID:   request.SessionID,
 		Content:     request.Content,
 		Response:    resp,

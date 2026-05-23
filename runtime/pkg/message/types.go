@@ -10,6 +10,7 @@ type Poster interface {
 // PostRequest is the runtime-owned request to post a user message into a
 // session. Transport DTOs must be mapped to this type at channel/API edges.
 type PostRequest struct {
+	SpaceID   string
 	SessionID string
 	Content   string
 }
