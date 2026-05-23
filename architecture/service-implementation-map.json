@@ -246,7 +246,7 @@
   },
   "e2e_tests": {
     "direct_service_shortcut_suspect_count": 6,
-    "file_count": 32,
+    "file_count": 33,
     "files": [
       {
         "direct_service_shortcut_suspects": [],
@@ -411,6 +411,12 @@
           "148: \"service function\",",
           "168: \"service function\","
         ]
+      },
+      {
+        "direct_service_shortcut_suspects": [],
+        "has_process_flow": false,
+        "path": "e2e/runtime_lease_test.go",
+        "prompt_shortcut_suspects": []
       },
       {
         "direct_service_shortcut_suspects": [],
@@ -2797,7 +2803,7 @@
   "summary": {
     "agent_profile_count": 3,
     "declared_only_or_mismatched_function_count": 4,
-    "e2e_test_file_count": 32,
+    "e2e_test_file_count": 33,
     "implemented_service_function_count": 138,
     "runnable_service_module_count": 15,
     "service_function_count": 142,

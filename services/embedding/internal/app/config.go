@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/quarkloop/pkg/serviceapi/servicebridge"
 )
 
 const defaultDimensions = 32
@@ -21,6 +23,7 @@ type Config struct {
 	OpenRouterAPIKey  string
 	OpenRouterBaseURL string
 	HTTPClient        *http.Client
+	NATS              servicebridge.NATSConfig
 	Logger            *slog.Logger
 }
 

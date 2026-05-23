@@ -10,6 +10,7 @@ import (
 
 	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
+	"github.com/quarkloop/pkg/serviceapi/servicebridge"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/services/document/internal/docsvc"
 	"google.golang.org/grpc"
@@ -21,6 +22,7 @@ type Config struct {
 	Address   string
 	SkillDir  string
 	PDFToText string
+	NATS      servicebridge.NATSConfig
 	Logger    *slog.Logger
 }
 
@@ -53,10 +55,25 @@ func Run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return err
 	}
-	if err := registry.Register(docsvc.Descriptor(cfg.Address, skill)); err != nil {
+	descriptor := docsvc.Descriptor(cfg.Address, skill)
+	if err := registry.Register(descriptor); err != nil {
 		return err
 	}
 	servicev1.RegisterServiceRegistryServer(grpcServer, registry)
+	if cfg.NATS.URL != "" {
+		cfg.NATS.Logger = cfg.Logger
+		natsService := servicebridge.NewNATSService(cfg.NATS)
+		if err := natsService.Start(ctx, servicebridge.Binding{
+			Descriptor: descriptor,
+			Services: []servicebridge.GRPCService{{
+				Desc:           &documentv1.DocumentService_ServiceDesc,
+				Implementation: documentServer,
+			}},
+		}); err != nil {
+			return err
+		}
+		defer natsService.Close()
+	}
 
 	ln, err := net.Listen("tcp", cfg.Address)
 	if err != nil {

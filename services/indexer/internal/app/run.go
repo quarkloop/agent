@@ -10,6 +10,7 @@ import (
 
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
+	"github.com/quarkloop/pkg/serviceapi/servicebridge"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/services/indexer/internal/indexing"
 	"github.com/quarkloop/services/indexer/internal/server"
@@ -23,6 +24,7 @@ type Config struct {
 	Address  string
 	Driver   indexer.GraphVectorDriver
 	SkillDir string
+	NATS     servicebridge.NATSConfig
 	Logger   *slog.Logger
 }
 
@@ -58,7 +60,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return err
 	}
-	if err := registry.Register(&servicev1.ServiceDescriptor{
+	descriptor := &servicev1.ServiceDescriptor{
 		Name:    "indexer",
 		Type:    "indexer",
 		Version: "1.0.0",
@@ -77,10 +79,25 @@ func Run(ctx context.Context, cfg Config) error {
 			{Service: indexerv1.IndexerService_ServiceDesc.ServiceName, Method: "DeleteChunk", Request: "quark.indexer.v1.DeleteChunkRequest", Response: "quark.indexer.v1.DeleteChunkResponse", Description: "Delete one indexed chunk and its chunk-owned edges by canonical chunk ID."},
 		},
 		Skills: []*servicev1.SkillDescriptor{skill},
-	}); err != nil {
+	}
+	if err := registry.Register(descriptor); err != nil {
 		return err
 	}
 	servicev1.RegisterServiceRegistryServer(grpcServer, registry)
+	if cfg.NATS.URL != "" {
+		cfg.NATS.Logger = cfg.Logger
+		natsService := servicebridge.NewNATSService(cfg.NATS)
+		if err := natsService.Start(ctx, servicebridge.Binding{
+			Descriptor: descriptor,
+			Services: []servicebridge.GRPCService{{
+				Desc:           &indexerv1.IndexerService_ServiceDesc,
+				Implementation: indexerServer,
+			}},
+		}); err != nil {
+			return err
+		}
+		defer natsService.Close()
+	}
 
 	ln, err := net.Listen("tcp", cfg.Address)
 	if err != nil {

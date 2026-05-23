@@ -10,6 +10,7 @@ import (
 
 	buildreleasev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/buildrelease/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
+	"github.com/quarkloop/pkg/serviceapi/servicebridge"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/services/build-release/internal/server"
 	"github.com/quarkloop/services/build-release/pkg/buildrelease"
@@ -21,6 +22,7 @@ import (
 type Config struct {
 	Address  string
 	SkillDir string
+	NATS     servicebridge.NATSConfig
 	Logger   *slog.Logger
 }
 
@@ -52,7 +54,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return err
 	}
-	if err := registry.Register(&servicev1.ServiceDescriptor{
+	descriptor := &servicev1.ServiceDescriptor{
 		Name:    "build-release",
 		Type:    "build-release",
 		Version: "1.0.0",
@@ -63,10 +65,25 @@ func Run(ctx context.Context, cfg Config) error {
 			{Service: buildreleasev1.BuildReleaseService_ServiceDesc.ServiceName, Method: "Init", Request: "quark.buildrelease.v1.InitRequest", Response: "quark.buildrelease.v1.InitResponse", Description: "Create a default build_release.json in a working directory."},
 		},
 		Skills: []*servicev1.SkillDescriptor{skill},
-	}); err != nil {
+	}
+	if err := registry.Register(descriptor); err != nil {
 		return err
 	}
 	servicev1.RegisterServiceRegistryServer(grpcServer, registry)
+	if cfg.NATS.URL != "" {
+		cfg.NATS.Logger = cfg.Logger
+		natsService := servicebridge.NewNATSService(cfg.NATS)
+		if err := natsService.Start(ctx, servicebridge.Binding{
+			Descriptor: descriptor,
+			Services: []servicebridge.GRPCService{{
+				Desc:           &buildreleasev1.BuildReleaseService_ServiceDesc,
+				Implementation: releaseServer,
+			}},
+		}); err != nil {
+			return err
+		}
+		defer natsService.Close()
+	}
 
 	ln, err := net.Listen("tcp", cfg.Address)
 	if err != nil {

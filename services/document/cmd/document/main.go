@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/quarkloop/pkg/serviceapi/servicebridge"
 	"github.com/quarkloop/services/document/internal/app"
 )
 
@@ -16,9 +17,17 @@ func main() {
 	var addr string
 	var skillDir string
 	var pdftotextPath string
+	var natsURL string
+	var natsUser string
+	var natsPassword string
+	var natsQueue string
 	flag.StringVar(&addr, "addr", "127.0.0.1:7307", "gRPC listen address")
 	flag.StringVar(&skillDir, "skill-dir", "", "directory containing the service SKILL.md")
 	flag.StringVar(&pdftotextPath, "pdftotext", os.Getenv("QUARK_PDFTOTEXT_PATH"), "pdftotext executable path; empty resolves from PATH")
+	flag.StringVar(&natsURL, "nats-url", os.Getenv("QUARK_NATS_URL"), "NATS URL for service-function endpoints")
+	flag.StringVar(&natsUser, "nats-user", envOrDefault("QUARK_NATS_SERVICE_USER", os.Getenv("QUARK_NATS_USER")), "NATS username")
+	flag.StringVar(&natsPassword, "nats-password", envOrDefault("QUARK_NATS_SERVICE_PASSWORD", os.Getenv("QUARK_NATS_PASSWORD")), "NATS password")
+	flag.StringVar(&natsQueue, "nats-queue", envOrDefault("QUARK_DOCUMENT_NATS_QUEUE", "q.document.v1"), "NATS queue group")
 	flag.Parse()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil).WithAttrs([]slog.Attr{
@@ -32,9 +41,23 @@ func main() {
 		Address:   addr,
 		SkillDir:  skillDir,
 		PDFToText: pdftotextPath,
-		Logger:    logger,
+		NATS: servicebridge.NATSConfig{
+			URL:      natsURL,
+			Username: natsUser,
+			Password: natsPassword,
+			Queue:    natsQueue,
+			Name:     "quark-document",
+		},
+		Logger: logger,
 	}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+func envOrDefault(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
 }

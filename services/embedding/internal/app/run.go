@@ -12,6 +12,7 @@ import (
 
 	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
+	"github.com/quarkloop/pkg/serviceapi/servicebridge"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -37,7 +38,8 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(servicekit.UnaryLoggingInterceptor(cfg.Logger)))
-	embeddingv1.RegisterEmbeddingServiceServer(grpcServer, &server{embedder: embedder})
+	embeddingServer := &server{embedder: embedder}
+	embeddingv1.RegisterEmbeddingServiceServer(grpcServer, embeddingServer)
 
 	healthServer := health.NewServer()
 	healthServer.SetServingStatus(embeddingv1.EmbeddingService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
@@ -52,7 +54,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return err
 	}
-	if err := registry.Register(&servicev1.ServiceDescriptor{
+	descriptor := &servicev1.ServiceDescriptor{
 		Name:    "embedding",
 		Type:    "embedding",
 		Version: "1.0.0",
@@ -61,10 +63,25 @@ func Run(ctx context.Context, cfg Config) error {
 			{Service: embeddingv1.EmbeddingService_ServiceDesc.ServiceName, Method: "Embed", Request: "quark.embedding.v1.EmbedRequest", Response: "quark.embedding.v1.EmbedResponse", Description: embedder.Description()},
 		},
 		Skills: []*servicev1.SkillDescriptor{skill},
-	}); err != nil {
+	}
+	if err := registry.Register(descriptor); err != nil {
 		return err
 	}
 	servicev1.RegisterServiceRegistryServer(grpcServer, registry)
+	if cfg.NATS.URL != "" {
+		cfg.NATS.Logger = cfg.Logger
+		natsService := servicebridge.NewNATSService(cfg.NATS)
+		if err := natsService.Start(ctx, servicebridge.Binding{
+			Descriptor: descriptor,
+			Services: []servicebridge.GRPCService{{
+				Desc:           &embeddingv1.EmbeddingService_ServiceDesc,
+				Implementation: embeddingServer,
+			}},
+		}); err != nil {
+			return err
+		}
+		defer natsService.Close()
+	}
 
 	ln, err := net.Listen("tcp", cfg.Address)
 	if err != nil {

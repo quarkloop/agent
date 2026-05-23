@@ -10,6 +10,7 @@ import (
 
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	systemv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/system/v1"
+	"github.com/quarkloop/pkg/serviceapi/servicebridge"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/services/system/internal/systemsvc"
 	"google.golang.org/grpc"
@@ -20,6 +21,7 @@ import (
 type Config struct {
 	Address  string
 	SkillDir string
+	NATS     servicebridge.NATSConfig
 	Logger   *slog.Logger
 }
 
@@ -48,10 +50,25 @@ func Run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return err
 	}
-	if err := registry.Register(systemsvc.Descriptor(cfg.Address, skill)); err != nil {
+	descriptor := systemsvc.Descriptor(cfg.Address, skill)
+	if err := registry.Register(descriptor); err != nil {
 		return err
 	}
 	servicev1.RegisterServiceRegistryServer(grpcServer, registry)
+	if cfg.NATS.URL != "" {
+		cfg.NATS.Logger = cfg.Logger
+		natsService := servicebridge.NewNATSService(cfg.NATS)
+		if err := natsService.Start(ctx, servicebridge.Binding{
+			Descriptor: descriptor,
+			Services: []servicebridge.GRPCService{{
+				Desc:           &systemv1.SystemService_ServiceDesc,
+				Implementation: server,
+			}},
+		}); err != nil {
+			return err
+		}
+		defer natsService.Close()
+	}
 
 	ln, err := net.Listen("tcp", cfg.Address)
 	if err != nil {

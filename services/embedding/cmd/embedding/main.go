@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/quarkloop/pkg/serviceapi/servicebridge"
 	"github.com/quarkloop/services/embedding/internal/app"
 )
 
@@ -21,6 +22,10 @@ func main() {
 	var dimensions int
 	var fallbacks string
 	var openRouterBaseURL string
+	var natsURL string
+	var natsUser string
+	var natsPassword string
+	var natsQueue string
 	flag.StringVar(&addr, "addr", "127.0.0.1:7304", "gRPC listen address")
 	flag.StringVar(&skillDir, "skill-dir", "", "directory containing the service SKILL.md")
 	flag.StringVar(&provider, "provider", envOrDefault("QUARK_EMBEDDING_PROVIDER", "local"), "embedding provider: local or openrouter")
@@ -28,6 +33,10 @@ func main() {
 	flag.IntVar(&dimensions, "dimensions", envInt("QUARK_EMBEDDING_DIMENSIONS"), "expected embedding dimensions")
 	flag.StringVar(&fallbacks, "fallbacks", os.Getenv("QUARK_EMBEDDING_FALLBACKS"), "ordered fallback providers: provider|model|dimensions,provider|model|dimensions")
 	flag.StringVar(&openRouterBaseURL, "openrouter-base-url", os.Getenv("OPENROUTER_BASE_URL"), "OpenRouter API base URL")
+	flag.StringVar(&natsURL, "nats-url", os.Getenv("QUARK_NATS_URL"), "NATS URL for service-function endpoints")
+	flag.StringVar(&natsUser, "nats-user", envOrDefault("QUARK_NATS_SERVICE_USER", os.Getenv("QUARK_NATS_USER")), "NATS username")
+	flag.StringVar(&natsPassword, "nats-password", envOrDefault("QUARK_NATS_SERVICE_PASSWORD", os.Getenv("QUARK_NATS_PASSWORD")), "NATS password")
+	flag.StringVar(&natsQueue, "nats-queue", envOrDefault("QUARK_EMBEDDING_NATS_QUEUE", "q.embedding.v1"), "NATS queue group")
 	flag.Parse()
 	fallbackSpecs, err := app.ParseProviderSpecs(fallbacks)
 	if err != nil {
@@ -51,7 +60,14 @@ func main() {
 		Fallbacks:         fallbackSpecs,
 		OpenRouterAPIKey:  os.Getenv("OPENROUTER_API_KEY"),
 		OpenRouterBaseURL: openRouterBaseURL,
-		Logger:            logger,
+		NATS: servicebridge.NATSConfig{
+			URL:      natsURL,
+			Username: natsUser,
+			Password: natsPassword,
+			Queue:    natsQueue,
+			Name:     "quark-embedding",
+		},
+		Logger: logger,
 	}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
