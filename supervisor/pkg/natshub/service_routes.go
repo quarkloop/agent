@@ -12,6 +12,7 @@ type ServiceFunctionRoute struct {
 	Name          string
 	ExportSubject string
 	ImportSubject string
+	Streaming     bool
 }
 
 func NewServiceFunctionRoute(service, version, function string) (ServiceFunctionRoute, error) {
@@ -49,7 +50,7 @@ func NormalizeServiceFunctionRoutes(routes []ServiceFunctionRoute) ([]ServiceFun
 		if err != nil {
 			return nil, err
 		}
-		key := normalized.ImportSubject + "\x00" + normalized.ExportSubject
+		key := normalized.key()
 		if _, ok := seen[key]; ok {
 			continue
 		}
@@ -63,6 +64,10 @@ func cloneServiceFunctionRoutes(routes []ServiceFunctionRoute) []ServiceFunction
 	out := make([]ServiceFunctionRoute, len(routes))
 	copy(out, routes)
 	return out
+}
+
+func (route ServiceFunctionRoute) key() string {
+	return route.ImportSubject + "\x00" + route.ExportSubject + fmt.Sprintf("\x00%t", route.Streaming)
 }
 
 func normalizeServiceFunctionRoute(route ServiceFunctionRoute) (ServiceFunctionRoute, error) {

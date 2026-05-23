@@ -3,9 +3,9 @@
 The space service owns Quark space metadata, the authoritative Quarkfile copy,
 derived storage paths, launch environment resolution, and space diagnostics.
 
-Use `quark.space.v1.SpaceService` for space lifecycle and metadata operations.
-The supervisor keeps its HTTP API for CLI compatibility, but space business
-logic lives behind this gRPC contract.
+Use `quark.space.v1.SpaceService` service functions for space lifecycle and
+metadata operations. Space business logic lives behind this NATS
+service-function contract.
 
 ## RPCs
 
@@ -56,7 +56,6 @@ logic lives behind this gRPC contract.
 ## Contract Notes
 
 - Spaces are keyed by Quarkfile `meta.name`, not by path.
-- The CLI should continue to use supervisor HTTP APIs; the supervisor delegates
-  space work to this service.
-- Runtime and supervisor callers should use gRPC for space metadata and
-  environment operations.
+- The CLI should use supervisor-owned NATS contracts for space operations.
+- Runtime and supervisor callers should use service functions for space
+  metadata and environment operations.

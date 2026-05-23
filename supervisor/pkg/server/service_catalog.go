@@ -16,31 +16,11 @@ import (
 	spacemodel "github.com/quarkloop/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/natshub"
 	"github.com/quarkloop/supervisor/pkg/pluginmanager"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-const runtimeServiceCatalogEnv = "QUARK_RUNTIME_SERVICE_CATALOG"
-const runtimePluginCatalogEnv = "QUARK_RUNTIME_PLUGIN_CATALOG"
 const defaultServiceFunctionTimeout = 30 * time.Second
 
 type runtimePluginCatalogEntry = plugin.RuntimeCatalogPlugin
-
-func (s *Server) runtimePluginCatalogEnv(ctx context.Context, space string) ([]string, error) {
-	catalog, selectedAgent, err := s.resolveRuntimePluginCatalog(ctx, space)
-	if err != nil {
-		return nil, err
-	}
-	payload, err := json.Marshal(catalog)
-	if err != nil {
-		return nil, fmt.Errorf("marshal runtime plugin catalog: %w", err)
-	}
-	env := []string{runtimePluginCatalogEnv + "=" + string(payload)}
-	if selectedAgent != "" {
-		env = append(env, runtimeAgentProfileEnv+"="+selectedAgent)
-	}
-	return env, nil
-}
 
 func (s *Server) resolveRuntimePluginCatalog(ctx context.Context, space string) (plugin.RuntimeCatalog, string, error) {
 	_ = ctx
@@ -124,17 +104,6 @@ func readPluginFile(pluginDir, name string) string {
 	return strings.TrimSpace(string(data))
 }
 
-func (s *Server) runtimeServiceCatalogEnv(ctx context.Context, space string) ([]string, error) {
-	payload, err := s.runtimeServiceCatalogPayload(ctx, space)
-	if err != nil {
-		return nil, err
-	}
-	if len(payload) == 0 {
-		return nil, nil
-	}
-	return []string{runtimeServiceCatalogEnv + "=" + string(payload)}, nil
-}
-
 func (s *Server) runtimeServiceCatalogPayload(ctx context.Context, space string) ([]byte, error) {
 	descriptors, err := s.resolveServicePluginCatalog(ctx, space)
 	if err != nil {
@@ -188,60 +157,19 @@ func (s *Server) resolveServicePluginCatalog(ctx context.Context, space string) 
 
 	descriptors := make([]*servicev1.ServiceDescriptor, 0, len(installed))
 	for _, item := range installed {
-		configured, selected := servicePluginConfig(serviceConfig, item.Manifest)
+		_, selected := servicePluginConfig(serviceConfig, item.Manifest)
 		if !selected {
 			continue
 		}
-		if servicePluginUsesNATS(item.Manifest) {
-			pluginDescriptors, err := descriptorsFromServiceManifest(item.Manifest)
-			if err != nil {
-				return nil, fmt.Errorf("service plugin %s manifest descriptors: %w", item.Manifest.Name, err)
-			}
-			skill := loadServicePluginSkill(item)
-			if skill != nil {
-				for _, desc := range pluginDescriptors {
-					desc.Skills = replaceSkill(desc.GetSkills(), skill)
-				}
-			}
-			if err := validateServicePluginDescriptors(pluginDescriptors, item.Manifest); err != nil {
-				return nil, fmt.Errorf("service plugin %s descriptor: %w", item.Manifest.Name, err)
-			}
-			if err := s.importServiceFunctionRoutes(space, pluginDescriptors); err != nil {
-				return nil, fmt.Errorf("service plugin %s nats imports: %w", item.Manifest.Name, err)
-			}
-			descriptors = append(descriptors, pluginDescriptors...)
-			continue
-		}
-		address := s.serviceCatalogAddress(space, item.Manifest, configured)
-		if address == "" {
-			if servicePluginReadinessRequired(item.Manifest, configured) {
-				return nil, fmt.Errorf("service plugin %s missing endpoint: set %s or configure services[].address", item.Manifest.Name, item.Manifest.Service.AddressEnv)
-			}
-			continue
-		}
-		if err := checkServicePluginReadiness(ctx, address, item.Manifest); err != nil {
-			return nil, fmt.Errorf("service plugin %s readiness at %s: %w", item.Manifest.Name, address, err)
-		}
-		discovered, err := discoverServicePlugin(ctx, address)
+		pluginDescriptors, err := descriptorsFromServiceManifest(item.Manifest)
 		if err != nil {
-			return nil, fmt.Errorf("discover service plugin %s: %w", item.Manifest.Name, err)
+			return nil, fmt.Errorf("service plugin %s manifest descriptors: %w", item.Manifest.Name, err)
 		}
 		skill := loadServicePluginSkill(item)
-		pluginDescriptors := make([]*servicev1.ServiceDescriptor, 0, len(discovered))
-		for _, desc := range discovered {
-			if desc.GetAddress() == "" {
-				desc.Address = address
-			}
-			if desc.GetName() == "" {
-				desc.Name = item.Manifest.Name
-			}
-			if err := applyServiceFunctionMetadata(desc, item.Manifest); err != nil {
-				return nil, fmt.Errorf("service plugin %s metadata: %w", item.Manifest.Name, err)
-			}
-			if skill != nil {
+		if skill != nil {
+			for _, desc := range pluginDescriptors {
 				desc.Skills = replaceSkill(desc.GetSkills(), skill)
 			}
-			pluginDescriptors = append(pluginDescriptors, desc)
 		}
 		if err := validateServicePluginDescriptors(pluginDescriptors, item.Manifest); err != nil {
 			return nil, fmt.Errorf("service plugin %s descriptor: %w", item.Manifest.Name, err)
@@ -252,13 +180,6 @@ func (s *Server) resolveServicePluginCatalog(ctx context.Context, space string) 
 		descriptors = append(descriptors, pluginDescriptors...)
 	}
 	return descriptors, nil
-}
-
-func servicePluginUsesNATS(manifest *plugin.Manifest) bool {
-	return manifest != nil &&
-		manifest.Service != nil &&
-		(strings.TrimSpace(manifest.Service.Transport) == "nats" ||
-			strings.TrimSpace(manifest.Service.Health.Protocol) == "nats_service")
 }
 
 func descriptorsFromServiceManifest(manifest *plugin.Manifest) ([]*servicev1.ServiceDescriptor, error) {
@@ -306,6 +227,7 @@ func (s *Server) importServiceFunctionRoutes(space string, descriptors []*servic
 			if err != nil {
 				return err
 			}
+			route.Streaming = rpc.GetStreaming()
 			routes = append(routes, route)
 		}
 	}
@@ -443,66 +365,7 @@ func pluginNameFromRef(ref string) string {
 	return ref
 }
 
-func servicePluginAddress(manifest *plugin.Manifest, configured spacemodel.ServiceRef) string {
-	if manifest == nil || manifest.Service == nil {
-		return ""
-	}
-	if configured.AddressEnv != "" {
-		if value := strings.TrimSpace(os.Getenv(configured.AddressEnv)); value != "" {
-			return value
-		}
-	}
-	if configured.Address != "" {
-		return strings.TrimSpace(configured.Address)
-	}
-	if manifest.Service.AddressEnv != "" {
-		if value := strings.TrimSpace(os.Getenv(manifest.Service.AddressEnv)); value != "" {
-			return value
-		}
-	}
-	return strings.TrimSpace(manifest.Service.DefaultAddress)
-}
-
-func (s *Server) serviceCatalogAddress(space string, manifest *plugin.Manifest, configured spacemodel.ServiceRef) string {
-	return servicePluginAddress(manifest, configured)
-}
-
-func servicePluginReadinessRequired(manifest *plugin.Manifest, configured spacemodel.ServiceRef) bool {
-	if configured.Name != "" {
-		return true
-	}
-	return manifest != nil && manifest.Service != nil && manifest.Service.Readiness.Required
-}
-
-func checkServicePluginReadiness(ctx context.Context, address string, manifest *plugin.Manifest) error {
-	if manifest == nil || manifest.Service == nil {
-		return nil
-	}
-	if servicePluginUsesNATS(manifest) {
-		return nil
-	}
-	timeout, err := time.ParseDuration(manifest.Service.Health.Timeout)
-	if err != nil {
-		return fmt.Errorf("invalid health timeout: %w", err)
-	}
-	callCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-	conn, err := servicekit.Dial(callCtx, address)
-	if err != nil {
-		return fmt.Errorf("dial health endpoint: %w", err)
-	}
-	defer conn.Close()
-	resp, err := healthpb.NewHealthClient(conn).Check(callCtx, &healthpb.HealthCheckRequest{Service: healthServiceName(manifest)})
-	if err != nil {
-		return fmt.Errorf("grpc health check: %w", err)
-	}
-	if resp.GetStatus() != healthpb.HealthCheckResponse_SERVING {
-		return fmt.Errorf("health status is %s", resp.GetStatus().String())
-	}
-	return nil
-}
-
-func healthServiceName(manifest *plugin.Manifest) string {
+func serviceHealthName(manifest *plugin.Manifest) string {
 	if manifest == nil || manifest.Service == nil {
 		return ""
 	}
@@ -532,7 +395,7 @@ func validateServicePluginDescriptors(descriptors []*servicev1.ServiceDescriptor
 		if minVersion != "" && desc.GetVersion() != minVersion {
 			return fmt.Errorf("unsupported version %q for %s (required: %s)", desc.GetVersion(), desc.GetName(), minVersion)
 		}
-		if !servicePluginUsesNATS(manifest) && desc.GetAddress() == "" {
+		if desc.GetAddress() == "" {
 			return fmt.Errorf("descriptor %s missing endpoint address", desc.GetName())
 		}
 		for _, rpc := range desc.GetRpcs() {
@@ -555,26 +418,6 @@ func validateServicePluginDescriptors(descriptors []*servicev1.ServiceDescriptor
 		}
 	}
 	return nil
-}
-
-func discoverServicePlugin(ctx context.Context, address string) ([]*servicev1.ServiceDescriptor, error) {
-	callCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	conn, err := servicekit.Dial(callCtx, address)
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
-
-	resp, err := servicev1.NewServiceRegistryClient(conn).ListServices(callCtx, &emptypb.Empty{})
-	if err != nil {
-		return nil, err
-	}
-	out := make([]*servicev1.ServiceDescriptor, 0, len(resp.GetServices()))
-	for _, desc := range resp.GetServices() {
-		out = append(out, servicekit.CloneDescriptor(desc))
-	}
-	return out, nil
 }
 
 func loadServicePluginSkill(item pluginmanager.InstalledPlugin) *servicev1.SkillDescriptor {

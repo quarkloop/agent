@@ -32,7 +32,7 @@ func TestNATSServiceDispatchesUnaryServiceFunction(t *testing.T) {
 	}
 	if err := server.Start(context.Background(), Binding{
 		Descriptor: desc,
-		Services: []GRPCService{{
+		Services: []RPCService{{
 			Desc:           &embeddingv1.EmbeddingService_ServiceDesc,
 			Implementation: impl,
 		}},
@@ -108,7 +108,7 @@ func TestNATSServicePublishesRedactedAuditAndTelemetryEvents(t *testing.T) {
 	}
 	if err := server.Start(context.Background(), Binding{
 		Descriptor: desc,
-		Services: []GRPCService{{
+		Services: []RPCService{{
 			Desc:           &embeddingv1.EmbeddingService_ServiceDesc,
 			Implementation: impl,
 		}},

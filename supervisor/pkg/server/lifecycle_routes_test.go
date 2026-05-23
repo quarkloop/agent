@@ -63,14 +63,6 @@ func lifecycleRouteServer(t *testing.T) *Server {
 	if err != nil {
 		t.Fatalf("new server: %v", err)
 	}
-	t.Cleanup(func() {
-		if srv.spaceConn != nil {
-			_ = srv.spaceConn.Close()
-		}
-		if srv.spaceServiceGRPC != nil {
-			srv.spaceServiceGRPC.Stop()
-		}
-	})
 	return srv
 }
 

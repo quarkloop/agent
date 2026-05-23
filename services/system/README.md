@@ -47,8 +47,8 @@ user environment provides it.
 
 ## Health And Readiness
 
-- Health protocol: gRPC health v1.
+- Health protocol: NATS service-function readiness.
 - Health service: `quark.system.v1.SystemService`.
-- Descriptor registry: `quark.service.v1.ServiceRegistry`.
+- Descriptor source: service plugin manifest and NATS service metadata.
 - Readiness requires descriptor registration and available mandatory native
   Linux readers.

@@ -23,9 +23,10 @@ type openAICompatibleProvider struct {
 }
 
 func newOpenAICompatibleProvider(cfg ProviderConfig) provider {
+	baseURL := strings.TrimRight(strings.TrimSpace(cfg.BaseURL), "/")
 	return &openAICompatibleProvider{
 		id:      strings.TrimSpace(cfg.ID),
-		baseURL: strings.TrimRight(strings.TrimSpace(cfg.BaseURL), "/"),
+		baseURL: normalizeOpenAICompatibleBaseURL(cfg.ID, baseURL),
 		apiKey:  strings.TrimSpace(cfg.APIKey),
 		model:   strings.TrimSpace(cfg.Model),
 		client:  http.DefaultClient,
@@ -55,12 +56,16 @@ func (p *openAICompatibleProvider) StreamGenerate(ctx context.Context, cmd gener
 	if p.baseURL == "" {
 		return nil, plugin.NewProviderError(plugin.ProviderErrorInvalidRequest, p.id, cmd.Model, 0, fmt.Errorf("base URL is required"))
 	}
-	body, err := json.Marshal(openAIChatRequest{
+	reqBody := openAIChatRequest{
 		Model:    firstNonEmpty(cmd.Model, p.model),
 		Messages: openAIMessages(cmd.Messages),
 		Tools:    openAITools(cmd.Tools),
 		Stream:   true,
-	})
+	}
+	if maxOutputTokens, ok := maxOutputTokensOption(cmd.Options); ok {
+		reqBody.MaxTokens = &maxOutputTokens
+	}
+	body, err := json.Marshal(reqBody)
 	if err != nil {
 		return nil, plugin.NewProviderError(plugin.ProviderErrorInvalidRequest, p.id, cmd.Model, 0, fmt.Errorf("marshal request: %w", err))
 	}
@@ -180,10 +185,11 @@ func readOpenAIStream(body io.ReadCloser, ch chan<- streamEvent) {
 }
 
 type openAIChatRequest struct {
-	Model    string          `json:"model"`
-	Messages []openAIMessage `json:"messages"`
-	Tools    []openAITool    `json:"tools,omitempty"`
-	Stream   bool            `json:"stream"`
+	Model     string          `json:"model"`
+	Messages  []openAIMessage `json:"messages"`
+	Tools     []openAITool    `json:"tools,omitempty"`
+	Stream    bool            `json:"stream"`
+	MaxTokens *int            `json:"max_tokens,omitempty"`
 }
 
 type openAIMessage struct {
@@ -264,6 +270,13 @@ func openAITools(tools []toolSchema) []openAITool {
 		})
 	}
 	return out
+}
+
+func normalizeOpenAICompatibleBaseURL(providerID, baseURL string) string {
+	if strings.EqualFold(strings.TrimSpace(providerID), "openrouter") && strings.HasSuffix(baseURL, "/api") {
+		return baseURL + "/v1"
+	}
+	return baseURL
 }
 
 func toolCallsFromOpenAI(calls []openAIToolCall) []toolCall {

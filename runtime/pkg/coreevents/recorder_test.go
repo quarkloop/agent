@@ -2,37 +2,44 @@ package coreevents
 
 import (
 	"context"
-	"net"
 	"sync"
 	"testing"
 	"time"
 
+	natsserver "github.com/nats-io/nats-server/v2/server"
 	corev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/core/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
+	"github.com/quarkloop/pkg/serviceapi/servicebridge"
 	"github.com/quarkloop/runtime/pkg/activity"
-	"google.golang.org/grpc"
+	runtimeservices "github.com/quarkloop/runtime/pkg/services"
 )
 
 func TestRecorderPersistsActivityEventsAndAudits(t *testing.T) {
+	ns := startCoreEventsNATS(t)
 	coreServer := &captureCoreServer{}
-	grpcServer := grpc.NewServer()
-	corev1.RegisterCoreServiceServer(grpcServer, coreServer)
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	go func() { _ = grpcServer.Serve(ln) }()
-	defer grpcServer.Stop()
-
-	recorder := New([]*servicev1.ServiceDescriptor{{
-		Name:    "core",
-		Type:    "core",
-		Address: ln.Addr().String(),
-		Rpcs: []*servicev1.RpcDescriptor{{
-			Service: corev1.CoreService_ServiceDesc.ServiceName,
-			Method:  "PublishEvent",
+	descriptor := coreServiceDescriptor()
+	bridge := servicebridge.NewNATSService(servicebridge.NATSConfig{
+		URL:   ns.ClientURL(),
+		Queue: "q.core.events.test",
+		Name:  "core-events-test",
+	})
+	if err := bridge.Start(context.Background(), servicebridge.Binding{
+		Descriptor: descriptor,
+		Services: []servicebridge.RPCService{{
+			Desc:           &corev1.CoreService_ServiceDesc,
+			Implementation: coreServer,
 		}},
-	}}, nil)
+	}); err != nil {
+		t.Fatalf("start core service bridge: %v", err)
+	}
+	t.Cleanup(bridge.Close)
+
+	catalog := runtimeservices.NewCatalogWithCaller([]*servicev1.ServiceDescriptor{descriptor}, runtimeservices.NewNATSCaller(runtimeservices.NATSCallerConfig{
+		URL:     ns.ClientURL(),
+		SpaceID: "test-space",
+		Name:    "core-events-runtime-test",
+	}))
+	recorder := New(catalog, nil)
 	if recorder == nil {
 		t.Fatal("expected recorder")
 	}
@@ -63,6 +70,50 @@ func TestRecorderPersistsActivityEventsAndAudits(t *testing.T) {
 	}
 	if audit.GetRunId() != "session-1" || audit.GetAction() != "tool_result" {
 		t.Fatalf("unexpected core audit: %#v", audit)
+	}
+}
+
+func startCoreEventsNATS(t *testing.T) *natsserver.Server {
+	t.Helper()
+	ns, err := natsserver.NewServer(&natsserver.Options{Host: "127.0.0.1", Port: -1, NoLog: true, NoSigs: true})
+	if err != nil {
+		t.Fatalf("new nats server: %v", err)
+	}
+	go ns.Start()
+	if !ns.ReadyForConnections(time.Second) {
+		ns.Shutdown()
+		t.Fatal("nats server did not become ready")
+	}
+	t.Cleanup(ns.Shutdown)
+	return ns
+}
+
+func coreServiceDescriptor() *servicev1.ServiceDescriptor {
+	return &servicev1.ServiceDescriptor{
+		Name:    "core",
+		Type:    "core",
+		Version: "1.0.0",
+		Address: "svc.core.v1",
+		Rpcs: []*servicev1.RpcDescriptor{
+			{
+				Service:       corev1.CoreService_ServiceDesc.ServiceName,
+				Method:        "PublishEvent",
+				Request:       "quark.core.v1.PublishEventRequest",
+				Response:      "quark.core.v1.PublishEventResponse",
+				Owner:         "core",
+				FunctionName:  "core_PublishEvent",
+				TimeoutMillis: 2000,
+			},
+			{
+				Service:       corev1.CoreService_ServiceDesc.ServiceName,
+				Method:        "RecordAuditEvent",
+				Request:       "quark.core.v1.RecordAuditEventRequest",
+				Response:      "quark.core.v1.RecordAuditEventResponse",
+				Owner:         "core",
+				FunctionName:  "core_RecordAuditEvent",
+				TimeoutMillis: 2000,
+			},
+		},
 	}
 }
 

@@ -10,18 +10,19 @@ tool execution, model/provider routing, and a supervisor that owns lifecycle
 and persistent state.
 
 The project is production-shaped by design: explicit ownership boundaries,
-gRPC service contracts, supervisor-owned discovery, real supervisor/runtime E2E
-tests, redacted observability artifacts, and strict data-flow rules.
+NATS-native service-function contracts, supervisor-owned discovery, real
+supervisor/runtime E2E tests, redacted observability artifacts, and strict
+data-flow rules.
 
 ## What You Get
 
 | Area | What it does |
 | --- | --- |
 | Spaces | Local-first workspaces configured by a `Quarkfile`. |
-| Supervisor | Control plane for spaces, sessions, plugin installs, service discovery, readiness, catalogs, and runtime lifecycle. |
+| Supervisor | Control plane for spaces, sessions, plugin installs, service discovery, readiness, catalogs, and embedded NATS. |
 | Runtime | Agent loop, profile prompts, LLM/model calls, tool execution, service-function dispatch, permissions, activity, and workflow guards. |
 | Agents | Launch profiles for Quark Knowledge, Quark DevOps, and Quark System. |
-| Services | Typed gRPC-backed functions for model, core, document, ingestion, indexer, citation, DevOps, System, Space, embedding compatibility, and build-release compatibility. |
+| Services | Typed NATS service functions for gateway/model, core, document, ingestion, indexer, citation, DevOps, System, Space, embedding compatibility, and build-release compatibility. |
 | Observability | Redacted activity, tool/service timelines, model usage records, diagnostics, and E2E artifacts. |
 
 The core product shape is simple: the agent reasons and coordinates; services
@@ -39,7 +40,7 @@ export PATH="$PWD/bin:$PATH"
 Start the supervisor:
 
 ```bash
-supervisor start --port 7200 --runtime ./bin/runtime
+supervisor start --port 7200
 ```
 
 Create and run a space:
@@ -53,8 +54,8 @@ quark run
 quark session create --title "Demo"
 ```
 
-The CLI is an HTTP client. The supervisor stores space state under
-`$QUARK_SPACES_ROOT` or `~/.quarkloop/spaces`.
+The CLI talks to supervisor/runtime contracts through NATS. The supervisor
+stores space state under `$QUARK_SPACES_ROOT` or `~/.quarkloop/spaces`.
 
 See [QUARKFILE.md](QUARKFILE.md) for Knowledge, DevOps, System, local model,
 OpenRouter model, local embedding, and OpenRouter embedding examples.
@@ -64,15 +65,15 @@ OpenRouter model, local embedding, and OpenRouter embedding examples.
 ```text
 quark CLI
   |
-  | HTTP
+  | NATS request/reply and streams
   v
-supervisor  -> spaces, sessions, discovery, catalogs, runtime lifecycle
+supervisor  -> spaces, sessions, discovery, catalogs, embedded NATS
   |
-  | launches with resolved catalogs
+  | publishes resolved catalogs and account credentials
   v
 runtime     -> agent loop, prompts, tools, service functions, activity
   |
-  | tool calls and gRPC service functions
+  | tool calls and NATS service functions
   v
 plugins/tools/*     services/*     providers/*     plugins/agents/*
 ```

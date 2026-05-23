@@ -101,6 +101,13 @@ func TestHubProvisionsControlStreamsAndCoordinationBuckets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("artifact handoff object store missing: %v", err)
 	}
+	objectStream, err := js.StreamInfo("OBJ_" + ObjectArtifactHandoff)
+	if err != nil {
+		t.Fatalf("artifact handoff backing stream missing: %v", err)
+	}
+	if objectStream.Config.MaxBytes != defaultArtifactHandoffMaxBytes {
+		t.Fatalf("artifact handoff max bytes = %d", objectStream.Config.MaxBytes)
+	}
 	if _, err := objects.PutBytes("probe", []byte("large-payload-ref")); err != nil {
 		t.Fatalf("write artifact handoff object: %v", err)
 	}

@@ -131,6 +131,24 @@ func TestDetectDevOpsReleaseWorkflowRequiresPolicyAndProjectContext(t *testing.T
 	}
 }
 
+func TestDetectDevOpsReleasePreviewDoesNotRequireGenericBuildExecution(t *testing.T) {
+	devops := Detect("Use release automation to inspect the repository and preview the release plan using build_release.json without publishing.", toolSchemas(
+		"repo_Status",
+		"build_DetectProject",
+		"build_RunTask",
+		"build_release_DryRun",
+		"policy_EvaluateChange",
+	))
+	if len(devops) != 1 || devops[0].Kind != KindDevOps {
+		t.Fatalf("devops intents = %+v", devops)
+	}
+	for _, step := range devops[0].Steps {
+		if step.ID == "build" {
+			t.Fatalf("release preview should not require generic build execution: %+v", devops[0].Steps)
+		}
+	}
+}
+
 func TestTrackerBlocksFinalizationUntilRequiredServiceResults(t *testing.T) {
 	store := NewStore()
 	var events []Event

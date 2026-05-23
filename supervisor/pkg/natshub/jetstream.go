@@ -158,12 +158,12 @@ func coordinationBuckets() []kvSpec {
 	}
 }
 
-func objectStores() []objectStoreSpec {
+func objectStores(artifactHandoffMaxBytes int64) []objectStoreSpec {
 	return []objectStoreSpec{{
 		Bucket:      ObjectArtifactHandoff,
 		Description: "Temporary large payload handoff for artifacts that should not fit in request/reply envelopes.",
 		TTL:         24 * time.Hour,
-		MaxBytes:    10 * 1024 * 1024 * 1024,
+		MaxBytes:    artifactHandoffMaxBytes,
 	}}
 }
 
@@ -202,7 +202,7 @@ func (h *Hub) provisionJetStreamLocked(ctx context.Context) error {
 			return err
 		}
 	}
-	for _, spec := range objectStores() {
+	for _, spec := range objectStores(h.cfg.JetStream.ArtifactHandoffMaxBytes) {
 		if err := ensureObjectStore(js, spec); err != nil {
 			return err
 		}

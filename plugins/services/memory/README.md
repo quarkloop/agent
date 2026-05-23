@@ -21,7 +21,7 @@ services.
 
 ## Health And Readiness
 
-- Health protocol: gRPC health v1.
+- Health protocol: NATS service-function readiness.
 - Health service: `quark.memory.v1.MemoryService`.
 - Required readiness: yes, before runtime receives this service in the catalog.
 - Minimum descriptor version: `1.0.0`.

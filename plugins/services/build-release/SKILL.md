@@ -1,6 +1,6 @@
 # service-build-release
 
-The build-release service runs Quark's Go release pipeline over gRPC. It is
+The build-release service runs Quark's Go release pipeline through NATS service functions. It is
 independently deployable and does not depend on the agent plugin runtime.
 
 Use `quark.buildrelease.v1.BuildReleaseService` when release automation should

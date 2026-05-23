@@ -42,7 +42,7 @@ Initialize release config after approval:
 
 ## Health And Readiness
 
-- Health protocol: gRPC health v1.
+- Health protocol: NATS service-function readiness.
 - Health service: `quark.buildrelease.v1.BuildReleaseService`.
 - Required readiness: yes, before runtime receives the service catalog.
 - Minimum descriptor version: `1.0.0`.

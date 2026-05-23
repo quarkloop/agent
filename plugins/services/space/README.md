@@ -23,9 +23,9 @@ validation paths.
 
 ## Health And Readiness
 
-- Health protocol: gRPC health v1.
+- Health protocol: NATS service-function readiness.
 - Health service: `quark.space.v1.SpaceService`.
 - Required readiness: yes, before runtime receives the service catalog.
 - Minimum descriptor version: `1.0.0`.
-- Startup diagnostics cover missing `QUARK_SPACE_SERVICE_ADDR`, failed health
-  checks, descriptor version mismatch, and missing RPC descriptors.
+- Startup diagnostics cover missing NATS endpoints, failed service-function
+  readiness, descriptor version mismatch, and missing RPC descriptors.

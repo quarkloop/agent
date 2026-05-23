@@ -449,18 +449,21 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 			WorkingDir: workingDir,
 		}, bins)
 	}
+	DumpNATSCLIDiagnostics(t, env.NATS, "after-services")
 
 	runtimeID := "e2e-runtime-" + spaceName
 	runtimeOverrides := map[string]string{
-		"QUARK_RUNTIME_ID":     runtimeID,
-		"QUARK_SUPERVISOR_URL": supURL,
-		"QUARK_SPACE":          spaceName,
-		"QUARK_PLUGINS_DIR":    filepath.Join(spacesDir, spaceName, "plugins"),
-		"QUARK_MODEL_PROVIDER": provider,
-		"QUARK_MODEL_NAME":     model,
-		"QUARK_NATS_URL":       runtimeCredential.URL,
-		"QUARK_NATS_USER":      runtimeCredential.Username,
-		"QUARK_NATS_PASSWORD":  runtimeCredential.Password,
+		"QUARK_RUNTIME_ID":              runtimeID,
+		"QUARK_SUPERVISOR_URL":          supURL,
+		"QUARK_SPACE":                   spaceName,
+		"QUARK_PLUGINS_DIR":             filepath.Join(spacesDir, spaceName, "plugins"),
+		"QUARK_MODEL_PROVIDER":          provider,
+		"QUARK_MODEL_NAME":              model,
+		"QUARK_MODEL_GATEWAY_TIMEOUT":   e2eModelGatewayTimeout(),
+		"QUARK_MODEL_MAX_OUTPUT_TOKENS": e2eModelMaxOutputTokens(),
+		"QUARK_NATS_URL":                runtimeCredential.URL,
+		"QUARK_NATS_USER":               runtimeCredential.Username,
+		"QUARK_NATS_PASSWORD":           runtimeCredential.Password,
 	}
 	for _, key := range providerCredentialEnvKeys() {
 		if value := supervisorEnv[key]; value != "" {
@@ -483,8 +486,29 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 	// otherwise the very first session event can be published before any
 	// subscriber is attached and silently dropped.
 	runtimeProc.WaitForLog(t, "supervisor event stream ready", 10*time.Second)
+	DumpNATSCLIDiagnostics(t, env.NATS, "after-runtime")
 	Logf(t, "supervisor at %s, runtime=%s nats=%s (space=%s)", supURL, runtimeID, natsEndpoints.ClientURL, spaceName)
 	return env
+}
+
+func e2eModelGatewayTimeout() string {
+	if value := strings.TrimSpace(os.Getenv("QUARK_E2E_MODEL_GATEWAY_TIMEOUT")); value != "" {
+		return value
+	}
+	if value := strings.TrimSpace(os.Getenv("QUARK_MODEL_GATEWAY_TIMEOUT")); value != "" {
+		return value
+	}
+	return "2m"
+}
+
+func e2eModelMaxOutputTokens() string {
+	if value := strings.TrimSpace(os.Getenv("QUARK_E2E_MODEL_MAX_OUTPUT_TOKENS")); value != "" {
+		return value
+	}
+	if value := strings.TrimSpace(os.Getenv("QUARK_MODEL_MAX_OUTPUT_TOKENS")); value != "" {
+		return value
+	}
+	return "4096"
 }
 
 func serviceAddressesFromOptions(embedding EmbeddingOptions, services []ServicePlugin, supervisorEnv map[string]string) map[string]string {

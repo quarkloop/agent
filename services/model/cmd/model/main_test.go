@@ -1,0 +1,74 @@
+package main
+
+import (
+	"testing"
+	"time"
+)
+
+func TestProviderConfigsFromEnvUsesOpenRouterCompatibleAdapterByDefault(t *testing.T) {
+	setProviderEnv(t)
+	t.Setenv("OPENROUTER_API_KEY", "test-key")
+
+	cfg := findProviderConfig(t, "openrouter")
+	if cfg.Kind != "openai-compatible" {
+		t.Fatalf("openrouter kind = %q", cfg.Kind)
+	}
+	if cfg.BaseURL != "https://openrouter.ai/api/v1" {
+		t.Fatalf("openrouter base url = %q", cfg.BaseURL)
+	}
+}
+
+func TestProviderConfigsFromEnvCanSelectBifrostOpenRouterAdapter(t *testing.T) {
+	setProviderEnv(t)
+	t.Setenv("OPENROUTER_API_KEY", "test-key")
+	t.Setenv("QUARK_OPENROUTER_PROVIDER_KIND", "bifrost")
+
+	cfg := findProviderConfig(t, "openrouter")
+	if cfg.Kind != "bifrost" {
+		t.Fatalf("openrouter kind = %q", cfg.Kind)
+	}
+	if cfg.BaseURL != "https://openrouter.ai/api" {
+		t.Fatalf("openrouter base url = %q", cfg.BaseURL)
+	}
+}
+
+func TestDurationEnvOrDefaultParsesPositiveDuration(t *testing.T) {
+	t.Setenv("QUARK_GATEWAY_TIMEOUT", "2m")
+
+	got := durationEnvOrDefault("QUARK_GATEWAY_TIMEOUT", time.Second)
+	if got != 2*time.Minute {
+		t.Fatalf("duration = %s", got)
+	}
+}
+
+func setProviderEnv(t *testing.T) {
+	t.Helper()
+	for _, key := range []string{
+		"OPENROUTER_API_KEY",
+		"OPENROUTER_BASE_URL",
+		"OPENROUTER_MODEL",
+		"QUARK_OPENROUTER_PROVIDER_KIND",
+		"OPENAI_API_KEY",
+		"ANTHROPIC_API_KEY",
+		"ZHIPU_API_KEY",
+	} {
+		t.Setenv(key, "")
+	}
+}
+
+func findProviderConfig(t *testing.T, id string) ProviderConfigView {
+	t.Helper()
+	for _, cfg := range providerConfigsFromEnv() {
+		if cfg.ID == id {
+			return ProviderConfigView{ID: cfg.ID, Kind: cfg.Kind, BaseURL: cfg.BaseURL}
+		}
+	}
+	t.Fatalf("provider %q not found", id)
+	return ProviderConfigView{}
+}
+
+type ProviderConfigView struct {
+	ID      string
+	Kind    string
+	BaseURL string
+}

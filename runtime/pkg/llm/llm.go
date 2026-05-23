@@ -56,6 +56,12 @@ type ToolResultInstruction func() string
 // behavior.
 type ToolCallArgumentNormalizer func(ctx context.Context, name, arguments string) (string, error)
 
+const (
+	toolCallHistoryArgumentMaxRunes = 4000
+	toolCallHistoryStringMaxRunes   = 600
+	toolCallHistoryArrayMaxItems    = 3
+)
+
 type toolCallArgumentNormalizerKey struct{}
 
 func WithToolCallArgumentNormalizer(ctx context.Context, normalizer ToolCallArgumentNormalizer) context.Context {
@@ -262,7 +268,7 @@ func (c *Client) InferWithToolCallPolicyAndContinuation(ctx context.Context, mes
 		messages = append(messages, plugin.Message{
 			Role:      "assistant",
 			Content:   fullContent,
-			ToolCalls: toolCalls,
+			ToolCalls: compactToolCallsForHistory(toolCalls),
 		})
 
 		// Execute each tool and append results
@@ -351,6 +357,86 @@ func normalizeToolCallArgumentsFromContext(ctx context.Context, calls []plugin.T
 		out[i].Function.Arguments = arguments
 	}
 	return out, nil
+}
+
+func compactToolCallsForHistory(calls []plugin.ToolCall) []plugin.ToolCall {
+	out := make([]plugin.ToolCall, len(calls))
+	copy(out, calls)
+	for i := range out {
+		out[i].Function.Arguments = compactToolCallArgumentsForHistory(out[i].Function.Arguments)
+	}
+	return out
+}
+
+func compactToolCallArgumentsForHistory(arguments string) string {
+	runeCount := len([]rune(arguments))
+	if runeCount <= toolCallHistoryArgumentMaxRunes {
+		return arguments
+	}
+	var value any
+	decoder := json.NewDecoder(strings.NewReader(arguments))
+	decoder.UseNumber()
+	if err := decoder.Decode(&value); err != nil {
+		return compactFallbackToolArguments(runeCount)
+	}
+	compactJSONValueForHistory(value)
+	data, err := json.Marshal(value)
+	if err != nil {
+		return compactFallbackToolArguments(runeCount)
+	}
+	if len([]rune(string(data))) <= toolCallHistoryArgumentMaxRunes {
+		return string(data)
+	}
+	return compactFallbackToolArguments(runeCount)
+}
+
+func compactJSONValueForHistory(value any) {
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, child := range typed {
+			switch childValue := child.(type) {
+			case string:
+				if compacted, ok := compactStringForHistory(childValue); ok {
+					typed[key] = compacted
+					typed[key+"Chars"] = len([]rune(childValue))
+					typed[key+"Truncated"] = true
+				}
+			case []any:
+				originalLen := len(childValue)
+				for i := range childValue {
+					compactJSONValueForHistory(childValue[i])
+				}
+				if originalLen > toolCallHistoryArrayMaxItems {
+					typed[key] = childValue[:toolCallHistoryArrayMaxItems]
+					typed[key+"Count"] = originalLen
+					typed[key+"Truncated"] = true
+				}
+			case map[string]any:
+				compactJSONValueForHistory(childValue)
+			}
+		}
+	case []any:
+		for i := range typed {
+			compactJSONValueForHistory(typed[i])
+		}
+	}
+}
+
+func compactStringForHistory(value string) (string, bool) {
+	runes := []rune(value)
+	if len(runes) <= toolCallHistoryStringMaxRunes {
+		return value, false
+	}
+	return string(runes[:toolCallHistoryStringMaxRunes]) + "\n...[truncated in model history after tool execution; full arguments were used for the tool call]", true
+}
+
+func compactFallbackToolArguments(chars int) string {
+	data, _ := json.Marshal(map[string]any{
+		"_argumentsChars":     chars,
+		"_argumentsTruncated": true,
+		"_historyNote":        "Tool arguments were compacted in model history after execution; full arguments were used for the tool call.",
+	})
+	return string(data)
 }
 
 // mergeToolCalls accumulates streamed tool call deltas by index.

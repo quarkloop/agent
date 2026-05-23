@@ -37,9 +37,9 @@ Succeeded sources are not repeated unless the user explicitly asks to re-index.
 
 ## Health And Readiness
 
-- Health protocol: gRPC health v1.
+- Health protocol: NATS service-function readiness.
 - Health service: `quark.ingestion.v1.IngestionService`.
 - Required readiness: yes, before runtime receives this service in the catalog.
 - Minimum descriptor version: `1.0.0`.
-- Startup diagnostics cover missing `QUARK_INGESTION_ADDR`, failed health
-  checks, descriptor version mismatch, and missing RPC descriptors.
+- Startup diagnostics cover missing NATS endpoints, failed service-function
+  readiness, descriptor version mismatch, and missing RPC descriptors.

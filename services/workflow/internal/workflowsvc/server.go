@@ -9,6 +9,7 @@ import (
 	workflowv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/workflow/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 type Engine interface {
@@ -149,24 +150,24 @@ func cloneStartRequest(req *workflowv1.StartWorkflowRequest) *workflowv1.StartWo
 	if req == nil {
 		return nil
 	}
-	out := *req
-	out.Metadata = cloneStringMap(req.Metadata)
-	if req.DocumentIngestion != nil {
-		ingestion := *req.DocumentIngestion
-		ingestion.Sources = append([]*workflowv1.WorkflowSource(nil), req.DocumentIngestion.Sources...)
-		ingestion.Steps = append([]*workflowv1.ServiceFunctionCall(nil), req.DocumentIngestion.Steps...)
-		out.DocumentIngestion = &ingestion
+	out, ok := proto.Clone(req).(*workflowv1.StartWorkflowRequest)
+	if !ok {
+		return nil
 	}
-	return &out
+	out.Metadata = cloneStringMap(req.Metadata)
+	return out
 }
 
 func cloneInfo(info *workflowv1.WorkflowInfo) *workflowv1.WorkflowInfo {
 	if info == nil {
 		return nil
 	}
-	out := *info
+	out, ok := proto.Clone(info).(*workflowv1.WorkflowInfo)
+	if !ok {
+		return nil
+	}
 	out.Metadata = cloneStringMap(info.Metadata)
-	return &out
+	return out
 }
 
 func cloneInfos(in []*workflowv1.WorkflowInfo) []*workflowv1.WorkflowInfo {

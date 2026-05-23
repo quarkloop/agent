@@ -18,7 +18,7 @@ func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.Ser
 		Address: address,
 		Rpcs: []*servicev1.RpcDescriptor{
 			rpc(serviceName, "Generate", "quark.model.v1.GenerateRequest", "quark.model.v1.GenerateResponse", "Run one non-streaming model generation request."),
-			rpc(serviceName, "StreamGenerate", "quark.model.v1.StreamGenerateRequest", "quark.model.v1.StreamGenerateResponse", "Run one streaming model generation request."),
+			streamingRPC(serviceName, "StreamGenerate", "quark.model.v1.StreamGenerateRequest", "quark.model.v1.StreamGenerateResponse", "Run one streaming model generation request."),
 			rpc(serviceName, "Embed", "quark.model.v1.EmbedRequest", "quark.model.v1.EmbedResponse", "Create embeddings through provider adapters."),
 			rpc(serviceName, "Rerank", "quark.model.v1.RerankRequest", "quark.model.v1.RerankResponse", "Rerank candidate documents for a query."),
 			rpc(serviceName, "CountTokens", "quark.model.v1.CountTokensRequest", "quark.model.v1.CountTokensResponse", "Count or estimate model tokens."),
@@ -39,4 +39,10 @@ func rpc(service, method, request, response, description string) *servicev1.RpcD
 		Response:    response,
 		Description: description,
 	}
+}
+
+func streamingRPC(service, method, request, response, description string) *servicev1.RpcDescriptor {
+	out := rpc(service, method, request, response, description)
+	out.Streaming = true
+	return out
 }

@@ -1,6 +1,6 @@
 # IO Service Plugin
 
-Declares the `io` gRPC service (`bin/io-service`). Implementation lives in
+Declares the `io` NATS service-function surface (`bin/io-service`). Implementation lives in
 `services/io`. The service owns mechanical host I/O only: filesystem reads and
 approved mutations, approved shell execution, bounded HTTP fetch, web search,
 and legacy PDF text extraction.

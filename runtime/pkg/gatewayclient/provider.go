@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,9 +19,11 @@ import (
 )
 
 const (
-	EnvNATSURL      = "QUARK_NATS_URL"
-	EnvNATSUser     = "QUARK_NATS_USER"
-	EnvNATSPassword = "QUARK_NATS_PASSWORD"
+	EnvNATSURL         = "QUARK_NATS_URL"
+	EnvNATSUser        = "QUARK_NATS_USER"
+	EnvNATSPassword    = "QUARK_NATS_PASSWORD"
+	EnvGatewayTimeout  = "QUARK_MODEL_GATEWAY_TIMEOUT"
+	EnvMaxOutputTokens = "QUARK_MODEL_MAX_OUTPUT_TOKENS"
 
 	DefaultURL     = "nats://127.0.0.1:4222"
 	DefaultUser    = "quark-runtime"
@@ -28,10 +31,11 @@ const (
 )
 
 type Config struct {
-	URL      string
-	Username string
-	Password string
-	Timeout  time.Duration
+	URL             string
+	Username        string
+	Password        string
+	Timeout         time.Duration
+	MaxOutputTokens int
 }
 
 type Provider struct {
@@ -45,10 +49,11 @@ func New(cfg Config, provider string) *Provider {
 
 func ConfigFromEnv() Config {
 	return Config{
-		URL:      firstNonEmpty(os.Getenv(EnvNATSURL), DefaultURL),
-		Username: firstNonEmpty(os.Getenv(EnvNATSUser), DefaultUser),
-		Password: os.Getenv(EnvNATSPassword),
-		Timeout:  DefaultTimeout,
+		URL:             firstNonEmpty(os.Getenv(EnvNATSURL), DefaultURL),
+		Username:        firstNonEmpty(os.Getenv(EnvNATSUser), DefaultUser),
+		Password:        os.Getenv(EnvNATSPassword),
+		Timeout:         positiveDurationFromEnv(EnvGatewayTimeout, DefaultTimeout),
+		MaxOutputTokens: positiveIntFromEnv(EnvMaxOutputTokens),
 	}
 }
 
@@ -56,12 +61,18 @@ func (p *Provider) ChatCompletionStream(ctx context.Context, req *plugin.ChatReq
 	if p == nil {
 		return nil, fmt.Errorf("gateway provider is not configured")
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	streamCtx, cancel := context.WithTimeout(ctx, p.cfg.Timeout)
 	conn, err := natsgo.Connect(p.cfg.URL, natsgo.UserInfo(p.cfg.Username, p.cfg.Password), natsgo.Timeout(p.cfg.Timeout), natsgo.Name("quark-runtime-gateway-client"))
 	if err != nil {
+		cancel()
 		return nil, fmt.Errorf("connect gateway nats: %w", err)
 	}
 	subject, err := servicefunction.Subject("gateway", servicefunction.DefaultVersion, "stream_generate")
 	if err != nil {
+		cancel()
 		conn.Close()
 		return nil, err
 	}
@@ -70,8 +81,10 @@ func (p *Provider) ChatCompletionStream(ctx context.Context, req *plugin.ChatReq
 		Model:    requestModel(req),
 		Messages: messagesToProto(req.Messages),
 		Tools:    toolsToProto(req.Tools),
+		Options:  requestOptions(p.cfg),
 	})
 	if err != nil {
+		cancel()
 		conn.Close()
 		return nil, fmt.Errorf("marshal gateway request: %w", err)
 	}
@@ -86,6 +99,7 @@ func (p *Provider) ChatCompletionStream(ctx context.Context, req *plugin.ChatReq
 		TimeoutMillis: int64(p.cfg.Timeout / time.Millisecond),
 	}, payload)
 	if err != nil {
+		cancel()
 		conn.Close()
 		return nil, err
 	}
@@ -93,29 +107,39 @@ func (p *Provider) ChatCompletionStream(ctx context.Context, req *plugin.ChatReq
 	envelope.RunID = modelservice.RunID(ctx)
 	data, err := json.Marshal(envelope)
 	if err != nil {
+		cancel()
 		conn.Close()
 		return nil, fmt.Errorf("encode gateway request: %w", err)
 	}
 	inbox := natsgo.NewInbox()
 	sub, err := conn.SubscribeSync(inbox)
 	if err != nil {
+		cancel()
 		conn.Close()
 		return nil, fmt.Errorf("subscribe gateway reply: %w", err)
 	}
 	if err := conn.PublishRequest(subject, inbox, data); err != nil {
+		cancel()
 		sub.Unsubscribe()
 		conn.Close()
 		return nil, fmt.Errorf("publish gateway request: %w", err)
 	}
+	if err := conn.FlushWithContext(streamCtx); err != nil {
+		cancel()
+		sub.Unsubscribe()
+		conn.Close()
+		return nil, fmt.Errorf("flush gateway request: %w", err)
+	}
 	out := make(chan plugin.StreamEvent, 64)
 	go func() {
 		defer close(out)
+		defer cancel()
 		defer sub.Unsubscribe()
 		defer conn.Close()
 		for {
-			msg, err := sub.NextMsgWithContext(ctx)
+			msg, err := sub.NextMsgWithContext(streamCtx)
 			if err != nil {
-				out <- plugin.StreamEvent{Err: err}
+				out <- plugin.StreamEvent{Err: fmt.Errorf("gateway stream wait: %w", err)}
 				return
 			}
 			var envelope servicefunction.ResponseEnvelope
@@ -145,6 +169,37 @@ func (p *Provider) ChatCompletionStream(ctx context.Context, req *plugin.ChatReq
 		}
 	}()
 	return out, nil
+}
+
+func requestOptions(cfg Config) map[string]string {
+	if cfg.MaxOutputTokens <= 0 {
+		return nil
+	}
+	return map[string]string{"max_output_tokens": strconv.Itoa(cfg.MaxOutputTokens)}
+}
+
+func positiveIntFromEnv(key string) int {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return 0
+	}
+	n, err := strconv.Atoi(value)
+	if err != nil || n <= 0 {
+		return 0
+	}
+	return n
+}
+
+func positiveDurationFromEnv(key string, fallback time.Duration) time.Duration {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	duration, err := time.ParseDuration(value)
+	if err != nil || duration <= 0 {
+		return fallback
+	}
+	return duration
 }
 
 func (p *Provider) ParseToolCalls(content string) ([]plugin.ToolCall, string) {

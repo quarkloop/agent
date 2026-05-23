@@ -1,7 +1,7 @@
 # Embedding Service
 
 `services/embedding` provides deterministic local embeddings for tests and
-offline development, plus an OpenRouter-backed mode behind the same gRPC
+offline development, plus an OpenRouter-backed mode behind the same service-function
 contract. It owns vector generation only; indexing and retrieval stay in the
 agent/indexer path.
 
@@ -30,7 +30,7 @@ embedding adapter without changing agent-facing contracts.
 
 ## Configuration
 
-- `--addr`: gRPC listen address, default `127.0.0.1:7304`.
+- `--nats-url`: NATS server URL used for service-function subjects.
 - `--provider`: `local` or `openrouter`, default `local`.
 - `--model`: provider model name.
 - `--dimensions`: expected embedding dimensions.
@@ -75,7 +75,7 @@ vector shapes or a bad service configuration.
 
 ## Health And Readiness
 
-- Health protocol: gRPC health v1.
+- Health protocol: NATS service-function readiness.
 - Health service: `quark.embedding.v1.EmbeddingService`.
 - Descriptor registry: `quark.service.v1.ServiceRegistry`.
 - Local mode is deterministic and has no external dependency.

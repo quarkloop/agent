@@ -31,14 +31,14 @@ not discover local space state directly.
 
 ## Configuration
 
-- `--addr`: gRPC listen address, default `127.0.0.1:7303`.
+- `--nats-url`: NATS server URL used for service-function subjects.
 - `--root`: space storage root. If unset, startup resolves
   `$QUARK_SPACES_ROOT` or `$HOME/.quarkloop/spaces`.
 - `--skill-dir`: directory containing the service plugin `SKILL.md`.
 
 ## Health And Readiness
 
-- Health protocol: gRPC health v1.
+- Health protocol: NATS service-function readiness.
 - Health service: `quark.space.v1.SpaceService`.
 - Descriptor registry: `quark.service.v1.ServiceRegistry`.
 - Readiness requires a writable space root and valid service descriptor.

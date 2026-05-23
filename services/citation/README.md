@@ -26,12 +26,12 @@ which claims matter.
 
 ## Configuration
 
-- `--addr`: gRPC listen address, default `127.0.0.1:7309`.
+- `--nats-url`: NATS server URL used for service-function subjects.
 - `--skill-dir`: directory containing the service plugin `SKILL.md`.
 
 ## Health And Readiness
 
-- Health protocol: gRPC health v1.
+- Health protocol: NATS service-function readiness.
 - Health service: `quark.citation.v1.CitationService`.
 - Descriptor registry: `quark.service.v1.ServiceRegistry`.
 

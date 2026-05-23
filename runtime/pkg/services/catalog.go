@@ -2,28 +2,10 @@ package services
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
-	"github.com/quarkloop/pkg/serviceapi/servicekit"
 )
-
-const (
-	EnvRuntimeCatalog = "QUARK_RUNTIME_SERVICE_CATALOG"
-)
-
-func CatalogFromEnv() (*Catalog, error) {
-	raw := strings.TrimSpace(os.Getenv(EnvRuntimeCatalog))
-	if raw == "" {
-		return nil, nil
-	}
-	descriptors, err := servicekit.UnmarshalRuntimeServiceCatalog([]byte(raw))
-	if err != nil {
-		return nil, fmt.Errorf("parse %s: %w", EnvRuntimeCatalog, err)
-	}
-	return NewCatalog(descriptors), nil
-}
 
 func PromptBlock(descriptors []*servicev1.ServiceDescriptor) string {
 	if len(descriptors) == 0 {

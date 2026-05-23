@@ -1,6 +1,7 @@
 # service-indexer
 
-The indexer service stores and retrieves structured GraphRAG data over gRPC.
+The indexer service stores and retrieves structured GraphRAG data through NATS
+service functions.
 The production driver is Dgraph, a Go graph database with native
 `float32vector` predicates and HNSW vector indexes.
 

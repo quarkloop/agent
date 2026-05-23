@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
-	"github.com/quarkloop/pkg/serviceapi/servicekit"
 )
 
 func TestPromptBlockIncludesServiceSkillsAndRPCs(t *testing.T) {
@@ -65,48 +64,6 @@ func TestCatalogExposesServiceFunctions(t *testing.T) {
 	}
 	if _, err := catalog.Execute(nil, "io_Read", "{}"); err == nil {
 		t.Fatal("non-catalog function unexpectedly executed without descriptor")
-	}
-}
-
-func TestCatalogFromEnvUsesVersionedServiceCatalog(t *testing.T) {
-	payload, err := servicekit.MarshalRuntimeServiceCatalog([]*servicev1.ServiceDescriptor{{
-		Name:    "indexer",
-		Type:    "indexer",
-		Version: "1.0.0",
-		Address: "127.0.0.1:7301",
-		Rpcs: []*servicev1.RpcDescriptor{{
-			Service:       "quark.indexer.v1.IndexerService",
-			Method:        "GetContext",
-			Request:       "quark.indexer.v1.QueryRequest",
-			Response:      "quark.indexer.v1.ContextResponse",
-			Description:   "Retrieve context.",
-			Owner:         "indexer",
-			FunctionName:  "indexer_GetContext",
-			RiskLevel:     "read",
-			Idempotent:    true,
-			TimeoutMillis: 30000,
-		}},
-	}})
-	if err != nil {
-		t.Fatalf("marshal catalog: %v", err)
-	}
-	t.Setenv(EnvRuntimeCatalog, string(payload))
-
-	catalog, err := CatalogFromEnv()
-	if err != nil {
-		t.Fatalf("catalog from env: %v", err)
-	}
-	if catalog == nil || catalog.Empty() {
-		t.Fatal("expected service catalog")
-	}
-}
-
-func TestCatalogFromEnvRejectsUnsupportedVersion(t *testing.T) {
-	t.Setenv(EnvRuntimeCatalog, `{"version":999,"services":[]}`)
-
-	_, err := CatalogFromEnv()
-	if err == nil || !strings.Contains(err.Error(), "unsupported runtime service catalog version") {
-		t.Fatalf("expected unsupported version error, got: %v", err)
 	}
 }
 

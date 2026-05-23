@@ -11,18 +11,15 @@ import (
 
 	corev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/core/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
-	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/runtime/pkg/activity"
-	"google.golang.org/protobuf/types/known/timestamppb"
+	runtimeservices "github.com/quarkloop/runtime/pkg/services"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
-const (
-	coreServiceName = "core"
-	runtimeActor    = "runtime"
-)
+const runtimeActor = "runtime"
 
 type Recorder struct {
-	address string
+	catalog *runtimeservices.Catalog
 	logger  *slog.Logger
 
 	ch     chan activity.Record
@@ -31,16 +28,15 @@ type Recorder struct {
 	wg     sync.WaitGroup
 }
 
-func New(descriptors []*servicev1.ServiceDescriptor, logger *slog.Logger) *Recorder {
-	address := coreAddress(descriptors)
-	if address == "" {
+func New(catalog *runtimeservices.Catalog, logger *slog.Logger) *Recorder {
+	if catalog == nil || catalog.Empty() || !hasCoreFunctions(catalog.Descriptors()) {
 		return nil
 	}
 	if logger == nil {
 		logger = slog.Default()
 	}
 	recorder := &Recorder{
-		address: address,
+		catalog: catalog,
 		logger:  logger,
 		ch:      make(chan activity.Record, 256),
 		done:    make(chan struct{}),
@@ -86,14 +82,6 @@ func (r *Recorder) run() {
 func (r *Recorder) persist(record activity.Record) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	conn, err := servicekit.Dial(ctx, r.address)
-	if err != nil {
-		r.logger.Warn("dial core service for activity persistence failed", "error", err)
-		return
-	}
-	defer conn.Close()
-
-	client := corev1.NewCoreServiceClient(conn)
 	payload := string(record.Data)
 	stream := "runtime"
 	runID := "runtime"
@@ -101,47 +89,63 @@ func (r *Recorder) persist(record activity.Record) {
 		stream = "session/" + record.SessionID
 		runID = record.SessionID
 	}
-	createdAt := timestamppb.New(record.Timestamp)
-	if record.Timestamp.IsZero() {
-		createdAt = timestamppb.Now()
-	}
-	if _, err := client.PublishEvent(ctx, &corev1.PublishEventRequest{Event: &corev1.Event{
+	eventArgs, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(&corev1.PublishEventRequest{Event: &corev1.Event{
 		Id:          record.ID,
 		Stream:      stream,
 		Kind:        record.Type,
 		PayloadJson: payload,
-		CreatedAt:   createdAt,
-	}}); err != nil {
+	}})
+	if err != nil {
+		r.logger.Warn("encode core activity event failed", "error", err, "activity_id", record.ID)
+		return
+	}
+	if _, err := r.catalog.Execute(ctx, "core_PublishEvent", string(eventArgs)); err != nil {
 		r.logger.Warn("publish core activity event failed", "error", err, "activity_id", record.ID)
 		return
 	}
-	if _, err := client.RecordAuditEvent(ctx, &corev1.RecordAuditEventRequest{Event: &corev1.AuditEvent{
-		Id:        record.ID + "-audit",
-		RunId:     runID,
-		Actor:     runtimeActor,
-		Action:    record.Type,
-		Target:    record.ID,
-		CreatedAt: createdAt,
-	}}); err != nil {
+	auditArgs, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(&corev1.RecordAuditEventRequest{Event: &corev1.AuditEvent{
+		Id:     record.ID + "-audit",
+		RunId:  runID,
+		Actor:  runtimeActor,
+		Action: record.Type,
+		Target: record.ID,
+	}})
+	if err != nil {
+		r.logger.Warn("encode core activity audit failed", "error", err, "activity_id", record.ID)
+		return
+	}
+	if _, err := r.catalog.Execute(ctx, "core_RecordAuditEvent", string(auditArgs)); err != nil {
 		r.logger.Warn("record core activity audit failed", "error", err, "activity_id", record.ID)
 	}
 }
 
-func coreAddress(descriptors []*servicev1.ServiceDescriptor) string {
+func hasCoreFunctions(descriptors []*servicev1.ServiceDescriptor) bool {
+	foundEvent := false
+	foundAudit := false
 	for _, desc := range descriptors {
-		if desc == nil || strings.TrimSpace(desc.GetAddress()) == "" {
+		if desc == nil {
 			continue
 		}
-		if desc.GetName() == coreServiceName || desc.GetType() == coreServiceName {
-			return desc.GetAddress()
-		}
 		for _, rpc := range desc.GetRpcs() {
-			if rpc.GetService() == corev1.CoreService_ServiceDesc.ServiceName {
-				return desc.GetAddress()
+			if rpc.GetService() != corev1.CoreService_ServiceDesc.ServiceName {
+				continue
+			}
+			switch strings.TrimSpace(rpc.GetFunctionName()) {
+			case "core_PublishEvent":
+				foundEvent = true
+			case "core_RecordAuditEvent":
+				foundAudit = true
+			default:
+				switch strings.TrimSpace(rpc.GetMethod()) {
+				case "PublishEvent":
+					foundEvent = true
+				case "RecordAuditEvent":
+					foundAudit = true
+				}
 			}
 		}
 	}
-	return ""
+	return foundEvent && foundAudit
 }
 
 func cloneRecord(record activity.Record) activity.Record {

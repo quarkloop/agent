@@ -1,6 +1,6 @@
 # Build Release Service
 
-`services/build-release` owns Quark DevOps release automation behind typed gRPC
+`services/build-release` owns Quark DevOps release automation behind typed service-function
 service functions. The legacy `plugins/tools/build-release` path should become a
 thin compatibility adapter and must not own release business logic.
 
@@ -22,12 +22,12 @@ smaller operations; today they remain internal runner stages.
 - The build-release service owns config loading, version resolution, command
   execution, build artifacts, archives, checksums, signing, and metadata output.
 - The service does not call other services.
-- The gRPC server maps protobuf DTOs into package-level release requests before
+- The transport adapter maps protobuf DTOs into package-level release requests before
   invoking the runner.
 
 ## Configuration
 
-- `--addr`: gRPC listen address, default `127.0.0.1:7302`.
+- `--nats-url`: NATS server URL used for service-function subjects.
 - `--skill-dir`: directory containing the service plugin `SKILL.md`.
 - Release behavior is configured through `build_release.json` in the requested
   working directory.
@@ -59,7 +59,7 @@ Release:
 
 ## Health And Readiness
 
-- Health protocol: gRPC health v1.
+- Health protocol: NATS service-function readiness.
 - Health service: `quark.buildrelease.v1.BuildReleaseService`.
 - Descriptor registry: `quark.service.v1.ServiceRegistry`.
 - Readiness requires the service binary and skill metadata. Per-project release

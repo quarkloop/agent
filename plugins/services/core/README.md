@@ -48,7 +48,7 @@ debugging tools can reason about ordering without parsing logs.
 
 ## Health And Readiness
 
-- Health protocol: gRPC health v1.
+- Health protocol: NATS service-function readiness.
 - Health service: `quark.core.v1.CoreService`.
 - Required readiness: yes, before runtime receives the service catalog.
 - Minimum descriptor version: `1.0.0`.

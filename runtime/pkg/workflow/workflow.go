@@ -888,6 +888,11 @@ func knowledgeQueryContinuationDetail(stepID string) string {
 
 func devopsSteps(text string, available map[string]struct{}) []Step {
 	specs := make([]Step, 0)
+	releaseRequested := containsAny(text, " release ", " publish ", " tag ")
+	genericBuildRequested := containsAny(text, " build ", " compile ", " package ")
+	if releaseRequested && containsAny(text, " dry run ", " dryrun ", " preview ", " plan ", " without publishing ") {
+		genericBuildRequested = false
+	}
 	if containsAny(text, " repo ", " repository ", " git ", " status ", " changed ", " diff ") {
 		specs = append(specs, step("repo-status", "repository inspection", "repo_Status", "repo_ListChangedFiles", "repo_Diff"))
 	}
@@ -900,10 +905,10 @@ func devopsSteps(text string, available map[string]struct{}) []Step {
 	if containsAny(text, " explain ", " failure ", " failing ") {
 		specs = append(specs, step("explain-failure", "failure explanation", "test_ExplainFailure"))
 	}
-	if containsAny(text, " build ", " compile ", " package ") {
+	if genericBuildRequested {
 		specs = append(specs, step("build", "build execution", "build_RunTask", "build_CreateArtifact"))
 	}
-	if containsAny(text, " release ", " publish ", " tag ") {
+	if releaseRequested {
 		specs = append(specs, step("release", "release planning", "build_release_DryRun", "repo_GenerateReleaseNotes"))
 	}
 	if containsAny(text, " release ", " publish ", " deploy ", " apply ", " patch ", " commit ") {

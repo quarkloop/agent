@@ -121,6 +121,67 @@ func TestRuntimeCanCallOnlyImportedServiceFunctions(t *testing.T) {
 	}
 }
 
+func TestRuntimeCanReceiveStreamedServiceFunctionReplies(t *testing.T) {
+	hub := startTestHub(t)
+	space, err := hub.ProvisionSpace("knowledge")
+	if err != nil {
+		t.Fatalf("provision space: %v", err)
+	}
+	route, err := NewServiceFunctionRoute("gateway", "v1", "stream_generate")
+	if err != nil {
+		t.Fatalf("route: %v", err)
+	}
+	route.Streaming = true
+	routes := []ServiceFunctionRoute{route}
+	serviceCredential, err := hub.IssueServiceCredential("gateway", routes)
+	if err != nil {
+		t.Fatalf("issue service credential: %v", err)
+	}
+	if err := hub.ImportServiceFunctions("knowledge", routes); err != nil {
+		t.Fatalf("import service function: %v", err)
+	}
+
+	service := connectWithCredential(t, hub, serviceCredential)
+	if _, err := service.Subscribe(route.ExportSubject, func(msg *nats.Msg) {
+		for _, payload := range []string{"one", "two", "done"} {
+			if err := msg.Respond([]byte(payload)); err != nil {
+				t.Errorf("respond: %v", err)
+			}
+		}
+		service.Flush()
+	}); err != nil {
+		t.Fatalf("service subscribe: %v", err)
+	}
+	service.Flush()
+
+	runtime := connectWithCredential(t, hub, space.Runtime)
+	inbox := nats.NewInbox()
+	replies, err := runtime.SubscribeSync(inbox)
+	if err != nil {
+		t.Fatalf("subscribe replies: %v", err)
+	}
+	if err := runtime.FlushTimeout(time.Second); err != nil {
+		t.Fatalf("flush reply subscription: %v", err)
+	}
+	if err := runtime.PublishRequest(route.ImportSubject, inbox, []byte("payload")); err != nil {
+		t.Fatalf("publish request: %v", err)
+	}
+	got := make([]string, 0, 3)
+	for len(got) < 3 {
+		msg, err := replies.NextMsg(time.Second)
+		if err != nil {
+			t.Fatalf("reply %d: %v", len(got)+1, err)
+		}
+		got = append(got, string(msg.Data))
+	}
+	want := []string{"one", "two", "done"}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("replies = %v, want %v", got, want)
+		}
+	}
+}
+
 func TestRuntimeCanRequestSupervisorCatalogSnapshot(t *testing.T) {
 	hub := startTestHub(t)
 	space, err := hub.ProvisionSpace("knowledge")

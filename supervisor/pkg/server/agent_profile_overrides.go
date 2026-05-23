@@ -9,8 +9,6 @@ import (
 	spacemodel "github.com/quarkloop/pkg/space"
 )
 
-const runtimeAgentProfileEnv = "QUARK_AGENT_PROFILE"
-
 // agentProfileOverrideResolver applies the Quarkfile override layer over
 // installed agent plugin profiles. Precedence is:
 //

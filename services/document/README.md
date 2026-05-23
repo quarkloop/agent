@@ -1,7 +1,7 @@
 # Document Service
 
 The document service owns mechanical document inspection and extraction. It is a
-gRPC service used by agents when source files need parser-backed evidence before
+NATS service-function provider used by agents when source files need parser-backed evidence before
 the agent performs semantic extraction with the model service.
 
 The service does not classify business meaning, infer schemas, choose chunks,

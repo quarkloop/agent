@@ -211,32 +211,63 @@ func (s *Server) handleStreamGenerate(ctx context.Context, msg *natsgo.Msg, req 
 	if msg.Reply == "" {
 		return
 	}
+	started := time.Now()
 	var request modelv1.StreamGenerateRequest
 	if err := protojson.Unmarshal(req.Payload, &request); err != nil {
+		s.cfg.Logger.Error("gateway stream request decode failed", "call_id", req.CallID, "error", err)
 		s.publish(msg.Reply, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, req.Subject))
 		return
 	}
+	logAttrs := []any{
+		"call_id", req.CallID,
+		"session_id", req.SessionID,
+		"run_id", req.RunID,
+		"provider", request.GetProvider(),
+		"model", request.GetModel(),
+	}
+	s.cfg.Logger.Info("gateway stream request started", logAttrs...)
 	events, err := s.models.StreamGenerateEvents(ctx, &request)
 	if err != nil {
+		s.cfg.Logger.Error("gateway stream request failed", append(logAttrs, "duration", time.Since(started), "error", err)...)
 		s.publish(msg.Reply, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, req.Subject))
+		s.flushStream(logAttrs)
 		return
 	}
+	count := 0
 	for event := range events {
 		if event.Err != nil {
+			s.cfg.Logger.Error("gateway stream event failed", append(logAttrs, "duration", time.Since(started), "events", count, "error", event.Err)...)
 			s.publish(msg.Reply, servicefunction.ErrorResponse(req.CallID, event.Err, boundary.Service, req.Subject))
+			s.flushStream(logAttrs)
 			return
 		}
 		payload, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(event.Response)
 		if err != nil {
+			s.cfg.Logger.Error("gateway stream marshal failed", append(logAttrs, "duration", time.Since(started), "events", count, "error", err)...)
 			s.publish(msg.Reply, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, req.Subject))
+			s.flushStream(logAttrs)
 			return
 		}
 		envelope := servicefunction.OKResponse(req.CallID, payload)
 		envelope.Usage = usageEnvelope(event.Response.GetUsage())
 		s.publish(msg.Reply, envelope)
+		count++
 		if event.Response.GetDone() {
+			s.flushStream(logAttrs)
+			s.cfg.Logger.Info("gateway stream request completed", append(logAttrs, "duration", time.Since(started), "events", count)...)
 			return
 		}
+	}
+	s.flushStream(logAttrs)
+	s.cfg.Logger.Warn("gateway stream closed without done event", append(logAttrs, "duration", time.Since(started), "events", count)...)
+}
+
+func (s *Server) flushStream(logAttrs []any) {
+	if s == nil || s.conn == nil {
+		return
+	}
+	if err := s.conn.FlushTimeout(s.cfg.Timeout); err != nil {
+		s.cfg.Logger.Error("gateway stream flush failed", append(logAttrs, "error", err)...)
 	}
 }
 

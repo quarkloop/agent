@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,12 +13,8 @@ import (
 	"github.com/quarkloop/pkg/plugin"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
-	spacemodel "github.com/quarkloop/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/natshub"
 	"github.com/quarkloop/supervisor/pkg/pluginmanager"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/health"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func TestRuntimePluginCatalogEntryIncludesToolSchemaAndSkill(t *testing.T) {
@@ -131,10 +126,6 @@ services:
 	if _, err := srv.store.UpdateQuarkfile("test-space", qf); err != nil {
 		t.Fatalf("update quarkfile: %v", err)
 	}
-	address, stop := startRegistryService(t)
-	defer stop()
-	t.Setenv("QUARK_INDEXER_ADDR", address)
-
 	snapshot, err := srv.RuntimeCatalogSnapshot(t.Context(), "test-space")
 	if err != nil {
 		t.Fatalf("runtime catalog snapshot: %v", err)
@@ -227,42 +218,6 @@ func TestApplyServiceFunctionMetadataRequiresEveryRPC(t *testing.T) {
 	}
 }
 
-func TestServicePluginAddressPrefersQuarkfileServiceBinding(t *testing.T) {
-	t.Setenv("QUARK_CONFIGURED_INDEXER_ADDR", "127.0.0.1:9001")
-	t.Setenv("QUARK_INDEXER_ADDR", "127.0.0.1:9002")
-	manifest := serviceManifest("indexer", "quark.indexer.v1.IndexerService")
-	manifest.Service.AddressEnv = "QUARK_INDEXER_ADDR"
-	manifest.Service.DefaultAddress = "127.0.0.1:9003"
-
-	got := servicePluginAddress(manifest, spacemodel.ServiceRef{AddressEnv: "QUARK_CONFIGURED_INDEXER_ADDR"})
-	if got != "127.0.0.1:9001" {
-		t.Fatalf("address from configured env = %q", got)
-	}
-
-	got = servicePluginAddress(manifest, spacemodel.ServiceRef{Address: "127.0.0.1:9004"})
-	if got != "127.0.0.1:9004" {
-		t.Fatalf("address from configured literal = %q", got)
-	}
-
-	got = servicePluginAddress(manifest, spacemodel.ServiceRef{})
-	if got != "127.0.0.1:9002" {
-		t.Fatalf("address from manifest env = %q", got)
-	}
-
-	t.Setenv("QUARK_INDEXER_ADDR", "")
-	got = servicePluginAddress(manifest, spacemodel.ServiceRef{})
-	if got != "127.0.0.1:9003" {
-		t.Fatalf("address from default = %q", got)
-	}
-}
-
-func TestCheckServicePluginReadinessSkipsNATSNativeServices(t *testing.T) {
-	err := checkServicePluginReadiness(context.Background(), "", serviceManifest("indexer", "quark.indexer.v1.IndexerService"))
-	if err != nil {
-		t.Fatalf("readiness should not dial NATS-native service plugins: %v", err)
-	}
-}
-
 func TestValidateServicePluginDescriptorsRejectsMissingRPC(t *testing.T) {
 	desc := &servicev1.ServiceDescriptor{
 		Name:    "indexer",
@@ -341,10 +296,6 @@ services:
 	if _, err := srv.store.UpdateQuarkfile("test-space", qf); err != nil {
 		t.Fatalf("update quarkfile: %v", err)
 	}
-	address, stop := startRegistryService(t)
-	defer stop()
-	t.Setenv("QUARK_INDEXER_ADDR", address)
-
 	descriptors, err := srv.resolveServicePluginCatalog(t.Context(), "test-space")
 	if err != nil {
 		t.Fatalf("resolve service catalog: %v", err)
@@ -422,6 +373,88 @@ func TestImportServiceFunctionRoutesMakesControlServiceReachableFromRuntime(t *t
 	}
 }
 
+func TestImportServiceFunctionRoutesPreservesStreamingResponses(t *testing.T) {
+	cfg := natshub.DefaultConfig(filepath.Join(t.TempDir(), "nats"))
+	cfg.Client.Port = 0
+	cfg.WebSocket.Enabled = false
+	cfg.Monitoring.Enabled = false
+	cfg.NoLog = true
+	hub, err := natshub.New(cfg)
+	if err != nil {
+		t.Fatalf("new hub: %v", err)
+	}
+	if err := hub.Start(t.Context()); err != nil {
+		t.Fatalf("start hub: %v", err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		_ = hub.Stop(ctx)
+	})
+	space, err := hub.ProvisionSpace("docs")
+	if err != nil {
+		t.Fatalf("provision space: %v", err)
+	}
+
+	controlCred, err := hub.ControlCredential()
+	if err != nil {
+		t.Fatalf("control credential: %v", err)
+	}
+	controlConn := connectNATS(t, hub.Endpoints().ClientURL, controlCred.Username, controlCred.Password)
+	defer controlConn.Close()
+	sub, err := controlConn.Subscribe("svc.gateway.v1.stream_generate", func(msg *natsgo.Msg) {
+		for _, payload := range []string{"chunk", "done"} {
+			if err := msg.Respond([]byte(payload)); err != nil {
+				t.Errorf("respond: %v", err)
+			}
+		}
+		controlConn.Flush()
+	})
+	if err != nil {
+		t.Fatalf("subscribe gateway subject: %v", err)
+	}
+	defer sub.Unsubscribe()
+	if err := controlConn.FlushTimeout(time.Second); err != nil {
+		t.Fatalf("flush service subscription: %v", err)
+	}
+
+	srv := &Server{natsHub: hub}
+	err = srv.importServiceFunctionRoutes("docs", []*servicev1.ServiceDescriptor{{
+		Name: "gateway",
+		Rpcs: []*servicev1.RpcDescriptor{{
+			Owner:     "gateway",
+			Method:    "StreamGenerate",
+			Streaming: true,
+		}},
+	}})
+	if err != nil {
+		t.Fatalf("import routes: %v", err)
+	}
+
+	runtimeConn := connectNATS(t, hub.Endpoints().ClientURL, space.Runtime.Username, space.Runtime.Password)
+	defer runtimeConn.Close()
+	inbox := natsgo.NewInbox()
+	replies, err := runtimeConn.SubscribeSync(inbox)
+	if err != nil {
+		t.Fatalf("subscribe replies: %v", err)
+	}
+	if err := runtimeConn.FlushTimeout(time.Second); err != nil {
+		t.Fatalf("flush reply subscription: %v", err)
+	}
+	if err := runtimeConn.PublishRequest("svc.gateway.v1.stream_generate", inbox, []byte("payload")); err != nil {
+		t.Fatalf("runtime request imported gateway function: %v", err)
+	}
+	for _, want := range []string{"chunk", "done"} {
+		msg, err := replies.NextMsg(time.Second)
+		if err != nil {
+			t.Fatalf("runtime streamed reply %q: %v", want, err)
+		}
+		if string(msg.Data) != want {
+			t.Fatalf("reply = %q, want %q", string(msg.Data), want)
+		}
+	}
+}
+
 func connectNATS(t *testing.T, url, username, password string) *natsgo.Conn {
 	t.Helper()
 	conn, err := natsgo.Connect(url, natsgo.UserInfo(username, password), natsgo.Timeout(time.Second))
@@ -433,27 +466,6 @@ func connectNATS(t *testing.T, url, username, password string) *natsgo.Conn {
 		t.Fatalf("flush nats: %v", err)
 	}
 	return conn
-}
-
-func startHealthServer(t *testing.T, service string, status healthpb.HealthCheckResponse_ServingStatus) (string, func()) {
-	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen: %v", err)
-	}
-	server := grpc.NewServer()
-	healthServer := health.NewServer()
-	healthServer.SetServingStatus(service, status)
-	healthpb.RegisterHealthServer(server, healthServer)
-	errCh := make(chan error, 1)
-	go func() {
-		errCh <- server.Serve(ln)
-	}()
-	return ln.Addr().String(), func() {
-		server.Stop()
-		_ = ln.Close()
-		<-errCh
-	}
 }
 
 type servicePluginFixture struct {

@@ -176,7 +176,11 @@ func subjectToken(value string) string {
 	if token == "" {
 		return "_"
 	}
-	return strings.ToLower(token)
+	token = strings.ToLower(token)
+	if token[0] >= '0' && token[0] <= '9' {
+		token = "id_" + token
+	}
+	return token
 }
 
 func stableToken(value string) string {

@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/quarkloop/services/model/internal/app"
 )
@@ -21,6 +22,7 @@ func main() {
 	var natsUser string
 	var natsPassword string
 	var natsQueue string
+	var natsTimeout time.Duration
 	flag.StringVar(&addr, "addr", "127.0.0.1:7306", "service descriptor address")
 	flag.StringVar(&skillDir, "skill-dir", "", "directory containing the service SKILL.md")
 	flag.StringVar(&fallbackSpec, "fallbacks", os.Getenv("QUARK_MODEL_FALLBACKS"), "fallbacks as provider=fallback1,fallback2;provider2=fallback")
@@ -28,6 +30,7 @@ func main() {
 	flag.StringVar(&natsUser, "nats-user", envOrDefault("QUARK_NATS_SERVICE_USER", os.Getenv("QUARK_NATS_USER")), "NATS username for Gateway service-function endpoints")
 	flag.StringVar(&natsPassword, "nats-password", envOrDefault("QUARK_NATS_SERVICE_PASSWORD", os.Getenv("QUARK_NATS_PASSWORD")), "NATS password for Gateway service-function endpoints")
 	flag.StringVar(&natsQueue, "nats-queue", envOrDefault("QUARK_GATEWAY_NATS_QUEUE", "q.gateway.v1"), "NATS queue group for Gateway service-function endpoints")
+	flag.DurationVar(&natsTimeout, "nats-timeout", durationEnvOrDefault("QUARK_GATEWAY_TIMEOUT", 30*time.Second), "Gateway service-function request timeout")
 	flag.Parse()
 
 	fallbacks := parseFallbacks(fallbackSpec)
@@ -46,6 +49,7 @@ func main() {
 			Username: natsUser,
 			Password: natsPassword,
 			Queue:    natsQueue,
+			Timeout:  natsTimeout,
 		},
 		Providers: providerConfigsFromEnv(),
 		Fallbacks: fallbacks,
@@ -56,6 +60,18 @@ func main() {
 	}
 }
 
+func durationEnvOrDefault(key string, fallback time.Duration) time.Duration {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	duration, err := time.ParseDuration(value)
+	if err != nil || duration <= 0 {
+		return fallback
+	}
+	return duration
+}
+
 func providerConfigsFromEnv() []app.ProviderConfig {
 	configs := []app.ProviderConfig{{
 		ID:      "local",
@@ -64,11 +80,12 @@ func providerConfigsFromEnv() []app.ProviderConfig {
 		Enabled: true,
 	}}
 	if key := strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY")); key != "" {
+		kind := envOrDefault("QUARK_OPENROUTER_PROVIDER_KIND", "openai-compatible")
 		configs = append(configs, app.ProviderConfig{
 			ID:      "openrouter",
-			Kind:    "bifrost",
+			Kind:    kind,
 			APIKey:  key,
-			BaseURL: envOrDefault("OPENROUTER_BASE_URL", "https://openrouter.ai/api"),
+			BaseURL: envOrDefault("OPENROUTER_BASE_URL", openRouterBaseURL(kind)),
 			Model:   envOrDefault("OPENROUTER_MODEL", "openai/gpt-4o-mini"),
 			Enabled: true,
 		})
@@ -102,6 +119,13 @@ func providerConfigsFromEnv() []app.ProviderConfig {
 		})
 	}
 	return configs
+}
+
+func openRouterBaseURL(kind string) string {
+	if strings.TrimSpace(kind) == "bifrost" {
+		return "https://openrouter.ai/api"
+	}
+	return "https://openrouter.ai/api/v1"
 }
 
 func parseFallbacks(spec string) map[string][]string {

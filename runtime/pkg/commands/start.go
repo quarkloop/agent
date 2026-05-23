@@ -131,7 +131,7 @@ func coreEventRecorder(catalog *runtimeservices.Catalog) *coreevents.Recorder {
 	if catalog == nil || catalog.Empty() {
 		return nil
 	}
-	return coreevents.New(catalog.Descriptors(), slog.Default())
+	return coreevents.New(catalog, slog.Default())
 }
 
 func modelProviderFromService(catalog *runtimeservices.Catalog, providerID string) plugin.Provider {
@@ -391,10 +391,6 @@ func serviceFunctionToolCallArgumentNormalizer(catalog *runtimeservices.Catalog)
 		return nil
 	}
 	return catalog.NormalizeToolCallArguments
-}
-
-func loadRuntimeCatalogSnapshot(ctx context.Context) (*clientcontract.RuntimeCatalogResponse, error) {
-	return loadRuntimeCatalogSnapshotForSpace(ctx, catalogclient.ConfigFromEnv())
 }
 
 func loadRuntimeCatalogSnapshotForSpace(ctx context.Context, cfg catalogclient.Config) (*clientcontract.RuntimeCatalogResponse, error) {

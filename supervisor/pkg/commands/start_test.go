@@ -16,6 +16,7 @@ func TestStartNATSConfigBuildsEmbeddedConfig(t *testing.T) {
 	natsClientPort = 14222
 	natsWebSocketPort = 19222
 	natsMonitorPort = 18222
+	natsArtifactHandoffMaxBytes = 64 * 1024 * 1024
 
 	cfg, err := startNATSConfig()
 	if err != nil {
@@ -29,6 +30,9 @@ func TestStartNATSConfigBuildsEmbeddedConfig(t *testing.T) {
 	}
 	if cfg.Client.Port != natsClientPort || cfg.WebSocket.Port != natsWebSocketPort || cfg.Monitoring.Port != natsMonitorPort {
 		t.Fatalf("ports = client:%d ws:%d monitoring:%d", cfg.Client.Port, cfg.WebSocket.Port, cfg.Monitoring.Port)
+	}
+	if cfg.JetStream.ArtifactHandoffMaxBytes != natsArtifactHandoffMaxBytes {
+		t.Fatalf("artifact handoff max bytes = %d", cfg.JetStream.ArtifactHandoffMaxBytes)
 	}
 }
 
@@ -65,6 +69,7 @@ func captureStartNATSFlags() func() {
 	oldClientPort := natsClientPort
 	oldWebSocketPort := natsWebSocketPort
 	oldMonitorPort := natsMonitorPort
+	oldArtifactHandoffMaxBytes := natsArtifactHandoffMaxBytes
 	return func() {
 		natsMode = oldMode
 		natsExternalURL = oldURL
@@ -72,5 +77,6 @@ func captureStartNATSFlags() func() {
 		natsClientPort = oldClientPort
 		natsWebSocketPort = oldWebSocketPort
 		natsMonitorPort = oldMonitorPort
+		natsArtifactHandoffMaxBytes = oldArtifactHandoffMaxBytes
 	}
 }

@@ -43,10 +43,10 @@ type NATSConfig struct {
 
 type Binding struct {
 	Descriptor *servicev1.ServiceDescriptor
-	Services   []GRPCService
+	Services   []RPCService
 }
 
-type GRPCService struct {
+type RPCService struct {
 	Desc           *grpc.ServiceDesc
 	Implementation any
 }
@@ -288,7 +288,7 @@ func (s *NATSService) publishServiceCallEvents(req servicefunction.RequestEnvelo
 	}
 }
 
-func serviceMethods(services []GRPCService) map[string]methodBinding {
+func serviceMethods(services []RPCService) map[string]methodBinding {
 	out := make(map[string]methodBinding)
 	for _, service := range services {
 		if service.Desc == nil || service.Implementation == nil {

@@ -11,6 +11,7 @@ import (
 type agentPluginValidationCatalog struct {
 	tools            map[string]struct{}
 	providers        map[string]struct{}
+	services         map[string]struct{}
 	serviceFunctions map[string]struct{}
 }
 
@@ -18,6 +19,7 @@ func newAgentPluginValidationCatalog(installed []pluginmanager.InstalledPlugin) 
 	catalog := agentPluginValidationCatalog{
 		tools:            make(map[string]struct{}),
 		providers:        make(map[string]struct{}),
+		services:         make(map[string]struct{}),
 		serviceFunctions: make(map[string]struct{}),
 	}
 	for _, item := range installed {
@@ -30,6 +32,7 @@ func newAgentPluginValidationCatalog(installed []pluginmanager.InstalledPlugin) 
 		case plugin.TypeProvider:
 			catalog.providers[item.Manifest.Name] = struct{}{}
 		case plugin.TypeService:
+			catalog.services[item.Manifest.Name] = struct{}{}
 			if item.Manifest.Service == nil {
 				continue
 			}
@@ -65,10 +68,10 @@ func validateEnabledAgentPluginContracts(installed []pluginmanager.InstalledPlug
 		if item.Manifest.Agent == nil {
 			continue
 		}
-		if err := validateToolRefs("agent plugin "+item.Manifest.Name, item.Manifest.Agent.Tools, catalog); err != nil {
+		if err := validateConcreteRefs("agent plugin "+item.Manifest.Name, "tool", item.Manifest.Agent.Tools); err != nil {
 			return err
 		}
-		if err := validateServiceFunctionRefs("agent plugin "+item.Manifest.Name, item.Manifest.Agent.Services, catalog); err != nil {
+		if err := validateConcreteRefs("agent plugin "+item.Manifest.Name, "service function", item.Manifest.Agent.Services); err != nil {
 			return err
 		}
 	}
@@ -101,20 +104,19 @@ func validateProviderRef(owner, provider string, catalog agentPluginValidationCa
 		return nil
 	}
 	if _, ok := catalog.providers[provider]; !ok {
-		return fmt.Errorf("%s model provider %q is not installed", owner, provider)
+		if _, hasGateway := catalog.services["gateway"]; !hasGateway {
+			return fmt.Errorf("%s model provider %q is not installed and gateway service is unavailable", owner, provider)
+		}
 	}
 	return nil
 }
 
 func validateToolRefs(owner string, refs []string, catalog agentPluginValidationCatalog) error {
+	if err := validateConcreteRefs(owner, "tool", refs); err != nil {
+		return err
+	}
 	for _, ref := range refs {
 		ref = strings.TrimSpace(ref)
-		if ref == "" {
-			return fmt.Errorf("%s declares an empty tool permission", owner)
-		}
-		if strings.Contains(ref, "*") {
-			return fmt.Errorf("%s tool permission %q must be a concrete tool name", owner, ref)
-		}
 		if _, ok := catalog.tools[ref]; !ok {
 			return fmt.Errorf("%s tool permission %q is not installed", owner, ref)
 		}
@@ -123,16 +125,26 @@ func validateToolRefs(owner string, refs []string, catalog agentPluginValidation
 }
 
 func validateServiceFunctionRefs(owner string, refs []string, catalog agentPluginValidationCatalog) error {
+	if err := validateConcreteRefs(owner, "service function", refs); err != nil {
+		return err
+	}
+	for _, ref := range refs {
+		ref = strings.TrimSpace(ref)
+		if _, ok := catalog.serviceFunctions[ref]; !ok {
+			return fmt.Errorf("%s service function permission %q is not provided by installed service plugins", owner, ref)
+		}
+	}
+	return nil
+}
+
+func validateConcreteRefs(owner, kind string, refs []string) error {
 	for _, ref := range refs {
 		ref = strings.TrimSpace(ref)
 		if ref == "" {
-			return fmt.Errorf("%s declares an empty service function permission", owner)
+			return fmt.Errorf("%s declares an empty %s permission", owner, kind)
 		}
 		if strings.Contains(ref, "*") {
-			return fmt.Errorf("%s service function permission %q must be a concrete service function", owner, ref)
-		}
-		if _, ok := catalog.serviceFunctions[ref]; !ok {
-			return fmt.Errorf("%s service function permission %q is not provided by installed service plugins", owner, ref)
+			return fmt.Errorf("%s %s permission %q must be a concrete %s", owner, kind, ref, kind)
 		}
 	}
 	return nil

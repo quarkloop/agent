@@ -96,67 +96,22 @@ func (s *Server) inspectInstalledService(ctx context.Context, space string, item
 	if configured.AddressEnv != "" {
 		info.AddressEnv = configured.AddressEnv
 	}
-	info.HealthService = healthServiceName(item.Manifest)
+	info.HealthService = serviceHealthName(item.Manifest)
 	info.MinVersion = item.Manifest.Service.Readiness.MinVersion
 	info.Functions = serviceFunctionsForAPI(item.Manifest.Service.Functions)
 	info.FunctionCount = len(info.Functions)
-	if servicePluginUsesNATS(item.Manifest) {
-		pluginDescriptors, err := descriptorsFromServiceManifest(item.Manifest)
-		if err != nil {
-			info.Diagnostics = append(info.Diagnostics, err.Error())
-			return info
-		}
-		if err := validateServicePluginDescriptors(pluginDescriptors, item.Manifest); err != nil {
-			info.Diagnostics = append(info.Diagnostics, err.Error())
-			return info
-		}
-		info.Endpoint = item.Manifest.Service.SubjectPrefix
-		info.Status = api.ServiceStatusReady
-		if count := descriptorFunctionCount(pluginDescriptors); count > 0 {
-			info.FunctionCount = count
-		}
-		return info
-	}
-
-	address := servicePluginAddress(item.Manifest, configured)
-	if address == "" {
-		if servicePluginReadinessRequired(item.Manifest, configured) {
-			info.Status = api.ServiceStatusMissing
-			info.Diagnostics = append(info.Diagnostics, fmt.Sprintf("missing endpoint: set %s or configure services[].address", item.Manifest.Service.AddressEnv))
-			return info
-		}
-		info.Status = api.ServiceStatusUnconfigured
-		info.Diagnostics = append(info.Diagnostics, "service endpoint is not configured")
-		return info
-	}
-	info.Endpoint = address
-	if err := checkServicePluginReadiness(ctx, address, item.Manifest); err != nil {
-		info.Diagnostics = append(info.Diagnostics, err.Error())
-		return info
-	}
-	discovered, err := discoverServicePlugin(ctx, address)
+	_ = ctx
+	_ = space
+	pluginDescriptors, err := descriptorsFromServiceManifest(item.Manifest)
 	if err != nil {
 		info.Diagnostics = append(info.Diagnostics, err.Error())
 		return info
-	}
-	pluginDescriptors := make([]*servicev1.ServiceDescriptor, 0, len(discovered))
-	for _, desc := range discovered {
-		if desc.GetAddress() == "" {
-			desc.Address = address
-		}
-		if desc.GetName() == "" {
-			desc.Name = item.Manifest.Name
-		}
-		if err := applyServiceFunctionMetadata(desc, item.Manifest); err != nil {
-			info.Diagnostics = append(info.Diagnostics, err.Error())
-			return info
-		}
-		pluginDescriptors = append(pluginDescriptors, desc)
 	}
 	if err := validateServicePluginDescriptors(pluginDescriptors, item.Manifest); err != nil {
 		info.Diagnostics = append(info.Diagnostics, err.Error())
 		return info
 	}
+	info.Endpoint = item.Manifest.Service.SubjectPrefix
 	info.Status = api.ServiceStatusReady
 	if count := descriptorFunctionCount(pluginDescriptors); count > 0 {
 		info.FunctionCount = count

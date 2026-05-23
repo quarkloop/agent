@@ -1,7 +1,7 @@
 # OpenRouter Embedding Service Plugin
 
 The OpenRouter embedding service calls a configured OpenRouter embedding model
-and returns vector metadata using the same gRPC contract as the local embedding
+and returns vector metadata using the same NATS service-function contract as the local embedding
 service. It is a compatibility service plugin for existing embedding flows while
 provider-backed embedding work migrates behind the Quark Model Service boundary.
 
@@ -56,7 +56,7 @@ dimensions for query-time embeddings.
 
 ## Health And Readiness
 
-- Health protocol: gRPC health v1.
+- Health protocol: NATS service-function readiness.
 - Health service: `quark.embedding.v1.EmbeddingService`.
 - Required readiness: yes, before runtime receives the service catalog.
 - Minimum descriptor version: `1.0.0`.

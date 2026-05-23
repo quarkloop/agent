@@ -1,7 +1,7 @@
 # IO Service
 
 `services/io` implements Quark's mechanical host I/O service. It exposes the
-`quark.io.v1.IOService` gRPC contract for the current architecture and is the
+`quark.io.v1.IOService` service-function contract for the NATS-native architecture and is the
 single owner of filesystem, approved shell, bounded web fetch, web search, and
 legacy PDF text extraction behavior.
 
@@ -27,7 +27,7 @@ legacy PDF text extraction behavior.
 - `internal/ioshell`: approved `bash -c` execution.
 - `internal/iofetch`: bounded HTTP/HTTPS fetch with SSRF guards.
 - `internal/iosearch`: Brave/SerpAPI search adapters.
-- `internal/iosvc`: gRPC boundary mapping between protobuf DTOs and service
+- `internal/iosvc`: transport boundary mapping between protobuf DTOs and service
   package requests/results.
 
 The service does not call other Quark services. It does not perform semantic

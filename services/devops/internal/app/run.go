@@ -41,7 +41,7 @@ func Run(ctx context.Context, cfg Config) error {
 	cfg.NATS.Logger = cfg.Logger
 	return servicebridge.RunNATSService(ctx, cfg.NATS, servicebridge.Binding{
 		Descriptor: descriptor,
-		Services: []servicebridge.GRPCService{
+		Services: []servicebridge.RPCService{
 			{Desc: &devopsv1.RepoService_ServiceDesc, Implementation: server},
 			{Desc: &devopsv1.BuildService_ServiceDesc, Implementation: server},
 			{Desc: &devopsv1.TestService_ServiceDesc, Implementation: server},

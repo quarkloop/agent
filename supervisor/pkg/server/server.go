@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -16,18 +15,13 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
-	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
-	spacev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/space/v1"
-	"github.com/quarkloop/pkg/serviceapi/servicekit"
-	"github.com/quarkloop/services/space/pkg/spacesvc"
 	"github.com/quarkloop/supervisor/internal/supervisor"
 	"github.com/quarkloop/supervisor/pkg/api"
 	"github.com/quarkloop/supervisor/pkg/events"
 	"github.com/quarkloop/supervisor/pkg/natsapi"
 	"github.com/quarkloop/supervisor/pkg/natshub"
 	"github.com/quarkloop/supervisor/pkg/space"
-	"github.com/quarkloop/supervisor/pkg/space/grpcstore"
-	"google.golang.org/grpc"
+	"github.com/quarkloop/supervisor/pkg/space/fsstore"
 )
 
 // Config holds supervisor server configuration.
@@ -37,10 +31,6 @@ type Config struct {
 	// SpacesDir is the root directory for the filesystem-backed space store.
 	// When empty, fsstore.DefaultRoot() is used.
 	SpacesDir string
-	// SpaceServiceAddr is an existing SpaceService gRPC address. When empty,
-	// the supervisor starts an embedded local SpaceService and still talks to
-	// it through gRPC.
-	SpaceServiceAddr string
 	// NATS configures the supervisor-owned NATS hub.
 	NATS natshub.Config
 }
@@ -54,9 +44,6 @@ type Server struct {
 	events  *events.Bus
 	natsHub *natshub.Hub
 	natsAPI *natsapi.Server
-
-	spaceConn        *grpcstore.Store
-	spaceServiceGRPC *grpc.Server
 }
 
 // New creates a new Supervisor server.
@@ -77,41 +64,22 @@ func New(cfg Config) (*Server, error) {
 	}
 	root := cfg.SpacesDir
 	if root == "" {
-		r, err := spacesvc.DefaultRoot()
+		r, err := fsstore.DefaultRoot()
 		if err != nil {
 			return nil, fmt.Errorf("resolve spaces root: %w", err)
 		}
 		root = r
 	}
-
-	spaceServiceAddr := cfg.SpaceServiceAddr
-	var spaceGRPC *grpc.Server
-	if spaceServiceAddr == "" {
-		addr, srv, err := startEmbeddedSpaceService(root)
-		if err != nil {
-			return nil, err
-		}
-		spaceServiceAddr = addr
-		spaceGRPC = srv
-	}
-
-	dialCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	store, err := grpcstore.Dial(dialCtx, spaceServiceAddr)
+	store, err := fsstore.NewFSStore(root)
 	if err != nil {
-		if spaceGRPC != nil {
-			spaceGRPC.Stop()
-		}
-		return nil, fmt.Errorf("dial space service %s: %w", spaceServiceAddr, err)
+		return nil, fmt.Errorf("open space store: %w", err)
 	}
 
 	s := &Server{
-		cfg:              cfg,
-		store:            store,
-		events:           events.NewBus(),
-		natsHub:          natsHub,
-		spaceConn:        store,
-		spaceServiceGRPC: spaceGRPC,
+		cfg:     cfg,
+		store:   store,
+		events:  events.NewBus(),
+		natsHub: natsHub,
 	}
 
 	fiberConfig := fiber.Config{
@@ -182,14 +150,6 @@ func (s *Server) Start(ctx context.Context) error {
 		return fmt.Errorf("writing state: %w", err)
 	}
 	defer sup.Clear() // clean up on exit
-	defer func() {
-		if s.spaceConn != nil {
-			_ = s.spaceConn.Close()
-		}
-		if s.spaceServiceGRPC != nil {
-			s.spaceServiceGRPC.GracefulStop()
-		}
-	}()
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -207,45 +167,6 @@ func (s *Server) Start(ctx context.Context) error {
 	case err := <-errCh:
 		return err
 	}
-}
-
-func startEmbeddedSpaceService(root string) (string, *grpc.Server, error) {
-	store, err := spacesvc.NewStoreWithEnvironment(root, os.Environ())
-	if err != nil {
-		return "", nil, fmt.Errorf("open space service store: %w", err)
-	}
-	server, err := spacesvc.NewServer(store)
-	if err != nil {
-		return "", nil, err
-	}
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return "", nil, fmt.Errorf("listen embedded space service: %w", err)
-	}
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(servicekit.UnaryLoggingInterceptor(slog.Default())))
-	spacev1.RegisterSpaceServiceServer(grpcServer, server)
-	registry := servicekit.NewRegistry()
-	if err := registry.Register(spacesvc.Descriptor(ln.Addr().String(), embeddedSpaceSkill())); err != nil {
-		ln.Close()
-		return "", nil, err
-	}
-	servicev1.RegisterServiceRegistryServer(grpcServer, registry)
-	go func() {
-		if err := grpcServer.Serve(ln); err != nil {
-			slog.Error("embedded space service stopped", "error", err)
-		}
-	}()
-	return ln.Addr().String(), grpcServer, nil
-}
-
-func embeddedSpaceSkill() *servicev1.SkillDescriptor {
-	for _, path := range []string{"services/space/SKILL.md", "../services/space/SKILL.md"} {
-		skill, err := servicekit.SkillFromFile("service-space", "1.0.0", path)
-		if err == nil {
-			return skill
-		}
-	}
-	return nil
 }
 
 // errorHandler is the Fiber custom error handler.

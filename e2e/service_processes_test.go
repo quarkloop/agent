@@ -4,6 +4,7 @@ package e2e
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -19,11 +20,11 @@ const (
 	indexerServiceReadyTimeout   = 60 * time.Second
 	natsServiceBridgeReadyLog    = "nats service bridge ready"
 	gatewayServiceReadyLog       = "gateway service listening"
-	workflowServiceReadyLog      = "workflow service listening"
-	secretsServiceReadyLog       = "secrets service listening"
 )
 
 var gatewayProviderEnvKeys = []string{
+	"QUARK_GATEWAY_TIMEOUT",
+	"QUARK_OPENROUTER_PROVIDER_KIND",
 	"OPENROUTER_API_KEY",
 	"OPENROUTER_BASE_URL",
 	"OPENAI_API_KEY",
@@ -141,6 +142,7 @@ func startGatewayServiceAt(t *testing.T, binary, addr, natsURL string) {
 	if natsURL != "" {
 		args = append(args, "--nats-url", natsURL, "--nats-user", natshub.DefaultControlUser, "--nats-password", natshub.DefaultControlPassword)
 	}
+	args = append(args, "--nats-timeout", e2eGatewayTimeout())
 	startNATSServiceProcess(t, natsServiceProcessSpec{
 		Label:    "gateway",
 		Binary:   binary,
@@ -150,6 +152,16 @@ func startGatewayServiceAt(t *testing.T, binary, addr, natsURL string) {
 		Env:      utils.ServiceProcessEnv(nil, gatewayProviderEnvKeys...),
 		ReadyLog: gatewayServiceReadyLog,
 	})
+}
+
+func e2eGatewayTimeout() string {
+	if value := strings.TrimSpace(os.Getenv("QUARK_E2E_MODEL_GATEWAY_TIMEOUT")); value != "" {
+		return value
+	}
+	if value := strings.TrimSpace(os.Getenv("QUARK_GATEWAY_TIMEOUT")); value != "" {
+		return value
+	}
+	return "2m"
 }
 
 func startBuildReleaseServiceAt(t *testing.T, binary, addr string, nats utils.NATSEndpoints) {
@@ -185,46 +197,15 @@ func startSystemServiceAt(t *testing.T, binary, addr string, nats utils.NATSEndp
 	})
 }
 
-func startWorkflowServiceAt(t *testing.T, binary, addr, temporalAddr, natsURL string) {
-	t.Helper()
-	args := []string{"--temporal-addr", temporalAddr}
-	if natsURL != "" {
-		args = append(args, "--nats-url", natsURL, "--nats-user", natshub.DefaultControlUser, "--nats-password", natshub.DefaultControlPassword)
-	}
-	startNATSServiceProcess(t, natsServiceProcessSpec{
-		Label:    "workflow",
-		Binary:   binary,
-		Address:  addr,
-		Plugin:   "workflow",
-		Args:     args,
-		ReadyLog: workflowServiceReadyLog,
-	})
-}
-
-func startSecretsServiceAt(t *testing.T, binary, addr, openBaoAddr, token, natsURL string) {
-	t.Helper()
-	args := []string{"--openbao-addr", openBaoAddr, "--openbao-token", token}
-	if natsURL != "" {
-		args = append(args, "--nats-url", natsURL, "--nats-user", natshub.DefaultControlUser, "--nats-password", natshub.DefaultControlPassword)
-	}
-	startNATSServiceProcess(t, natsServiceProcessSpec{
-		Label:    "secrets",
-		Binary:   binary,
-		Address:  addr,
-		Plugin:   "secrets",
-		Args:     args,
-		ReadyLog: secretsServiceReadyLog,
-	})
-}
-
 func standardKnowledgeServicesStartOptions(t *testing.T, embedding utils.EmbeddingOptions, workingDir string) utils.StartOptions {
 	t.Helper()
 	addresses := reserveKnowledgeServiceAddresses(t)
 	return utils.StartOptions{
-		WorkingDir:    workingDir,
-		Embedding:     embedding,
-		Agents:        []string{"quark-knowledge"},
-		SupervisorEnv: addresses.supervisorEnv(),
+		WorkingDir:              workingDir,
+		Embedding:               embedding,
+		Agents:                  []string{"quark-knowledge"},
+		AgentServicePermissions: knowledgeAgentServicePermissions(),
+		SupervisorEnv:           addresses.supervisorEnv(),
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
 			dgraphAddr := utils.StartDgraph(t)
@@ -245,21 +226,24 @@ func standardDevOpsServicesStartOptions(t *testing.T, workingDir string) utils.S
 	devopsAddr := reserveLoopbackAddress(t)
 	buildReleaseAddr := reserveLoopbackAddress(t)
 	ioAddr := reserveLoopbackAddress(t)
+	gatewayAddr := reserveLoopbackAddress(t)
 	return utils.StartOptions{
 		WorkingDir:               workingDir,
 		DisableKnowledgeServices: true,
 		Agents:                   []string{"quark-devops"},
 		ExtraServicePlugins:      []string{"build-release"},
 		AgentServicePermissions:  devOpsAgentServicePermissions(buildReleaseServiceFunctions()...),
-		Services:                 localServicePlugins("devops", "build-release", "io"),
+		Services:                 append(localServicePlugins("devops", "build-release", "io"), gatewayServicePlugin()),
 		SupervisorEnv: map[string]string{
-			"QUARK_DEVOPS_ADDR":        devopsAddr,
-			"QUARK_BUILD_RELEASE_ADDR": buildReleaseAddr,
-			"QUARK_IO_ADDR":            ioAddr,
+			"QUARK_DEVOPS_ADDR":          devopsAddr,
+			"QUARK_BUILD_RELEASE_ADDR":   buildReleaseAddr,
+			"QUARK_IO_ADDR":              ioAddr,
+			"QUARK_GATEWAY_SERVICE_ADDR": gatewayAddr,
 		},
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
 			startIOServiceAt(t, bins.IO, ioAddr, setup.NATS)
+			startGatewayServiceAt(t, bins.Model, gatewayAddr, setup.NATS.ClientURL)
 			startDevOpsServiceAt(t, bins.DevOps, devopsAddr, setup.NATS)
 			startBuildReleaseServiceAt(t, bins.BuildRelease, buildReleaseAddr, setup.NATS)
 		},
@@ -269,18 +253,21 @@ func standardDevOpsServicesStartOptions(t *testing.T, workingDir string) utils.S
 func standardDevOpsOnlyServicesStartOptions(t *testing.T, workingDir string) utils.StartOptions {
 	t.Helper()
 	devopsAddr := reserveLoopbackAddress(t)
+	gatewayAddr := reserveLoopbackAddress(t)
 	return utils.StartOptions{
 		WorkingDir:               workingDir,
 		DisableKnowledgeServices: true,
 		Agents:                   []string{"quark-devops"},
 		ExtraServicePlugins:      []string{"build-release"},
 		AgentServicePermissions:  devOpsAgentServicePermissions(),
-		Services:                 localServicePlugins("devops"),
+		Services:                 append(localServicePlugins("devops"), gatewayServicePlugin()),
 		SupervisorEnv: map[string]string{
-			"QUARK_DEVOPS_ADDR": devopsAddr,
+			"QUARK_DEVOPS_ADDR":          devopsAddr,
+			"QUARK_GATEWAY_SERVICE_ADDR": gatewayAddr,
 		},
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
+			startGatewayServiceAt(t, bins.Model, gatewayAddr, setup.NATS.ClientURL)
 			startDevOpsServiceAt(t, bins.DevOps, devopsAddr, setup.NATS)
 		},
 	}
@@ -289,16 +276,19 @@ func standardDevOpsOnlyServicesStartOptions(t *testing.T, workingDir string) uti
 func standardSystemServicesStartOptions(t *testing.T, workingDir string) utils.StartOptions {
 	t.Helper()
 	systemAddr := reserveLoopbackAddress(t)
+	gatewayAddr := reserveLoopbackAddress(t)
 	return utils.StartOptions{
 		WorkingDir:               workingDir,
 		DisableKnowledgeServices: true,
 		Agents:                   []string{"quark-system"},
-		Services:                 localServicePlugins("system"),
+		Services:                 append(localServicePlugins("system"), gatewayServicePlugin()),
 		SupervisorEnv: map[string]string{
-			"QUARK_SYSTEM_ADDR": systemAddr,
+			"QUARK_SYSTEM_ADDR":          systemAddr,
+			"QUARK_GATEWAY_SERVICE_ADDR": gatewayAddr,
 		},
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
+			startGatewayServiceAt(t, bins.Model, gatewayAddr, setup.NATS.ClientURL)
 			startSystemServiceAt(t, bins.System, systemAddr, setup.NATS)
 		},
 	}
@@ -393,6 +383,15 @@ func localServicePlugins(names ...string) []utils.ServicePlugin {
 	return plugins
 }
 
+func gatewayServicePlugin() utils.ServicePlugin {
+	return utils.ServicePlugin{
+		Name:       "gateway",
+		Plugin:     "gateway",
+		Mode:       "local",
+		AddressEnv: "QUARK_GATEWAY_SERVICE_ADDR",
+	}
+}
+
 func devOpsAgentServicePermissions(extra ...string) map[string][]string {
 	allowed := []string{
 		"repo_Status",
@@ -411,10 +410,95 @@ func devOpsAgentServicePermissions(extra ...string) map[string][]string {
 	}
 }
 
+func knowledgeAgentServicePermissions() map[string][]string {
+	return map[string][]string{
+		"quark-knowledge": knowledgeServiceFunctions(),
+	}
+}
+
+func knowledgeServiceFunctions() []string {
+	return []string{
+		"io_Read",
+		"io_List",
+		"io_Stat",
+		"io_ExtractPdf",
+		"io_Write",
+		"io_Append",
+		"io_Replace",
+		"io_Remove",
+		"document_DetectType",
+		"document_ParseBytes",
+		"document_ExtractText",
+		"document_ExtractLayout",
+		"document_GetPages",
+		"document_ExtractTables",
+		"document_ExtractImages",
+		"document_RunOCR",
+		"ingestion_StartRun",
+		"ingestion_GetRun",
+		"ingestion_ListRuns",
+		"ingestion_ResumeRun",
+		"ingestion_UpdateSourceState",
+		"ingestion_AppendArtifact",
+		"ingestion_MarkFailed",
+		"ingestion_MarkComplete",
+		"ingestion_CancelRun",
+		"ingestion_ListIncompleteSources",
+		"ingestion_ListArtifacts",
+		"embedding_Embed",
+		"indexer_UpsertChunk",
+		"indexer_UpsertFact",
+		"indexer_UpsertEntity",
+		"indexer_UpsertRelation",
+		"indexer_UpsertCitation",
+		"indexer_IndexDocument",
+		"indexer_QueryContext",
+		"indexer_GetContext",
+		"indexer_DeleteDocument",
+		"indexer_DeleteChunk",
+		"citation_ResolveSpans",
+		"citation_CreateCitation",
+		"citation_VerifyGrounding",
+		"citation_ScoreCoverage",
+		"citation_RenderReferences",
+		"core_CreateWorkspaceMutationPlan",
+		"core_ApproveWorkspaceMutationPlan",
+		"core_RequestApproval",
+		"core_EvaluatePolicy",
+		"core_RecordAuditEvent",
+		"core_PutArtifact",
+	}
+}
+
 func buildReleaseServiceFunctions() []string {
 	return []string{
 		"build_release_DryRun",
 		"build_release_Init",
 		"build_release_Release",
+	}
+}
+
+func TestKnowledgeAgentServicePermissionsMatchStandardE2EStack(t *testing.T) {
+	permissions := knowledgeAgentServicePermissions()["quark-knowledge"]
+	required := []string{
+		"io_Read",
+		"document_ExtractText",
+		"ingestion_StartRun",
+		"embedding_Embed",
+		"indexer_IndexDocument",
+		"citation_VerifyGrounding",
+		"core_RecordAuditEvent",
+	}
+	seen := make(map[string]struct{}, len(permissions))
+	for _, function := range permissions {
+		if strings.HasPrefix(function, "workflow_") {
+			t.Fatalf("standard knowledge e2e stack must not require workflow deployment: %s", function)
+		}
+		seen[function] = struct{}{}
+	}
+	for _, function := range required {
+		if _, ok := seen[function]; !ok {
+			t.Fatalf("standard knowledge e2e stack missing required service function %s", function)
+		}
 	}
 }

@@ -1,6 +1,6 @@
 # service-document
 
-The document service performs mechanical document extraction over gRPC. It is
+The document service performs mechanical document extraction through NATS service functions. It is
 for type detection, byte parsing, raw text extraction, layout extraction, page
 records, table extraction, image extraction, and OCR.
 

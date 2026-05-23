@@ -106,7 +106,9 @@ func NewExecutorWithCaller(descriptors []*servicev1.ServiceDescriptor, caller se
 const (
 	defaultReferenceTTL     = 30 * time.Minute
 	largeResultReferenceMin = 2048
-	documentTextPreviewMax  = 6000
+	documentTextPreviewMax  = 500
+	documentPagePreviewMax  = 1
+	documentPageTextMax     = 120
 	contextTextPreviewMax   = 1600
 	reasoningPreviewMax     = 9000
 )
@@ -1117,7 +1119,7 @@ func (e *Executor) documentExtractTextToolResult(msg protoreflect.ProtoMessage, 
 	if sourceHash != "" {
 		payload["sourceHash"] = mustJSONRaw(sourceHash)
 	}
-	compactTextField(payload, "text", documentTextPreviewMax)
+	compactDocumentExtractTextPayload(payload)
 	out, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
 		return "", fmt.Errorf("encode document text content reference: %w", err)
@@ -1827,6 +1829,33 @@ func compactReferencedResultPayload(responseType string, payload map[string]json
 	case "quark.indexer.v1.ContextResponse", "quark.indexer.v1.QueryContextResponse":
 		compactContextResponsePayload(payload)
 	}
+}
+
+func compactDocumentExtractTextPayload(payload map[string]json.RawMessage) {
+	compactTextField(payload, "text", documentTextPreviewMax)
+	compactDocumentPageTextArray(payload, "pages")
+	payload["resultCompacted"] = mustJSONRaw(true)
+}
+
+func compactDocumentPageTextArray(payload map[string]json.RawMessage, key string) {
+	raw, ok := payload[key]
+	if !ok {
+		return
+	}
+	var pages []map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &pages); err != nil {
+		return
+	}
+	originalCount := len(pages)
+	if originalCount > documentPagePreviewMax {
+		pages = pages[:documentPagePreviewMax]
+		payload[key+"Count"] = mustJSONRaw(originalCount)
+		payload[key+"Truncated"] = mustJSONRaw(true)
+	}
+	for i := range pages {
+		compactTextField(pages[i], "text", documentPageTextMax)
+	}
+	payload[key] = mustJSONRaw(pages)
 }
 
 func compactContextResponsePayload(payload map[string]json.RawMessage) {

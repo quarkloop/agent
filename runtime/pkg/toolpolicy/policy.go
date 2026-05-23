@@ -14,11 +14,11 @@ type Invocation struct {
 }
 
 var ioFunctionsRequiringApproval = map[string]struct{}{
-	"io_Write":    {},
-	"io_Append":   {},
-	"io_Replace":  {},
-	"io_Remove":   {},
-	"io_Execute":  {},
+	"io_Write":   {},
+	"io_Append":  {},
+	"io_Replace": {},
+	"io_Remove":  {},
+	"io_Execute": {},
 }
 
 func Validate(inv Invocation) error {

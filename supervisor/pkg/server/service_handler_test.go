@@ -1,19 +1,13 @@
 package server
 
 import (
-	"net"
 	"os"
 	"path/filepath"
 	"testing"
 
-	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
-	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	spacemodel "github.com/quarkloop/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/api"
 	"github.com/quarkloop/supervisor/pkg/space/fsstore"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/health"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func TestInspectServicesReportsNATSServiceFromManifest(t *testing.T) {
@@ -28,25 +22,6 @@ func TestInspectServicesReportsNATSServiceFromManifest(t *testing.T) {
 		t.Fatalf("services = %+v", services)
 	}
 	if services[0].Status != api.ServiceStatusReady || services[0].Endpoint != "svc.indexer.v1" {
-		t.Fatalf("service info = %+v", services[0])
-	}
-}
-
-func TestInspectServicesReportsReadyService(t *testing.T) {
-	srv := serviceTestServer(t)
-	writeInstalledServicePlugin(t, srv, "test-space")
-	address, stop := startRegistryService(t)
-	defer stop()
-	t.Setenv("QUARK_INDEXER_ADDR", address)
-
-	services, err := srv.inspectServices(t.Context(), "test-space")
-	if err != nil {
-		t.Fatalf("inspect services: %v", err)
-	}
-	if len(services) != 1 {
-		t.Fatalf("services = %+v", services)
-	}
-	if services[0].Status != api.ServiceStatusReady || services[0].FunctionCount != 1 {
 		t.Fatalf("service info = %+v", services[0])
 	}
 }
@@ -106,43 +81,5 @@ service:
 	}
 	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte("# service-indexer\n"), 0o644); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func startRegistryService(t *testing.T) (string, func()) {
-	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen: %v", err)
-	}
-	server := grpc.NewServer()
-	healthServer := health.NewServer()
-	healthServer.SetServingStatus("quark.indexer.v1.IndexerService", healthpb.HealthCheckResponse_SERVING)
-	healthpb.RegisterHealthServer(server, healthServer)
-	registry := servicekit.NewRegistry()
-	if err := registry.Register(&servicev1.ServiceDescriptor{
-		Name:    "indexer",
-		Type:    "indexer",
-		Version: "1.0.0",
-		Address: ln.Addr().String(),
-		Rpcs: []*servicev1.RpcDescriptor{{
-			Service:     "quark.indexer.v1.IndexerService",
-			Method:      "GetContext",
-			Request:     "quark.indexer.v1.QueryRequest",
-			Response:    "quark.indexer.v1.ContextResponse",
-			Description: "Retrieve context.",
-		}},
-	}); err != nil {
-		t.Fatal(err)
-	}
-	servicev1.RegisterServiceRegistryServer(server, registry)
-	errCh := make(chan error, 1)
-	go func() {
-		errCh <- server.Serve(ln)
-	}()
-	return ln.Addr().String(), func() {
-		server.Stop()
-		_ = ln.Close()
-		<-errCh
 	}
 }

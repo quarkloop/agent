@@ -23,7 +23,7 @@ Mutation RPCs and `Execute` require `approved: true` in the request. Runtime ass
 
 ## Environment
 
-- `QUARK_IO_ADDR` — gRPC endpoint
+- `QUARK_NATS_URL` — NATS endpoint used by the service-function bridge
 - `QUARK_PDFTOTEXT_PATH` — optional pdftotext binary for `ExtractPdf`
 - `BRAVE_API_KEY` / `SERPAPI_KEY` — web search providers
 

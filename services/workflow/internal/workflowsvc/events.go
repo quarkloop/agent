@@ -6,6 +6,7 @@ import (
 	"time"
 
 	workflowv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/workflow/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 type EventLog struct {
@@ -100,6 +101,9 @@ func cloneEvent(event *workflowv1.WorkflowEvent) *workflowv1.WorkflowEvent {
 	if event == nil {
 		return nil
 	}
-	copied := *event
-	return &copied
+	copied, ok := proto.Clone(event).(*workflowv1.WorkflowEvent)
+	if !ok {
+		return nil
+	}
+	return copied
 }

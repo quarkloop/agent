@@ -1,7 +1,7 @@
 # service-embedding
 
-The embedding service converts text into deterministic local vectors over
-gRPC. It is suitable for development, tests, and repeatable local indexing
+The embedding service converts text into deterministic local vectors through
+NATS service functions. It is suitable for development, tests, and repeatable local indexing
 flows. It is the compatibility service-function surface for local embedding;
 provider-backed model embeddings belong behind the Quark Model Service boundary.
 
@@ -26,7 +26,7 @@ When querying indexed documents:
   - Generated service function: `embedding_Embed`
   - Required JSON fields: `input`
   - Optional JSON fields: `model`, `dimensions`
-  - The gRPC service returns `vector`, `provider`, `model`, `dimensions`, and
+  - The service returns `vector`, `provider`, `model`, `dimensions`, and
     `contentHash`; the runtime service function returns an `embeddingRef`
     instead of exposing the raw vector to the LLM.
 

@@ -2,6 +2,7 @@ package llm
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -539,6 +540,84 @@ func TestInferNormalizesToolCallsBeforeExecutionAndHistory(t *testing.T) {
 	}
 	if len(calledNames) != 1 || calledNames[0] != "indexer_IndexDocument" {
 		t.Fatalf("calledNames = %v", calledNames)
+	}
+}
+
+func TestInferCompactsLargeExecutedToolArgumentsBeforeHistoryReplay(t *testing.T) {
+	longText := strings.Repeat("source paragraph ", 700)
+	providerCalls := 0
+	var historyErr error
+	provider := fakeProvider{
+		stream: func(_ context.Context, req *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+			providerCalls++
+			switch providerCalls {
+			case 1:
+				return streamEvents(
+					plugin.StreamEvent{ToolCalls: []plugin.ToolCall{{
+						Index: 0,
+						ID:    "call-1",
+						Type:  "function",
+						Function: plugin.ToolCallFunction{
+							Name:      "indexer_UpsertChunk",
+							Arguments: `{"chunkId":"chunk-1","textContent":"` + longText + `","embeddingRef":"emb_1","facts":[{"subject":"doc","predicate":"contains","object":"text"}]}`,
+						},
+					}}},
+					plugin.StreamEvent{Done: true},
+				), nil
+			case 2:
+				assistant := req.Messages[len(req.Messages)-2]
+				if len(assistant.ToolCalls) != 1 {
+					historyErr = fmt.Errorf("assistant tool calls = %+v", assistant.ToolCalls)
+					return streamEvents(plugin.StreamEvent{Done: true}), nil
+				}
+				arguments := assistant.ToolCalls[0].Function.Arguments
+				if strings.Contains(arguments, longText) {
+					historyErr = fmt.Errorf("history replay contains full tool arguments")
+					return streamEvents(plugin.StreamEvent{Done: true}), nil
+				}
+				var payload map[string]any
+				if err := json.Unmarshal([]byte(arguments), &payload); err != nil {
+					historyErr = fmt.Errorf("history arguments are not valid JSON: %w", err)
+					return streamEvents(plugin.StreamEvent{Done: true}), nil
+				}
+				if payload["textContentTruncated"] != true {
+					historyErr = fmt.Errorf("history arguments were not marked truncated: %s", arguments)
+					return streamEvents(plugin.StreamEvent{Done: true}), nil
+				}
+				return streamEvents(
+					plugin.StreamEvent{Delta: "indexed"},
+					plugin.StreamEvent{Done: true},
+				), nil
+			default:
+				return nil, fmt.Errorf("unexpected provider call %d", providerCalls)
+			}
+		},
+	}
+	client := NewClientWithLimits(provider, "test-model", 0, InferenceLimits{MaxTurns: 3, MaxFinalGuardRetries: 1})
+
+	var executedArguments string
+	result, err := client.Infer(
+		context.Background(),
+		[]plugin.Message{{Role: "user", Content: "index"}},
+		[]plugin.ToolSchema{{Name: "indexer_UpsertChunk"}},
+		func(_ context.Context, _ string, arguments string) (string, error) {
+			executedArguments = arguments
+			return `{"success":true}`, nil
+		},
+		nil,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("Infer returned error: %v", err)
+	}
+	if historyErr != nil {
+		t.Fatal(historyErr)
+	}
+	if !strings.Contains(executedArguments, longText) {
+		t.Fatal("tool execution did not receive full arguments")
+	}
+	if result != "indexed" {
+		t.Fatalf("result = %q", result)
 	}
 }
 

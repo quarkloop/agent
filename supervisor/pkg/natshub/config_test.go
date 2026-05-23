@@ -26,6 +26,9 @@ func TestBuildOptionsDefaultsAreDeterministic(t *testing.T) {
 	if !opts.JetStream {
 		t.Fatal("jetstream is not enabled")
 	}
+	if cfg.JetStream.ArtifactHandoffMaxBytes != defaultArtifactHandoffMaxBytes {
+		t.Fatalf("artifact handoff max bytes = %d", cfg.JetStream.ArtifactHandoffMaxBytes)
+	}
 	if opts.StoreDir != filepath.Join(cfg.StateDir, "jetstream") {
 		t.Fatalf("store dir = %q", opts.StoreDir)
 	}
@@ -113,5 +116,17 @@ func TestDefaultConfigAllowsTimeoutOverride(t *testing.T) {
 	}
 	if normalized.ReadyTimeout != time.Second {
 		t.Fatalf("ready timeout = %v", normalized.ReadyTimeout)
+	}
+}
+
+func TestNormalizeDefaultsArtifactHandoffMaxBytes(t *testing.T) {
+	cfg := DefaultConfig(filepath.Join(t.TempDir(), "nats"))
+	cfg.JetStream.ArtifactHandoffMaxBytes = 0
+	normalized, err := Normalize(cfg)
+	if err != nil {
+		t.Fatalf("normalize: %v", err)
+	}
+	if normalized.JetStream.ArtifactHandoffMaxBytes != defaultArtifactHandoffMaxBytes {
+		t.Fatalf("artifact handoff max bytes = %d", normalized.JetStream.ArtifactHandoffMaxBytes)
 	}
 }

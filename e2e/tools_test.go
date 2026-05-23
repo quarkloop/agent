@@ -14,18 +14,21 @@ import (
 // TestIOExecute exercises io_Execute through the runtime service catalog.
 func TestIOExecute(t *testing.T) {
 	ioAddr := reserveLoopbackAddress(t)
+	gatewayAddr := reserveLoopbackAddress(t)
 	env := utils.StartE2E(t, true, utils.StartOptions{
 		DisableKnowledgeServices: true,
 		Agents:                   []string{"quark-devops"},
-		Services:                 localServicePlugins("io"),
+		Services:                 append(localServicePlugins("io"), gatewayServicePlugin()),
 		SupervisorEnv: map[string]string{
-			"QUARK_IO_ADDR": ioAddr,
+			"QUARK_IO_ADDR":              ioAddr,
+			"QUARK_GATEWAY_SERVICE_ADDR": gatewayAddr,
 		},
 		AgentServicePermissions: map[string][]string{
 			"quark-devops": {"io_Execute"},
 		},
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
+			startGatewayServiceAt(t, bins.Model, gatewayAddr, setup.NATS.ClientURL)
 			startIOServiceAt(t, bins.IO, ioAddr, setup.NATS)
 		},
 	})

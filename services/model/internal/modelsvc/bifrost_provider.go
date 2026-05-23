@@ -103,14 +103,18 @@ func (p *bifrostProvider) StreamGenerate(ctx context.Context, cmd generateComman
 		return nil, plugin.NewProviderError(plugin.ProviderErrorTransport, p.id, cmd.Model, 0, fmt.Errorf("bifrost client is not initialized"))
 	}
 	includeUsage := true
+	params := &schemas.ChatParameters{
+		StreamOptions: &schemas.ChatStreamOptions{IncludeUsage: &includeUsage},
+		Tools:         bifrostTools(cmd.Tools),
+	}
+	if maxOutputTokens, ok := maxOutputTokensOption(cmd.Options); ok {
+		params.MaxCompletionTokens = schemas.Ptr(maxOutputTokens)
+	}
 	req := &schemas.BifrostChatRequest{
 		Provider: p.provider,
 		Model:    firstNonEmpty(cmd.Model, p.model),
 		Input:    bifrostMessages(cmd.Messages),
-		Params: &schemas.ChatParameters{
-			StreamOptions: &schemas.ChatStreamOptions{IncludeUsage: &includeUsage},
-			Tools:         bifrostTools(cmd.Tools),
-		},
+		Params:   params,
 	}
 	stream, bifrostErr := p.client.ChatCompletionStreamRequest(bifrostContext(ctx), req)
 	if bifrostErr != nil {

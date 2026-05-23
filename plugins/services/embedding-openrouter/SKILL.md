@@ -1,7 +1,7 @@
 # service-embedding-openrouter
 
 The OpenRouter embedding service converts text into provider-backed vectors
-over gRPC using the same `EmbeddingService` contract as the local embedding
+through NATS service functions using the same `EmbeddingService` contract as the local embedding
 service. It is a compatibility service-function surface while provider-backed
 embeddings move behind the Quark Model Service boundary.
 

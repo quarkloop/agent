@@ -38,6 +38,10 @@ func TestProviderStreamsGatewayResponsesAndUsage(t *testing.T) {
 			t.Errorf("request provider/model = %q/%q", payload.GetProvider(), payload.GetModel())
 			return
 		}
+		if payload.GetOptions()["max_output_tokens"] != "512" {
+			t.Errorf("max_output_tokens option = %q", payload.GetOptions()["max_output_tokens"])
+			return
+		}
 		publishProviderChunk(t, conn, msg.Reply, req.CallID, &modelv1.StreamGenerateResponse{Delta: "hello"})
 		publishProviderChunk(t, conn, msg.Reply, req.CallID, &modelv1.StreamGenerateResponse{
 			Done: true,
@@ -60,7 +64,7 @@ func TestProviderStreamsGatewayResponsesAndUsage(t *testing.T) {
 		t.Fatalf("flush gateway subscription: %v", err)
 	}
 
-	provider := New(Config{URL: ns.ClientURL(), Username: "quark-control", Password: "secret", Timeout: time.Second}, "openrouter")
+	provider := New(Config{URL: ns.ClientURL(), Username: "quark-control", Password: "secret", Timeout: time.Second, MaxOutputTokens: 512}, "openrouter")
 	stream, err := provider.ChatCompletionStream(context.Background(), &plugin.ChatRequest{
 		Model:    "test/model",
 		Messages: []plugin.Message{{Role: "user", Content: "hello"}},
@@ -88,6 +92,36 @@ func TestProviderStreamsGatewayResponsesAndUsage(t *testing.T) {
 	}
 	if usage == nil || usage.Provider != "openrouter" || usage.Model != "test/model" || usage.InputTokens != 7 || usage.OutputTokens != 3 {
 		t.Fatalf("usage = %+v", usage)
+	}
+}
+
+func TestProviderBoundsGatewayStreamWait(t *testing.T) {
+	ns := startProviderTestNATS(t)
+
+	provider := New(Config{URL: ns.ClientURL(), Username: "quark-control", Password: "secret", Timeout: 20 * time.Millisecond}, "openrouter")
+	stream, err := provider.ChatCompletionStream(context.Background(), &plugin.ChatRequest{
+		Model:    "test/model",
+		Messages: []plugin.Message{{Role: "user", Content: "hello"}},
+	})
+	if err != nil {
+		t.Fatalf("stream: %v", err)
+	}
+	select {
+	case event := <-stream:
+		if event.Err == nil {
+			t.Fatalf("expected gateway wait error, got %+v", event)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("gateway stream wait did not terminate")
+	}
+}
+
+func TestConfigFromEnvReadsGatewayTimeout(t *testing.T) {
+	t.Setenv(EnvGatewayTimeout, "2m")
+
+	cfg := ConfigFromEnv()
+	if cfg.Timeout != 2*time.Minute {
+		t.Fatalf("timeout = %s", cfg.Timeout)
 	}
 }
 

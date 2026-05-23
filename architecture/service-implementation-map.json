@@ -245,7 +245,7 @@
     }
   },
   "e2e_tests": {
-    "direct_service_shortcut_suspect_count": 6,
+    "direct_service_shortcut_suspect_count": 0,
     "file_count": 33,
     "files": [
       {
@@ -317,12 +317,7 @@
         "prompt_shortcut_suspects": []
       },
       {
-        "direct_service_shortcut_suspects": [
-          "21: embedding, err := embeddingClient.Embed(ctx, &embeddingv1.EmbedRequest{",
-          "27: resp, err := indexerClient.GetContext(ctx, &indexerv1.QueryRequest{",
-          "67: embedding, err := embeddingClient.Embed(ctx, &embeddingv1.EmbedRequest{",
-          "73: resp, err := indexerClient.GetContext(ctx, &indexerv1.QueryRequest{"
-        ],
+        "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
         "path": "e2e/index_verification_test.go",
         "prompt_shortcut_suspects": []
@@ -348,13 +343,12 @@
         ]
       },
       {
-        "direct_service_shortcut_suspects": [
-          "30: if _, err := client.IndexDocument(ctx, &indexerv1.IndexRequest{",
-          "45: resp, err := client.GetContext(ctx, &indexerv1.QueryRequest{"
-        ],
+        "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
         "path": "e2e/indexer_service_test.go",
-        "prompt_shortcut_suspects": []
+        "prompt_shortcut_suspects": [
+          "54: TextContent: \"Quark service extraction uses NATS service functions and Dgraph vector indexes.\","
+        ]
       },
       {
         "direct_service_shortcut_suspects": [],
@@ -437,7 +431,15 @@
         "direct_service_shortcut_suspects": [],
         "has_process_flow": true,
         "path": "e2e/service_processes_test.go",
-        "prompt_shortcut_suspects": []
+        "prompt_shortcut_suspects": [
+          "448: \"embedding_Embed\",",
+          "454: \"indexer_IndexDocument\",",
+          "456: \"indexer_GetContext\",",
+          "458: \"indexer_DeleteChunk\",",
+          "487: \"embedding_Embed\",",
+          "488: \"indexer_IndexDocument\",",
+          "501: t.Fatalf(\"standard knowledge e2e stack missing required service function %s\", function)"
+        ]
       },
       {
         "direct_service_shortcut_suspects": [],
@@ -499,7 +501,7 @@
         "prompt_shortcut_suspects": []
       }
     ],
-    "prompt_shortcut_suspect_count": 35
+    "prompt_shortcut_suspect_count": 43
   },
   "services": {
     "build-release": {

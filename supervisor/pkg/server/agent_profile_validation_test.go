@@ -37,6 +37,52 @@ func TestAgentPluginValidationAcceptsConcreteInstalledContracts(t *testing.T) {
 	}
 }
 
+func TestAgentPluginValidationAllowsQuarkfileNarrowedServiceSubset(t *testing.T) {
+	installed := validationInstalledPlugins(
+		validationService("io", "io_Read"),
+		validationAgent("quark-knowledge", nil, []string{"io_Read", "workflow_Start"}),
+	)
+	catalog := newAgentPluginValidationCatalog(installed)
+	entries := []runtimePluginCatalogEntry{{
+		Name: "quark-knowledge",
+		Type: plugin.TypeAgent,
+		AgentProfile: &plugin.AgentProfile{
+			ID:   "quark-knowledge",
+			Name: "Quark Knowledge",
+			Permissions: plugin.AgentProfilePermission{
+				Services: []string{"io_Read"},
+			},
+		},
+	}}
+
+	if err := validateEnabledAgentPluginContracts(installed, enabledAgentPluginNames(entries), catalog); err != nil {
+		t.Fatalf("validate enabled manifests: %v", err)
+	}
+	if err := validateRuntimeAgentProfiles(entries, catalog); err != nil {
+		t.Fatalf("validate narrowed profile: %v", err)
+	}
+}
+
+func TestAgentPluginValidationAllowsGatewayBackedModelProviders(t *testing.T) {
+	installed := validationInstalledPlugins(
+		validationService("gateway", "gateway_Generate"),
+	)
+	catalog := newAgentPluginValidationCatalog(installed)
+	entries := []runtimePluginCatalogEntry{{
+		Name: "quark-knowledge",
+		Type: plugin.TypeAgent,
+		AgentProfile: &plugin.AgentProfile{
+			ID:    "quark-knowledge",
+			Name:  "Quark Knowledge",
+			Model: plugin.AgentProfileModel{Provider: "openrouter", Model: "openai/gpt-5-mini"},
+		},
+	}}
+
+	if err := validateRuntimeAgentProfiles(entries, catalog); err != nil {
+		t.Fatalf("validate gateway-backed provider: %v", err)
+	}
+}
+
 func TestAgentPluginValidationRejectsMissingServiceFunction(t *testing.T) {
 	installed := validationInstalledPlugins(
 		validationService("io", "io_Read"),

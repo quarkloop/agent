@@ -12,13 +12,13 @@ import (
 )
 
 var port int
-var spaceServiceAddr string
 var natsMode string
 var natsExternalURL string
 var natsStateDir string
 var natsClientPort int
 var natsWebSocketPort int
 var natsMonitorPort int
+var natsArtifactHandoffMaxBytes int64
 
 // StartCmd creates the "supervisor start" command.
 func StartCmd() *cobra.Command {
@@ -33,13 +33,13 @@ Example:
 	}
 
 	cmd.Flags().IntVarP(&port, "port", "p", 7200, "HTTP listen port")
-	cmd.Flags().StringVar(&spaceServiceAddr, "space-service", "", "Existing SpaceService gRPC address (default: start embedded service)")
 	cmd.Flags().StringVar(&natsMode, "nats-mode", string(natshub.ModeEmbedded), "NATS mode: embedded or external")
 	cmd.Flags().StringVar(&natsExternalURL, "nats-url", "", "External NATS URL when --nats-mode=external")
 	cmd.Flags().StringVar(&natsStateDir, "nats-state-dir", "", "Supervisor-owned embedded NATS state directory")
 	cmd.Flags().IntVar(&natsClientPort, "nats-client-port", 4222, "Embedded NATS client listen port")
 	cmd.Flags().IntVar(&natsWebSocketPort, "nats-websocket-port", 9222, "Embedded NATS WebSocket listen port")
 	cmd.Flags().IntVar(&natsMonitorPort, "nats-monitor-port", 8222, "Embedded NATS HTTP monitoring listen port")
+	cmd.Flags().Int64Var(&natsArtifactHandoffMaxBytes, "nats-artifact-handoff-max-bytes", 0, "Embedded NATS artifact handoff object-store max bytes; 0 uses the supervisor default")
 
 	return cmd
 }
@@ -58,10 +58,9 @@ func runStart(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	cfg := server.Config{
-		Port:             port,
-		SpacesDir:        spacesDir,
-		SpaceServiceAddr: spaceServiceAddr,
-		NATS:             natsCfg,
+		Port:      port,
+		SpacesDir: spacesDir,
+		NATS:      natsCfg,
 	}
 	srv, err := server.New(cfg)
 	if err != nil {
@@ -86,6 +85,9 @@ func startNATSConfig() (natshub.Config, error) {
 		cfg.Client.Port = natsClientPort
 		cfg.WebSocket.Port = natsWebSocketPort
 		cfg.Monitoring.Port = natsMonitorPort
+		if natsArtifactHandoffMaxBytes > 0 {
+			cfg.JetStream.ArtifactHandoffMaxBytes = natsArtifactHandoffMaxBytes
+		}
 		return cfg, nil
 	case natshub.ModeExternal:
 		return natshub.Config{

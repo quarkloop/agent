@@ -12,8 +12,17 @@ import (
 
 // TestAskMode drives a full supervisor -> runtime chat flow over NATS.
 func TestAskMode(t *testing.T) {
+	gatewayAddr := reserveLoopbackAddress(t)
 	env := utils.StartE2E(t, true, utils.StartOptions{
 		DisableKnowledgeServices: true,
+		Services:                 []utils.ServicePlugin{gatewayServicePlugin()},
+		SupervisorEnv: map[string]string{
+			"QUARK_GATEWAY_SERVICE_ADDR": gatewayAddr,
+		},
+		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
+			t.Helper()
+			startGatewayServiceAt(t, bins.Model, gatewayAddr, setup.NATS.ClientURL)
+		},
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)

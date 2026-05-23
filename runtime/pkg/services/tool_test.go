@@ -661,6 +661,58 @@ func TestExecutorCompactsLargeDocumentExtractionTextForLLM(t *testing.T) {
 	}
 }
 
+func TestExecutorCompactsDocumentExtractionPagesForLLM(t *testing.T) {
+	executor := NewExecutor(nil)
+	longPageText := strings.Repeat("page evidence paragraph ", 120)
+	pages := make([]*documentv1.PageText, 0, 8)
+	for i := 0; i < 8; i++ {
+		pages = append(pages, &documentv1.PageText{
+			PageNumber:  int32(i + 1),
+			Text:        longPageText,
+			StartOffset: int32(i * len(longPageText)),
+			EndOffset:   int32((i + 1) * len(longPageText)),
+		})
+	}
+
+	result, err := executor.documentExtractTextToolResult(&documentv1.ExtractTextResponse{
+		Text:       strings.Repeat(longPageText, len(pages)),
+		Pages:      pages,
+		SourceHash: "sha256:source",
+	}, `{"input":{"sourceUri":"/tmp/source.pdf","filename":"source.pdf"}}`)
+	if err != nil {
+		t.Fatalf("capture document result: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("decode document result: %v\n%s", err, result)
+	}
+	if payload["resultCompacted"] != true {
+		t.Fatalf("resultCompacted missing: %+v", payload)
+	}
+	if payload["pagesTruncated"] != true {
+		t.Fatalf("pagesTruncated missing: %+v", payload)
+	}
+	if got := int(payload["pagesCount"].(float64)); got != len(pages) {
+		t.Fatalf("pagesCount = %d, want %d", got, len(pages))
+	}
+	previewPages := payload["pages"].([]any)
+	if got := len(previewPages); got != documentPagePreviewMax {
+		t.Fatalf("preview page count = %d, want %d", got, documentPagePreviewMax)
+	}
+	for _, rawPage := range previewPages {
+		page := rawPage.(map[string]any)
+		if page["textTruncated"] != true {
+			t.Fatalf("page text was not marked truncated: %+v", page)
+		}
+		if got := page["text"].(string); len([]rune(got)) >= len([]rune(longPageText)) {
+			t.Fatalf("page text was not compacted")
+		}
+	}
+	if len([]rune(result)) > 3000 {
+		t.Fatalf("document tool result is too large for LLM replay: %d runes", len([]rune(result)))
+	}
+}
+
 func TestExecutorDoesNotCaptureFilesystemPDFExtractionAsContentSource(t *testing.T) {
 	data, err := protojson.Marshal(&iov1.ExtractPdfResponse{Content: "Attention Is All You Need\n"})
 	if err != nil {

@@ -57,7 +57,7 @@ chain, failure category, and reset time when available.
 
 ## Health And Readiness
 
-- Health protocol: gRPC health v1 during the transitional registry period.
+- Health protocol: NATS service-function readiness.
 - Health service: `quark.model.v1.ModelService`.
 - NATS subjects: `svc.gateway.v1.*`.
 - Descriptor registry: `quark.service.v1.ServiceRegistry`.

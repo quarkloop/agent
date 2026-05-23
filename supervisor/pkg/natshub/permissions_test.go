@@ -20,6 +20,13 @@ func TestSessionPermissionsAreScopedToOneSession(t *testing.T) {
 	assertNotContains(t, perms.SubscribeAllow, "session.other.events")
 }
 
+func TestSessionPermissionsUseClientSubjectTokenForNumericIDs(t *testing.T) {
+	perms := SessionPermissions("70d6e473e286ec0d")
+	assertContains(t, perms.PublishAllow, "session.id_70d6e473e286ec0d.input")
+	assertContains(t, perms.SubscribeAllow, "session.id_70d6e473e286ec0d.events")
+	assertContains(t, perms.SubscribeAllow, "session.id_70d6e473e286ec0d.status")
+}
+
 func TestRuntimePermissionsCanRequestImportedServiceFunctions(t *testing.T) {
 	perms := RuntimePermissions()
 	assertContains(t, perms.PublishAllow, "catalog.runtime.v1.get")
