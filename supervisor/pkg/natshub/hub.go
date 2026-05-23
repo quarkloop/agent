@@ -35,6 +35,11 @@ type Hub struct {
 	applied     map[string]map[string]struct{}
 }
 
+const (
+	catalogRuntimeGetSubject    = "catalog.runtime.v1.get"
+	catalogRuntimeEventsSubject = "catalog.runtime.v1.events"
+)
+
 func New(cfg Config) (*Hub, error) {
 	normalized, err := Normalize(cfg)
 	if err != nil {
@@ -103,6 +108,12 @@ func (h *Hub) Start(ctx context.Context) error {
 	h.credentials = credentials
 	h.started = true
 	h.applied = make(map[string]map[string]struct{})
+	for _, space := range h.spaces {
+		if err := h.applyCatalogImportsLocked(space.Account); err != nil {
+			h.shutdownStartedServerLocked()
+			return err
+		}
+	}
 	for spaceID, routes := range h.imports {
 		space, ok := h.spaces[spaceID]
 		if !ok {
@@ -391,6 +402,9 @@ func (h *Hub) provisionSpaceLocked(spaceID string) (SpaceCredentials, error) {
 		if err := h.registerCredentialLocked(observabilityCred); err != nil {
 			return SpaceCredentials{}, err
 		}
+		if err := h.applyCatalogImportsLocked(accountName); err != nil {
+			return SpaceCredentials{}, err
+		}
 	} else {
 		h.cfg.Accounts = upsertAccountUsers(h.cfg.Accounts, AccountConfig{
 			Name: accountName,
@@ -471,6 +485,38 @@ func (h *Hub) applyServiceFunctionImportsLocked(spaceAccountName string, routes 
 		}
 		h.applied[spaceAccountName][key] = struct{}{}
 	}
+	return nil
+}
+
+func (h *Hub) applyCatalogImportsLocked(spaceAccountName string) error {
+	controlAccount, err := h.accountLocked(ControlAccountName)
+	if err != nil {
+		return err
+	}
+	spaceAccount, err := h.accountLocked(spaceAccountName)
+	if err != nil {
+		return err
+	}
+	key := catalogRuntimeGetSubject + "\x00" + catalogRuntimeGetSubject
+	if _, ok := h.applied[spaceAccountName]; !ok {
+		h.applied[spaceAccountName] = make(map[string]struct{})
+	}
+	if _, ok := h.applied[spaceAccountName][key]; ok {
+		return nil
+	}
+	if err := controlAccount.AddServiceExport(catalogRuntimeGetSubject, []*natsserver.Account{spaceAccount}); err != nil {
+		return fmt.Errorf("export catalog subject %q: %w", catalogRuntimeGetSubject, err)
+	}
+	if err := spaceAccount.AddServiceImport(controlAccount, catalogRuntimeGetSubject, catalogRuntimeGetSubject); err != nil {
+		return fmt.Errorf("import catalog subject %q into %q: %w", catalogRuntimeGetSubject, spaceAccountName, err)
+	}
+	if err := controlAccount.AddStreamExport(catalogRuntimeEventsSubject, []*natsserver.Account{spaceAccount}); err != nil {
+		return fmt.Errorf("export catalog events %q: %w", catalogRuntimeEventsSubject, err)
+	}
+	if err := spaceAccount.AddStreamImport(controlAccount, catalogRuntimeEventsSubject, ""); err != nil {
+		return fmt.Errorf("import catalog events %q into %q: %w", catalogRuntimeEventsSubject, spaceAccountName, err)
+	}
+	h.applied[spaceAccountName][key] = struct{}{}
 	return nil
 }
 

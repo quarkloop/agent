@@ -54,6 +54,11 @@ const (
 	SubjectRuntimeActivityFeed = "runtime.activity.v1.events"
 )
 
+const (
+	SubjectCatalogRuntimeGet    = "catalog.runtime.v1.get"
+	SubjectCatalogRuntimeEvents = "catalog.runtime.v1.events"
+)
+
 func SessionInputSubject(sessionID string) (string, error) {
 	session, err := token("session_id", sessionID)
 	if err != nil {

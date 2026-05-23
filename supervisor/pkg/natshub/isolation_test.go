@@ -121,6 +121,41 @@ func TestRuntimeCanCallOnlyImportedServiceFunctions(t *testing.T) {
 	}
 }
 
+func TestRuntimeCanRequestSupervisorCatalogSnapshot(t *testing.T) {
+	hub := startTestHub(t)
+	space, err := hub.ProvisionSpace("knowledge")
+	if err != nil {
+		t.Fatalf("provision space: %v", err)
+	}
+	controlCredential, err := hub.ControlCredential()
+	if err != nil {
+		t.Fatalf("control credential: %v", err)
+	}
+	control := connectWithCredential(t, hub, controlCredential)
+	if _, err := control.Subscribe(catalogRuntimeGetSubject, func(msg *nats.Msg) {
+		if err := msg.Respond([]byte("catalog:" + string(msg.Data))); err != nil {
+			t.Errorf("respond: %v", err)
+		}
+	}); err != nil {
+		t.Fatalf("catalog subscribe: %v", err)
+	}
+	control.Flush()
+
+	runtime := connectWithCredential(t, hub, space.Runtime)
+	reply, err := runtime.Request(catalogRuntimeGetSubject, []byte("payload"), time.Second)
+	if err != nil {
+		t.Fatalf("request catalog snapshot: %v", err)
+	}
+	if got := string(reply.Data); got != "catalog:payload" {
+		t.Fatalf("reply = %q", got)
+	}
+
+	events := make(chan string, 1)
+	subscribe(t, runtime, catalogRuntimeEventsSubject, events)
+	publish(t, control, catalogRuntimeEventsSubject, "changed")
+	assertMessage(t, events, "changed")
+}
+
 func TestIssuedCredentialsSurviveEmbeddedHubRestart(t *testing.T) {
 	hub := startTestHub(t)
 	session, err := hub.IssueSessionCredential("restart-space", "chat")

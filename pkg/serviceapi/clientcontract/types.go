@@ -350,6 +350,24 @@ type RuntimeSessionResponse struct {
 	Found     bool   `json:"found"`
 }
 
+type RuntimeCatalogRequest struct {
+	SpaceID string `json:"space_id"`
+}
+
+type RuntimeCatalogResponse struct {
+	SpaceID        string          `json:"space_id"`
+	PluginCatalog  json.RawMessage `json:"plugin_catalog"`
+	ServiceCatalog json.RawMessage `json:"service_catalog,omitempty"`
+	AgentProfile   string          `json:"agent_profile,omitempty"`
+	GeneratedAt    time.Time       `json:"generated_at"`
+}
+
+type RuntimeCatalogEvent struct {
+	SpaceID     string    `json:"space_id"`
+	Reason      string    `json:"reason"`
+	GeneratedAt time.Time `json:"generated_at"`
+}
+
 type RuntimePlanStep struct {
 	ID          string `json:"id"`
 	Agent       string `json:"agent"`

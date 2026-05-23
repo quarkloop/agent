@@ -10,6 +10,7 @@ import (
 	"time"
 
 	plugin "github.com/quarkloop/pkg/plugin"
+	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	spacemodel "github.com/quarkloop/pkg/space"
@@ -25,48 +26,9 @@ const defaultServiceFunctionTimeout = 30 * time.Second
 type runtimePluginCatalogEntry = plugin.RuntimeCatalogPlugin
 
 func (s *Server) runtimePluginCatalogEnv(ctx context.Context, space string) ([]string, error) {
-	_ = ctx
-	qfBytes, err := s.store.Quarkfile(space)
-	if err != nil {
-		return nil, fmt.Errorf("read quarkfile: %w", err)
-	}
-	qf, err := spacemodel.ParseAndValidateQuarkfileForSpace(qfBytes, space)
+	catalog, selectedAgent, err := s.resolveRuntimePluginCatalog(ctx, space)
 	if err != nil {
 		return nil, err
-	}
-	mgr, err := s.store.Plugins(space)
-	if err != nil {
-		return nil, fmt.Errorf("open plugin store: %w", err)
-	}
-	installed, err := mgr.List()
-	if err != nil {
-		return nil, fmt.Errorf("list plugins: %w", err)
-	}
-	validationCatalog := newAgentPluginValidationCatalog(installed)
-	catalog := plugin.NewRuntimeCatalog(make([]plugin.RuntimeCatalogPlugin, 0, len(installed)))
-	for _, item := range installed {
-		switch item.Manifest.Type {
-		case plugin.TypeTool, plugin.TypeProvider, plugin.TypeAgent:
-			entry, err := runtimePluginCatalogEntryFromInstalled(item)
-			if err != nil {
-				return nil, fmt.Errorf("build runtime plugin catalog entry %s: %w", item.Manifest.Name, err)
-			}
-			catalog.Plugins = append(catalog.Plugins, entry)
-		}
-	}
-	plugins, selectedAgent, err := newAgentProfileOverrideResolver(qf).apply(catalog.Plugins)
-	if err != nil {
-		return nil, err
-	}
-	catalog.Plugins = plugins
-	if err := validateEnabledAgentPluginContracts(installed, enabledAgentPluginNames(plugins), validationCatalog); err != nil {
-		return nil, err
-	}
-	if err := validateRuntimeAgentProfiles(plugins, validationCatalog); err != nil {
-		return nil, err
-	}
-	if err := catalog.Validate(); err != nil {
-		return nil, fmt.Errorf("validate runtime plugin catalog: %w", err)
 	}
 	payload, err := json.Marshal(catalog)
 	if err != nil {
@@ -77,6 +39,53 @@ func (s *Server) runtimePluginCatalogEnv(ctx context.Context, space string) ([]s
 		env = append(env, runtimeAgentProfileEnv+"="+selectedAgent)
 	}
 	return env, nil
+}
+
+func (s *Server) resolveRuntimePluginCatalog(ctx context.Context, space string) (plugin.RuntimeCatalog, string, error) {
+	_ = ctx
+	qfBytes, err := s.store.Quarkfile(space)
+	if err != nil {
+		return plugin.RuntimeCatalog{}, "", fmt.Errorf("read quarkfile: %w", err)
+	}
+	qf, err := spacemodel.ParseAndValidateQuarkfileForSpace(qfBytes, space)
+	if err != nil {
+		return plugin.RuntimeCatalog{}, "", err
+	}
+	mgr, err := s.store.Plugins(space)
+	if err != nil {
+		return plugin.RuntimeCatalog{}, "", fmt.Errorf("open plugin store: %w", err)
+	}
+	installed, err := mgr.List()
+	if err != nil {
+		return plugin.RuntimeCatalog{}, "", fmt.Errorf("list plugins: %w", err)
+	}
+	validationCatalog := newAgentPluginValidationCatalog(installed)
+	catalog := plugin.NewRuntimeCatalog(make([]plugin.RuntimeCatalogPlugin, 0, len(installed)))
+	for _, item := range installed {
+		switch item.Manifest.Type {
+		case plugin.TypeTool, plugin.TypeProvider, plugin.TypeAgent:
+			entry, err := runtimePluginCatalogEntryFromInstalled(item)
+			if err != nil {
+				return plugin.RuntimeCatalog{}, "", fmt.Errorf("build runtime plugin catalog entry %s: %w", item.Manifest.Name, err)
+			}
+			catalog.Plugins = append(catalog.Plugins, entry)
+		}
+	}
+	plugins, selectedAgent, err := newAgentProfileOverrideResolver(qf).apply(catalog.Plugins)
+	if err != nil {
+		return plugin.RuntimeCatalog{}, "", err
+	}
+	catalog.Plugins = plugins
+	if err := validateEnabledAgentPluginContracts(installed, enabledAgentPluginNames(plugins), validationCatalog); err != nil {
+		return plugin.RuntimeCatalog{}, "", err
+	}
+	if err := validateRuntimeAgentProfiles(plugins, validationCatalog); err != nil {
+		return plugin.RuntimeCatalog{}, "", err
+	}
+	if err := catalog.Validate(); err != nil {
+		return plugin.RuntimeCatalog{}, "", fmt.Errorf("validate runtime plugin catalog: %w", err)
+	}
+	return catalog, selectedAgent, nil
 }
 
 func runtimePluginCatalogEntryFromInstalled(item pluginmanager.InstalledPlugin) (runtimePluginCatalogEntry, error) {
@@ -115,6 +124,17 @@ func readPluginFile(pluginDir, name string) string {
 }
 
 func (s *Server) runtimeServiceCatalogEnv(ctx context.Context, space string) ([]string, error) {
+	payload, err := s.runtimeServiceCatalogPayload(ctx, space)
+	if err != nil {
+		return nil, err
+	}
+	if len(payload) == 0 {
+		return nil, nil
+	}
+	return []string{runtimeServiceCatalogEnv + "=" + string(payload)}, nil
+}
+
+func (s *Server) runtimeServiceCatalogPayload(ctx context.Context, space string) ([]byte, error) {
 	descriptors, err := s.resolveServicePluginCatalog(ctx, space)
 	if err != nil {
 		return nil, err
@@ -126,7 +146,29 @@ func (s *Server) runtimeServiceCatalogEnv(ctx context.Context, space string) ([]
 	if err != nil {
 		return nil, fmt.Errorf("marshal runtime service catalog: %w", err)
 	}
-	return []string{runtimeServiceCatalogEnv + "=" + string(payload)}, nil
+	return payload, nil
+}
+
+func (s *Server) RuntimeCatalogSnapshot(ctx context.Context, space string) (clientcontract.RuntimeCatalogResponse, error) {
+	catalog, selectedAgent, err := s.resolveRuntimePluginCatalog(ctx, space)
+	if err != nil {
+		return clientcontract.RuntimeCatalogResponse{}, err
+	}
+	pluginPayload, err := json.Marshal(catalog)
+	if err != nil {
+		return clientcontract.RuntimeCatalogResponse{}, fmt.Errorf("marshal runtime plugin catalog: %w", err)
+	}
+	servicePayload, err := s.runtimeServiceCatalogPayload(ctx, space)
+	if err != nil {
+		return clientcontract.RuntimeCatalogResponse{}, err
+	}
+	return clientcontract.RuntimeCatalogResponse{
+		SpaceID:        space,
+		PluginCatalog:  append(json.RawMessage(nil), pluginPayload...),
+		ServiceCatalog: append(json.RawMessage(nil), servicePayload...),
+		AgentProfile:   selectedAgent,
+		GeneratedAt:    time.Now().UTC(),
+	}, nil
 }
 
 func (s *Server) resolveServicePluginCatalog(ctx context.Context, space string) ([]*servicev1.ServiceDescriptor, error) {

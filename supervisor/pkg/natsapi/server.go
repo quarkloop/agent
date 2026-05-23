@@ -35,11 +35,21 @@ type ServiceInspector interface {
 	InspectServices(ctx context.Context, spaceID string) ([]clientcontract.ServiceInfo, error)
 }
 
+type CatalogResolver interface {
+	RuntimeCatalogSnapshot(ctx context.Context, spaceID string) (clientcontract.RuntimeCatalogResponse, error)
+}
+
 type Option func(*Server)
 
 func WithServiceInspector(inspector ServiceInspector) Option {
 	return func(s *Server) {
 		s.serviceInspector = inspector
+	}
+}
+
+func WithCatalogResolver(resolver CatalogResolver) Option {
+	return func(s *Server) {
+		s.catalogResolver = resolver
 	}
 }
 
@@ -57,6 +67,7 @@ type Server struct {
 	provisioner      SpaceProvisioner
 	credentialIssuer CredentialIssuer
 	serviceInspector ServiceInspector
+	catalogResolver  CatalogResolver
 	subs             []*nats.Subscription
 }
 
@@ -163,6 +174,7 @@ func (s *Server) subscribe() error {
 		clientcontract.SubjectServiceList:       s.listServices,
 		clientcontract.SubjectServiceInspect:    s.inspectService,
 		clientcontract.SubjectServiceDoctor:     s.serviceDoctor,
+		clientcontract.SubjectCatalogRuntimeGet: s.runtimeCatalog,
 	}
 	for subject, handler := range handlers {
 		subject := subject
@@ -239,6 +251,9 @@ func (s *Server) createSpace(req clientcontract.RequestEnvelope) (any, error) {
 			return nil, err
 		}
 	}
+	if err := s.publishCatalogEvent(payload.Name, "space_created"); err != nil {
+		return nil, err
+	}
 	return toContractSpace(sp), nil
 }
 
@@ -280,6 +295,9 @@ func (s *Server) updateSpace(req clientcontract.RequestEnvelope) (any, error) {
 		Kind:    events.QuarkfileUpdated,
 		Payload: nil,
 	})
+	if err := s.publishCatalogEvent(payload.Name, "quarkfile_updated"); err != nil {
+		return nil, err
+	}
 	return toContractSpace(sp), nil
 }
 
@@ -289,6 +307,9 @@ func (s *Server) deleteSpace(req clientcontract.RequestEnvelope) (any, error) {
 		return nil, err
 	}
 	if err := s.store.Delete(payload.Name); err != nil {
+		return nil, err
+	}
+	if err := s.publishCatalogEvent(payload.Name, "space_deleted"); err != nil {
 		return nil, err
 	}
 	return struct{}{}, nil
@@ -593,6 +614,9 @@ func (s *Server) installPlugin(req clientcontract.RequestEnvelope) (any, error) 
 	if err != nil {
 		return nil, err
 	}
+	if err := s.publishCatalogEvent(payload.SpaceID, "plugin_installed"); err != nil {
+		return nil, err
+	}
 	return clientcontract.InstallPluginResponse{Plugin: toContractPlugin(*installed)}, nil
 }
 
@@ -606,6 +630,9 @@ func (s *Server) uninstallPlugin(req clientcontract.RequestEnvelope) (any, error
 		return nil, err
 	}
 	if err := mgr.Uninstall(payload.Plugin); err != nil {
+		return nil, err
+	}
+	if err := s.publishCatalogEvent(payload.SpaceID, "plugin_uninstalled"); err != nil {
 		return nil, err
 	}
 	return struct{}{}, nil
@@ -731,6 +758,42 @@ func (s *Server) inspectServices(spaceID string) ([]clientcontract.ServiceInfo, 
 		out = append(out, service)
 	}
 	return out, nil
+}
+
+func (s *Server) runtimeCatalog(req clientcontract.RequestEnvelope) (any, error) {
+	var payload clientcontract.RuntimeCatalogRequest
+	if err := req.DecodePayload(&payload); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(payload.SpaceID) == "" {
+		return nil, boundary.New(boundary.Supervisor, boundary.InvalidArgument, clientcontract.SubjectCatalogRuntimeGet, "space_id is required")
+	}
+	if s.catalogResolver == nil {
+		return nil, boundary.New(boundary.Supervisor, boundary.Unavailable, clientcontract.SubjectCatalogRuntimeGet, "runtime catalog resolver is not configured")
+	}
+	return s.catalogResolver.RuntimeCatalogSnapshot(context.Background(), payload.SpaceID)
+}
+
+func (s *Server) publishCatalogEvent(spaceID, reason string) error {
+	if s == nil || s.conn == nil {
+		return nil
+	}
+	event := clientcontract.RuntimeCatalogEvent{
+		SpaceID:     spaceID,
+		Reason:      reason,
+		GeneratedAt: time.Now().UTC(),
+	}
+	data, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("marshal catalog event: %w", err)
+	}
+	if err := s.conn.Publish(clientcontract.SubjectCatalogRuntimeEvents, data); err != nil {
+		return fmt.Errorf("publish catalog event: %w", err)
+	}
+	if err := s.conn.FlushTimeout(time.Second); err != nil {
+		return fmt.Errorf("flush catalog event: %w", err)
+	}
+	return nil
 }
 
 func toContractSpace(sp *space.Space) clientcontract.SpaceInfo {

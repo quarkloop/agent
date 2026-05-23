@@ -12,7 +12,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/quarkloop/pkg/plugin"
+	"github.com/quarkloop/pkg/serviceapi/clientcontract"
+	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/runtime/pkg/agent"
+	"github.com/quarkloop/runtime/pkg/catalogclient"
 	natschannel "github.com/quarkloop/runtime/pkg/channel/nats"
 	"github.com/quarkloop/runtime/pkg/channel/telegram"
 	"github.com/quarkloop/runtime/pkg/channel/web"
@@ -99,15 +102,23 @@ func runStart(port int, channels []string) error {
 	slog.Info("starting runtime")
 	slog.Info("enabled channels", "channels", fmt.Sprintf("%v", validChannels))
 
-	serviceCatalog, err := loadServiceCatalog()
+	catalogSnapshot, err := loadRuntimeCatalogSnapshot(context.Background())
 	if err != nil {
 		return err
 	}
-	pluginCatalog, err := loadPluginCatalog()
+	serviceCatalog, err := loadServiceCatalog(catalogSnapshot)
 	if err != nil {
 		return err
 	}
-	agentPlugin, err := resolveAgentPlugin(pluginCatalog, os.Getenv("QUARK_AGENT_PROFILE"))
+	pluginCatalog, err := loadPluginCatalog(catalogSnapshot)
+	if err != nil {
+		return err
+	}
+	requestedAgent := os.Getenv("QUARK_AGENT_PROFILE")
+	if catalogSnapshot != nil && strings.TrimSpace(catalogSnapshot.AgentProfile) != "" {
+		requestedAgent = catalogSnapshot.AgentProfile
+	}
+	agentPlugin, err := resolveAgentPlugin(pluginCatalog, requestedAgent)
 	if err != nil {
 		return err
 	}
@@ -348,7 +359,30 @@ func serviceFunctionToolCallArgumentNormalizer(catalog *runtimeservices.Catalog)
 	return catalog.NormalizeToolCallArguments
 }
 
-func loadServiceCatalog() (*runtimeservices.Catalog, error) {
+func loadRuntimeCatalogSnapshot(ctx context.Context) (*clientcontract.RuntimeCatalogResponse, error) {
+	cfg := catalogclient.ConfigFromEnv()
+	if !cfg.Available() {
+		return nil, nil
+	}
+	snapshot, err := catalogclient.FetchRuntimeCatalog(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	if len(snapshot.PluginCatalog) == 0 {
+		return nil, fmt.Errorf("runtime catalog snapshot missing plugin catalog")
+	}
+	slog.Info("runtime catalog snapshot loaded", "space", snapshot.SpaceID, "generated_at", snapshot.GeneratedAt)
+	return &snapshot, nil
+}
+
+func loadServiceCatalog(snapshot *clientcontract.RuntimeCatalogResponse) (*runtimeservices.Catalog, error) {
+	if snapshot != nil && len(snapshot.ServiceCatalog) > 0 {
+		descriptors, err := servicekit.UnmarshalRuntimeServiceCatalog(snapshot.ServiceCatalog)
+		if err != nil {
+			return nil, fmt.Errorf("parse nats runtime service catalog: %w", err)
+		}
+		return runtimeservices.NewCatalog(descriptors), nil
+	}
 	catalog, err := runtimeservices.CatalogFromEnv()
 	if err != nil {
 		return nil, err
@@ -363,8 +397,11 @@ func loadServiceCatalog() (*runtimeservices.Catalog, error) {
 	return catalog, nil
 }
 
-func loadPluginCatalog() (*pluginmanager.Catalog, error) {
+func loadPluginCatalog(snapshot *clientcontract.RuntimeCatalogResponse) (*pluginmanager.Catalog, error) {
 	raw := strings.TrimSpace(os.Getenv("QUARK_RUNTIME_PLUGIN_CATALOG"))
+	if snapshot != nil && len(snapshot.PluginCatalog) > 0 {
+		raw = string(snapshot.PluginCatalog)
+	}
 	if raw == "" {
 		slog.Info("no supervisor-resolved plugin catalog provided; using empty catalog")
 		catalog := plugin.NewRuntimeCatalog(nil)

@@ -11,6 +11,7 @@ import (
 
 	"github.com/quarkloop/pkg/plugin"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
+	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	spacemodel "github.com/quarkloop/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/pluginmanager"
 	"google.golang.org/grpc"
@@ -106,6 +107,47 @@ func TestRuntimePluginCatalogUsesVersionedContract(t *testing.T) {
 	}
 	if catalog.Version != plugin.RuntimeCatalogVersion {
 		t.Fatalf("catalog version = %d", catalog.Version)
+	}
+}
+
+func TestRuntimeCatalogSnapshotReturnsVersionedPayloads(t *testing.T) {
+	srv := serviceTestServer(t)
+	writeInstalledServicePlugin(t, srv, "test-space")
+	qf := []byte(`quark: "1.0"
+meta:
+  name: test-space
+  version: "0.1.0"
+plugins:
+  - ref: quark/service-indexer
+services:
+  - name: indexer
+    ref: quark/service-indexer
+    mode: local
+    address_env: QUARK_INDEXER_ADDR
+`)
+	if _, err := srv.store.UpdateQuarkfile("test-space", qf); err != nil {
+		t.Fatalf("update quarkfile: %v", err)
+	}
+	address, stop := startRegistryService(t)
+	defer stop()
+	t.Setenv("QUARK_INDEXER_ADDR", address)
+
+	snapshot, err := srv.RuntimeCatalogSnapshot(t.Context(), "test-space")
+	if err != nil {
+		t.Fatalf("runtime catalog snapshot: %v", err)
+	}
+	if snapshot.SpaceID != "test-space" || snapshot.GeneratedAt.IsZero() {
+		t.Fatalf("snapshot identity = %#v", snapshot)
+	}
+	if !strings.Contains(string(snapshot.PluginCatalog), `"version":1`) {
+		t.Fatalf("plugin catalog payload = %s", string(snapshot.PluginCatalog))
+	}
+	services, err := servicekit.UnmarshalRuntimeServiceCatalog(snapshot.ServiceCatalog)
+	if err != nil {
+		t.Fatalf("unmarshal service catalog: %v", err)
+	}
+	if len(services) != 1 || services[0].GetName() != "indexer" {
+		t.Fatalf("service catalog = %+v", services)
 	}
 }
 

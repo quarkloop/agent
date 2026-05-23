@@ -18,6 +18,7 @@ func SpaceAccountName(spaceID string) (string, error) {
 func RuntimePermissions() PermissionConfig {
 	return PermissionConfig{
 		PublishAllow: []string{
+			"catalog.runtime.v1.get",
 			"session.*.events",
 			"session.*.status",
 			"runtime.activity.v1.events",
@@ -28,6 +29,7 @@ func RuntimePermissions() PermissionConfig {
 			"_R_.>",
 		},
 		SubscribeAllow: []string{
+			"catalog.runtime.v1.events",
 			"session.*.input",
 			"runtime.info.v1.get",
 			"runtime.session.v1.get",
@@ -43,6 +45,7 @@ func RuntimePermissions() PermissionConfig {
 func UserPermissions() PermissionConfig {
 	return PermissionConfig{
 		PublishAllow: []string{
+			"catalog.runtime.v1.get",
 			"runtime.info.v1.get",
 			"runtime.session.v1.get",
 			"runtime.plan.v1.get",
@@ -53,6 +56,7 @@ func UserPermissions() PermissionConfig {
 			"_R_.>",
 		},
 		SubscribeAllow: []string{
+			"catalog.runtime.v1.events",
 			"runtime.activity.v1.events",
 			"_INBOX.>",
 			"_R_.>",

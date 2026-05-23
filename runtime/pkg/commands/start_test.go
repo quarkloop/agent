@@ -1,10 +1,14 @@
 package commands
 
 import (
+	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/quarkloop/pkg/plugin"
+	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
+	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/runtime/pkg/agent"
 	"github.com/quarkloop/runtime/pkg/permissions"
 	"github.com/quarkloop/runtime/pkg/pluginmanager"
@@ -16,7 +20,7 @@ func TestLoadPluginCatalogUsesEmptyCatalogWithoutEnv(t *testing.T) {
 	t.Setenv("QUARK_SPACE", "test-space")
 	t.Setenv("QUARK_RUNTIME_PLUGIN_CATALOG", "")
 
-	catalog, err := loadPluginCatalog()
+	catalog, err := loadPluginCatalog(nil)
 	if err != nil {
 		t.Fatalf("load plugin catalog: %v", err)
 	}
@@ -34,8 +38,62 @@ func TestLoadPluginCatalogUsesEmptyCatalogWithoutEnv(t *testing.T) {
 func TestLoadPluginCatalogRejectsUnsupportedVersion(t *testing.T) {
 	t.Setenv("QUARK_RUNTIME_PLUGIN_CATALOG", `{"version":999,"plugins":[]}`)
 
-	if _, err := loadPluginCatalog(); err == nil {
+	if _, err := loadPluginCatalog(nil); err == nil {
 		t.Fatal("expected unsupported catalog version error")
+	}
+}
+
+func TestLoadPluginCatalogPrefersNATSSnapshot(t *testing.T) {
+	t.Setenv("QUARK_RUNTIME_PLUGIN_CATALOG", `{"version":999,"plugins":[]}`)
+	payload, err := json.Marshal(plugin.NewRuntimeCatalog([]plugin.RuntimeCatalogPlugin{{
+		Name: "quark-devops",
+		Type: plugin.TypeAgent,
+		Path: "/plugins/quark-devops",
+		AgentProfile: &plugin.AgentProfile{
+			ID:   "quark-devops",
+			Name: "Quark DevOps",
+		},
+	}}))
+	if err != nil {
+		t.Fatalf("marshal catalog: %v", err)
+	}
+	catalog, err := loadPluginCatalog(&clientcontract.RuntimeCatalogResponse{PluginCatalog: payload})
+	if err != nil {
+		t.Fatalf("load catalog: %v", err)
+	}
+	if len(catalog.Plugins) != 1 || catalog.Plugins[0].Name != "quark-devops" {
+		t.Fatalf("catalog = %+v", catalog)
+	}
+}
+
+func TestLoadServiceCatalogPrefersNATSSnapshot(t *testing.T) {
+	servicePayload, err := servicekit.MarshalRuntimeServiceCatalog([]*servicev1.ServiceDescriptor{{
+		Name:    "indexer",
+		Version: "1.0.0",
+		Address: "127.0.0.1:7301",
+		Rpcs: []*servicev1.RpcDescriptor{{
+			Service:      "quark.indexer.v1.IndexerService",
+			Method:       "GetContext",
+			Request:      "quark.indexer.v1.QueryRequest",
+			Response:     "quark.indexer.v1.ContextResponse",
+			Description:  "Retrieve context.",
+			Owner:        "indexer",
+			FunctionName: "indexer_GetContext",
+			RiskLevel:    "read",
+		}},
+	}})
+	if err != nil {
+		t.Fatalf("marshal service catalog: %v", err)
+	}
+	catalog, err := loadServiceCatalog(&clientcontract.RuntimeCatalogResponse{
+		ServiceCatalog: servicePayload,
+		GeneratedAt:    time.Now().UTC(),
+	})
+	if err != nil {
+		t.Fatalf("load service catalog: %v", err)
+	}
+	if catalog == nil || len(catalog.ToolSchemas()) != 1 {
+		t.Fatalf("service catalog = %+v", catalog)
 	}
 }
 

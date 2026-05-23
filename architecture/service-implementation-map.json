@@ -247,9 +247,9 @@
         "has_process_flow": false,
         "path": "e2e/artifacts_observability_test.go",
         "prompt_shortcut_suspects": [
-          "37: ToolStarts: []string{\"embedding_Embed\"},",
-          "41: Name:          \"embedding_Embed\",",
-          "50: Name:           \"embedding_Embed\","
+          "40: ToolStarts: []string{\"embedding_Embed\"},",
+          "44: Name:          \"embedding_Embed\",",
+          "53: Name:           \"embedding_Embed\","
         ]
       },
       {

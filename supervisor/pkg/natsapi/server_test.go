@@ -50,6 +50,25 @@ func TestSpaceAndSessionContracts(t *testing.T) {
 		t.Fatalf("connect with space credential: %v", err)
 	}
 	t.Cleanup(spaceClient.Close)
+	catalogEvents := make(chan clientcontract.RuntimeCatalogEvent, 1)
+	if _, err := spaceClient.Subscribe(clientcontract.SubjectCatalogRuntimeEvents, func(msg *nats.Msg) {
+		var event clientcontract.RuntimeCatalogEvent
+		if err := json.Unmarshal(msg.Data, &event); err != nil {
+			t.Errorf("decode catalog event: %v", err)
+			return
+		}
+		catalogEvents <- event
+	}); err != nil {
+		t.Fatalf("subscribe catalog events: %v", err)
+	}
+	if err := spaceClient.Flush(); err != nil {
+		t.Fatalf("flush catalog event subscription: %v", err)
+	}
+	_ = requestPayload[clientcontract.SpaceInfo](t, fixture.client, clientcontract.SubjectSpaceUpdate, clientcontract.UpdateSpaceRequest{
+		Name:      "docs",
+		Quarkfile: spacemodel.DefaultQuarkfile("docs"),
+	})
+	assertCatalogEvent(t, catalogEvents, "docs", "quarkfile_updated")
 
 	runtimeCredential := requestPayload[clientcontract.SpaceCredentialResponse](t, fixture.client, clientcontract.SubjectRuntimeCredential, clientcontract.SpaceCredentialRequest{SpaceID: "docs"})
 	if runtimeCredential.Credential.Username == "" || runtimeCredential.Credential.Role != "runtime" {
@@ -98,6 +117,10 @@ func TestSpaceAndSessionContracts(t *testing.T) {
 	services := requestPayload[clientcontract.ListServicesResponse](t, fixture.client, clientcontract.SubjectServiceList, clientcontract.ListServicesRequest{SpaceID: "docs"})
 	if len(services.Services) != 1 || services.Services[0].Name != "indexer" {
 		t.Fatalf("services = %#v", services.Services)
+	}
+	catalog := requestPayload[clientcontract.RuntimeCatalogResponse](t, fixture.client, clientcontract.SubjectCatalogRuntimeGet, clientcontract.RuntimeCatalogRequest{SpaceID: "docs"})
+	if catalog.SpaceID != "docs" || string(catalog.PluginCatalog) != `{"version":1,"plugins":[]}` {
+		t.Fatalf("runtime catalog = %#v", catalog)
 	}
 	service := requestPayload[clientcontract.ServiceInfo](t, fixture.client, clientcontract.SubjectServiceInspect, clientcontract.InspectServiceRequest{
 		SpaceID: "docs",
@@ -214,7 +237,7 @@ func startFixture(t *testing.T) fixture {
 		URL:      hub.Endpoints().ClientURL,
 		Username: controlCredential.Username,
 		Password: controlCredential.Password,
-	}, store, bus, hub, WithServiceInspector(fakeServiceInspector{}))
+	}, store, bus, hub, WithServiceInspector(fakeServiceInspector{}), WithCatalogResolver(fakeCatalogResolver{}))
 	if err != nil {
 		t.Fatalf("start nats api: %v", err)
 	}
@@ -242,6 +265,16 @@ func (fakeServiceInspector) InspectServices(context.Context, string) ([]clientco
 		Status:  clientcontract.ServiceStatusReady,
 		Version: "1.0.0",
 	}}, nil
+}
+
+type fakeCatalogResolver struct{}
+
+func (fakeCatalogResolver) RuntimeCatalogSnapshot(context.Context, string) (clientcontract.RuntimeCatalogResponse, error) {
+	return clientcontract.RuntimeCatalogResponse{
+		SpaceID:       "docs",
+		PluginCatalog: json.RawMessage(`{"version":1,"plugins":[]}`),
+		GeneratedAt:   time.Now().UTC(),
+	}, nil
 }
 
 func requestPayload[T any](t *testing.T, client *nats.Conn, subject string, payload any) T {
@@ -284,6 +317,18 @@ func assertEvent(t *testing.T, events <-chan event.Event, want event.Kind) {
 		}
 	case <-time.After(time.Second):
 		t.Fatalf("timed out waiting for %s", want)
+	}
+}
+
+func assertCatalogEvent(t *testing.T, events <-chan clientcontract.RuntimeCatalogEvent, spaceID, reason string) {
+	t.Helper()
+	select {
+	case got := <-events:
+		if got.SpaceID != spaceID || got.Reason != reason || got.GeneratedAt.IsZero() {
+			t.Fatalf("catalog event = %#v", got)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for catalog event %s", reason)
 	}
 }
 
