@@ -20,6 +20,7 @@ func RuntimePermissions() PermissionConfig {
 		PublishAllow: []string{
 			"session.*.events",
 			"session.*.status",
+			"runtime.activity.v1.events",
 			"agent.*.events",
 			"workflow.*.events",
 			"svc.>",
@@ -28,7 +29,27 @@ func RuntimePermissions() PermissionConfig {
 		},
 		SubscribeAllow: []string{
 			"session.*.input",
+			"runtime.plan.v1.*",
+			"runtime.activity.v1.list",
 			"agent.*.invoke",
+			"_INBOX.>",
+			"_R_.>",
+		},
+	}
+}
+
+func UserPermissions() PermissionConfig {
+	return PermissionConfig{
+		PublishAllow: []string{
+			"runtime.plan.v1.get",
+			"runtime.plan.v1.approve",
+			"runtime.plan.v1.reject",
+			"runtime.activity.v1.list",
+			"_INBOX.>",
+			"_R_.>",
+		},
+		SubscribeAllow: []string{
+			"runtime.activity.v1.events",
 			"_INBOX.>",
 			"_R_.>",
 		},

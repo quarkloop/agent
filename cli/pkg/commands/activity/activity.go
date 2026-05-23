@@ -1,15 +1,15 @@
 // Package activitycmd provides CLI commands for the agent activity log.
-// All operations are HTTP calls against the running agent.
 package activitycmd
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
 
-	"github.com/quarkloop/cli/pkg/runtimedial"
-	rtclient "github.com/quarkloop/runtime/pkg/client"
+	"github.com/quarkloop/cli/pkg/runtimeconnect"
+	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 )
 
 func NewActivityCommand() *cobra.Command {
@@ -30,22 +30,23 @@ func newActivityQueryCmd() *cobra.Command {
 		Use:   "query",
 		Short: "Query activity log entries",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			c, _, err := runtimedial.Current(cmd.Context())
+			conn, err := runtimeconnect.CurrentSpaceClient(cmd.Context())
 			if err != nil {
 				return err
 			}
+			defer conn.Client.Close()
 
 			if follow {
 				fmt.Println("Streaming live activity... (Ctrl+C to stop)")
-				return c.StreamActivity(cmd.Context(), func(record rtclient.ActivityRecord) {
-					if eventType != "" && record.Type != eventType {
-						return
-					}
-					fmt.Printf("%s  %-30s  %s  %s\n", record.Timestamp, record.Type, record.SessionID, record.Data)
-				})
+				records, errs, stop, err := conn.Client.SubscribeRuntimeActivity(cmd.Context())
+				if err != nil {
+					return err
+				}
+				defer stop()
+				return streamActivity(cmd.Context(), records, errs, eventType)
 			}
 
-			records, err := c.Activity(cmd.Context(), limit)
+			records, err := conn.Client.RuntimeActivity(cmd.Context(), conn.SpaceID, limit)
 			if err != nil {
 				return fmt.Errorf("query activity: %w", err)
 			}
@@ -58,7 +59,7 @@ func newActivityQueryCmd() *cobra.Command {
 				if eventType != "" && rec.Type != eventType {
 					continue
 				}
-				fmt.Printf("%s  %-30s  %s  %s\n", rec.Timestamp.Format(time.RFC3339), rec.Type, rec.SessionID, rec.Data)
+				printActivityRecord(rec)
 			}
 
 			return nil
@@ -68,4 +69,24 @@ func newActivityQueryCmd() *cobra.Command {
 	cmd.Flags().IntVar(&limit, "limit", 50, "Maximum number of entries")
 	cmd.Flags().BoolVarP(&follow, "follow", "f", false, "Stream live activity")
 	return cmd
+}
+
+func streamActivity(ctx context.Context, records <-chan clientcontract.RuntimeActivityRecord, errs <-chan error, eventType string) error {
+	for {
+		select {
+		case record := <-records:
+			if eventType != "" && record.Type != eventType {
+				continue
+			}
+			printActivityRecord(record)
+		case err := <-errs:
+			return err
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func printActivityRecord(record clientcontract.RuntimeActivityRecord) {
+	fmt.Printf("%s  %-30s  %s  %s\n", record.Timestamp.Format(time.RFC3339), record.Type, record.SessionID, record.Data)
 }

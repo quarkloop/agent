@@ -23,7 +23,19 @@ func TestSessionPermissionsAreScopedToOneSession(t *testing.T) {
 func TestRuntimePermissionsCanRequestImportedServiceFunctions(t *testing.T) {
 	perms := RuntimePermissions()
 	assertContains(t, perms.PublishAllow, "svc.>")
+	assertContains(t, perms.PublishAllow, "runtime.activity.v1.events")
+	assertContains(t, perms.SubscribeAllow, "runtime.plan.v1.*")
+	assertContains(t, perms.SubscribeAllow, "runtime.activity.v1.list")
 	assertContains(t, perms.SubscribeAllow, "_INBOX.>")
+}
+
+func TestUserPermissionsCanReachRuntimeInspectionOnly(t *testing.T) {
+	perms := UserPermissions()
+	assertContains(t, perms.PublishAllow, "runtime.plan.v1.get")
+	assertContains(t, perms.PublishAllow, "runtime.activity.v1.list")
+	assertContains(t, perms.SubscribeAllow, "runtime.activity.v1.events")
+	assertNotContains(t, perms.PublishAllow, "session.session_01.input")
+	assertNotContains(t, perms.SubscribeAllow, "session.session_01.events")
 }
 
 func assertContains(t *testing.T, values []string, want string) {

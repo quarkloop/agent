@@ -9,8 +9,10 @@ import (
 	natsserver "github.com/nats-io/nats-server/v2/server"
 	natsgo "github.com/nats-io/nats.go"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
+	"github.com/quarkloop/runtime/pkg/activity"
 	natschannel "github.com/quarkloop/runtime/pkg/channel/nats"
 	"github.com/quarkloop/runtime/pkg/message"
+	"github.com/quarkloop/runtime/pkg/plan"
 	"github.com/quarkloop/runtime/pkg/session"
 )
 
@@ -18,11 +20,12 @@ func TestChannelAcceptsSessionInputAndPublishesEvents(t *testing.T) {
 	serverURL := startServer(t)
 
 	poster := &fakePoster{requests: make(chan message.PostRequest, 1)}
+	activityStore := activity.NewStore(10)
 	channel := natschannel.New(natschannel.Config{
 		URL:   serverURL,
 		Name:  "runtime-channel-test",
 		Queue: "q.runtime.test",
-	}, poster, session.NewRegistry())
+	}, poster, session.NewRegistry(), natschannel.WithPlan(plan.New()), natschannel.WithActivity(activityStore))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -36,6 +39,7 @@ func TestChannelAcceptsSessionInputAndPublishesEvents(t *testing.T) {
 	})
 
 	client := connectNATS(t, serverURL)
+	activityEvents := subscribeActivity(t, client)
 	eventsSubject, err := clientcontract.SessionEventsSubject("chat")
 	if err != nil {
 		t.Fatalf("events subject: %v", err)
@@ -95,6 +99,21 @@ func TestChannelAcceptsSessionInputAndPublishesEvents(t *testing.T) {
 	}
 	assertSessionEvent(t, events, "token")
 	assertSessionEvent(t, events, "done")
+
+	activityStore.Add("chat", "message.user", map[string]string{"source": "test"})
+	assertActivityEvent(t, activityEvents, "message.user")
+
+	planResp := requestPayload[clientcontract.RuntimePlanResponse](t, client, clientcontract.SubjectRuntimePlanGet, clientcontract.RuntimePlanRequest{SpaceID: "docs"})
+	if planResp.Status != "idle" {
+		t.Fatalf("plan response = %#v", planResp)
+	}
+	activityResp := requestPayload[clientcontract.RuntimeActivityListResponse](t, client, clientcontract.SubjectRuntimeActivityList, clientcontract.RuntimeActivityListRequest{
+		SpaceID: "docs",
+		Limit:   10,
+	})
+	if len(activityResp.Records) != 1 || activityResp.Records[0].Type != "message.user" {
+		t.Fatalf("activity response = %#v", activityResp)
+	}
 }
 
 type fakePoster struct {
@@ -156,4 +175,65 @@ func assertSessionEvent(t *testing.T, events <-chan clientcontract.SessionEvent,
 	case <-time.After(time.Second):
 		t.Fatalf("timed out waiting for %s event", want)
 	}
+}
+
+func subscribeActivity(t *testing.T, conn *natsgo.Conn) <-chan clientcontract.RuntimeActivityRecord {
+	t.Helper()
+	records := make(chan clientcontract.RuntimeActivityRecord, 4)
+	sub, err := conn.Subscribe(clientcontract.SubjectRuntimeActivityFeed, func(msg *natsgo.Msg) {
+		var record clientcontract.RuntimeActivityRecord
+		if err := json.Unmarshal(msg.Data, &record); err != nil {
+			t.Errorf("decode activity: %v", err)
+			return
+		}
+		records <- record
+	})
+	if err != nil {
+		t.Fatalf("subscribe activity: %v", err)
+	}
+	t.Cleanup(func() { _ = sub.Unsubscribe() })
+	if err := conn.FlushTimeout(time.Second); err != nil {
+		t.Fatalf("flush activity subscription: %v", err)
+	}
+	return records
+}
+
+func assertActivityEvent(t *testing.T, records <-chan clientcontract.RuntimeActivityRecord, want string) {
+	t.Helper()
+	select {
+	case got := <-records:
+		if got.Type != want {
+			t.Fatalf("activity type = %q, want %q", got.Type, want)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for %s activity", want)
+	}
+}
+
+func requestPayload[T any](t *testing.T, conn *natsgo.Conn, subject string, payload any) T {
+	t.Helper()
+	req, err := clientcontract.NewRequest("req-"+subject, "docs", payload)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	data, err := json.Marshal(req)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+	reply, err := conn.Request(subject, data, time.Second)
+	if err != nil {
+		t.Fatalf("request %s: %v", subject, err)
+	}
+	var resp clientcontract.ResponseEnvelope
+	if err := json.Unmarshal(reply.Data, &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.Status != "ok" {
+		t.Fatalf("response = %#v", resp)
+	}
+	var out T
+	if err := resp.DecodePayload(&out); err != nil {
+		t.Fatalf("decode payload: %v", err)
+	}
+	return out
 }

@@ -168,11 +168,40 @@ func TestTypedControlMethodsUseNATSContracts(t *testing.T) {
 	}
 	defer sessionClient.Close()
 
+	spaceCredential, err := client.IssueSpaceCredential(context.Background(), "docs")
+	if err != nil {
+		t.Fatalf("issue space credential: %v", err)
+	}
+	if spaceCredential.Username == "" || spaceCredential.SpaceID != "docs" {
+		t.Fatalf("space credential = %#v", spaceCredential)
+	}
+	spaceClient, err := ConnectWithCredential(context.Background(), spaceCredential)
+	if err != nil {
+		t.Fatalf("connect with space credential: %v", err)
+	}
+	defer spaceClient.Close()
+
 	spaceCredentials, err := hub.ProvisionSpace("docs")
 	if err != nil {
 		t.Fatalf("provision space: %v", err)
 	}
 	runtimeResponder := connectRaw(t, hub, spaceCredentials.Runtime.Username, spaceCredentials.Runtime.Password)
+	registerRuntimeResponders(t, runtimeResponder)
+
+	plan, err := spaceClient.RuntimePlan(context.Background(), "docs")
+	if err != nil {
+		t.Fatalf("runtime plan: %v", err)
+	}
+	if plan.Status != "idle" {
+		t.Fatalf("plan = %#v", plan)
+	}
+	activity, err := spaceClient.RuntimeActivity(context.Background(), "docs", 10)
+	if err != nil {
+		t.Fatalf("runtime activity: %v", err)
+	}
+	if len(activity) != 1 || activity[0].Type != "message.user" {
+		t.Fatalf("activity = %#v", activity)
+	}
 
 	events, errs, stop, err := sessionClient.SubscribeSessionEvents(context.Background(), session.ID)
 	if err != nil {
@@ -396,6 +425,24 @@ func registerTypedControlResponders(t *testing.T, responder *nats.Conn, hub *nat
 		clientcontract.SubjectSpaceDoctor: func(clientcontract.RequestEnvelope) any {
 			return clientcontract.DoctorResponse{OK: true}
 		},
+		clientcontract.SubjectSpaceCredential: func(req clientcontract.RequestEnvelope) any {
+			var payload clientcontract.SpaceCredentialRequest
+			if err := req.DecodePayload(&payload); err != nil {
+				t.Errorf("decode space credential: %v", err)
+			}
+			credential, err := hub.IssueUserCredential(payload.SpaceID)
+			if err != nil {
+				t.Errorf("issue space credential: %v", err)
+			}
+			return clientcontract.SpaceCredentialResponse{Credential: clientcontract.NATSCredential{
+				URL:      hub.Endpoints().ClientURL,
+				Username: credential.Username,
+				Password: credential.Password,
+				Account:  credential.Account,
+				Role:     string(credential.Role),
+				SpaceID:  credential.SpaceID,
+			}}
+		},
 		clientcontract.SubjectPluginList: func(clientcontract.RequestEnvelope) any {
 			return clientcontract.ListPluginsResponse{Plugins: []clientcontract.PluginInfo{{
 				Name: "io", Type: "service", Version: "1.0.0",
@@ -436,6 +483,38 @@ func registerTypedControlResponders(t *testing.T, responder *nats.Conn, hub *nat
 			resp, err := clientcontract.OK(req.RequestID, buildPayload(req))
 			if err != nil {
 				t.Errorf("build response: %v", err)
+				return
+			}
+			data, _ := json.Marshal(resp)
+			_ = msg.Respond(data)
+		}); err != nil {
+			t.Fatalf("subscribe %s: %v", subject, err)
+		}
+	}
+	responder.Flush()
+}
+
+func registerRuntimeResponders(t *testing.T, responder *nats.Conn) {
+	t.Helper()
+	responders := map[string]func(clientcontract.RequestEnvelope) any{
+		clientcontract.SubjectRuntimePlanGet: func(clientcontract.RequestEnvelope) any {
+			return clientcontract.RuntimePlanResponse{Status: "idle", Complete: true}
+		},
+		clientcontract.SubjectRuntimeActivityList: func(clientcontract.RequestEnvelope) any {
+			return clientcontract.RuntimeActivityListResponse{Records: []clientcontract.RuntimeActivityRecord{{
+				ID:   "activity-1",
+				Type: "message.user",
+			}}}
+		},
+	}
+	for subject, buildPayload := range responders {
+		subject := subject
+		buildPayload := buildPayload
+		if _, err := responder.Subscribe(subject, func(msg *nats.Msg) {
+			req := decodeRequest(t, msg.Data)
+			resp, err := clientcontract.OK(req.RequestID, buildPayload(req))
+			if err != nil {
+				t.Errorf("build runtime response: %v", err)
 				return
 			}
 			data, _ := json.Marshal(resp)

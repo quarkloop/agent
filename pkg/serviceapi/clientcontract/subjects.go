@@ -19,6 +19,7 @@ const (
 	SubjectSpaceDelete       = "control.space.v1.delete"
 	SubjectSpaceQuarkfile    = "control.space.v1.quarkfile"
 	SubjectSpaceDoctor       = "control.space.v1.doctor"
+	SubjectSpaceCredential   = "control.space.v1.credential"
 	SubjectSessionCreate     = "control.session.v1.create"
 	SubjectSessionList       = "control.session.v1.list"
 	SubjectSessionGet        = "control.session.v1.get"
@@ -40,6 +41,14 @@ const (
 	SubjectRuntimeList       = "control.runtime.v1.list"
 	SubjectRuntimeInspect    = "control.runtime.v1.inspect"
 	SubjectArtifactInspect   = "control.artifact.v1.inspect"
+)
+
+const (
+	SubjectRuntimePlanGet      = "runtime.plan.v1.get"
+	SubjectRuntimePlanApprove  = "runtime.plan.v1.approve"
+	SubjectRuntimePlanReject   = "runtime.plan.v1.reject"
+	SubjectRuntimeActivityList = "runtime.activity.v1.list"
+	SubjectRuntimeActivityFeed = "runtime.activity.v1.events"
 )
 
 func SessionInputSubject(sessionID string) (string, error) {

@@ -1,5 +1,4 @@
 // Package plancmd provides CLI commands for managing execution plans.
-// All operations are HTTP calls against the running agent.
 package plancmd
 
 import (
@@ -8,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/quarkloop/cli/pkg/runtimedial"
+	"github.com/quarkloop/cli/pkg/runtimeconnect"
 )
 
 func NewPlanCommand() *cobra.Command {
@@ -28,11 +27,12 @@ func newPlanGetCmd() *cobra.Command {
 		Use:   "get",
 		Short: "Get the agent's current plan",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			c, _, err := runtimedial.Current(cmd.Context())
+			conn, err := runtimeconnect.CurrentSpaceClient(cmd.Context())
 			if err != nil {
 				return err
 			}
-			p, err := c.Plan(cmd.Context())
+			defer conn.Client.Close()
+			p, err := conn.Client.RuntimePlan(cmd.Context(), conn.SpaceID)
 			if err != nil {
 				return fmt.Errorf("get plan: %w", err)
 			}
@@ -48,11 +48,12 @@ func newPlanListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List the agent's current plan",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			c, _, err := runtimedial.Current(cmd.Context())
+			conn, err := runtimeconnect.CurrentSpaceClient(cmd.Context())
 			if err != nil {
 				return err
 			}
-			p, err := c.Plan(cmd.Context())
+			defer conn.Client.Close()
+			p, err := conn.Client.RuntimePlan(cmd.Context(), conn.SpaceID)
 			if err != nil {
 				return fmt.Errorf("list plans: %w", err)
 			}
@@ -68,15 +69,16 @@ func newPlanApproveCmd() *cobra.Command {
 		Short: "Approve the current active plan",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			c, _, err := runtimedial.Current(cmd.Context())
+			conn, err := runtimeconnect.CurrentSpaceClient(cmd.Context())
 			if err != nil {
 				return err
 			}
+			defer conn.Client.Close()
 			planID := ""
 			if len(args) > 0 {
 				planID = args[0]
 			}
-			if _, err := c.ApprovePlan(cmd.Context(), planID); err != nil {
+			if _, err := conn.Client.ApproveRuntimePlan(cmd.Context(), conn.SpaceID, planID); err != nil {
 				return fmt.Errorf("approve plan: %w", err)
 			}
 			fmt.Println("Plan approved")
@@ -91,15 +93,16 @@ func newPlanRejectCmd() *cobra.Command {
 		Short: "Reject the current active plan",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			c, _, err := runtimedial.Current(cmd.Context())
+			conn, err := runtimeconnect.CurrentSpaceClient(cmd.Context())
 			if err != nil {
 				return err
 			}
+			defer conn.Client.Close()
 			planID := ""
 			if len(args) > 0 {
 				planID = args[0]
 			}
-			if err := c.RejectPlan(cmd.Context(), planID); err != nil {
+			if _, err := conn.Client.RejectRuntimePlan(cmd.Context(), conn.SpaceID, planID); err != nil {
 				return fmt.Errorf("reject plan: %w", err)
 			}
 			fmt.Println("Plan rejected")

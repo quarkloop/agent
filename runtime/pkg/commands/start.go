@@ -192,7 +192,13 @@ func runStart(port int, channels []string) error {
 			))
 		case "nats":
 			slog.Info("registering nats channel")
-			srv.Bus().Register(natschannel.New(natschannel.ConfigFromEnv(), a, a.Sessions))
+			srv.Bus().Register(natschannel.New(
+				natschannel.ConfigFromEnv(),
+				a,
+				a.Sessions,
+				natschannel.WithPlan(a.Plan),
+				natschannel.WithActivity(a.Activity),
+			))
 		}
 	}
 

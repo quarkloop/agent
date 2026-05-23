@@ -83,6 +83,14 @@ type DoctorResponse struct {
 	Issues []DoctorIssue `json:"issues"`
 }
 
+type SpaceCredentialRequest struct {
+	SpaceID string `json:"space_id"`
+}
+
+type SpaceCredentialResponse struct {
+	Credential NATSCredential `json:"credential"`
+}
+
 type ListSpacesResponse struct {
 	Spaces []SpaceInfo `json:"spaces"`
 }
@@ -317,6 +325,47 @@ type InspectRuntimeRequest struct {
 type ArtifactRef struct {
 	SpaceID    string `json:"space_id"`
 	ArtifactID string `json:"artifact_id"`
+}
+
+type RuntimePlanRequest struct {
+	SpaceID string `json:"space_id"`
+	PlanID  string `json:"plan_id,omitempty"`
+}
+
+type RuntimePlanStep struct {
+	ID          string `json:"id"`
+	Agent       string `json:"agent"`
+	Description string `json:"description"`
+	Status      string `json:"status"`
+	Result      string `json:"result,omitempty"`
+	Error       string `json:"error,omitempty"`
+}
+
+type RuntimePlanResponse struct {
+	Goal      string            `json:"goal"`
+	Status    string            `json:"status"`
+	Steps     []RuntimePlanStep `json:"steps"`
+	Complete  bool              `json:"complete"`
+	Summary   string            `json:"summary,omitempty"`
+	CreatedAt time.Time         `json:"created_at"`
+	UpdatedAt time.Time         `json:"updated_at"`
+}
+
+type RuntimeActivityListRequest struct {
+	SpaceID string `json:"space_id"`
+	Limit   int    `json:"limit,omitempty"`
+}
+
+type RuntimeActivityRecord struct {
+	ID        string          `json:"id"`
+	SessionID string          `json:"session_id,omitempty"`
+	Type      string          `json:"type"`
+	Timestamp time.Time       `json:"timestamp"`
+	Data      json.RawMessage `json:"data,omitempty"`
+}
+
+type RuntimeActivityListResponse struct {
+	Records []RuntimeActivityRecord `json:"records"`
 }
 
 func NewRequest(requestID, spaceID string, payload any) (RequestEnvelope, error) {

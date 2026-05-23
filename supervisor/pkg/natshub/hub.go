@@ -254,6 +254,28 @@ func (h *Hub) IssueSessionCredential(spaceID, sessionID string) (Credential, err
 	return cloneCredential(credential), nil
 }
 
+func (h *Hub) IssueUserCredential(spaceID string) (Credential, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	space, err := h.provisionSpaceLocked(spaceID)
+	if err != nil {
+		return Credential{}, err
+	}
+	key := issuedCredentialKey(RoleUser, spaceID, "user")
+	if existing, ok := h.issued[key]; ok {
+		return cloneCredential(existing), nil
+	}
+	credential, err := userCredential(spaceID, space.Account)
+	if err != nil {
+		return Credential{}, err
+	}
+	if err := h.registerCredentialLocked(credential); err != nil {
+		return Credential{}, err
+	}
+	h.issued[key] = cloneCredential(credential)
+	return cloneCredential(credential), nil
+}
+
 func (h *Hub) IssueAgentCredential(spaceID, agentID string) (Credential, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()

@@ -36,6 +36,21 @@ func TestSpaceAndSessionContracts(t *testing.T) {
 		t.Fatalf("space account %q was not provisioned", accountName)
 	}
 
+	spaceCredential := requestPayload[clientcontract.SpaceCredentialResponse](t, fixture.client, clientcontract.SubjectSpaceCredential, clientcontract.SpaceCredentialRequest{SpaceID: "docs"})
+	if spaceCredential.Credential.Username == "" || spaceCredential.Credential.Password == "" {
+		t.Fatalf("space credential = %#v", spaceCredential.Credential)
+	}
+	spaceClient, err := nats.Connect(
+		fixture.hub.Endpoints().ClientURL,
+		nats.UserInfo(spaceCredential.Credential.Username, spaceCredential.Credential.Password),
+		nats.Name("natsapi-space-client"),
+		nats.Timeout(time.Second),
+	)
+	if err != nil {
+		t.Fatalf("connect with space credential: %v", err)
+	}
+	t.Cleanup(spaceClient.Close)
+
 	listSpaces := requestPayload[clientcontract.ListSpacesResponse](t, fixture.client, clientcontract.SubjectSpaceList, struct{}{})
 	if len(listSpaces.Spaces) != 1 || listSpaces.Spaces[0].Name != "docs" {
 		t.Fatalf("spaces = %#v", listSpaces.Spaces)

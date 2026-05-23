@@ -15,6 +15,7 @@ type CredentialRole string
 
 const (
 	RoleSupervisor    CredentialRole = "supervisor"
+	RoleUser          CredentialRole = "user"
 	RoleRuntime       CredentialRole = "runtime"
 	RoleSession       CredentialRole = "session"
 	RoleAgent         CredentialRole = "agent"
@@ -156,6 +157,10 @@ func sessionCredential(spaceID, account, sessionID string) (Credential, error) {
 	credential.SessionID = sessionID
 	credential.Username = credentialUsername(spaceID, "session_"+stableToken(sessionID))
 	return credential, nil
+}
+
+func userCredential(spaceID, account string) (Credential, error) {
+	return spaceCredential(spaceID, account, RoleUser, UserPermissions())
 }
 
 func agentCredential(spaceID, account, agentID string) (Credential, error) {
