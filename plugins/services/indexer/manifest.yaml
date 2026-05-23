@@ -2,14 +2,14 @@ name: indexer
 version: "1.0.0"
 type: service
 mode: api
-description: "GraphRAG indexing and retrieval over gRPC"
+description: "GraphRAG indexing and retrieval over NATS"
 author: quarkloop
 license: Apache-2.0
 
 service:
   address_env: QUARK_INDEXER_ADDR
   health:
-    protocol: grpc_health_v1
+    protocol: nats_service
     service: quark.indexer.v1.IndexerService
     timeout: 5s
   readiness:

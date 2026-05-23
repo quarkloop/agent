@@ -16,7 +16,7 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
-func TestInspectServicesReportsMissingEndpoint(t *testing.T) {
+func TestInspectServicesReportsNATSServiceFromManifest(t *testing.T) {
 	srv := serviceTestServer(t)
 	writeInstalledServicePlugin(t, srv, "test-space")
 
@@ -27,8 +27,8 @@ func TestInspectServicesReportsMissingEndpoint(t *testing.T) {
 	if len(services) != 1 {
 		t.Fatalf("services = %+v", services)
 	}
-	if services[0].Status != api.ServiceStatusMissing {
-		t.Fatalf("status = %s", services[0].Status)
+	if services[0].Status != api.ServiceStatusReady || services[0].Endpoint != "svc.indexer.v1" {
+		t.Fatalf("service info = %+v", services[0])
 	}
 }
 
@@ -81,7 +81,7 @@ description: Indexer service
 service:
   address_env: QUARK_INDEXER_ADDR
   health:
-    protocol: grpc_health_v1
+    protocol: nats_service
     service: quark.indexer.v1.IndexerService
     timeout: 2s
   readiness:

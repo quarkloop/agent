@@ -100,6 +100,23 @@ func (s *Server) inspectInstalledService(ctx context.Context, space string, item
 	info.MinVersion = item.Manifest.Service.Readiness.MinVersion
 	info.Functions = serviceFunctionsForAPI(item.Manifest.Service.Functions)
 	info.FunctionCount = len(info.Functions)
+	if servicePluginUsesNATS(item.Manifest) {
+		pluginDescriptors, err := descriptorsFromServiceManifest(item.Manifest)
+		if err != nil {
+			info.Diagnostics = append(info.Diagnostics, err.Error())
+			return info
+		}
+		if err := validateServicePluginDescriptors(pluginDescriptors, item.Manifest); err != nil {
+			info.Diagnostics = append(info.Diagnostics, err.Error())
+			return info
+		}
+		info.Endpoint = item.Manifest.Service.SubjectPrefix
+		info.Status = api.ServiceStatusReady
+		if count := descriptorFunctionCount(pluginDescriptors); count > 0 {
+			info.FunctionCount = count
+		}
+		return info
+	}
 
 	address := servicePluginAddress(item.Manifest, configured)
 	if address == "" {
@@ -152,6 +169,7 @@ func serviceFunctionsForAPI(functions []plugin.ServiceFunctionConfig) []api.Serv
 	for _, function := range functions {
 		out = append(out, api.ServiceFunctionInfo{
 			Name:        function.Name,
+			Subject:     function.Subject,
 			Service:     function.Service,
 			Method:      function.Method,
 			Request:     function.Request,

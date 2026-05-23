@@ -335,6 +335,7 @@ const (
 
 type ServiceFunctionInfo struct {
 	Name        string `json:"name"`
+	Subject     string `json:"subject,omitempty"`
 	Service     string `json:"service"`
 	Method      string `json:"method"`
 	Request     string `json:"request"`

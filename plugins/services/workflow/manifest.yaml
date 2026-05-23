@@ -9,7 +9,7 @@ license: Apache-2.0
 service:
   address_env: QUARK_WORKFLOW_ADDR
   health:
-    protocol: grpc_health_v1
+    protocol: nats_service
     service: quark.workflow.v1.WorkflowService
     timeout: 5s
   readiness:

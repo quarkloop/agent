@@ -256,23 +256,10 @@ func TestServicePluginAddressPrefersQuarkfileServiceBinding(t *testing.T) {
 	}
 }
 
-func TestCheckServicePluginReadinessHealthy(t *testing.T) {
-	address, stop := startHealthServer(t, "quark.indexer.v1.IndexerService", healthpb.HealthCheckResponse_SERVING)
-	defer stop()
-
-	err := checkServicePluginReadiness(context.Background(), address, serviceManifest("indexer", "quark.indexer.v1.IndexerService"))
+func TestCheckServicePluginReadinessSkipsNATSNativeServices(t *testing.T) {
+	err := checkServicePluginReadiness(context.Background(), "", serviceManifest("indexer", "quark.indexer.v1.IndexerService"))
 	if err != nil {
-		t.Fatalf("readiness should pass: %v", err)
-	}
-}
-
-func TestCheckServicePluginReadinessUnhealthy(t *testing.T) {
-	address, stop := startHealthServer(t, "quark.indexer.v1.IndexerService", healthpb.HealthCheckResponse_NOT_SERVING)
-	defer stop()
-
-	err := checkServicePluginReadiness(context.Background(), address, serviceManifest("indexer", "quark.indexer.v1.IndexerService"))
-	if err == nil || !strings.Contains(err.Error(), "NOT_SERVING") {
-		t.Fatalf("expected unhealthy service error, got: %v", err)
+		t.Fatalf("readiness should not dial NATS-native service plugins: %v", err)
 	}
 }
 
@@ -494,7 +481,7 @@ description: %s service
 service:
   address_env: %s
   health:
-    protocol: grpc_health_v1
+    protocol: nats_service
     service: %s
     timeout: 2s
   readiness:
@@ -528,8 +515,11 @@ func serviceManifest(name, protoService string) *plugin.Manifest {
 		Version: "1.0.0",
 		Type:    plugin.TypeService,
 		Service: &plugin.ServiceConfig{
+			Transport:     "nats",
+			SubjectPrefix: "svc." + strings.ReplaceAll(name, "-", "_") + ".v1",
+			QueueGroup:    "q.service.v1." + strings.ReplaceAll(name, "-", "_"),
 			Health: plugin.ServiceHealthConfig{
-				Protocol: "grpc_health_v1",
+				Protocol: "nats_service",
 				Service:  protoService,
 				Timeout:  "2s",
 			},

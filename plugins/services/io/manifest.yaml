@@ -2,14 +2,14 @@ name: io
 version: "1.0.0"
 type: service
 mode: api
-description: "Mechanical filesystem, shell, web search, and HTTP fetch over gRPC"
+description: "Mechanical filesystem, shell, web search, and HTTP fetch over NATS"
 author: quarkloop
 license: Apache-2.0
 
 service:
   address_env: QUARK_IO_ADDR
   health:
-    protocol: grpc_health_v1
+    protocol: nats_service
     service: quark.io.v1.IOService
     timeout: 5s
   readiness:

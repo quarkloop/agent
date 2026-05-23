@@ -2,14 +2,14 @@ name: space
 version: "1.0.0"
 type: service
 mode: api
-description: "Space metadata, Quarkfile, and launch environment over gRPC"
+description: "Space metadata, Quarkfile, and launch environment over NATS"
 author: quarkloop
 license: Apache-2.0
 
 service:
   address_env: QUARK_SPACE_SERVICE_ADDR
   health:
-    protocol: grpc_health_v1
+    protocol: nats_service
     service: quark.space.v1.SpaceService
     timeout: 5s
   readiness:

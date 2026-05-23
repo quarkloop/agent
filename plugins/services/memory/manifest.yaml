@@ -2,14 +2,14 @@ name: memory
 version: "1.0.0"
 type: service
 mode: api
-description: "Space-scoped agent memory records over gRPC"
+description: "Space-scoped agent memory records over NATS"
 author: quarkloop
 license: Apache-2.0
 
 service:
   address_env: QUARK_MEMORY_ADDR
   health:
-    protocol: grpc_health_v1
+    protocol: nats_service
     service: quark.memory.v1.MemoryService
     timeout: 5s
   readiness:

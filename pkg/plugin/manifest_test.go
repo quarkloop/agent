@@ -20,6 +20,9 @@ service:
   address_env: QUARK_INDEXER_ADDR
   skill: SKILL.md
   readme: README.md
+  transport: nats
+  subject_prefix: svc.indexer.v1
+  queue_group: q.service.v1.indexer
   proto_services:
     - quark.indexer.v1.IndexerService
   functions:
@@ -45,8 +48,14 @@ service:
 	if manifest.Service == nil || manifest.Service.AddressEnv != "QUARK_INDEXER_ADDR" {
 		t.Fatalf("service config = %+v", manifest.Service)
 	}
+	if manifest.Service.Transport != "nats" || manifest.Service.SubjectPrefix != "svc.indexer.v1" || manifest.Service.QueueGroup != "q.service.v1.indexer" {
+		t.Fatalf("service nats config = %+v", manifest.Service)
+	}
 	if len(manifest.Service.Functions) != 1 || manifest.Service.Functions[0].Name != "indexer_GetContext" {
 		t.Fatalf("service functions = %+v", manifest.Service.Functions)
+	}
+	if manifest.Service.Functions[0].Subject != "svc.indexer.v1.get_context" {
+		t.Fatalf("service function subject = %q", manifest.Service.Functions[0].Subject)
 	}
 }
 
@@ -78,7 +87,10 @@ func TestServiceManifestDefaultsSkillAndReadme(t *testing.T) {
 	if manifest.Service.Readme != "README.md" {
 		t.Fatalf("readme = %q, want README.md", manifest.Service.Readme)
 	}
-	if manifest.Service.Health.Protocol != "grpc_health_v1" || manifest.Service.Health.Timeout != "5s" {
+	if manifest.Service.Transport != "nats" || manifest.Service.SubjectPrefix != "svc.embedding.v1" || manifest.Service.QueueGroup != "q.service.v1.embedding" {
+		t.Fatalf("service nats defaults = %+v", manifest.Service)
+	}
+	if manifest.Service.Health.Protocol != "nats_service" || manifest.Service.Health.Timeout != "5s" {
 		t.Fatalf("health = %+v", manifest.Service.Health)
 	}
 	if manifest.Service.Readiness.MinVersion != manifest.Version {
@@ -199,7 +211,16 @@ func TestRepositoryServiceManifestsDeclareFunctionsAndReadmes(t *testing.T) {
 			if manifest.Type != TypeService {
 				t.Fatalf("manifest type = %s, want service", manifest.Type)
 			}
-			if manifest.Service.Health.Protocol != "grpc_health_v1" {
+			if manifest.Service.Transport != "nats" {
+				t.Fatalf("service transport = %q, want nats", manifest.Service.Transport)
+			}
+			if !strings.HasPrefix(manifest.Service.SubjectPrefix, "svc.") {
+				t.Fatalf("service subject prefix = %q", manifest.Service.SubjectPrefix)
+			}
+			if !strings.HasPrefix(manifest.Service.QueueGroup, "q.service.v1.") {
+				t.Fatalf("service queue group = %q", manifest.Service.QueueGroup)
+			}
+			if manifest.Service.Health.Protocol != "nats_service" {
 				t.Fatalf("service health protocol = %q", manifest.Service.Health.Protocol)
 			}
 			if manifest.Service.Health.Service == "" {
@@ -228,6 +249,9 @@ func TestRepositoryServiceManifestsDeclareFunctionsAndReadmes(t *testing.T) {
 				}
 				if strings.TrimSpace(function.Name) == "" {
 					t.Fatal("function name is empty")
+				}
+				if !strings.HasPrefix(function.Subject, manifest.Service.SubjectPrefix+".") {
+					t.Fatalf("function %q subject %q does not use service prefix %q", function.Name, function.Subject, manifest.Service.SubjectPrefix)
 				}
 				if !strings.Contains(readme, "`"+function.Name+"`") {
 					t.Fatalf("README does not list service function %q", function.Name)

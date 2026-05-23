@@ -192,6 +192,26 @@ func (s *Server) resolveServicePluginCatalog(ctx context.Context, space string) 
 		if !selected {
 			continue
 		}
+		if servicePluginUsesNATS(item.Manifest) {
+			pluginDescriptors, err := descriptorsFromServiceManifest(item.Manifest)
+			if err != nil {
+				return nil, fmt.Errorf("service plugin %s manifest descriptors: %w", item.Manifest.Name, err)
+			}
+			skill := loadServicePluginSkill(item)
+			if skill != nil {
+				for _, desc := range pluginDescriptors {
+					desc.Skills = replaceSkill(desc.GetSkills(), skill)
+				}
+			}
+			if err := validateServicePluginDescriptors(pluginDescriptors, item.Manifest); err != nil {
+				return nil, fmt.Errorf("service plugin %s descriptor: %w", item.Manifest.Name, err)
+			}
+			if err := s.importServiceFunctionRoutes(space, pluginDescriptors); err != nil {
+				return nil, fmt.Errorf("service plugin %s nats imports: %w", item.Manifest.Name, err)
+			}
+			descriptors = append(descriptors, pluginDescriptors...)
+			continue
+		}
 		address := s.serviceCatalogAddress(space, item.Manifest, configured)
 		if address == "" {
 			if servicePluginReadinessRequired(item.Manifest, configured) {
@@ -232,6 +252,36 @@ func (s *Server) resolveServicePluginCatalog(ctx context.Context, space string) 
 		descriptors = append(descriptors, pluginDescriptors...)
 	}
 	return descriptors, nil
+}
+
+func servicePluginUsesNATS(manifest *plugin.Manifest) bool {
+	return manifest != nil &&
+		manifest.Service != nil &&
+		(strings.TrimSpace(manifest.Service.Transport) == "nats" ||
+			strings.TrimSpace(manifest.Service.Health.Protocol) == "nats_service")
+}
+
+func descriptorsFromServiceManifest(manifest *plugin.Manifest) ([]*servicev1.ServiceDescriptor, error) {
+	if manifest == nil || manifest.Service == nil {
+		return nil, fmt.Errorf("service manifest is missing service config")
+	}
+	desc := &servicev1.ServiceDescriptor{
+		Name:    manifest.Name,
+		Type:    manifest.Name,
+		Version: manifest.Version,
+		Address: manifest.Service.SubjectPrefix,
+		Rpcs:    make([]*servicev1.RpcDescriptor, 0, len(manifest.Service.Functions)),
+	}
+	for _, function := range manifest.Service.Functions {
+		desc.Rpcs = append(desc.Rpcs, &servicev1.RpcDescriptor{
+			Service: function.Service,
+			Method:  function.Method,
+		})
+	}
+	if err := applyServiceFunctionMetadata(desc, manifest); err != nil {
+		return nil, err
+	}
+	return []*servicev1.ServiceDescriptor{desc}, nil
 }
 
 func (s *Server) importServiceFunctionRoutes(space string, descriptors []*servicev1.ServiceDescriptor) error {
@@ -428,6 +478,9 @@ func checkServicePluginReadiness(ctx context.Context, address string, manifest *
 	if manifest == nil || manifest.Service == nil {
 		return nil
 	}
+	if servicePluginUsesNATS(manifest) {
+		return nil
+	}
 	timeout, err := time.ParseDuration(manifest.Service.Health.Timeout)
 	if err != nil {
 		return fmt.Errorf("invalid health timeout: %w", err)
@@ -479,7 +532,7 @@ func validateServicePluginDescriptors(descriptors []*servicev1.ServiceDescriptor
 		if minVersion != "" && desc.GetVersion() != minVersion {
 			return fmt.Errorf("unsupported version %q for %s (required: %s)", desc.GetVersion(), desc.GetName(), minVersion)
 		}
-		if desc.GetAddress() == "" {
+		if !servicePluginUsesNATS(manifest) && desc.GetAddress() == "" {
 			return fmt.Errorf("descriptor %s missing endpoint address", desc.GetName())
 		}
 		for _, rpc := range desc.GetRpcs() {

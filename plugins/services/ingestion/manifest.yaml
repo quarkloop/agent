@@ -2,14 +2,14 @@ name: ingestion
 version: "1.0.0"
 type: service
 mode: api
-description: "Durable document ingestion run state over gRPC"
+description: "Durable document ingestion run state over NATS"
 author: quarkloop
 license: Apache-2.0
 
 service:
   address_env: QUARK_INGESTION_ADDR
   health:
-    protocol: grpc_health_v1
+    protocol: nats_service
     service: quark.ingestion.v1.IngestionService
     timeout: 5s
   readiness:

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -62,8 +63,15 @@ type SkillConfig struct {
 	// Future: skill-specific config
 }
 
-// ServiceConfig declares a gRPC service exposed through the plugin catalog.
+// ServiceConfig declares a NATS-native service exposed through the plugin catalog.
 type ServiceConfig struct {
+	// Transport declares the service-function transport. vNext supports NATS.
+	Transport string `yaml:"transport,omitempty"`
+	// SubjectPrefix is the NATS subject prefix for this service, such as
+	// svc.indexer.v1.
+	SubjectPrefix string `yaml:"subject_prefix,omitempty"`
+	// QueueGroup is the queue group used by service workers.
+	QueueGroup string `yaml:"queue_group,omitempty"`
 	// AddressEnv names the environment variable that contains the service
 	// address. The supervisor resolves it before runtime startup.
 	AddressEnv string `yaml:"address_env,omitempty"`
@@ -77,10 +85,11 @@ type ServiceConfig struct {
 	Skill string `yaml:"skill,omitempty"`
 	// Readme names the service README file relative to the plugin directory.
 	Readme string `yaml:"readme,omitempty"`
-	// ProtoServices lists protobuf service names exposed by this service.
+	// ProtoServices lists protobuf service names that define request/response
+	// schemas for this service.
 	ProtoServices []string `yaml:"proto_services,omitempty"`
 	// Functions declares the agent-facing service functions exposed by the
-	// service plugin. These map to transport-level gRPC RPC methods.
+	// service plugin.
 	Functions []ServiceFunctionConfig `yaml:"functions,omitempty"`
 }
 
@@ -102,6 +111,8 @@ type ServiceFunctionConfig struct {
 	Owner string `yaml:"owner,omitempty"`
 	// Name is the generated runtime tool-call name, such as indexer_GetContext.
 	Name string `yaml:"name"`
+	// Subject is the NATS service-function request subject.
+	Subject string `yaml:"subject,omitempty"`
 	// Service is the protobuf service name, such as quark.indexer.v1.IndexerService.
 	Service string `yaml:"service"`
 	// Method is the protobuf RPC method name.
@@ -235,6 +246,24 @@ func (m *Manifest) Validate() error {
 		if m.Service == nil {
 			return fmt.Errorf("service config is required for service plugins")
 		}
+		if m.Service.Transport == "" {
+			m.Service.Transport = "nats"
+		}
+		if m.Service.Transport != "nats" {
+			return fmt.Errorf("service.transport must be nats")
+		}
+		if m.Service.SubjectPrefix == "" {
+			m.Service.SubjectPrefix = fmt.Sprintf("svc.%s.v1", manifestSubjectToken(m.Name))
+		}
+		if err := validateServiceSubjectPrefix(m.Service.SubjectPrefix); err != nil {
+			return fmt.Errorf("service.subject_prefix: %w", err)
+		}
+		if m.Service.QueueGroup == "" {
+			m.Service.QueueGroup = fmt.Sprintf("q.service.v1.%s", manifestSubjectToken(m.Name))
+		}
+		if err := validateQueueGroup(m.Service.QueueGroup); err != nil {
+			return fmt.Errorf("service.queue_group: %w", err)
+		}
 		if m.Service.Skill == "" {
 			m.Service.Skill = "SKILL.md"
 		}
@@ -242,13 +271,13 @@ func (m *Manifest) Validate() error {
 			m.Service.Readme = "README.md"
 		}
 		if m.Service.Health.Protocol == "" {
-			m.Service.Health.Protocol = "grpc_health_v1"
+			m.Service.Health.Protocol = "nats_service"
 		}
 		if m.Service.Health.Timeout == "" {
 			m.Service.Health.Timeout = "5s"
 		}
-		if m.Service.Health.Protocol != "grpc_health_v1" {
-			return fmt.Errorf("service.health.protocol must be grpc_health_v1")
+		if m.Service.Health.Protocol != "nats_service" {
+			return fmt.Errorf("service.health.protocol must be nats_service")
 		}
 		if _, err := time.ParseDuration(m.Service.Health.Timeout); err != nil {
 			return fmt.Errorf("service.health.timeout: %w", err)
@@ -259,8 +288,18 @@ func (m *Manifest) Validate() error {
 		if len(m.Service.Functions) == 0 {
 			return fmt.Errorf("service.functions is required for service plugins")
 		}
-		for i, function := range m.Service.Functions {
-			if err := function.Validate(); err != nil {
+		for i := range m.Service.Functions {
+			if m.Service.Functions[i].Owner == "" {
+				m.Service.Functions[i].Owner = m.Name
+			}
+			if m.Service.Functions[i].Subject == "" {
+				subject, err := serviceFunctionSubject(m.Service.Functions[i].Owner, m.Service.Functions[i].Name)
+				if err != nil {
+					return fmt.Errorf("service.functions[%d].subject: %w", i, err)
+				}
+				m.Service.Functions[i].Subject = subject
+			}
+			if err := m.Service.Functions[i].Validate(); err != nil {
 				return fmt.Errorf("service.functions[%d]: %w", i, err)
 			}
 		}
@@ -273,6 +312,14 @@ func (m *Manifest) Validate() error {
 func (f ServiceFunctionConfig) Validate() error {
 	if f.Name == "" {
 		return fmt.Errorf("name is required")
+	}
+	if f.Subject != "" {
+		if err := validateServiceFunctionSubject(f.Subject); err != nil {
+			return fmt.Errorf("subject: %w", err)
+		}
+		if expected, err := serviceFunctionSubject(firstNonEmpty(f.Owner, serviceOwnerFromName(f.Name)), f.Name); err == nil && f.Subject != expected {
+			return fmt.Errorf("subject %q does not match expected %q", f.Subject, expected)
+		}
 	}
 	if f.Service == "" {
 		return fmt.Errorf("service is required")
@@ -317,6 +364,117 @@ func (f ServiceFunctionConfig) Validate() error {
 		}
 	}
 	return nil
+}
+
+func serviceFunctionSubject(owner, functionName string) (string, error) {
+	ownerToken := manifestSubjectToken(owner)
+	function := functionToken(owner, functionName)
+	if ownerToken == "" || function == "" {
+		return "", fmt.Errorf("owner and function name are required")
+	}
+	return "svc." + ownerToken + ".v1." + function, nil
+}
+
+func serviceOwnerFromName(functionName string) string {
+	owner, _, ok := strings.Cut(functionName, "_")
+	if !ok {
+		return ""
+	}
+	return owner
+}
+
+func functionToken(owner, functionName string) string {
+	ownerToken := manifestSubjectToken(owner)
+	function := strings.TrimSpace(functionName)
+	for _, prefix := range []string{strings.TrimSpace(owner) + "_", ownerToken + "_"} {
+		if prefix != "_" && strings.HasPrefix(function, prefix) {
+			function = strings.TrimPrefix(function, prefix)
+			break
+		}
+	}
+	return manifestSubjectToken(function)
+}
+
+func validateServiceSubjectPrefix(subject string) error {
+	parts := strings.Split(subject, ".")
+	if len(parts) != 3 || parts[0] != "svc" || parts[2] != "v1" {
+		return fmt.Errorf("%q must match svc.<service>.v1", subject)
+	}
+	if parts[1] == "" || parts[1] != manifestSubjectToken(parts[1]) {
+		return fmt.Errorf("%q has invalid service token", subject)
+	}
+	return nil
+}
+
+func validateServiceFunctionSubject(subject string) error {
+	parts := strings.Split(subject, ".")
+	if len(parts) != 4 || parts[0] != "svc" || parts[2] != "v1" {
+		return fmt.Errorf("%q must match svc.<service>.v1.<function>", subject)
+	}
+	for _, part := range []string{parts[1], parts[3]} {
+		if part == "" || part != manifestSubjectToken(part) {
+			return fmt.Errorf("%q contains invalid subject token %q", subject, part)
+		}
+	}
+	return nil
+}
+
+func validateQueueGroup(queue string) error {
+	queue = strings.TrimSpace(queue)
+	if queue == "" {
+		return fmt.Errorf("queue group is required")
+	}
+	for _, part := range strings.Split(queue, ".") {
+		if part == "" || part != manifestSubjectToken(part) {
+			return fmt.Errorf("queue group %q contains invalid token %q", queue, part)
+		}
+	}
+	return nil
+}
+
+func manifestSubjectToken(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	var b strings.Builder
+	lastUnderscore := false
+	prevLowerOrDigit := false
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r)
+			lastUnderscore = false
+			prevLowerOrDigit = true
+		case r >= 'A' && r <= 'Z':
+			if prevLowerOrDigit && !lastUnderscore && b.Len() > 0 {
+				b.WriteByte('_')
+			}
+			b.WriteRune(r + ('a' - 'A'))
+			lastUnderscore = false
+			prevLowerOrDigit = false
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+			lastUnderscore = false
+			prevLowerOrDigit = true
+		case r == '_' || r == '-' || r == '.':
+			if !lastUnderscore && b.Len() > 0 {
+				b.WriteByte('_')
+				lastUnderscore = true
+			}
+			prevLowerOrDigit = false
+		}
+	}
+	return strings.Trim(b.String(), "_")
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 // LibTargetPath returns the path to the .so file for lib-mode plugins.
