@@ -60,6 +60,10 @@ func TestServicePluginInventoryHasE2ECoveragePlan(t *testing.T) {
 			Mode:  "runtime-backed",
 			Tests: []string{"TestAgentIndexesUploadedPDFDatasetOpenRouterEmbedding"},
 		},
+		"gateway": {
+			Mode:  "runtime-backed",
+			Tests: []string{"TestAskMode", "TestAgentIndexesUploadedPDFDataset"},
+		},
 		"indexer": {
 			Mode:  "runtime-backed",
 			Tests: []string{"TestIndexerServiceWithRealDgraph", "TestAgentIndexesUploadedPDFDataset", "TestAgentIndexesITCompanyMarkdownDocuments"},
@@ -68,13 +72,13 @@ func TestServicePluginInventoryHasE2ECoveragePlan(t *testing.T) {
 			Mode:  "runtime-backed",
 			Tests: []string{"TestAgentIndexesUploadedPDFDataset", "TestAgentIndexesITCompanyMarkdownDocuments"},
 		},
+		"io": {
+			Mode:  "runtime-backed",
+			Tests: []string{"TestLocalDeterministicSupervisorRuntimeAndServices", "TestAgentIndexesUploadedPDFDataset", "TestAgentUsesBuildReleaseServiceFunction"},
+		},
 		"memory": {
 			Mode:  "contract-only",
 			Tests: []string{"TestLocalDeterministicSupervisorRuntimeAndServices"},
-		},
-		"model": {
-			Mode:  "contract-only",
-			Tests: []string{"TestAskMode", "TestAgentIndexesUploadedPDFDataset"},
 		},
 		"space": {
 			Mode:  "supervisor-runtime-owned",

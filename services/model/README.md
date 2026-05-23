@@ -1,35 +1,27 @@
-# Model Service
+# Gateway Service
 
-`services/model` is the Quark model boundary. It centralizes model generation,
-streaming generation, embedding, reranking, token counting, model listing,
-provider health, provider fallback, and usage accounting.
+`services/model` builds the Quark Gateway service binary. Gateway is the single
+agent-facing model boundary. It owns Bifrost lifecycle, provider routing,
+fallback policy, embeddings, reranking, token counting, provider health, and
+redacted usage accounting.
 
-Provider plugins are implementation adapters behind this service boundary. The
-agent/runtime coordinates model calls and receives structured usage with every
-response.
+Runtime and agents must not call provider plugins directly. They call Gateway
+through NATS service-function subjects, and Gateway performs provider-specific
+work internally.
 
 ## Service Functions
 
-| Function | RPC method | Request | Response | Purpose |
-| --- | --- | --- | --- | --- |
-| `model_Generate` | `quark.model.v1.ModelService/Generate` | `GenerateRequest` | `GenerateResponse` | Run one generation request and return text, tool calls, and usage. |
-| `model_StreamGenerate` | `quark.model.v1.ModelService/StreamGenerate` | `StreamGenerateRequest` | `StreamGenerateResponse` stream | Stream generation deltas/tool calls and final usage. |
-| `model_Embed` | `quark.model.v1.ModelService/Embed` | `EmbedRequest` | `EmbedResponse` | Create embeddings through provider adapters. |
-| `model_Rerank` | `quark.model.v1.ModelService/Rerank` | `RerankRequest` | `RerankResponse` | Rerank candidate documents for a query. |
-| `model_CountTokens` | `quark.model.v1.ModelService/CountTokens` | `CountTokensRequest` | `CountTokensResponse` | Count or estimate prompt/tool tokens without generation. |
-| `model_ListModels` | `quark.model.v1.ModelService/ListModels` | `ListModelsRequest` | `ListModelsResponse` | List provider models visible through the service. |
-| `model_ProviderHealth` | `quark.model.v1.ModelService/ProviderHealth` | `ProviderHealthRequest` | `ProviderHealthResponse` | Report provider adapter readiness, auth, and reachability. |
-
-## Provider Adapters
-
-Current in-tree provider plugins become model-service adapters:
-
-- `openrouter`
-- `openai`
-- `anthropic`
-
-The adapter contract is provider-agnostic so future providers such as `zhipu`
-can be added without changing runtime inference code.
+| Function | NATS subject | RPC method | Purpose |
+| --- | --- | --- | --- |
+| `gateway_Generate` | `svc.gateway.v1.generate` | `quark.model.v1.ModelService/Generate` | Run one generation request and return text, tool calls, and usage. |
+| `gateway_StreamGenerate` | `svc.gateway.v1.stream_generate` | `quark.model.v1.ModelService/StreamGenerate` | Stream generation deltas/tool calls and final usage. |
+| `gateway_Embed` | `svc.gateway.v1.embed` | `quark.model.v1.ModelService/Embed` | Create provider-backed embeddings. |
+| `gateway_Rerank` | `svc.gateway.v1.rerank` | `quark.model.v1.ModelService/Rerank` | Rerank candidate documents for a query. |
+| `gateway_CountTokens` | `svc.gateway.v1.count_tokens` | `quark.model.v1.ModelService/CountTokens` | Count or estimate prompt/tool tokens. |
+| `gateway_ListModels` | `svc.gateway.v1.list_models` | `quark.model.v1.ModelService/ListModels` | List models visible through provider policy. |
+| `gateway_ProviderHealth` | `svc.gateway.v1.provider_health` | `quark.model.v1.ModelService/ProviderHealth` | Report provider adapter readiness. |
+| `gateway_UsageSummary` | `svc.gateway.v1.usage_summary` | `quark.model.v1.ModelService/UsageSummary` | Return redacted usage aggregates by provider/model. |
+| `gateway_ReloadConfig` | `svc.gateway.v1.reload_config` | `quark.model.v1.ModelService/ReloadConfig` | Reload provider and fallback policy after approval. |
 
 ## Usage Fields
 
@@ -39,46 +31,20 @@ Every model response returns redacted usage:
 - `model`
 - `inputTokens`
 - `outputTokens`
-- `reasoningTokens`
-- `cachedTokens`
 - `embeddingTokens`
 - `latencyMillis`
 - `costEstimate`
 - `fallbackChain`
 - `requestId`
 - `finishReason`
-- `failureCategory`
-- `failureResetAt`
 
 Usage must never contain prompt text, response text, tool arguments, API keys,
 headers, or provider credentials.
 
-## Provider Errors And Fallback
+## Boundaries
 
-Provider adapters map failures into structured categories before returning them
-to the model service:
-
-- `auth`
-- `rate_limit`
-- `model_unavailable`
-- `context_overflow`
-- `transport`
-- `invalid_request`
-- `provider_response`
-- `providers_exhausted`
-
-Fallback is explicit and ordered. The model service may try a configured
-fallback for auth, rate-limit, model-unavailable, context-overflow, and
-transport failures. Invalid requests and malformed provider responses are
-terminal. Usage diagnostics record provider, model, fallback chain, failure
-category, and provider reset time when available.
-
-## Ownership Boundaries
-
-- Model service owns provider dispatch, fallback chain recording, usage
-  accounting, provider health, and provider diagnostics.
-- Runtime owns session/run accumulation and persistence through activity/Core
-  storage. Model service emits usage to runtime and never calls another service.
-- Provider adapters own provider-specific HTTP wire formats and error mapping.
-- Services such as indexer, document, ingestion, and citation do not call model
-  service. The agent is the coordinator.
+- Gateway owns provider dispatch, Bifrost lifecycle, fallback chain recording,
+  usage accounting, provider health, and provider diagnostics.
+- Runtime owns session/run accumulation and persistence.
+- Services such as indexer, document, ingestion, and citation do not call
+  Gateway. The agent is the coordinator.

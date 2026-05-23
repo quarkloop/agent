@@ -155,14 +155,17 @@ services:
       QUARK_EMBEDDING_MODEL: ${QUARK_EMBEDDING_MODEL:-local-hash-v1}
       QUARK_EMBEDDING_DIMENSIONS: ${QUARK_EMBEDDING_DIMENSIONS:-32}
 
-  model:
+  gateway:
     <<: *service-defaults
     profiles: ["services", "gateway"]
     build:
       <<: *go-build
       args:
         PACKAGE: ./services/model/cmd/model
-    command: ["--addr", "0.0.0.0:7309", "--skill-dir", "/plugins/services/model"]
+    command: ["--addr", "0.0.0.0:7309", "--skill-dir", "/plugins/services/gateway", "--nats-url", "nats://supervisor:4222", "--nats-user", "quark-control", "--nats-password", "quark-control-dev"]
+    depends_on:
+      supervisor:
+        condition: service_healthy
     ports:
       - "7309:7309"
     volumes:

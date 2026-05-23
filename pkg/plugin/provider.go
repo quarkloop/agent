@@ -63,7 +63,23 @@ type StreamEvent struct {
 	Delta     string     // Text delta
 	ToolCalls []ToolCall // Tool call deltas
 	Done      bool       // Stream complete
-	Err       error      // Error if any
+	Usage     *StreamUsage
+	Err       error // Error if any
+}
+
+// StreamUsage carries redacted provider usage on streaming events. It excludes
+// prompts, raw response content, tool arguments, and credentials.
+type StreamUsage struct {
+	Provider        string
+	Model           string
+	InputTokens     int64
+	OutputTokens    int64
+	EmbeddingTokens int64
+	LatencyMillis   int64
+	CostEstimate    float64
+	FallbackChain   []string
+	RequestID       string
+	FinishReason    string
 }
 
 // ModelInfo describes an available model from a provider.

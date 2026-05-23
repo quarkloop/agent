@@ -11,6 +11,7 @@ import (
 	modelv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/model/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
+	"github.com/quarkloop/services/model/internal/gatewaynats"
 	"github.com/quarkloop/services/model/internal/modelsvc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -20,10 +21,13 @@ import (
 type Config struct {
 	Address   string
 	SkillDir  string
+	NATS      gatewaynats.Config
 	Providers []ProviderConfig
 	Fallbacks map[string][]string
 	Logger    *slog.Logger
 }
+
+type GatewayNATSConfig = gatewaynats.Config
 
 type ProviderConfig struct {
 	ID      string
@@ -49,6 +53,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return err
 	}
+	defer server.Close()
 
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(servicekit.UnaryLoggingInterceptor(cfg.Logger)))
 	modelv1.RegisterModelServiceServer(grpcServer, server)
@@ -62,7 +67,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return err
 	}
-	skill, err := servicekit.SkillFromFile("service-model", "1.0.0", skillPath)
+	skill, err := servicekit.SkillFromFile("service-gateway", "1.0.0", skillPath)
 	if err != nil {
 		return err
 	}
@@ -71,13 +76,23 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	servicev1.RegisterServiceRegistryServer(grpcServer, registry)
 
+	var gateway *gatewaynats.Server
+	if cfg.NATS.URL != "" {
+		cfg.NATS.Logger = cfg.Logger
+		gateway = gatewaynats.New(cfg.NATS, server)
+		if err := gateway.Start(ctx); err != nil {
+			return err
+		}
+		defer gateway.Close()
+	}
+
 	ln, err := net.Listen("tcp", cfg.Address)
 	if err != nil {
 		return fmt.Errorf("listen %s: %w", cfg.Address, err)
 	}
 	errCh := make(chan error, 1)
 	go func() {
-		cfg.Logger.Info("model service listening", "addr", cfg.Address, "providers", server.ProviderIDs())
+		cfg.Logger.Info("gateway service listening", "grpc_addr", cfg.Address, "providers", server.ProviderIDs(), "nats_enabled", cfg.NATS.URL != "")
 		errCh <- grpcServer.Serve(ln)
 	}()
 
@@ -109,14 +124,14 @@ func resolveSkillPath(skillDir string) (string, error) {
 	if skillDir != "" {
 		path := filepath.Join(skillDir, "SKILL.md")
 		if _, err := os.Stat(path); err != nil {
-			return "", fmt.Errorf("find model skill at %s: %w", path, err)
+			return "", fmt.Errorf("find gateway skill at %s: %w", path, err)
 		}
 		return path, nil
 	}
-	for _, path := range []string{"SKILL.md", filepath.Join("plugins", "services", "model", "SKILL.md"), filepath.Join("services", "model", "SKILL.md")} {
+	for _, path := range []string{"SKILL.md", filepath.Join("plugins", "services", "gateway", "SKILL.md")} {
 		if _, err := os.Stat(path); err == nil {
 			return path, nil
 		}
 	}
-	return "", fmt.Errorf("model service SKILL.md not found; pass --skill-dir")
+	return "", fmt.Errorf("gateway service SKILL.md not found; pass --skill-dir")
 }

@@ -131,15 +131,15 @@ func TestRegisterServiceFunctionsSkipsStreamingRPCs(t *testing.T) {
 		t.Fatalf("new agent: %v", err)
 	}
 	catalog := runtimeservices.NewCatalog([]*servicev1.ServiceDescriptor{{
-		Name:    "model",
-		Type:    "model",
+		Name:    "gateway",
+		Type:    "gateway",
 		Address: "127.0.0.1:7306",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:      "quark.model.v1.ModelService",
 			Method:       "StreamGenerate",
 			Request:      "quark.model.v1.StreamGenerateRequest",
 			Response:     "quark.model.v1.StreamGenerateResponse",
-			FunctionName: "model_StreamGenerate",
+			FunctionName: "gateway_StreamGenerate",
 			Streaming:    true,
 		}},
 	}})
@@ -151,14 +151,14 @@ func TestRegisterServiceFunctionsSkipsStreamingRPCs(t *testing.T) {
 	}
 }
 
-func TestModelProviderFromServiceUsesModelDescriptor(t *testing.T) {
+func TestModelProviderFromServiceUsesGatewayDescriptor(t *testing.T) {
 	catalog := runtimeservices.NewCatalog([]*servicev1.ServiceDescriptor{{
-		Name:    "model",
-		Type:    "model",
+		Name:    "gateway",
+		Type:    "gateway",
 		Address: "127.0.0.1:7306",
 	}})
 	if got := modelProviderFromService(catalog, "openrouter"); got == nil {
-		t.Fatal("expected model service provider adapter")
+		t.Fatal("expected gateway service provider adapter")
 	}
 }
 

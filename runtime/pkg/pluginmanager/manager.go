@@ -23,11 +23,13 @@ import (
 	"github.com/quarkloop/pkg/plugin"
 )
 
-// Manager loads tool and provider plugins from disk and dispatches calls to them.
+// Manager loads tool plugins from supervisor-resolved paths and dispatches calls
+// to them. Provider plugins are not loaded in runtime; Gateway owns provider
+// dispatch and is registered through RegisterRuntimeProvider.
 //
 // Tool plugins run as api-mode HTTP servers or as lib-mode .so files loaded
-// in-process. Provider plugins are always lib-mode (.so) and implement the
-// llm.Provider interface (a reduced subset of plugin.ProviderPlugin).
+// in-process. Provider dispatch is externalized behind Gateway and registered
+// through runtime wiring when needed.
 type Manager struct {
 	mu         sync.RWMutex
 	pluginsDir string
@@ -52,7 +54,8 @@ type Manager struct {
 	// Tool schemas aggregated from all loaded tools
 	tools []plugin.ToolSchema
 
-	// Provider plugins (lib mode, satisfy plugin.Provider)
+	// Runtime-registered model providers. These should point to Gateway-backed
+	// adapters, not direct provider plugins.
 	providers map[string]plugin.Provider
 }
 
@@ -79,7 +82,7 @@ func NewManager(pluginsDir string) *Manager {
 	}
 }
 
-// Initialize loads tool and provider plugins. When a supervisor-resolved catalog
+// Initialize loads tool plugins. When a supervisor-resolved catalog
 // is present, runtime loads exactly that catalog. Standalone runtimes can still
 // register tools explicitly through a provided catalog or RegisterRuntimeTool.
 func (m *Manager) Initialize(ctx context.Context) error {
@@ -93,13 +96,12 @@ func (m *Manager) Initialize(ctx context.Context) error {
 	return nil
 }
 
-// LoadProviders (re)loads provider plugins from disk. Most callers should use
-// Initialize, which already calls this; this method exists for callers that
-// need to refresh providers after install/uninstall.
+// LoadProviders is retained for tests and legacy callers, but runtime no longer
+// loads direct provider plugins. Gateway is the only production provider path.
 func (m *Manager) LoadProviders(ctx context.Context) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.loadProvidersLocked(ctx)
+	_ = ctx
+	slog.Info("provider plugin loading skipped; Gateway owns provider dispatch")
+	return nil
 }
 
 // LoadPluginFromDir loads a single plugin from the given directory. Intended
@@ -118,7 +120,8 @@ func (m *Manager) LoadPluginFromDir(ctx context.Context, dir string) error {
 	case plugin.TypeTool:
 		return m.loadToolLocked(ctx, manifest, dir)
 	case plugin.TypeProvider:
-		return m.loadProviderLocked(ctx, manifest, dir)
+		slog.Info("provider plugin load skipped; Gateway owns provider dispatch", "plugin", manifest.Name)
+		return nil
 	default:
 		return nil
 	}
@@ -264,35 +267,6 @@ func (m *Manager) Shutdown() {
 
 // --- internal helpers (must be called with m.mu held where noted) ---
 
-func (m *Manager) loadProvidersLocked(ctx context.Context) error {
-	providersDir := filepath.Join(m.pluginsDir, "providers")
-	entries, err := os.ReadDir(providersDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		pluginDir := filepath.Join(providersDir, e.Name())
-		manifest, err := plugin.ParseManifest(filepath.Join(pluginDir, "manifest.yaml"))
-		if err != nil {
-			fmt.Printf("pluginmanager: skip provider %s: %v\n", e.Name(), err)
-			continue
-		}
-		if manifest.Type != plugin.TypeProvider {
-			continue
-		}
-		if err := m.loadProviderLocked(ctx, manifest, pluginDir); err != nil {
-			fmt.Printf("pluginmanager: failed to load provider %s: %v\n", manifest.Name, err)
-		}
-	}
-	return nil
-}
-
 func (m *Manager) loadToolLocked(ctx context.Context, manifest *plugin.Manifest, pluginDir string) error {
 	if manifest.Mode == plugin.ModeLib {
 		if err := m.loadToolLibLocked(ctx, manifest, pluginDir); err == nil {
@@ -388,37 +362,6 @@ func (m *Manager) loadToolBinaryLocked(ctx context.Context, manifest *plugin.Man
 	time.Sleep(50 * time.Millisecond)
 
 	fmt.Printf("pluginmanager: loaded tool %s (binary, %s)\n", toolName, addr)
-	return nil
-}
-
-func (m *Manager) loadProviderLocked(ctx context.Context, manifest *plugin.Manifest, pluginDir string) error {
-	loaded, err := m.loader.Load(ctx, manifest, pluginDir)
-	if err != nil {
-		return fmt.Errorf("load .so: %w", err)
-	}
-	if loaded.Plugin == nil {
-		return fmt.Errorf("no plugin instance in .so")
-	}
-	pp, ok := loaded.Plugin.(plugin.ProviderPlugin)
-	if !ok {
-		return fmt.Errorf("%s does not implement ProviderPlugin", manifest.Name)
-	}
-
-	if manifest.Provider != nil && manifest.Provider.AuthEnv != "" {
-		apiKey := os.Getenv(manifest.Provider.AuthEnv)
-		if apiKey != "" {
-			cfg := plugin.ProviderConfig{APIKey: apiKey}
-			if manifest.Provider.APIBase != "" {
-				cfg.BaseURL = manifest.Provider.APIBase
-			}
-			if err := pp.Configure(cfg); err != nil {
-				return fmt.Errorf("configure provider: %w", err)
-			}
-		}
-	}
-
-	m.providers[pp.ProviderID()] = pp
-	fmt.Printf("pluginmanager: loaded provider %s (id: %s)\n", manifest.Name, pp.ProviderID())
 	return nil
 }
 

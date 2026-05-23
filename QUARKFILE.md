@@ -23,7 +23,7 @@ plugins:
   - ref: quark/agent-quark-knowledge
   - ref: quark/service-io
   - ref: quark/service-core
-  - ref: quark/service-model
+  - ref: quark/service-gateway
   - ref: quark/service-document
   - ref: quark/service-ingestion
   - ref: quark/service-embedding
@@ -41,10 +41,10 @@ services:
     ref: quark/service-core
     mode: local
     address_env: QUARK_CORE_ADDR
-  - name: model
-    ref: quark/service-model
+  - name: gateway
+    ref: quark/service-gateway
     mode: local
-    address_env: QUARK_MODEL_SERVICE_ADDR
+    address_env: QUARK_GATEWAY_SERVICE_ADDR
   - name: document
     ref: quark/service-document
     mode: local

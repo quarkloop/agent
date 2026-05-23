@@ -17,12 +17,13 @@ import (
 	devopsv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/devops/v1"
 	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
 	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
-	iov1 "github.com/quarkloop/pkg/serviceapi/gen/quark/io/v1"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
 	ingestionv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/ingestion/v1"
+	iov1 "github.com/quarkloop/pkg/serviceapi/gen/quark/io/v1"
 	modelv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/model/v1"
 	systemv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/system/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
+	"github.com/quarkloop/supervisor/pkg/natshub"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
@@ -32,7 +33,7 @@ const (
 	indexerServiceHealthTimeout   = 60 * time.Second
 )
 
-var modelProviderEnvKeys = []string{
+var gatewayProviderEnvKeys = []string{
 	"OPENROUTER_API_KEY",
 	"OPENROUTER_BASE_URL",
 	"OPENAI_API_KEY",
@@ -150,15 +151,20 @@ func startCoreServiceAt(t *testing.T, binary, addr, root string) {
 	})
 }
 
-func startModelServiceAt(t *testing.T, binary, addr string) {
+func startGatewayServiceAt(t *testing.T, binary, addr, natsURL string) {
 	t.Helper()
+	args := []string{}
+	if natsURL != "" {
+		args = append(args, "--nats-url", natsURL, "--nats-user", natshub.DefaultControlUser, "--nats-password", natshub.DefaultControlPassword)
+	}
 	startGRPCServiceProcess(t, grpcServiceProcessSpec{
-		Label:       "model",
+		Label:       "gateway",
 		Binary:      binary,
 		Address:     addr,
-		Plugin:      "model",
+		Plugin:      "gateway",
 		ServiceName: modelv1.ModelService_ServiceDesc.ServiceName,
-		Env:         utils.ServiceProcessEnv(nil, modelProviderEnvKeys...),
+		Args:        args,
+		Env:         utils.ServiceProcessEnv(nil, gatewayProviderEnvKeys...),
 	})
 }
 
@@ -208,7 +214,7 @@ func standardKnowledgeServicesStartOptions(t *testing.T, embedding utils.Embeddi
 			dgraphAddr := utils.StartDgraph(t)
 			startIOServiceAt(t, bins.IO, addresses.IO)
 			startCoreServiceAt(t, bins.Core, addresses.Core, filepath.Join(setup.SpacesDir, setup.Space, "services", "core"))
-			startModelServiceAt(t, bins.Model, addresses.Model)
+			startGatewayServiceAt(t, bins.Model, addresses.Gateway, setup.NATS.ClientURL)
 			startIndexerServiceAt(t, bins.Indexer, dgraphAddr, addresses.Indexer)
 			startDocumentServiceAt(t, bins.Document, addresses.Document)
 			startIngestionServiceAt(t, bins.Ingestion, addresses.Ingestion, filepath.Join(setup.SpacesDir, setup.Space, "services", "ingestion"))
@@ -317,7 +323,7 @@ type knowledgeServiceAddresses struct {
 	Ingestion string
 	Citation  string
 	Core      string
-	Model     string
+	Gateway   string
 	IO        string
 }
 
@@ -330,21 +336,21 @@ func reserveKnowledgeServiceAddresses(t *testing.T) knowledgeServiceAddresses {
 		Ingestion: reserveLoopbackAddress(t),
 		Citation:  reserveLoopbackAddress(t),
 		Core:      reserveLoopbackAddress(t),
-		Model:     reserveLoopbackAddress(t),
+		Gateway:   reserveLoopbackAddress(t),
 		IO:        reserveLoopbackAddress(t),
 	}
 }
 
 func (a knowledgeServiceAddresses) supervisorEnv() map[string]string {
 	return map[string]string{
-		"QUARK_INDEXER_ADDR":       a.Indexer,
-		"QUARK_EMBEDDING_ADDR":     a.Embedding,
-		"QUARK_DOCUMENT_ADDR":      a.Document,
-		"QUARK_INGESTION_ADDR":     a.Ingestion,
-		"QUARK_CITATION_ADDR":      a.Citation,
-		"QUARK_CORE_ADDR":          a.Core,
-		"QUARK_MODEL_SERVICE_ADDR": a.Model,
-		"QUARK_IO_ADDR":            a.IO,
+		"QUARK_INDEXER_ADDR":         a.Indexer,
+		"QUARK_EMBEDDING_ADDR":       a.Embedding,
+		"QUARK_DOCUMENT_ADDR":        a.Document,
+		"QUARK_INGESTION_ADDR":       a.Ingestion,
+		"QUARK_CITATION_ADDR":        a.Citation,
+		"QUARK_CORE_ADDR":            a.Core,
+		"QUARK_GATEWAY_SERVICE_ADDR": a.Gateway,
+		"QUARK_IO_ADDR":              a.IO,
 	}
 }
 

@@ -206,11 +206,11 @@
     },
     "Model": {
       "declared_only_function_count": 0,
-      "implemented_function_count": 7,
+      "implemented_function_count": 0,
       "profile_count": 0,
       "proto_mismatch_count": 0,
-      "runnable_service_count": 1,
-      "service_count": 1,
+      "runnable_service_count": 0,
+      "service_count": 0,
       "services": [
         "model"
       ]
@@ -411,8 +411,8 @@
         "has_process_flow": false,
         "path": "e2e/service_plugin_inventory_test.go",
         "prompt_shortcut_suspects": [
-          "140: t.Fatalf(\"%s README does not document service function %s\", manifest.Name, function.Name)",
-          "143: t.Fatalf(\"%s SKILL does not document service function %s\", manifest.Name, function.Name)"
+          "144: t.Fatalf(\"%s README does not document service function %s\", manifest.Name, function.Name)",
+          "147: t.Fatalf(\"%s SKILL does not document service function %s\", manifest.Name, function.Name)"
         ]
       },
       {
@@ -1428,6 +1428,151 @@
       "readme_path": "plugins/services/embedding-openrouter/README.md",
       "skill_path": "plugins/services/embedding-openrouter/SKILL.md"
     },
+    "gateway": {
+      "address_env": "QUARK_GATEWAY_SERVICE_ADDR",
+      "declared_only_function_count": 0,
+      "function_count": 9,
+      "functions": [
+        {
+          "approval_required": false,
+          "idempotent": false,
+          "method": "Generate",
+          "method_implemented": true,
+          "name": "gateway_Generate",
+          "proto_rpc_exists": true,
+          "request": "quark.model.v1.GenerateRequest",
+          "response": "quark.model.v1.GenerateResponse",
+          "risk_level": "read",
+          "service": "quark.model.v1.ModelService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": false,
+          "method": "StreamGenerate",
+          "method_implemented": true,
+          "name": "gateway_StreamGenerate",
+          "proto_rpc_exists": true,
+          "request": "quark.model.v1.StreamGenerateRequest",
+          "response": "quark.model.v1.StreamGenerateResponse",
+          "risk_level": "read",
+          "service": "quark.model.v1.ModelService",
+          "status": "implemented_end_to_end",
+          "streaming": true
+        },
+        {
+          "approval_required": false,
+          "idempotent": false,
+          "method": "Embed",
+          "method_implemented": true,
+          "name": "gateway_Embed",
+          "proto_rpc_exists": true,
+          "request": "quark.model.v1.EmbedRequest",
+          "response": "quark.model.v1.EmbedResponse",
+          "risk_level": "read",
+          "service": "quark.model.v1.ModelService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": false,
+          "method": "Rerank",
+          "method_implemented": true,
+          "name": "gateway_Rerank",
+          "proto_rpc_exists": true,
+          "request": "quark.model.v1.RerankRequest",
+          "response": "quark.model.v1.RerankResponse",
+          "risk_level": "read",
+          "service": "quark.model.v1.ModelService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "CountTokens",
+          "method_implemented": true,
+          "name": "gateway_CountTokens",
+          "proto_rpc_exists": true,
+          "request": "quark.model.v1.CountTokensRequest",
+          "response": "quark.model.v1.CountTokensResponse",
+          "risk_level": "read",
+          "service": "quark.model.v1.ModelService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "ListModels",
+          "method_implemented": true,
+          "name": "gateway_ListModels",
+          "proto_rpc_exists": true,
+          "request": "quark.model.v1.ListModelsRequest",
+          "response": "quark.model.v1.ListModelsResponse",
+          "risk_level": "read",
+          "service": "quark.model.v1.ModelService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "ProviderHealth",
+          "method_implemented": true,
+          "name": "gateway_ProviderHealth",
+          "proto_rpc_exists": true,
+          "request": "quark.model.v1.ProviderHealthRequest",
+          "response": "quark.model.v1.ProviderHealthResponse",
+          "risk_level": "read",
+          "service": "quark.model.v1.ModelService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "UsageSummary",
+          "method_implemented": true,
+          "name": "gateway_UsageSummary",
+          "proto_rpc_exists": true,
+          "request": "quark.model.v1.UsageSummaryRequest",
+          "response": "quark.model.v1.UsageSummaryResponse",
+          "risk_level": "read",
+          "service": "quark.model.v1.ModelService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": true,
+          "idempotent": false,
+          "method": "ReloadConfig",
+          "method_implemented": true,
+          "name": "gateway_ReloadConfig",
+          "proto_rpc_exists": true,
+          "request": "quark.model.v1.ReloadConfigRequest",
+          "response": "quark.model.v1.ReloadConfigResponse",
+          "risk_level": "admin",
+          "service": "quark.model.v1.ModelService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        }
+      ],
+      "health_service": "quark.model.v1.ModelService",
+      "implemented_function_count": 9,
+      "manifest_path": "plugins/services/gateway/manifest.yaml",
+      "module_exists": true,
+      "module_path": "services/model",
+      "proto_mismatch_count": 0,
+      "proto_services": [
+        "quark.model.v1.ModelService"
+      ],
+      "readiness_required": true,
+      "readme_path": "plugins/services/gateway/README.md",
+      "skill_path": "plugins/services/gateway/SKILL.md"
+    },
     "indexer": {
       "address_env": "QUARK_INDEXER_ADDR",
       "declared_only_function_count": 0,
@@ -2022,123 +2167,6 @@
       "readme_path": "plugins/services/memory/README.md",
       "skill_path": "plugins/services/memory/SKILL.md"
     },
-    "model": {
-      "address_env": "QUARK_MODEL_SERVICE_ADDR",
-      "declared_only_function_count": 0,
-      "function_count": 7,
-      "functions": [
-        {
-          "approval_required": false,
-          "idempotent": false,
-          "method": "Generate",
-          "method_implemented": true,
-          "name": "model_Generate",
-          "proto_rpc_exists": true,
-          "request": "quark.model.v1.GenerateRequest",
-          "response": "quark.model.v1.GenerateResponse",
-          "risk_level": "read",
-          "service": "quark.model.v1.ModelService",
-          "status": "implemented_end_to_end",
-          "streaming": false
-        },
-        {
-          "approval_required": false,
-          "idempotent": false,
-          "method": "StreamGenerate",
-          "method_implemented": true,
-          "name": "model_StreamGenerate",
-          "proto_rpc_exists": true,
-          "request": "quark.model.v1.StreamGenerateRequest",
-          "response": "quark.model.v1.StreamGenerateResponse",
-          "risk_level": "read",
-          "service": "quark.model.v1.ModelService",
-          "status": "implemented_end_to_end",
-          "streaming": true
-        },
-        {
-          "approval_required": false,
-          "idempotent": false,
-          "method": "Embed",
-          "method_implemented": true,
-          "name": "model_Embed",
-          "proto_rpc_exists": true,
-          "request": "quark.model.v1.EmbedRequest",
-          "response": "quark.model.v1.EmbedResponse",
-          "risk_level": "read",
-          "service": "quark.model.v1.ModelService",
-          "status": "implemented_end_to_end",
-          "streaming": false
-        },
-        {
-          "approval_required": false,
-          "idempotent": false,
-          "method": "Rerank",
-          "method_implemented": true,
-          "name": "model_Rerank",
-          "proto_rpc_exists": true,
-          "request": "quark.model.v1.RerankRequest",
-          "response": "quark.model.v1.RerankResponse",
-          "risk_level": "read",
-          "service": "quark.model.v1.ModelService",
-          "status": "implemented_end_to_end",
-          "streaming": false
-        },
-        {
-          "approval_required": false,
-          "idempotent": true,
-          "method": "CountTokens",
-          "method_implemented": true,
-          "name": "model_CountTokens",
-          "proto_rpc_exists": true,
-          "request": "quark.model.v1.CountTokensRequest",
-          "response": "quark.model.v1.CountTokensResponse",
-          "risk_level": "read",
-          "service": "quark.model.v1.ModelService",
-          "status": "implemented_end_to_end",
-          "streaming": false
-        },
-        {
-          "approval_required": false,
-          "idempotent": true,
-          "method": "ListModels",
-          "method_implemented": true,
-          "name": "model_ListModels",
-          "proto_rpc_exists": true,
-          "request": "quark.model.v1.ListModelsRequest",
-          "response": "quark.model.v1.ListModelsResponse",
-          "risk_level": "read",
-          "service": "quark.model.v1.ModelService",
-          "status": "implemented_end_to_end",
-          "streaming": false
-        },
-        {
-          "approval_required": false,
-          "idempotent": true,
-          "method": "ProviderHealth",
-          "method_implemented": true,
-          "name": "model_ProviderHealth",
-          "proto_rpc_exists": true,
-          "request": "quark.model.v1.ProviderHealthRequest",
-          "response": "quark.model.v1.ProviderHealthResponse",
-          "risk_level": "read",
-          "service": "quark.model.v1.ModelService",
-          "status": "implemented_end_to_end",
-          "streaming": false
-        }
-      ],
-      "health_service": "quark.model.v1.ModelService",
-      "implemented_function_count": 7,
-      "manifest_path": "plugins/services/model/manifest.yaml",
-      "module_exists": true,
-      "module_path": "services/model",
-      "proto_mismatch_count": 0,
-      "proto_services": [
-        "quark.model.v1.ModelService"
-      ],
-      "readiness_required": true,
-      "readme_path": "plugins/services/model/README.md",
-      "skill_path": "plugins/services/model/SKILL.md"
-    },
     "space": {
       "address_env": "QUARK_SPACE_SERVICE_ADDR",
       "declared_only_function_count": 0,
@@ -2532,9 +2560,9 @@
     "agent_profile_count": 3,
     "declared_only_or_mismatched_function_count": 4,
     "e2e_test_file_count": 30,
-    "implemented_service_function_count": 123,
+    "implemented_service_function_count": 125,
     "runnable_service_module_count": 13,
-    "service_function_count": 127,
+    "service_function_count": 129,
     "service_plugin_count": 14
   },
   "version": 1

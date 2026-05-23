@@ -97,10 +97,57 @@ func usageToProto(usage modelUsage) *modelv1.ModelUsage {
 		OutputTokens:    usage.OutputTokens,
 		EmbeddingTokens: usage.EmbeddingTokens,
 		LatencyMillis:   usage.LatencyMillis,
+		CostEstimate:    usage.CostEstimate,
 		FallbackChain:   append([]string(nil), usage.FallbackChain...),
 		RequestId:       usage.RequestID,
 		FinishReason:    usage.FinishReason,
 	}
+}
+
+func usageAggregateToProto(usage UsageAggregate) *modelv1.UsageAggregate {
+	return &modelv1.UsageAggregate{
+		Provider:        usage.Provider,
+		Model:           usage.Model,
+		Requests:        usage.Requests,
+		InputTokens:     usage.InputTokens,
+		OutputTokens:    usage.OutputTokens,
+		EmbeddingTokens: usage.EmbeddingTokens,
+		TotalTokens:     usage.TotalTokens,
+		LatencyMillis:   usage.LatencyMillis,
+		CostEstimate:    usage.CostEstimate,
+		FallbackChain:   append([]string(nil), usage.FallbackChain...),
+	}
+}
+
+func providerConfigsFromProto(in []*modelv1.GatewayProviderConfig) []ProviderConfig {
+	out := make([]ProviderConfig, 0, len(in))
+	for _, cfg := range in {
+		if cfg == nil {
+			continue
+		}
+		out = append(out, ProviderConfig{
+			ID:      cfg.GetId(),
+			Kind:    cfg.GetKind(),
+			BaseURL: cfg.GetBaseUrl(),
+			Model:   cfg.GetModel(),
+			Enabled: cfg.GetEnabled(),
+		})
+	}
+	return out
+}
+
+func fallbackPoliciesFromProto(in []*modelv1.GatewayFallbackPolicy) map[string][]string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string][]string, len(in))
+	for _, policy := range in {
+		if policy == nil || policy.GetProvider() == "" {
+			continue
+		}
+		out[policy.GetProvider()] = append([]string(nil), policy.GetFallbacks()...)
+	}
+	return out
 }
 
 func parametersMap(tool toolSchema) map[string]any {

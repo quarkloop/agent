@@ -12,8 +12,8 @@ func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.Ser
 	}
 	serviceName := modelv1.ModelService_ServiceDesc.ServiceName
 	return &servicev1.ServiceDescriptor{
-		Name:    "model",
-		Type:    "model",
+		Name:    "gateway",
+		Type:    "gateway",
 		Version: "1.0.0",
 		Address: address,
 		Rpcs: []*servicev1.RpcDescriptor{
@@ -24,6 +24,8 @@ func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.Ser
 			rpc(serviceName, "CountTokens", "quark.model.v1.CountTokensRequest", "quark.model.v1.CountTokensResponse", "Count or estimate model tokens."),
 			rpc(serviceName, "ListModels", "quark.model.v1.ListModelsRequest", "quark.model.v1.ListModelsResponse", "List provider models."),
 			rpc(serviceName, "ProviderHealth", "quark.model.v1.ProviderHealthRequest", "quark.model.v1.ProviderHealthResponse", "Return provider adapter readiness."),
+			rpc(serviceName, "UsageSummary", "quark.model.v1.UsageSummaryRequest", "quark.model.v1.UsageSummaryResponse", "Return Gateway usage aggregates."),
+			rpc(serviceName, "ReloadConfig", "quark.model.v1.ReloadConfigRequest", "quark.model.v1.ReloadConfigResponse", "Reload Gateway provider policy without restarting the process."),
 		},
 		Skills: skills,
 	}

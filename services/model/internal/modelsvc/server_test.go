@@ -103,6 +103,50 @@ func TestRerankCountTokensAndProviderHealth(t *testing.T) {
 	}
 }
 
+func TestUsageSummaryAndReloadConfig(t *testing.T) {
+	srv, err := NewServer(Config{
+		Providers: []ProviderConfig{{ID: "local", Kind: "local", Model: "local/noop", Enabled: true}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := srv.CountTokens(context.Background(), &modelv1.CountTokensRequest{
+		Provider: "local",
+		Model:    "local/noop",
+		Messages: []*modelv1.ModelMessage{{Role: "user", Content: "hello usage"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	summary, err := srv.UsageSummary(context.Background(), &modelv1.UsageSummaryRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(summary.GetUsage()) != 1 || summary.GetUsage()[0].GetProvider() != "local" || summary.GetUsage()[0].GetRequests() != 1 {
+		t.Fatalf("usage summary = %+v", summary.GetUsage())
+	}
+	reload, err := srv.ReloadConfig(context.Background(), &modelv1.ReloadConfigRequest{
+		Providers: []*modelv1.GatewayProviderConfig{{
+			Id:      "local",
+			Kind:    "local",
+			Model:   "local/reloaded",
+			Enabled: true,
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reload.GetReloaded() || len(reload.GetProviders()) != 1 || reload.GetProviders()[0] != "local" {
+		t.Fatalf("reload = %+v", reload)
+	}
+	models, err := srv.ListModels(context.Background(), &modelv1.ListModelsRequest{Provider: "local"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(models.GetModels()) != 1 || models.GetModels()[0].GetId() != "local/reloaded" {
+		t.Fatalf("models = %+v", models.GetModels())
+	}
+}
+
 func TestUnsupportedProviderMapsToStructuredError(t *testing.T) {
 	srv, err := NewServer(Config{
 		Providers: []ProviderConfig{{ID: "anthropic", Kind: "unsupported", Model: "claude", Enabled: true}},
@@ -117,5 +161,30 @@ func TestUnsupportedProviderMapsToStructuredError(t *testing.T) {
 	})
 	if status.Code(err) != codes.Unavailable {
 		t.Fatalf("code = %s, err = %v", status.Code(err), err)
+	}
+}
+
+func TestBifrostProviderInitializesAndClosesWithoutNetworkCall(t *testing.T) {
+	p, err := newProvider(ProviderConfig{
+		ID:      "openrouter",
+		Kind:    "bifrost",
+		APIKey:  "test-key",
+		BaseURL: "https://openrouter.ai/api/v1",
+		Model:   "openai/test",
+		Enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("new bifrost provider: %v", err)
+	}
+	health := p.Health(context.Background())
+	if !health.Healthy {
+		t.Fatalf("health = %+v", health)
+	}
+	closer, ok := p.(closableProvider)
+	if !ok {
+		t.Fatal("bifrost provider does not close cleanly")
+	}
+	if err := closer.Close(); err != nil {
+		t.Fatalf("close bifrost provider: %v", err)
 	}
 }

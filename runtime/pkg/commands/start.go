@@ -20,7 +20,7 @@ import (
 	"github.com/quarkloop/runtime/pkg/channel/telegram"
 	"github.com/quarkloop/runtime/pkg/channel/web"
 	"github.com/quarkloop/runtime/pkg/coreevents"
-	"github.com/quarkloop/runtime/pkg/modelclient"
+	"github.com/quarkloop/runtime/pkg/gatewayclient"
 	"github.com/quarkloop/runtime/pkg/permissions"
 	"github.com/quarkloop/runtime/pkg/pluginmanager"
 	"github.com/quarkloop/runtime/pkg/runtime"
@@ -232,13 +232,13 @@ func coreEventRecorder(catalog *runtimeservices.Catalog) *coreevents.Recorder {
 	return coreevents.New(catalog.Descriptors(), slog.Default())
 }
 
-func modelProviderFromService(catalog *runtimeservices.Catalog, providerID string) *modelclient.Provider {
+func modelProviderFromService(catalog *runtimeservices.Catalog, providerID string) plugin.Provider {
 	if catalog == nil || catalog.Empty() || providerID == "" {
 		return nil
 	}
 	for _, desc := range catalog.Descriptors() {
-		if desc.GetName() == "model" || desc.GetType() == "model" {
-			return modelclient.New(desc.GetAddress(), providerID)
+		if desc.GetName() == "gateway" || desc.GetType() == "gateway" {
+			return gatewayclient.New(gatewayclient.ConfigFromEnv(), providerID)
 		}
 	}
 	return nil

@@ -101,7 +101,7 @@ func installSpacePlugins(t *testing.T, env *E2EEnv, bins BuiltBinaries, includeK
 	installService("io")
 	if includeKnowledgeServices {
 		installService("core")
-		installService("model")
+		installService("gateway")
 		installService("indexer")
 		installService("document")
 		installService("ingestion")
@@ -117,20 +117,6 @@ func installSpacePlugins(t *testing.T, env *E2EEnv, bins BuiltBinaries, includeK
 	}
 	for _, service := range env.ExtraServicePlugins {
 		installService(service)
-	}
-
-	providerSrc := filepath.Join(srcRoot, "providers", "openrouter")
-	providerLib := bins.OpenRouterLib
-	if providerLib == "" {
-		providerLib = filepath.Join(providerSrc, "plugin.so")
-	}
-	if _, err := os.Stat(providerLib); err == nil {
-		dst := filepath.Join(pluginsDir, "providers", "openrouter")
-		if err := os.MkdirAll(dst, 0o755); err != nil {
-			t.Fatalf("mkdir %s: %v", dst, err)
-		}
-		copyFile(t, filepath.Join(providerSrc, "manifest.yaml"), filepath.Join(dst, "manifest.yaml"), 0o644)
-		copyFile(t, providerLib, filepath.Join(dst, "plugin.so"), 0o755)
 	}
 }
 
@@ -181,7 +167,7 @@ func quarkfileFor(name, provider, model string, embedding EmbeddingOptions, serv
 	}
 	if includeKnowledgeServices {
 		pluginRefs += fmt.Sprintf(`  - ref: quark/service-core
-  - ref: quark/service-model
+  - ref: quark/service-gateway
   - ref: quark/service-indexer
   - ref: quark/service-document
   - ref: quark/service-ingestion
@@ -192,10 +178,10 @@ func quarkfileFor(name, provider, model string, embedding EmbeddingOptions, serv
     ref: quark/service-core
     mode: local
     address_env: QUARK_CORE_ADDR
-  - name: model
-    ref: quark/service-model
+  - name: gateway
+    ref: quark/service-gateway
     mode: local
-    address_env: QUARK_MODEL_SERVICE_ADDR
+    address_env: QUARK_GATEWAY_SERVICE_ADDR
   - name: indexer
     ref: quark/service-indexer
     mode: local
@@ -521,8 +507,8 @@ func serviceAddressesFromOptions(embedding EmbeddingOptions, services []ServiceP
 	if addr := supervisorEnv["QUARK_CORE_ADDR"]; addr != "" {
 		addresses["core"] = addr
 	}
-	if addr := supervisorEnv["QUARK_MODEL_SERVICE_ADDR"]; addr != "" {
-		addresses["model"] = addr
+	if addr := supervisorEnv["QUARK_GATEWAY_SERVICE_ADDR"]; addr != "" {
+		addresses["gateway"] = addr
 	}
 	if addr := supervisorEnv["QUARK_EMBEDDING_ADDR"]; addr != "" {
 		addresses["embedding"] = addr

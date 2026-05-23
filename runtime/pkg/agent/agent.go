@@ -223,7 +223,8 @@ func (a *Agent) Run(ctx context.Context) error {
 	slog.Info("main loop started", "agent_id", a.ID)
 	defer a.core.Close()
 
-	// Initialize loads both tool and provider plugins.
+	// Initialize loads supervisor-resolved tool plugins. Model providers are
+	// registered separately through Gateway-backed runtime adapters.
 	if err := a.Plugins.Initialize(ctx); err != nil {
 		slog.Error("failed to initialize plugins", "error", err)
 	}

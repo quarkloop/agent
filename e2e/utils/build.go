@@ -28,10 +28,6 @@ type BuiltBinaries struct {
 	Ingestion    string
 	System       string
 	BuildRelease string
-
-	// Lib-mode tool .so paths. Empty if the build failed (e.g. no CGO);
-	// callers should fall back to api-mode installation.
-	OpenRouterLib string
 }
 
 var (
@@ -80,21 +76,6 @@ func BuildAllOnce(t *testing.T) BuiltBinaries {
 			return out
 		}
 
-		// buildLib builds a tool as a Go plugin .so. Failures are tolerated
-		// and reported as empty paths; the caller will install the tool in
-		// api mode instead.
-		buildLib := func(pkg, name string) string {
-			out := filepath.Join(binDir, name+".so")
-			cmd := exec.Command("go", "build", "-buildmode=plugin", "-tags", "plugin", "-o", out, pkg)
-			cmd.Dir = root
-			cmd.Env = append(os.Environ(), "CGO_ENABLED=1")
-			if output, err := cmd.CombinedOutput(); err != nil {
-				Logf(t, "build %s lib mode failed (will fall back to binary): %v\n%s", pkg, err, string(output))
-				return ""
-			}
-			return out
-		}
-
 		buildRes.Supervisor = build("./supervisor/cmd/supervisor", "supervisor")
 		buildRes.Agent = build("./runtime/cmd/runtime", "runtime")
 		buildRes.IO = build("./services/io/cmd/io", "io")
@@ -108,8 +89,6 @@ func BuildAllOnce(t *testing.T) BuiltBinaries {
 		buildRes.Ingestion = build("./services/ingestion/cmd/ingestion", "ingestion")
 		buildRes.System = build("./services/system/cmd/system", "system")
 		buildRes.BuildRelease = build("./services/build-release/cmd/build-release", "build-release")
-
-		buildRes.OpenRouterLib = buildLib("./plugins/providers/openrouter", "openrouter")
 	})
 	if buildErr != nil {
 		t.Fatal(buildErr)

@@ -32,7 +32,7 @@ func (r *Registry) LoadFromURL(url string, providers map[string]Provider) error 
 }
 
 // LoadFromURLWithModelService fetches a model list and initializes clients
-// through the model service boundary.
+// through the Gateway-backed model boundary.
 func (r *Registry) LoadFromURLWithModelService(url string, service *modelservice.Service) error {
 	resp, err := http.Get(url)
 	if err != nil {
@@ -59,7 +59,7 @@ func (r *Registry) LoadEntries(entries []plugin.ModelEntry, providers map[string
 }
 
 // LoadEntriesWithModelService initializes clients from a list of model entries
-// and routes every provider call through the model service boundary.
+// and routes every provider call through the Gateway-backed model boundary.
 func (r *Registry) LoadEntriesWithModelService(entries []plugin.ModelEntry, service *modelservice.Service) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

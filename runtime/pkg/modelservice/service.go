@@ -344,11 +344,27 @@ func (a *adapter) wrapStream(ctx context.Context, providerID string, req *plugin
 		var outputChars int64
 		finishReason := "stop"
 		emitted := false
+		var providerUsage *plugin.StreamUsage
 		emit := func(reason string) {
 			if emitted {
 				return
 			}
 			emitted = true
+			if providerUsage != nil {
+				a.service.emit(ctx, Usage{
+					Provider:        firstNonEmpty(providerUsage.Provider, providerID),
+					Model:           firstNonEmpty(providerUsage.Model, modelName(req)),
+					InputTokens:     providerUsage.InputTokens,
+					OutputTokens:    providerUsage.OutputTokens,
+					EmbeddingTokens: providerUsage.EmbeddingTokens,
+					LatencyMillis:   providerUsage.LatencyMillis,
+					CostEstimate:    providerUsage.CostEstimate,
+					FallbackChain:   append([]string(nil), providerUsage.FallbackChain...),
+					RequestID:       providerUsage.RequestID,
+					FinishReason:    firstNonEmpty(providerUsage.FinishReason, reason),
+				})
+				return
+			}
 			a.service.emit(ctx, Usage{
 				Provider:      providerID,
 				Model:         modelName(req),
@@ -361,6 +377,10 @@ func (a *adapter) wrapStream(ctx context.Context, providerID string, req *plugin
 		}
 		for ev := range stream {
 			outputChars += int64(len(ev.Delta))
+			if ev.Usage != nil {
+				usageCopy := *ev.Usage
+				providerUsage = &usageCopy
+			}
 			if ev.Err != nil {
 				finishReason = "error"
 				emit(finishReason)
@@ -421,4 +441,13 @@ func elapsedMillis(start, end time.Time) int64 {
 		return 0
 	}
 	return end.Sub(start).Milliseconds()
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
 }

@@ -114,7 +114,7 @@ func TestDefaultToolsFiltersDeniedProfileFunctions(t *testing.T) {
 		},
 	})
 	a.Plugins.RegisterRuntimeTool(pluginmanager.RuntimeTool{
-		Schema: plugin.ToolSchema{Name: "model_Embed", Description: "model embed"},
+		Schema: plugin.ToolSchema{Name: "gateway_Embed", Description: "gateway embed"},
 		Handler: func(context.Context, string) (string, error) {
 			return "ok", nil
 		},

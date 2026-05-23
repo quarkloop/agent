@@ -15,6 +15,8 @@ service ModelService {
   rpc CountTokens(CountTokensRequest) returns (CountTokensResponse);
   rpc ListModels(ListModelsRequest) returns (ListModelsResponse);
   rpc ProviderHealth(ProviderHealthRequest) returns (ProviderHealthResponse);
+  rpc UsageSummary(UsageSummaryRequest) returns (UsageSummaryResponse);
+  rpc ReloadConfig(ReloadConfigRequest) returns (ReloadConfigResponse);
 }
 
 message GenerateRequest {
@@ -102,6 +104,36 @@ message ProviderHealthResponse {
   string status = 3;
 }
 
+message UsageSummaryRequest {}
+
+message UsageSummaryResponse {
+  repeated UsageAggregate usage = 1;
+}
+
+message ReloadConfigRequest {
+  repeated GatewayProviderConfig providers = 1;
+  repeated GatewayFallbackPolicy fallbacks = 2;
+}
+
+message ReloadConfigResponse {
+  bool reloaded = 1;
+  repeated string providers = 2;
+  string message = 3;
+}
+
+message GatewayProviderConfig {
+  string id = 1;
+  string kind = 2;
+  string base_url = 3;
+  string model = 4;
+  bool enabled = 5;
+}
+
+message GatewayFallbackPolicy {
+  string provider = 1;
+  repeated string fallbacks = 2;
+}
+
 message ModelMessage {
   string role = 1;
   string content = 2;
@@ -157,4 +189,17 @@ message ModelUsage {
   repeated string fallback_chain = 10;
   string request_id = 11;
   string finish_reason = 12;
+}
+
+message UsageAggregate {
+  string provider = 1;
+  string model = 2;
+  int64 requests = 3;
+  int64 input_tokens = 4;
+  int64 output_tokens = 5;
+  int64 embedding_tokens = 6;
+  int64 total_tokens = 7;
+  int64 latency_millis = 8;
+  double cost_estimate = 9;
+  repeated string fallback_chain = 10;
 }

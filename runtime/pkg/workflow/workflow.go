@@ -690,7 +690,7 @@ func workflowSupportToolAllowed(kind Kind, currentStepID, tool string) bool {
 }
 
 func knowledgeIndexServiceFunction(name string) bool {
-	for _, prefix := range []string{"citation_", "core_", "document_", "embedding_", "indexer_", "ingestion_", "model_"} {
+	for _, prefix := range []string{"citation_", "core_", "document_", "embedding_", "indexer_", "ingestion_", "gateway_"} {
 		if strings.HasPrefix(name, prefix) {
 			return true
 		}
@@ -732,7 +732,7 @@ func Detect(prompt string, tools []plugin.ToolSchema) []Intent {
 		if steps := requiredSteps(available,
 			step("ingest-start", "ingestion run creation", "ingestion_StartRun"),
 			stepCount("extract", "document content extraction", sourceCount, "document_ExtractText", "document_GetPages"),
-			stepCount("embed", "embedding generation", sourceCount, "embedding_Embed", "model_Embed"),
+			stepCount("embed", "embedding generation", sourceCount, "embedding_Embed", "gateway_Embed"),
 			stepCount("index", "canonical indexing", sourceCount, "indexer_UpsertChunk"),
 			step("ingest-complete", "ingestion run completion", "ingestion_MarkComplete"),
 		); len(steps) > 0 {
@@ -741,7 +741,7 @@ func Detect(prompt string, tools []plugin.ToolSchema) []Intent {
 	}
 	if looksLikeKnowledgeQuery(text) {
 		if steps := requiredSteps(available,
-			step("embed-query", "query embedding", "embedding_Embed", "model_Embed"),
+			step("embed-query", "query embedding", "embedding_Embed", "gateway_Embed"),
 			step("retrieve", "context retrieval", "indexer_QueryContext", "indexer_GetContext"),
 			step("ground", "grounding or citation verification", "citation_VerifyGrounding", "citation_RenderReferences"),
 		); len(steps) > 0 {

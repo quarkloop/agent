@@ -26,6 +26,8 @@ const (
 	ModelService_CountTokens_FullMethodName    = "/quark.model.v1.ModelService/CountTokens"
 	ModelService_ListModels_FullMethodName     = "/quark.model.v1.ModelService/ListModels"
 	ModelService_ProviderHealth_FullMethodName = "/quark.model.v1.ModelService/ProviderHealth"
+	ModelService_UsageSummary_FullMethodName   = "/quark.model.v1.ModelService/UsageSummary"
+	ModelService_ReloadConfig_FullMethodName   = "/quark.model.v1.ModelService/ReloadConfig"
 )
 
 // ModelServiceClient is the client API for ModelService service.
@@ -43,6 +45,8 @@ type ModelServiceClient interface {
 	CountTokens(ctx context.Context, in *CountTokensRequest, opts ...grpc.CallOption) (*CountTokensResponse, error)
 	ListModels(ctx context.Context, in *ListModelsRequest, opts ...grpc.CallOption) (*ListModelsResponse, error)
 	ProviderHealth(ctx context.Context, in *ProviderHealthRequest, opts ...grpc.CallOption) (*ProviderHealthResponse, error)
+	UsageSummary(ctx context.Context, in *UsageSummaryRequest, opts ...grpc.CallOption) (*UsageSummaryResponse, error)
+	ReloadConfig(ctx context.Context, in *ReloadConfigRequest, opts ...grpc.CallOption) (*ReloadConfigResponse, error)
 }
 
 type modelServiceClient struct {
@@ -132,6 +136,26 @@ func (c *modelServiceClient) ProviderHealth(ctx context.Context, in *ProviderHea
 	return out, nil
 }
 
+func (c *modelServiceClient) UsageSummary(ctx context.Context, in *UsageSummaryRequest, opts ...grpc.CallOption) (*UsageSummaryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UsageSummaryResponse)
+	err := c.cc.Invoke(ctx, ModelService_UsageSummary_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *modelServiceClient) ReloadConfig(ctx context.Context, in *ReloadConfigRequest, opts ...grpc.CallOption) (*ReloadConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReloadConfigResponse)
+	err := c.cc.Invoke(ctx, ModelService_ReloadConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ModelServiceServer is the server API for ModelService service.
 // All implementations must embed UnimplementedModelServiceServer
 // for forward compatibility.
@@ -147,6 +171,8 @@ type ModelServiceServer interface {
 	CountTokens(context.Context, *CountTokensRequest) (*CountTokensResponse, error)
 	ListModels(context.Context, *ListModelsRequest) (*ListModelsResponse, error)
 	ProviderHealth(context.Context, *ProviderHealthRequest) (*ProviderHealthResponse, error)
+	UsageSummary(context.Context, *UsageSummaryRequest) (*UsageSummaryResponse, error)
+	ReloadConfig(context.Context, *ReloadConfigRequest) (*ReloadConfigResponse, error)
 	mustEmbedUnimplementedModelServiceServer()
 }
 
@@ -177,6 +203,12 @@ func (UnimplementedModelServiceServer) ListModels(context.Context, *ListModelsRe
 }
 func (UnimplementedModelServiceServer) ProviderHealth(context.Context, *ProviderHealthRequest) (*ProviderHealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ProviderHealth not implemented")
+}
+func (UnimplementedModelServiceServer) UsageSummary(context.Context, *UsageSummaryRequest) (*UsageSummaryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UsageSummary not implemented")
+}
+func (UnimplementedModelServiceServer) ReloadConfig(context.Context, *ReloadConfigRequest) (*ReloadConfigResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReloadConfig not implemented")
 }
 func (UnimplementedModelServiceServer) mustEmbedUnimplementedModelServiceServer() {}
 func (UnimplementedModelServiceServer) testEmbeddedByValue()                      {}
@@ -318,6 +350,42 @@ func _ModelService_ProviderHealth_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ModelService_UsageSummary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UsageSummaryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ModelServiceServer).UsageSummary(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ModelService_UsageSummary_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ModelServiceServer).UsageSummary(ctx, req.(*UsageSummaryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ModelService_ReloadConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReloadConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ModelServiceServer).ReloadConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ModelService_ReloadConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ModelServiceServer).ReloadConfig(ctx, req.(*ReloadConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ModelService_ServiceDesc is the grpc.ServiceDesc for ModelService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -348,6 +416,14 @@ var ModelService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ProviderHealth",
 			Handler:    _ModelService_ProviderHealth_Handler,
+		},
+		{
+			MethodName: "UsageSummary",
+			Handler:    _ModelService_UsageSummary_Handler,
+		},
+		{
+			MethodName: "ReloadConfig",
+			Handler:    _ModelService_ReloadConfig_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
