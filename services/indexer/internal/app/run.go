@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net"
 	"os"
 	"path/filepath"
 
@@ -15,9 +14,6 @@ import (
 	"github.com/quarkloop/services/indexer/internal/indexing"
 	"github.com/quarkloop/services/indexer/internal/server"
 	"github.com/quarkloop/services/indexer/pkg/indexer"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/health"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 type Config struct {
@@ -44,14 +40,6 @@ func Run(ctx context.Context, cfg Config) error {
 		return err
 	}
 
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(servicekit.UnaryLoggingInterceptor(cfg.Logger)))
-	indexerv1.RegisterIndexerServiceServer(grpcServer, indexerServer)
-
-	healthServer := health.NewServer()
-	healthServer.SetServingStatus(indexerv1.IndexerService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthpb.RegisterHealthServer(grpcServer, healthServer)
-
-	registry := servicekit.NewRegistry()
 	skillPath, err := resolveSkillPath(cfg.SkillDir)
 	if err != nil {
 		return err
@@ -80,43 +68,15 @@ func Run(ctx context.Context, cfg Config) error {
 		},
 		Skills: []*servicev1.SkillDescriptor{skill},
 	}
-	if err := registry.Register(descriptor); err != nil {
-		return err
-	}
-	servicev1.RegisterServiceRegistryServer(grpcServer, registry)
-	if cfg.NATS.URL != "" {
-		cfg.NATS.Logger = cfg.Logger
-		natsService := servicebridge.NewNATSService(cfg.NATS)
-		if err := natsService.Start(ctx, servicebridge.Binding{
-			Descriptor: descriptor,
-			Services: []servicebridge.GRPCService{{
-				Desc:           &indexerv1.IndexerService_ServiceDesc,
-				Implementation: indexerServer,
-			}},
-		}); err != nil {
-			return err
-		}
-		defer natsService.Close()
-	}
-
-	ln, err := net.Listen("tcp", cfg.Address)
-	if err != nil {
-		return fmt.Errorf("listen %s: %w", cfg.Address, err)
-	}
-	errCh := make(chan error, 1)
-	go func() {
-		cfg.Logger.Info("indexer service listening", "addr", cfg.Address)
-		errCh <- grpcServer.Serve(ln)
-	}()
-
-	select {
-	case <-ctx.Done():
-		grpcServer.GracefulStop()
-		return cfg.Driver.Close()
-	case err := <-errCh:
-		_ = cfg.Driver.Close()
-		return err
-	}
+	defer cfg.Driver.Close()
+	cfg.NATS.Logger = cfg.Logger
+	return servicebridge.RunNATSService(ctx, cfg.NATS, servicebridge.Binding{
+		Descriptor: descriptor,
+		Services: []servicebridge.GRPCService{{
+			Desc:           &indexerv1.IndexerService_ServiceDesc,
+			Implementation: indexerServer,
+		}},
+	})
 }
 
 func resolveSkillPath(skillDir string) (string, error) {

@@ -26,7 +26,7 @@ func main() {
 	var natsUser string
 	var natsPassword string
 	var natsQueue string
-	flag.StringVar(&addr, "addr", "127.0.0.1:7304", "gRPC listen address")
+	flag.StringVar(&addr, "addr", "127.0.0.1:7304", "service descriptor address")
 	flag.StringVar(&skillDir, "skill-dir", "", "directory containing the service SKILL.md")
 	flag.StringVar(&provider, "provider", envOrDefault("QUARK_EMBEDDING_PROVIDER", "local"), "embedding provider: local or openrouter")
 	flag.StringVar(&model, "model", os.Getenv("QUARK_EMBEDDING_MODEL"), "embedding model name")
@@ -61,11 +61,13 @@ func main() {
 		OpenRouterAPIKey:  os.Getenv("OPENROUTER_API_KEY"),
 		OpenRouterBaseURL: openRouterBaseURL,
 		NATS: servicebridge.NATSConfig{
-			URL:      natsURL,
-			Username: natsUser,
-			Password: natsPassword,
-			Queue:    natsQueue,
-			Name:     "quark-embedding",
+			URL:             natsURL,
+			Username:        natsUser,
+			Password:        natsPassword,
+			Queue:           natsQueue,
+			Name:            "quark-embedding",
+			AuditPrefix:     os.Getenv("QUARK_NATS_AUDIT_PREFIX"),
+			TelemetryPrefix: os.Getenv("QUARK_NATS_TELEMETRY_PREFIX"),
 		},
 		Logger: logger,
 	}); err != nil {

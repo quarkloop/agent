@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
-	"net"
 	"os"
 	"path/filepath"
 
@@ -14,9 +13,6 @@ import (
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicebridge"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/health"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 type server struct {
@@ -37,15 +33,8 @@ func Run(ctx context.Context, cfg Config) error {
 		return err
 	}
 
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(servicekit.UnaryLoggingInterceptor(cfg.Logger)))
 	embeddingServer := &server{embedder: embedder}
-	embeddingv1.RegisterEmbeddingServiceServer(grpcServer, embeddingServer)
 
-	healthServer := health.NewServer()
-	healthServer.SetServingStatus(embeddingv1.EmbeddingService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthpb.RegisterHealthServer(grpcServer, healthServer)
-
-	registry := servicekit.NewRegistry()
 	skillPath, err := resolveSkillPath(cfg.SkillDir)
 	if err != nil {
 		return err
@@ -64,42 +53,15 @@ func Run(ctx context.Context, cfg Config) error {
 		},
 		Skills: []*servicev1.SkillDescriptor{skill},
 	}
-	if err := registry.Register(descriptor); err != nil {
-		return err
-	}
-	servicev1.RegisterServiceRegistryServer(grpcServer, registry)
-	if cfg.NATS.URL != "" {
-		cfg.NATS.Logger = cfg.Logger
-		natsService := servicebridge.NewNATSService(cfg.NATS)
-		if err := natsService.Start(ctx, servicebridge.Binding{
-			Descriptor: descriptor,
-			Services: []servicebridge.GRPCService{{
-				Desc:           &embeddingv1.EmbeddingService_ServiceDesc,
-				Implementation: embeddingServer,
-			}},
-		}); err != nil {
-			return err
-		}
-		defer natsService.Close()
-	}
-
-	ln, err := net.Listen("tcp", cfg.Address)
-	if err != nil {
-		return fmt.Errorf("listen %s: %w", cfg.Address, err)
-	}
-	errCh := make(chan error, 1)
-	go func() {
-		cfg.Logger.Info("embedding service listening", "addr", cfg.Address, "provider", embedder.Provider(), "model", embedder.Model(), "dimensions", embedder.Dimensions())
-		errCh <- grpcServer.Serve(ln)
-	}()
-
-	select {
-	case <-ctx.Done():
-		grpcServer.GracefulStop()
-		return nil
-	case err := <-errCh:
-		return err
-	}
+	cfg.Logger.Info("embedding service configured", "provider", embedder.Provider(), "model", embedder.Model(), "dimensions", embedder.Dimensions())
+	cfg.NATS.Logger = cfg.Logger
+	return servicebridge.RunNATSService(ctx, cfg.NATS, servicebridge.Binding{
+		Descriptor: descriptor,
+		Services: []servicebridge.GRPCService{{
+			Desc:           &embeddingv1.EmbeddingService_ServiceDesc,
+			Implementation: embeddingServer,
+		}},
+	})
 }
 
 func (s *server) Embed(ctx context.Context, req *embeddingv1.EmbedRequest) (*embeddingv1.EmbedResponse, error) {

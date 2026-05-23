@@ -4,18 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net"
 	"os"
 	"path/filepath"
 
 	iov1 "github.com/quarkloop/pkg/serviceapi/gen/quark/io/v1"
-	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicebridge"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/services/io/internal/iosvc"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/health"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 type Config struct {
@@ -39,14 +34,6 @@ func Run(ctx context.Context, cfg Config) error {
 		Logger:    cfg.Logger,
 	})
 
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(servicekit.UnaryLoggingInterceptor(cfg.Logger)))
-	iov1.RegisterIOServiceServer(grpcServer, ioServer)
-
-	healthServer := health.NewServer()
-	healthServer.SetServingStatus(iov1.IOService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthpb.RegisterHealthServer(grpcServer, healthServer)
-
-	registry := servicekit.NewRegistry()
 	skillPath, err := resolveSkillPath(cfg.SkillDir)
 	if err != nil {
 		return err
@@ -56,42 +43,14 @@ func Run(ctx context.Context, cfg Config) error {
 		return err
 	}
 	descriptor := iosvc.Descriptor(cfg.Address, skill)
-	if err := registry.Register(descriptor); err != nil {
-		return err
-	}
-	servicev1.RegisterServiceRegistryServer(grpcServer, registry)
-	if cfg.NATS.URL != "" {
-		cfg.NATS.Logger = cfg.Logger
-		natsService := servicebridge.NewNATSService(cfg.NATS)
-		if err := natsService.Start(ctx, servicebridge.Binding{
-			Descriptor: descriptor,
-			Services: []servicebridge.GRPCService{{
-				Desc:           &iov1.IOService_ServiceDesc,
-				Implementation: ioServer,
-			}},
-		}); err != nil {
-			return err
-		}
-		defer natsService.Close()
-	}
-
-	ln, err := net.Listen("tcp", cfg.Address)
-	if err != nil {
-		return fmt.Errorf("listen %s: %w", cfg.Address, err)
-	}
-	errCh := make(chan error, 1)
-	go func() {
-		cfg.Logger.Info("io service listening", "addr", cfg.Address)
-		errCh <- grpcServer.Serve(ln)
-	}()
-
-	select {
-	case <-ctx.Done():
-		grpcServer.GracefulStop()
-		return nil
-	case err := <-errCh:
-		return err
-	}
+	cfg.NATS.Logger = cfg.Logger
+	return servicebridge.RunNATSService(ctx, cfg.NATS, servicebridge.Binding{
+		Descriptor: descriptor,
+		Services: []servicebridge.GRPCService{{
+			Desc:           &iov1.IOService_ServiceDesc,
+			Implementation: ioServer,
+		}},
+	})
 }
 
 func resolveSkillPath(skillDir string) (string, error) {

@@ -84,6 +84,82 @@ func TestNATSServiceDispatchesUnaryServiceFunction(t *testing.T) {
 	}
 }
 
+func TestNATSServicePublishesRedactedAuditAndTelemetryEvents(t *testing.T) {
+	ns := startBridgeNATS(t)
+	server := NewNATSService(NATSConfig{
+		URL:             ns.ClientURL(),
+		Queue:           "q.embedding.events.test",
+		Name:            "embedding-events-test",
+		AuditPrefix:     "audit",
+		TelemetryPrefix: "telemetry",
+	})
+	impl := embeddingBridgeServer{}
+	desc := &servicev1.ServiceDescriptor{
+		Name:    "embedding",
+		Version: "1.0.0",
+		Rpcs: []*servicev1.RpcDescriptor{{
+			Service:      embeddingv1.EmbeddingService_ServiceDesc.ServiceName,
+			Method:       "Embed",
+			Request:      "quark.embedding.v1.EmbedRequest",
+			Response:     "quark.embedding.v1.EmbedResponse",
+			FunctionName: "embedding_Embed",
+		}},
+	}
+	if err := server.Start(context.Background(), Binding{
+		Descriptor: desc,
+		Services: []GRPCService{{
+			Desc:           &embeddingv1.EmbeddingService_ServiceDesc,
+			Implementation: impl,
+		}},
+	}); err != nil {
+		t.Fatalf("start service bridge: %v", err)
+	}
+	t.Cleanup(server.Close)
+
+	conn, err := natsgo.Connect(ns.ClientURL())
+	if err != nil {
+		t.Fatalf("connect client: %v", err)
+	}
+	defer conn.Close()
+	auditSub, err := conn.SubscribeSync("audit.space_1.service_calls")
+	if err != nil {
+		t.Fatalf("subscribe audit: %v", err)
+	}
+	telemetrySub, err := conn.SubscribeSync("telemetry.space_1.service_calls")
+	if err != nil {
+		t.Fatalf("subscribe telemetry: %v", err)
+	}
+	if err := conn.FlushTimeout(time.Second); err != nil {
+		t.Fatalf("flush subscriptions: %v", err)
+	}
+
+	payload, err := protojson.Marshal(&embeddingv1.EmbedRequest{Input: "secret text"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := servicefunction.RequestEnvelope{
+		Version:   servicefunction.EnvelopeVersion,
+		CallID:    "call-2",
+		SpaceID:   "space-1",
+		SessionID: "session-1",
+		RunID:     "run-1",
+		Actor:     servicefunction.ActorRuntime,
+		Service:   "embedding",
+		Function:  "embed",
+		Subject:   "svc.embedding.v1.embed",
+		Payload:   payload,
+	}
+	data, err := json.Marshal(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.Request(request.Subject, data, time.Second); err != nil {
+		t.Fatalf("request service function: %v", err)
+	}
+	assertServiceCallEvent(t, auditSub, "call-2")
+	assertServiceCallEvent(t, telemetrySub, "call-2")
+}
+
 type embeddingBridgeServer struct {
 	embeddingv1.UnimplementedEmbeddingServiceServer
 }
@@ -111,4 +187,25 @@ func startBridgeNATS(t *testing.T) *natsserver.Server {
 	}
 	t.Cleanup(ns.Shutdown)
 	return ns
+}
+
+func assertServiceCallEvent(t *testing.T, sub *natsgo.Subscription, callID string) {
+	t.Helper()
+	msg, err := sub.NextMsg(time.Second)
+	if err != nil {
+		t.Fatalf("next event: %v", err)
+	}
+	var event ServiceCallEvent
+	if err := json.Unmarshal(msg.Data, &event); err != nil {
+		t.Fatalf("decode event: %v", err)
+	}
+	if event.CallID != callID || event.Service != "embedding" || event.Function != "embed" || event.Subject != "svc.embedding.v1.embed" {
+		t.Fatalf("event = %+v", event)
+	}
+	if event.Status != string(servicefunction.StatusOK) {
+		t.Fatalf("event status = %q", event.Status)
+	}
+	if string(msg.Data) == "secret text" {
+		t.Fatalf("event leaked request payload: %s", msg.Data)
+	}
 }

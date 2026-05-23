@@ -21,7 +21,7 @@ func main() {
 	var natsUser string
 	var natsPassword string
 	var natsQueue string
-	flag.StringVar(&addr, "addr", "127.0.0.1:7307", "gRPC listen address")
+	flag.StringVar(&addr, "addr", "127.0.0.1:7307", "service descriptor address")
 	flag.StringVar(&skillDir, "skill-dir", "", "directory containing the service SKILL.md")
 	flag.StringVar(&pdftotextPath, "pdftotext", os.Getenv("QUARK_PDFTOTEXT_PATH"), "pdftotext executable path; empty resolves from PATH")
 	flag.StringVar(&natsURL, "nats-url", os.Getenv("QUARK_NATS_URL"), "NATS URL for service-function endpoints")
@@ -42,11 +42,13 @@ func main() {
 		SkillDir:  skillDir,
 		PDFToText: pdftotextPath,
 		NATS: servicebridge.NATSConfig{
-			URL:      natsURL,
-			Username: natsUser,
-			Password: natsPassword,
-			Queue:    natsQueue,
-			Name:     "quark-document",
+			URL:             natsURL,
+			Username:        natsUser,
+			Password:        natsPassword,
+			Queue:           natsQueue,
+			Name:            "quark-document",
+			AuditPrefix:     os.Getenv("QUARK_NATS_AUDIT_PREFIX"),
+			TelemetryPrefix: os.Getenv("QUARK_NATS_TELEMETRY_PREFIX"),
 		},
 		Logger: logger,
 	}); err != nil {

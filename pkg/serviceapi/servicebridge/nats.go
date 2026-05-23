@@ -27,15 +27,17 @@ const (
 )
 
 type NATSConfig struct {
-	URL           string
-	Username      string
-	Password      string
-	Queue         string
-	Name          string
-	Timeout       time.Duration
-	ReconnectWait time.Duration
-	MaxReconnects int
-	Logger        *slog.Logger
+	URL             string
+	Username        string
+	Password        string
+	Queue           string
+	Name            string
+	AuditPrefix     string
+	TelemetryPrefix string
+	Timeout         time.Duration
+	ReconnectWait   time.Duration
+	MaxReconnects   int
+	Logger          *slog.Logger
 }
 
 type Binding struct {
@@ -56,6 +58,19 @@ type NATSService struct {
 
 func NewNATSService(cfg NATSConfig) *NATSService {
 	return &NATSService{cfg: normalizeNATSConfig(cfg)}
+}
+
+func RunNATSService(ctx context.Context, cfg NATSConfig, bindings ...Binding) error {
+	if strings.TrimSpace(cfg.URL) == "" {
+		return fmt.Errorf("nats url is required")
+	}
+	service := NewNATSService(cfg)
+	if err := service.Start(ctx, bindings...); err != nil {
+		return err
+	}
+	defer service.Close()
+	<-ctx.Done()
+	return nil
 }
 
 func (s *NATSService) Start(ctx context.Context, bindings ...Binding) error {
@@ -161,40 +176,41 @@ type methodBinding struct {
 
 func (s *NATSService) handle(ep endpoint) func(*natsgo.Msg) {
 	return func(msg *natsgo.Msg) {
+		started := time.Now()
 		timeout := serviceTimeout(ep.rpc, s.cfg.Timeout)
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 
 		req, err := decodeRequest(msg.Data)
 		if err != nil {
-			s.respond(msg, servicefunction.ErrorResponse("", err, boundary.Service, ep.subject))
+			s.respondAndRecord(msg, servicefunction.RequestEnvelope{}, ep, servicefunction.ErrorResponse("", err, boundary.Service, ep.subject), started)
 			return
 		}
 		if err := req.Validate(); err != nil {
-			s.respond(msg, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, ep.subject))
+			s.respondAndRecord(msg, req, ep, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, ep.subject), started)
 			return
 		}
 		if req.Subject != ep.subject || req.Service != ep.serviceName || req.Function != ep.functionName {
 			err := fmt.Errorf("request targets %s/%s on %s, endpoint is %s/%s on %s", req.Service, req.Function, req.Subject, ep.serviceName, ep.functionName, ep.subject)
-			s.respond(msg, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, ep.subject))
+			s.respondAndRecord(msg, req, ep, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, ep.subject), started)
 			return
 		}
 		resp, err := ep.method.Handler(ep.implementation, ctx, decoder(req.Payload), nil)
 		if err != nil {
-			s.respond(msg, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, ep.subject))
+			s.respondAndRecord(msg, req, ep, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, ep.subject), started)
 			return
 		}
 		protoResp, ok := resp.(proto.Message)
 		if !ok {
-			s.respond(msg, servicefunction.ErrorResponse(req.CallID, fmt.Errorf("response is not protobuf message"), boundary.Service, ep.subject))
+			s.respondAndRecord(msg, req, ep, servicefunction.ErrorResponse(req.CallID, fmt.Errorf("response is not protobuf message"), boundary.Service, ep.subject), started)
 			return
 		}
 		payload, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(protoResp)
 		if err != nil {
-			s.respond(msg, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, ep.subject))
+			s.respondAndRecord(msg, req, ep, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, ep.subject), started)
 			return
 		}
-		s.respond(msg, servicefunction.OKResponse(req.CallID, payload))
+		s.respondAndRecord(msg, req, ep, servicefunction.OKResponse(req.CallID, payload), started)
 	}
 }
 
@@ -222,6 +238,67 @@ func (s *NATSService) respond(msg *natsgo.Msg, resp servicefunction.ResponseEnve
 	}
 	if err := msg.Respond(data); err != nil {
 		s.cfg.Logger.Error("publish nats service response", "error", err)
+	}
+}
+
+func (s *NATSService) respondAndRecord(msg *natsgo.Msg, req servicefunction.RequestEnvelope, ep endpoint, resp servicefunction.ResponseEnvelope, started time.Time) {
+	s.respond(msg, resp)
+	s.publishServiceCallEvents(req, ep, resp, time.Since(started))
+}
+
+type ServiceCallEvent struct {
+	CallID         string `json:"call_id,omitempty"`
+	SpaceID        string `json:"space_id,omitempty"`
+	SessionID      string `json:"session_id,omitempty"`
+	RunID          string `json:"run_id,omitempty"`
+	AgentID        string `json:"agent_id,omitempty"`
+	Service        string `json:"service"`
+	Function       string `json:"function"`
+	Subject        string `json:"subject"`
+	Status         string `json:"status"`
+	ErrorCategory  string `json:"error_category,omitempty"`
+	DurationMillis int64  `json:"duration_millis"`
+	TraceParent    string `json:"traceparent,omitempty"`
+	RecordedAt     string `json:"recorded_at"`
+}
+
+func (s *NATSService) publishServiceCallEvents(req servicefunction.RequestEnvelope, ep endpoint, resp servicefunction.ResponseEnvelope, duration time.Duration) {
+	if s == nil || s.conn == nil {
+		return
+	}
+	if strings.TrimSpace(s.cfg.AuditPrefix) == "" && strings.TrimSpace(s.cfg.TelemetryPrefix) == "" {
+		return
+	}
+	event := ServiceCallEvent{
+		CallID:         req.CallID,
+		SpaceID:        req.SpaceID,
+		SessionID:      req.SessionID,
+		RunID:          req.RunID,
+		AgentID:        req.AgentID,
+		Service:        ep.serviceName,
+		Function:       ep.functionName,
+		Subject:        ep.subject,
+		Status:         string(resp.Status),
+		DurationMillis: duration.Milliseconds(),
+		TraceParent:    req.TraceParent,
+		RecordedAt:     time.Now().UTC().Format(time.RFC3339Nano),
+	}
+	if resp.Error != nil {
+		event.ErrorCategory = string(resp.Error.Category)
+	}
+	data, err := json.Marshal(event)
+	if err != nil {
+		s.cfg.Logger.Error("encode service call event", "subject", ep.subject, "error", err)
+		return
+	}
+	for _, prefix := range []string{s.cfg.AuditPrefix, s.cfg.TelemetryPrefix} {
+		subject := serviceCallEventSubject(prefix, req.SpaceID)
+		if subject == "" {
+			continue
+		}
+		if err := s.conn.Publish(subject, data); err != nil {
+			s.cfg.Logger.Error("publish service call event", "subject", subject, "error", err)
+		}
 	}
 }
 
@@ -278,6 +355,40 @@ func serviceTimeout(rpc *servicev1.RpcDescriptor, fallback time.Duration) time.D
 		return fallback
 	}
 	return DefaultTimeout
+}
+
+func serviceCallEventSubject(prefix, spaceID string) string {
+	prefix = strings.Trim(strings.TrimSpace(prefix), ".")
+	if prefix == "" {
+		return ""
+	}
+	space := subjectToken(spaceID)
+	if space == "" {
+		space = "unknown"
+	}
+	return prefix + "." + space + ".service_calls"
+}
+
+func subjectToken(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	var b strings.Builder
+	lastUnderscore := false
+	for _, r := range strings.ToLower(value) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+			lastUnderscore = false
+		case r == '_' || r == '-' || r == '.' || r == '/':
+			if !lastUnderscore && b.Len() > 0 {
+				b.WriteByte('_')
+				lastUnderscore = true
+			}
+		}
+	}
+	return strings.Trim(b.String(), "_")
 }
 
 func decodeRequest(data []byte) (servicefunction.RequestEnvelope, error) {

@@ -4,21 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net"
-	"os"
-	"path/filepath"
 
 	natsgo "github.com/nats-io/nats.go"
-	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
-	workflowv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/workflow/v1"
-	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/services/workflow/internal/workflownats"
 	"github.com/quarkloop/services/workflow/internal/workflowsvc"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/worker"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/health"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 type Config struct {
@@ -89,58 +80,23 @@ func Run(ctx context.Context, cfg Config) error {
 		}
 	}()
 
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(servicekit.UnaryLoggingInterceptor(cfg.Logger)))
-	workflowv1.RegisterWorkflowServiceServer(grpcServer, server)
-
-	healthServer := health.NewServer()
-	healthServer.SetServingStatus(workflowv1.WorkflowService_ServiceDesc.ServiceName, healthpb.HealthCheckResponse_SERVING)
-	healthpb.RegisterHealthServer(grpcServer, healthServer)
-
-	registry := servicekit.NewRegistry()
-	skillPath, err := resolveSkillPath(cfg.SkillDir)
-	if err != nil {
+	if cfg.NATSURL == "" {
+		return fmt.Errorf("nats url is required")
+	}
+	natsServer := workflownats.New(workflownats.Config{
+		URL:      cfg.NATSURL,
+		Username: cfg.NATSUser,
+		Password: cfg.NATSPassword,
+		Queue:    cfg.NATSQueue,
+		Logger:   cfg.Logger,
+	}, server)
+	if err := natsServer.Start(ctx); err != nil {
 		return err
 	}
-	skill, err := servicekit.SkillFromFile("service-workflow", "1.0.0", skillPath)
-	if err != nil {
-		return err
-	}
-	if err := registry.Register(workflowsvc.Descriptor(cfg.Address, skill)); err != nil {
-		return err
-	}
-	servicev1.RegisterServiceRegistryServer(grpcServer, registry)
-
-	if cfg.NATSURL != "" {
-		natsServer := workflownats.New(workflownats.Config{
-			URL:      cfg.NATSURL,
-			Username: cfg.NATSUser,
-			Password: cfg.NATSPassword,
-			Queue:    cfg.NATSQueue,
-			Logger:   cfg.Logger,
-		}, server)
-		if err := natsServer.Start(ctx); err != nil {
-			return err
-		}
-		defer natsServer.Close()
-	}
-
-	ln, err := net.Listen("tcp", cfg.Address)
-	if err != nil {
-		return fmt.Errorf("listen %s: %w", cfg.Address, err)
-	}
-	errCh := make(chan error, 1)
-	go func() {
-		cfg.Logger.Info("workflow service listening", "addr", cfg.Address, "temporal", cfg.TemporalAddress, "task_queue", cfg.TaskQueue)
-		errCh <- grpcServer.Serve(ln)
-	}()
-
-	select {
-	case <-ctx.Done():
-		grpcServer.GracefulStop()
-		return nil
-	case err := <-errCh:
-		return err
-	}
+	defer natsServer.Close()
+	cfg.Logger.Info("workflow service listening", "temporal", cfg.TemporalAddress, "task_queue", cfg.TaskQueue)
+	<-ctx.Done()
+	return nil
 }
 
 func normalizeConfig(cfg Config) Config {
@@ -166,20 +122,4 @@ func normalizeConfig(cfg Config) Config {
 		cfg.Logger = slog.Default()
 	}
 	return cfg
-}
-
-func resolveSkillPath(skillDir string) (string, error) {
-	if skillDir != "" {
-		path := filepath.Join(skillDir, "SKILL.md")
-		if _, err := os.Stat(path); err != nil {
-			return "", fmt.Errorf("find workflow skill at %s: %w", path, err)
-		}
-		return path, nil
-	}
-	for _, path := range []string{"SKILL.md", filepath.Join("plugins", "services", "workflow", "SKILL.md"), filepath.Join("services", "workflow", "SKILL.md")} {
-		if _, err := os.Stat(path); err == nil {
-			return path, nil
-		}
-	}
-	return "", fmt.Errorf("workflow service SKILL.md not found; pass --skill-dir")
 }

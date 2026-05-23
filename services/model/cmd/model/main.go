@@ -21,7 +21,7 @@ func main() {
 	var natsUser string
 	var natsPassword string
 	var natsQueue string
-	flag.StringVar(&addr, "addr", "127.0.0.1:7306", "gRPC listen address")
+	flag.StringVar(&addr, "addr", "127.0.0.1:7306", "service descriptor address")
 	flag.StringVar(&skillDir, "skill-dir", "", "directory containing the service SKILL.md")
 	flag.StringVar(&fallbackSpec, "fallbacks", os.Getenv("QUARK_MODEL_FALLBACKS"), "fallbacks as provider=fallback1,fallback2;provider2=fallback")
 	flag.StringVar(&natsURL, "nats-url", os.Getenv("QUARK_NATS_URL"), "NATS URL for Gateway service-function endpoints")

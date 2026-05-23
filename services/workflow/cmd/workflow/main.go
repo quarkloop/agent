@@ -14,7 +14,7 @@ import (
 
 func main() {
 	var cfg app.Config
-	flag.StringVar(&cfg.Address, "addr", envOrDefault("QUARK_WORKFLOW_ADDR", "127.0.0.1:7315"), "gRPC listen address")
+	flag.StringVar(&cfg.Address, "addr", envOrDefault("QUARK_WORKFLOW_ADDR", "127.0.0.1:7315"), "service descriptor address")
 	flag.StringVar(&cfg.SkillDir, "skill-dir", "", "directory containing the service SKILL.md")
 	flag.StringVar(&cfg.TemporalAddress, "temporal-addr", envOrDefault("QUARK_TEMPORAL_ADDR", "127.0.0.1:7233"), "Temporal frontend address")
 	flag.StringVar(&cfg.TemporalNamespace, "temporal-namespace", envOrDefault("QUARK_TEMPORAL_NAMESPACE", "default"), "Temporal namespace")
