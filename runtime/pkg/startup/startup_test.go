@@ -1,4 +1,4 @@
-package commands
+package startup
 
 import (
 	"context"
@@ -21,7 +21,7 @@ func TestLoadPluginCatalogUsesEmptyCatalogWithoutEnv(t *testing.T) {
 	t.Setenv("QUARK_SUPERVISOR_URL", "http://127.0.0.1:7200")
 	t.Setenv("QUARK_SPACE", "test-space")
 
-	catalog, err := loadPluginCatalog(nil)
+	catalog, err := LoadPluginCatalog(nil)
 	if err != nil {
 		t.Fatalf("load plugin catalog: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestLoadPluginCatalogRejectsUnsupportedSnapshotVersion(t *testing.T) {
 		PluginCatalog: json.RawMessage(`{"version":999,"plugins":[]}`),
 	}
 
-	if _, err := loadPluginCatalog(snapshot); err == nil {
+	if _, err := LoadPluginCatalog(snapshot); err == nil {
 		t.Fatal("expected unsupported catalog version error")
 	}
 }
@@ -59,7 +59,7 @@ func TestLoadPluginCatalogPrefersNATSSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal catalog: %v", err)
 	}
-	catalog, err := loadPluginCatalog(&clientcontract.RuntimeCatalogResponse{PluginCatalog: payload})
+	catalog, err := LoadPluginCatalog(&clientcontract.RuntimeCatalogResponse{PluginCatalog: payload})
 	if err != nil {
 		t.Fatalf("load catalog: %v", err)
 	}
@@ -87,7 +87,7 @@ func TestLoadServiceCatalogPrefersNATSSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal service catalog: %v", err)
 	}
-	catalog, err := loadServiceCatalog(&clientcontract.RuntimeCatalogResponse{
+	catalog, err := LoadServiceCatalog(&clientcontract.RuntimeCatalogResponse{
 		ServiceCatalog: servicePayload,
 		GeneratedAt:    time.Now().UTC(),
 	})
@@ -116,7 +116,7 @@ func TestRegisterServiceFunctionsUsesRuntimeToolPath(t *testing.T) {
 		}},
 	}})
 
-	registerServiceFunctions(a, catalog)
+	RegisterServiceFunctions(a, catalog)
 
 	tools := a.Plugins.GetTools()
 	if len(tools) != 1 || tools[0].Name != "indexer_GetContext" {
@@ -146,7 +146,7 @@ func TestRegisterServiceFunctionsSkipsStreamingRPCs(t *testing.T) {
 		}},
 	}})
 
-	registerServiceFunctions(a, catalog)
+	RegisterServiceFunctions(a, catalog)
 
 	if len(a.Plugins.GetTools()) != 0 {
 		t.Fatalf("streaming service function was registered as a unary runtime tool: %+v", a.Plugins.GetTools())
@@ -159,7 +159,7 @@ func TestModelProviderFromServiceUsesGatewayDescriptor(t *testing.T) {
 		Type:    "gateway",
 		Address: "127.0.0.1:7306",
 	}})
-	if got := modelProviderFromService(catalog, "openrouter"); got == nil {
+	if got := ModelProviderFromService(catalog, "openrouter"); got == nil {
 		t.Fatal("expected gateway service provider adapter")
 	}
 }
@@ -186,7 +186,7 @@ func TestResolveAgentPluginSelectsRequestedProfile(t *testing.T) {
 		},
 	}}
 
-	got, err := resolveAgentPlugin(catalog, "quark-knowledge")
+	got, err := ResolveAgentPlugin(catalog, "quark-knowledge")
 	if err != nil {
 		t.Fatalf("resolve agent profile: %v", err)
 	}
@@ -209,7 +209,7 @@ func TestResolveAgentPluginDefaultsDeterministically(t *testing.T) {
 		},
 	}}
 
-	got, err := resolveAgentPlugin(catalog, "")
+	got, err := ResolveAgentPlugin(catalog, "")
 	if err != nil {
 		t.Fatalf("resolve agent profile: %v", err)
 	}
@@ -225,13 +225,13 @@ func TestResolveAgentPluginRejectsUnknownRequestedProfile(t *testing.T) {
 		AgentProfile: &plugin.AgentProfile{ID: "quark-system", Name: "Quark System"},
 	}}}
 
-	if _, err := resolveAgentPlugin(catalog, "missing"); err == nil {
+	if _, err := ResolveAgentPlugin(catalog, "missing"); err == nil {
 		t.Fatal("resolve agent profile unexpectedly succeeded")
 	}
 }
 
 func TestResolveModelSelectionPrefersResolvedAgentProfile(t *testing.T) {
-	provider, model := resolveModelSelection(
+	provider, model := ResolveModelSelection(
 		&plugin.AgentProfile{Model: plugin.AgentProfileModel{Provider: "openrouter", Model: "openai/gpt-5-mini"}},
 		"anthropic",
 		"claude-sonnet-4",
@@ -244,7 +244,7 @@ func TestResolveModelSelectionPrefersResolvedAgentProfile(t *testing.T) {
 func TestRuntimeSpacesFromEnvDeduplicatesConfiguredSpaces(t *testing.T) {
 	t.Setenv("QUARK_SPACES", "space-a, space-b,space-a")
 	t.Setenv("QUARK_SPACE", "space-fallback")
-	got := runtimeSpacesFromEnv()
+	got := SpacesFromEnv()
 	if len(got) != 2 || got[0] != "space-a" || got[1] != "space-b" {
 		t.Fatalf("spaces = %#v", got)
 	}
@@ -257,14 +257,14 @@ func TestClaimRuntimeSpacesRejectsCompetingRuntime(t *testing.T) {
 	t.Setenv("QUARK_NATS_URL", ns.ClientURL())
 	t.Setenv("QUARK_RUNTIME_LEASE_BUCKET", "runtime_claim_test")
 	t.Setenv("QUARK_RUNTIME_ID", "runtime-1")
-	manager, leases, err := claimRuntimeSpaces(ctx, []string{"space-a"})
+	manager, leases, err := ClaimRuntimeSpaces(ctx, []string{"space-a"})
 	if err != nil {
 		t.Fatalf("claim first runtime: %v", err)
 	}
-	defer releaseRuntimeSpaces(ctx, leases, manager)
+	defer ReleaseRuntimeSpaces(ctx, leases, manager)
 
 	t.Setenv("QUARK_RUNTIME_ID", "runtime-2")
-	if _, _, err := claimRuntimeSpaces(ctx, []string{"space-a"}); err == nil {
+	if _, _, err := ClaimRuntimeSpaces(ctx, []string{"space-a"}); err == nil {
 		t.Fatal("expected competing runtime claim to fail")
 	}
 }
@@ -291,7 +291,7 @@ func startRuntimeLeaseNATS(t *testing.T) *natsserver.Server {
 }
 
 func TestResolveModelSelectionFallsBackToEnvironment(t *testing.T) {
-	provider, model := resolveModelSelection(
+	provider, model := ResolveModelSelection(
 		&plugin.AgentProfile{Model: plugin.AgentProfileModel{Provider: "openrouter"}},
 		"anthropic",
 		"claude-sonnet-4",
@@ -303,7 +303,7 @@ func TestResolveModelSelectionFallsBackToEnvironment(t *testing.T) {
 
 func TestRuntimeAgentProfileMapsResolvedProfileWithoutAliasing(t *testing.T) {
 	targets := []string{"quark-devops"}
-	got := runtimeAgentProfile(pluginmanager.CatalogPlugin{
+	got := AgentProfile(pluginmanager.CatalogPlugin{
 		SystemPrompt: "system",
 		AgentProfile: &plugin.AgentProfile{
 			ID:          "quark-knowledge",
@@ -323,7 +323,7 @@ func TestRuntimeAgentProfileMapsResolvedProfileWithoutAliasing(t *testing.T) {
 }
 
 func TestRuntimePermissionPolicyCombinesToolAndServiceFunctions(t *testing.T) {
-	got := runtimePermissionPolicy(&plugin.AgentProfile{
+	got := PermissionPolicy(&plugin.AgentProfile{
 		Permissions: plugin.AgentProfilePermission{
 			Tools:    []string{"io_Read", "io_Read"},
 			Services: []string{"indexer_QueryContext", "embedding_Embed"},
@@ -347,13 +347,13 @@ func TestRuntimePermissionPolicyCombinesToolAndServiceFunctions(t *testing.T) {
 }
 
 func TestRuntimePermissionPolicyAllowsFallbackAgentWhenProfileMissing(t *testing.T) {
-	if got := runtimePermissionPolicy(nil); got != nil {
+	if got := PermissionPolicy(nil); got != nil {
 		t.Fatalf("fallback profile should not restrict tools, got %+v", got)
 	}
 }
 
 func TestRuntimePermissionPolicyWithEmptyResolvedPermissionsDeniesAll(t *testing.T) {
-	got := runtimePermissionPolicy(&plugin.AgentProfile{})
+	got := PermissionPolicy(&plugin.AgentProfile{})
 	if got == nil || !got.RestrictTools || len(got.AllowedTools) != 0 {
 		t.Fatalf("expected restricted empty policy, got %+v", got)
 	}
