@@ -29,6 +29,7 @@ type BuiltBinaries struct {
 	System       string
 	BuildRelease string
 	Workflow     string
+	Secrets      string
 }
 
 var (
@@ -91,6 +92,7 @@ func BuildAllOnce(t *testing.T) BuiltBinaries {
 		buildRes.System = build("./services/system/cmd/system", "system")
 		buildRes.BuildRelease = build("./services/build-release/cmd/build-release", "build-release")
 		buildRes.Workflow = build("./services/workflow/cmd/workflow", "workflow")
+		buildRes.Secrets = build("./services/secrets/cmd/secrets", "secrets")
 	})
 	if buildErr != nil {
 		t.Fatal(buildErr)

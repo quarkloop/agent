@@ -80,6 +80,10 @@ func TestServicePluginInventoryHasE2ECoveragePlan(t *testing.T) {
 			Mode:  "contract-only",
 			Tests: []string{"TestLocalDeterministicSupervisorRuntimeAndServices"},
 		},
+		"secrets": {
+			Mode:  "runtime-backed",
+			Tests: []string{"TestSecretsServiceNATSContract"},
+		},
 		"space": {
 			Mode:  "supervisor-runtime-owned",
 			Tests: []string{"TestSupervisorSessionEventReachesAgent", "TestLocalDeterministicSupervisorRuntimeAndServices"},

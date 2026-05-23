@@ -21,6 +21,7 @@ import (
 	ingestionv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/ingestion/v1"
 	iov1 "github.com/quarkloop/pkg/serviceapi/gen/quark/io/v1"
 	modelv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/model/v1"
+	secretsv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/secrets/v1"
 	systemv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/system/v1"
 	workflowv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/workflow/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
@@ -214,6 +215,22 @@ func startWorkflowServiceAt(t *testing.T, binary, addr, temporalAddr, natsURL st
 		Address:     addr,
 		Plugin:      "workflow",
 		ServiceName: workflowv1.WorkflowService_ServiceDesc.ServiceName,
+		Args:        args,
+	})
+}
+
+func startSecretsServiceAt(t *testing.T, binary, addr, openBaoAddr, token, natsURL string) {
+	t.Helper()
+	args := []string{"--openbao-addr", openBaoAddr, "--openbao-token", token}
+	if natsURL != "" {
+		args = append(args, "--nats-url", natsURL, "--nats-user", natshub.DefaultControlUser, "--nats-password", natshub.DefaultControlPassword)
+	}
+	startGRPCServiceProcess(t, grpcServiceProcessSpec{
+		Label:       "secrets",
+		Binary:      binary,
+		Address:     addr,
+		Plugin:      "secrets",
+		ServiceName: secretsv1.SecretsService_ServiceDesc.ServiceName,
 		Args:        args,
 	})
 }

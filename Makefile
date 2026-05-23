@@ -28,6 +28,7 @@ MODULES := \
 		services/ingestion \
 		services/indexer \
 		services/model \
+		services/secrets \
 		services/space \
 		services/system \
 		services/workflow \
@@ -77,6 +78,8 @@ build-services:
 		go build -o $(BINARY_DIR)/model-service ./services/model/cmd/model
 		@echo "--- Building service: space ---"
 		go build -o $(BINARY_DIR)/space-service ./services/space/cmd/space
+		@echo "--- Building service: secrets ---"
+		go build -o $(BINARY_DIR)/secrets-service ./services/secrets/cmd/secrets
 		@echo "--- Building service: system ---"
 		go build -o $(BINARY_DIR)/system-service ./services/system/cmd/system
 		@echo "--- Building service: workflow ---"

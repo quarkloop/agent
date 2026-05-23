@@ -189,6 +189,24 @@ services:
     volumes:
       - ../../plugins:/plugins:ro
 
+  secrets:
+    <<: *service-defaults
+    profiles: ["services", "secrets"]
+    build:
+      <<: *go-build
+      args:
+        PACKAGE: ./services/secrets/cmd/secrets
+    command: ["--addr", "0.0.0.0:7316", "--skill-dir", "/plugins/services/secrets", "--openbao-addr", "http://openbao:8200", "--openbao-token", "${QUARK_OPENBAO_TOKEN:-dev-root}", "--nats-url", "nats://supervisor:4222", "--nats-user", "quark-control", "--nats-password", "quark-control-dev"]
+    depends_on:
+      supervisor:
+        condition: service_healthy
+      openbao:
+        condition: service_started
+    ports:
+      - "7316:7316"
+    volumes:
+      - ../../plugins:/plugins:ro
+
   citation:
     <<: *service-defaults
     profiles: ["services", "knowledge"]

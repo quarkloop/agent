@@ -246,7 +246,7 @@
   },
   "e2e_tests": {
     "direct_service_shortcut_suspect_count": 6,
-    "file_count": 31,
+    "file_count": 32,
     "files": [
       {
         "direct_service_shortcut_suspects": [],
@@ -415,10 +415,16 @@
       {
         "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
+        "path": "e2e/secrets_service_test.go",
+        "prompt_shortcut_suspects": []
+      },
+      {
+        "direct_service_shortcut_suspects": [],
+        "has_process_flow": false,
         "path": "e2e/service_plugin_inventory_test.go",
         "prompt_shortcut_suspects": [
-          "148: t.Fatalf(\"%s README does not document service function %s\", manifest.Name, function.Name)",
-          "151: t.Fatalf(\"%s SKILL does not document service function %s\", manifest.Name, function.Name)"
+          "152: t.Fatalf(\"%s README does not document service function %s\", manifest.Name, function.Name)",
+          "155: t.Fatalf(\"%s SKILL does not document service function %s\", manifest.Name, function.Name)"
         ]
       },
       {
@@ -2179,6 +2185,109 @@
       "readme_path": "plugins/services/memory/README.md",
       "skill_path": "plugins/services/memory/SKILL.md"
     },
+    "secrets": {
+      "address_env": "QUARK_SECRETS_ADDR",
+      "declared_only_function_count": 0,
+      "function_count": 6,
+      "functions": [
+        {
+          "approval_required": true,
+          "idempotent": true,
+          "method": "ResolveRef",
+          "method_implemented": true,
+          "name": "secrets_ResolveRef",
+          "proto_rpc_exists": true,
+          "request": "quark.secrets.v1.ResolveRefRequest",
+          "response": "quark.secrets.v1.ResolveRefResponse",
+          "risk_level": "admin",
+          "service": "quark.secrets.v1.SecretsService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": true,
+          "idempotent": false,
+          "method": "IssueScopedSecret",
+          "method_implemented": true,
+          "name": "secrets_IssueScopedSecret",
+          "proto_rpc_exists": true,
+          "request": "quark.secrets.v1.IssueScopedSecretRequest",
+          "response": "quark.secrets.v1.IssueScopedSecretResponse",
+          "risk_level": "admin",
+          "service": "quark.secrets.v1.SecretsService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": false,
+          "method": "RenewLease",
+          "method_implemented": true,
+          "name": "secrets_RenewLease",
+          "proto_rpc_exists": true,
+          "request": "quark.secrets.v1.RenewLeaseRequest",
+          "response": "quark.secrets.v1.RenewLeaseResponse",
+          "risk_level": "write",
+          "service": "quark.secrets.v1.SecretsService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": true,
+          "idempotent": false,
+          "method": "RevokeLease",
+          "method_implemented": true,
+          "name": "secrets_RevokeLease",
+          "proto_rpc_exists": true,
+          "request": "quark.secrets.v1.RevokeLeaseRequest",
+          "response": "quark.secrets.v1.RevokeLeaseResponse",
+          "risk_level": "write",
+          "service": "quark.secrets.v1.SecretsService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": true,
+          "idempotent": false,
+          "method": "RotateSecret",
+          "method_implemented": true,
+          "name": "secrets_RotateSecret",
+          "proto_rpc_exists": true,
+          "request": "quark.secrets.v1.RotateSecretRequest",
+          "response": "quark.secrets.v1.RotateSecretResponse",
+          "risk_level": "admin",
+          "service": "quark.secrets.v1.SecretsService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": false,
+          "method": "AuditAccess",
+          "method_implemented": true,
+          "name": "secrets_AuditAccess",
+          "proto_rpc_exists": true,
+          "request": "quark.secrets.v1.AuditAccessRequest",
+          "response": "quark.secrets.v1.AuditAccessResponse",
+          "risk_level": "write",
+          "service": "quark.secrets.v1.SecretsService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        }
+      ],
+      "health_service": "quark.secrets.v1.SecretsService",
+      "implemented_function_count": 6,
+      "manifest_path": "plugins/services/secrets/manifest.yaml",
+      "module_exists": true,
+      "module_path": "services/secrets",
+      "proto_mismatch_count": 0,
+      "proto_services": [
+        "quark.secrets.v1.SecretsService"
+      ],
+      "readiness_required": true,
+      "readme_path": "plugins/services/secrets/README.md",
+      "skill_path": "plugins/services/secrets/SKILL.md"
+    },
     "space": {
       "address_env": "QUARK_SPACE_SERVICE_ADDR",
       "declared_only_function_count": 0,
@@ -2688,11 +2797,11 @@
   "summary": {
     "agent_profile_count": 3,
     "declared_only_or_mismatched_function_count": 4,
-    "e2e_test_file_count": 31,
-    "implemented_service_function_count": 132,
-    "runnable_service_module_count": 14,
-    "service_function_count": 136,
-    "service_plugin_count": 15
+    "e2e_test_file_count": 32,
+    "implemented_service_function_count": 138,
+    "runnable_service_module_count": 15,
+    "service_function_count": 142,
+    "service_plugin_count": 16
   },
   "version": 1
 }

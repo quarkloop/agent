@@ -24,6 +24,7 @@ use (
 	./services/io
 	./services/indexer
 	./services/model
+	./services/secrets
 	./services/space
 	./services/system
 	./services/workflow
@@ -53,6 +54,7 @@ replace (
 	github.com/quarkloop/services/ingestion v0.0.0 => ./services/ingestion
 	github.com/quarkloop/services/indexer v0.0.0 => ./services/indexer
 	github.com/quarkloop/services/model v0.0.0 => ./services/model
+	github.com/quarkloop/services/secrets v0.0.0 => ./services/secrets
 	github.com/quarkloop/services/space v0.0.0 => ./services/space
 	github.com/quarkloop/services/system v0.0.0 => ./services/system
 	github.com/quarkloop/services/workflow v0.0.0 => ./services/workflow
