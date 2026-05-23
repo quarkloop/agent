@@ -1,10 +1,12 @@
 package commands
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
 
+	natsserver "github.com/nats-io/nats-server/v2/server"
 	"github.com/quarkloop/pkg/plugin"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
@@ -237,6 +239,55 @@ func TestResolveModelSelectionPrefersResolvedAgentProfile(t *testing.T) {
 	if provider != "openrouter" || model != "openai/gpt-5-mini" {
 		t.Fatalf("model = %s/%s", provider, model)
 	}
+}
+
+func TestRuntimeSpacesFromEnvDeduplicatesConfiguredSpaces(t *testing.T) {
+	t.Setenv("QUARK_SPACES", "space-a, space-b,space-a")
+	t.Setenv("QUARK_SPACE", "space-fallback")
+	got := runtimeSpacesFromEnv()
+	if len(got) != 2 || got[0] != "space-a" || got[1] != "space-b" {
+		t.Fatalf("spaces = %#v", got)
+	}
+}
+
+func TestClaimRuntimeSpacesRejectsCompetingRuntime(t *testing.T) {
+	ns := startRuntimeLeaseNATS(t)
+	defer ns.Shutdown()
+	ctx := context.Background()
+	t.Setenv("QUARK_NATS_URL", ns.ClientURL())
+	t.Setenv("QUARK_RUNTIME_LEASE_BUCKET", "runtime_claim_test")
+	t.Setenv("QUARK_RUNTIME_ID", "runtime-1")
+	manager, leases, err := claimRuntimeSpaces(ctx, []string{"space-a"})
+	if err != nil {
+		t.Fatalf("claim first runtime: %v", err)
+	}
+	defer releaseRuntimeSpaces(ctx, leases, manager)
+
+	t.Setenv("QUARK_RUNTIME_ID", "runtime-2")
+	if _, _, err := claimRuntimeSpaces(ctx, []string{"space-a"}); err == nil {
+		t.Fatal("expected competing runtime claim to fail")
+	}
+}
+
+func startRuntimeLeaseNATS(t *testing.T) *natsserver.Server {
+	t.Helper()
+	ns, err := natsserver.NewServer(&natsserver.Options{
+		Host:      "127.0.0.1",
+		Port:      -1,
+		JetStream: true,
+		StoreDir:  t.TempDir(),
+		NoLog:     true,
+		NoSigs:    true,
+	})
+	if err != nil {
+		t.Fatalf("new nats server: %v", err)
+	}
+	go ns.Start()
+	if !ns.ReadyForConnections(5 * time.Second) {
+		ns.Shutdown()
+		t.Fatal("nats server did not become ready")
+	}
+	return ns
 }
 
 func TestResolveModelSelectionFallsBackToEnvironment(t *testing.T) {

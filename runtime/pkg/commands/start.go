@@ -25,6 +25,7 @@ import (
 	"github.com/quarkloop/runtime/pkg/pluginmanager"
 	"github.com/quarkloop/runtime/pkg/runtime"
 	runtimeservices "github.com/quarkloop/runtime/pkg/services"
+	"github.com/quarkloop/runtime/pkg/spacelease"
 )
 
 const CmdStartDefaultPort = 8765
@@ -88,6 +89,21 @@ func runStart(port int, channels []string) error {
 		return fmt.Errorf("no channels specified to start")
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	spaces := runtimeSpacesFromEnv()
+	if os.Getenv("QUARK_SPACE") == "" && len(spaces) > 0 {
+		if err := os.Setenv("QUARK_SPACE", spaces[0]); err != nil {
+			return fmt.Errorf("set primary runtime space: %w", err)
+		}
+	}
+	leaseManager, leases, err := claimRuntimeSpaces(ctx, spaces)
+	if err != nil {
+		return err
+	}
+	defer releaseRuntimeSpaces(context.Background(), leases, leaseManager)
+
 	// 2. Early validation: fail fast if any channel is invalid
 	var validChannels []string
 	for ch := range activeChannels {
@@ -102,7 +118,7 @@ func runStart(port int, channels []string) error {
 	slog.Info("starting runtime")
 	slog.Info("enabled channels", "channels", fmt.Sprintf("%v", validChannels))
 
-	catalogSnapshot, err := loadRuntimeCatalogSnapshot(context.Background())
+	catalogSnapshot, err := loadRuntimeCatalogSnapshot(ctx)
 	if err != nil {
 		return err
 	}
@@ -212,10 +228,6 @@ func runStart(port int, channels []string) error {
 			))
 		}
 	}
-
-	// Start agent loop
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	slog.Info("starting agent background loop")
 	go a.Run(ctx)
@@ -422,4 +434,68 @@ func loadPluginCatalog(snapshot *clientcontract.RuntimeCatalogResponse) (*plugin
 		slog.Info("plugin catalog entry loaded", "name", item.Name, "type", item.Type, "path", item.Path)
 	}
 	return &catalog, nil
+}
+
+func runtimeSpacesFromEnv() []string {
+	values := make([]string, 0)
+	add := func(value string) {
+		for _, part := range strings.Split(value, ",") {
+			space := strings.TrimSpace(part)
+			if space != "" {
+				values = append(values, space)
+			}
+		}
+	}
+	add(os.Getenv("QUARK_SPACES"))
+	if len(values) == 0 {
+		add(os.Getenv("QUARK_SPACE"))
+	}
+	seen := make(map[string]struct{}, len(values))
+	out := values[:0]
+	for _, value := range values {
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
+}
+
+func claimRuntimeSpaces(ctx context.Context, spaces []string) (*spacelease.Manager, []*spacelease.Lease, error) {
+	if len(spaces) == 0 {
+		return nil, nil, nil
+	}
+	cfg := spacelease.ConfigFromEnv()
+	if strings.TrimSpace(cfg.URL) == "" {
+		slog.Warn("runtime space leases disabled because QUARK_NATS_URL is empty", "spaces", spaces)
+		return nil, nil, nil
+	}
+	manager, err := spacelease.New(ctx, cfg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("runtime space lease manager: %w", err)
+	}
+	leases := make([]*spacelease.Lease, 0, len(spaces))
+	for _, spaceID := range spaces {
+		lease, err := manager.Claim(ctx, spaceID)
+		if err != nil {
+			releaseRuntimeSpaces(context.Background(), leases, manager)
+			return nil, nil, err
+		}
+		lease.StartRenewal(ctx)
+		leases = append(leases, lease)
+		slog.Info("runtime space lease claimed", "space", spaceID, "runtime", lease.RuntimeID)
+	}
+	return manager, leases, nil
+}
+
+func releaseRuntimeSpaces(ctx context.Context, leases []*spacelease.Lease, manager *spacelease.Manager) {
+	for _, lease := range leases {
+		if err := lease.Release(ctx); err != nil {
+			slog.Warn("release runtime space lease failed", "space", lease.SpaceID, "error", err)
+		}
+	}
+	if manager != nil {
+		manager.Close()
+	}
 }
