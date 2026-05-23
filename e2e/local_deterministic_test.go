@@ -3,12 +3,10 @@
 package e2e
 
 import (
-	"context"
 	"testing"
 	"time"
 
 	"github.com/quarkloop/e2e/utils"
-	"github.com/quarkloop/supervisor/pkg/api"
 )
 
 func TestLocalDeterministicSupervisorRuntimeAndServices(t *testing.T) {
@@ -22,15 +20,7 @@ func TestLocalDeterministicSupervisorRuntimeAndServices(t *testing.T) {
 
 	env := utils.StartE2E(t, false, standardKnowledgeServicesStartOptions(t, embedding, ""))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	session, err := env.Sup.CreateSession(ctx, env.Space, api.CreateSessionRequest{
-		Type:  api.SessionTypeChat,
-		Title: "local-deterministic-startup",
-	})
-	if err != nil {
-		t.Fatalf("create local deterministic session: %v", err)
-	}
+	session := utils.CreateChatSession(t, env, "local-deterministic-startup")
 	utils.WaitForAgentSession(t, env, session.ID, 10*time.Second)
 	if got := utils.AgentSessionsCount(t, env); got == 0 {
 		t.Fatal("expected runtime to report at least one mirrored session")

@@ -48,6 +48,14 @@ func issueSpaceScopedCredential(t *testing.T, endpoints NATSEndpoints, subject, 
 
 func connectControlNATS(t *testing.T, endpoints NATSEndpoints) *nats.Conn {
 	t.Helper()
+	conn, err := tryConnectControlNATS(endpoints)
+	if err != nil {
+		t.Fatalf("connect control nats: %v", err)
+	}
+	return conn
+}
+
+func tryConnectControlNATS(endpoints NATSEndpoints) (*nats.Conn, error) {
 	conn, err := nats.Connect(
 		endpoints.ClientURL,
 		nats.UserInfo(natshub.DefaultControlUser, natshub.DefaultControlPassword),
@@ -55,9 +63,51 @@ func connectControlNATS(t *testing.T, endpoints NATSEndpoints) *nats.Conn {
 		nats.Timeout(5*time.Second),
 	)
 	if err != nil {
-		t.Fatalf("connect control nats: %v", err)
+		return nil, err
 	}
-	return conn
+	return conn, nil
+}
+
+func waitForControlNATS(t *testing.T, endpoints NATSEndpoints, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	var lastErr error
+	for time.Now().Before(deadline) {
+		conn, err := tryConnectControlNATS(endpoints)
+		if err == nil {
+			_, err = tryRequestNATSPayload[clientcontract.ListSpacesResponse](conn, clientcontract.SubjectSpaceList, "", struct{}{}, time.Second)
+			conn.Close()
+			if err == nil {
+				return
+			}
+		}
+		lastErr = err
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatalf("control nats not ready: %v", lastErr)
+}
+
+func createSpace(t *testing.T, endpoints NATSEndpoints, req clientcontract.CreateSpaceRequest) clientcontract.SpaceInfo {
+	t.Helper()
+	control := connectControlNATS(t, endpoints)
+	defer control.Close()
+	return requestNATSPayload[clientcontract.SpaceInfo](t, control, clientcontract.SubjectSpaceCreate, req.Name, req)
+}
+
+func CreateSession(t *testing.T, env *E2EEnv, sessionType clientcontract.SessionType, title string) clientcontract.SessionInfo {
+	t.Helper()
+	control := connectControlNATS(t, env.NATS)
+	defer control.Close()
+	return requestNATSPayload[clientcontract.SessionInfo](t, control, clientcontract.SubjectSessionCreate, env.Space, clientcontract.CreateSessionRequest{
+		SpaceID: env.Space,
+		Type:    sessionType,
+		Title:   title,
+	})
+}
+
+func CreateChatSession(t *testing.T, env *E2EEnv, title string) clientcontract.SessionInfo {
+	t.Helper()
+	return CreateSession(t, env, clientcontract.SessionTypeChat, title)
 }
 
 func connectNATSCredential(t *testing.T, credential clientcontract.NATSCredential) *nats.Conn {

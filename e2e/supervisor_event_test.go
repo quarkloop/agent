@@ -3,19 +3,15 @@
 package e2e
 
 import (
-	"context"
 	"testing"
 	"time"
-
-	"github.com/quarkloop/supervisor/pkg/api"
 
 	"github.com/quarkloop/e2e/utils"
 )
 
-// TestSupervisorSessionEventReachesAgent verifies the supervisor → agent SSE
-// pipeline: creating a session through the supervisor should cause the agent
-// child process to mirror it into its in-memory registry. This proves the
-// launcher forwards QUARK_SUPERVISOR_URL so the agent can subscribe.
+// TestSupervisorSessionEventReachesAgent verifies the supervisor -> runtime
+// NATS path: creating a session through supervisor-owned subjects should cause
+// the runtime process to mirror it into its in-memory registry.
 func TestSupervisorSessionEventReachesAgent(t *testing.T) {
 	env := utils.StartE2E(t, false, standardKnowledgeServicesStartOptions(t, utils.EmbeddingOptions{
 		Plugin:     "embedding",
@@ -25,18 +21,9 @@ func TestSupervisorSessionEventReachesAgent(t *testing.T) {
 		Dimensions: 32,
 	}, ""))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	before := utils.AgentSessionsCount(t, env)
 
-	sess, err := env.Sup.CreateSession(ctx, env.Space, api.CreateSessionRequest{
-		Type:  api.SessionTypeChat,
-		Title: "event-test",
-	})
-	if err != nil {
-		t.Fatalf("create session: %v", err)
-	}
+	sess := utils.CreateChatSession(t, env, "event-test")
 	utils.Logf(t, "created session id=%s", sess.ID)
 
 	deadline := time.Now().Add(10 * time.Second)

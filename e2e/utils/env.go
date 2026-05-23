@@ -3,7 +3,6 @@
 package utils
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,8 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 	"github.com/quarkloop/supervisor/pkg/api"
-	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
 // E2EEnv is the live supervisor+agent pair driven by an e2e test.
@@ -21,7 +20,6 @@ type E2EEnv struct {
 	SpacesDir           string
 	Space               string
 	SupURL              string
-	Sup                 *supclient.Client
 	NATS                NATSEndpoints
 	Agent               api.RuntimeInfo
 	Provider            string
@@ -316,9 +314,8 @@ func (o EmbeddingOptions) withDefaults() EmbeddingOptions {
 }
 
 // startSupervisor launches a supervisor subprocess with an isolated spaces
-// root and returns the client, base URL, spaces dir, and process handle. The
-// handle lets tests wait for log markers from the supervisor.
-func startSupervisor(t *testing.T, bins BuiltBinaries, extraEnv map[string]string) (*supclient.Client, string, string, NATSEndpoints, *StartedProcess) {
+// root and waits until the supervisor-owned NATS control API is ready.
+func startSupervisor(t *testing.T, bins BuiltBinaries, extraEnv map[string]string) (string, string, NATSEndpoints) {
 	t.Helper()
 
 	spacesDir := filepath.Join(t.TempDir(), "spaces")
@@ -338,7 +335,7 @@ func startSupervisor(t *testing.T, bins BuiltBinaries, extraEnv map[string]strin
 		overrides[k] = v
 	}
 	env := SupervisorProcessEnv(overrides)
-	proc := StartProcess(t, "supervisor", bins.Supervisor, []string{
+	StartProcess(t, "supervisor", bins.Supervisor, []string{
 		"start",
 		"--port", fmt.Sprint(port),
 		"--nats-state-dir", natsStateDir,
@@ -354,11 +351,9 @@ func startSupervisor(t *testing.T, bins BuiltBinaries, extraEnv map[string]strin
 		MonitoringURL: fmt.Sprintf("http://127.0.0.1:%d", natsMonitorPort),
 		StateDir:      natsStateDir,
 	}
-	// Supervisor exposes GET /v1/spaces for liveness.
-	WaitForURL(t, supURL+"/v1/spaces", 10*time.Second)
+	waitForControlNATS(t, natsEndpoints, 10*time.Second)
 
-	sup := supclient.New(supclient.WithBaseURL(supURL))
-	return sup, supURL, spacesDir, natsEndpoints, proc
+	return supURL, spacesDir, natsEndpoints
 }
 
 // StartOptions tunes the fixture StartE2E builds. Zero-valued options yield
@@ -429,7 +424,7 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 	if opt.DisableServiceDiscovery {
 		supervisorEnv["QUARK_DISABLE_SERVICE_DISCOVERY"] = "true"
 	}
-	sup, supURL, spacesDir, natsEndpoints, _ := startSupervisor(t, bins, supervisorEnv)
+	supURL, spacesDir, natsEndpoints := startSupervisor(t, bins, supervisorEnv)
 
 	spaceName := fmt.Sprintf("e2e-%d", time.Now().UnixNano())
 	provider := "openrouter"
@@ -446,11 +441,11 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 	if err := os.MkdirAll(workingDir, 0o755); err != nil {
 		t.Fatalf("mkdir working dir: %v", err)
 	}
-	createCtx, createCancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer createCancel()
-	if _, err := sup.CreateSpace(createCtx, spaceName, quarkfileFor(spaceName, provider, model, embedding, opt.Services, opt.ExtraServicePlugins, opt.Agents, opt.AgentServicePermissions, !opt.DisableKnowledgeServices), workingDir); err != nil {
-		t.Fatalf("create space: %v", err)
-	}
+	createSpace(t, natsEndpoints, clientcontract.CreateSpaceRequest{
+		Name:       spaceName,
+		Quarkfile:  quarkfileFor(spaceName, provider, model, embedding, opt.Services, opt.ExtraServicePlugins, opt.Agents, opt.AgentServicePermissions, !opt.DisableKnowledgeServices),
+		WorkingDir: workingDir,
+	})
 	runtimeCredential := issueRuntimeCredential(t, natsEndpoints, spaceName)
 
 	env := &E2EEnv{
@@ -458,7 +453,6 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 		SpacesDir:           spacesDir,
 		Space:               spaceName,
 		SupURL:              supURL,
-		Sup:                 sup,
 		NATS:                natsEndpoints,
 		Provider:            provider,
 		Model:               model,

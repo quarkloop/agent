@@ -7,14 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/quarkloop/supervisor/pkg/api"
-
 	"github.com/quarkloop/e2e/utils"
 )
 
-// TestAskMode drives a full supervisor → agent chat flow: supervisor creates
-// a chat session (agent mirrors it via SSE), then the test POSTs a user
-// message to the agent's SSE endpoint and asserts a non-empty streamed reply.
+// TestAskMode drives a full supervisor -> runtime chat flow over NATS.
 func TestAskMode(t *testing.T) {
 	env := utils.StartE2E(t, true, utils.StartOptions{
 		DisableKnowledgeServices: true,
@@ -23,13 +19,7 @@ func TestAskMode(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	sess, err := env.Sup.CreateSession(ctx, env.Space, api.CreateSessionRequest{
-		Type:  api.SessionTypeChat,
-		Title: "ask-test",
-	})
-	if err != nil {
-		t.Fatalf("create session: %v", err)
-	}
+	sess := utils.CreateChatSession(t, env, "ask-test")
 
 	utils.WaitForAgentSession(t, env, sess.ID, 10*time.Second)
 

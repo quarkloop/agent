@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/quarkloop/e2e/utils"
-	"github.com/quarkloop/supervisor/pkg/api"
 )
 
 type chatPromptRun struct {
@@ -21,13 +20,7 @@ type chatPromptRun struct {
 
 func runChatPrompt(t *testing.T, ctx context.Context, env *utils.E2EEnv, artifactDir string, run chatPromptRun) utils.MessageTrace {
 	t.Helper()
-	session, err := env.Sup.CreateSession(ctx, env.Space, api.CreateSessionRequest{
-		Type:  api.SessionTypeChat,
-		Title: run.Title,
-	})
-	if err != nil {
-		t.Fatalf("create session %q: %v", run.Title, err)
-	}
+	session := utils.CreateChatSession(t, env, run.Title)
 	utils.WaitForAgentSession(t, env, session.ID, 10*time.Second)
 
 	trace := utils.PostMessageTraceWithOptions(t, ctx, env, session.ID, run.Prompt, run.TraceOptions)

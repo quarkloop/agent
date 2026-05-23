@@ -8,8 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/quarkloop/supervisor/pkg/api"
-
 	"github.com/quarkloop/e2e/utils"
 )
 
@@ -35,13 +33,7 @@ func TestIOExecute(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
-	sess, err := env.Sup.CreateSession(ctx, env.Space, api.CreateSessionRequest{
-		Type:  api.SessionTypeChat,
-		Title: "io-execute-test",
-	})
-	if err != nil {
-		t.Fatalf("create session: %v", err)
-	}
+	sess := utils.CreateChatSession(t, env, "io-execute-test")
 	utils.WaitForAgentSession(t, env, sess.ID, 10*time.Second)
 
 	trace := utils.PostMessageTrace(t, ctx, env, sess.ID,
