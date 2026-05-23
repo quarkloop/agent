@@ -14,10 +14,13 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/nats-io/nats.go"
+	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 )
 
-// PostMessage POSTs a user message to the agent's message SSE endpoint and
-// returns the concatenated "text" payload received on the stream.
+// PostMessage sends a user message over NATS and returns the concatenated
+// "text" payload received on the session event stream.
 func PostMessage(t *testing.T, ctx context.Context, env *E2EEnv, sessionID, content string) string {
 	t.Helper()
 	return PostMessageTrace(t, ctx, env, sessionID, content).Text
@@ -51,8 +54,8 @@ type ToolEvent struct {
 }
 
 // MessageTraceOptions bounds one streamed agent response and controls failure
-// diagnostics. OverallTimeout includes the HTTP request and stream read;
-// IdleTimeout bounds silence after the last observed SSE line.
+// diagnostics. OverallTimeout includes the NATS request and stream read;
+// IdleTimeout bounds silence after the last observed NATS event.
 type MessageTraceOptions struct {
 	Label          string
 	Prompt         string
@@ -72,14 +75,14 @@ func DefaultMessageTraceOptions() MessageTraceOptions {
 	}
 }
 
-// PostMessageTrace POSTs a user message and returns streamed text plus tool
+// PostMessageTrace sends a user message and returns streamed text plus tool
 // progress events emitted by the runtime.
 func PostMessageTrace(t *testing.T, ctx context.Context, env *E2EEnv, sessionID, content string) MessageTrace {
 	t.Helper()
 	return PostMessageTraceWithOptions(t, ctx, env, sessionID, content, DefaultMessageTraceOptions())
 }
 
-// PostMessageTraceWithOptions POSTs a user message with explicit stream guards.
+// PostMessageTraceWithOptions sends a user message with explicit stream guards.
 func PostMessageTraceWithOptions(t *testing.T, ctx context.Context, env *E2EEnv, sessionID, content string, opts MessageTraceOptions) MessageTrace {
 	t.Helper()
 
@@ -96,31 +99,49 @@ func PostMessageTraceWithOptions(t *testing.T, ctx context.Context, env *E2EEnv,
 	}
 	defer cancel()
 
-	body, err := json.Marshal(map[string]string{"content": content})
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
-	}
-	url := fmt.Sprintf("%s/v1/sessions/%s/messages", env.AgentURL, sessionID)
-	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, url, bytes.NewReader(body))
-	if err != nil {
-		t.Fatalf("build request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "text/event-stream")
+	credential := issueSessionCredential(t, env.NATS, env.Space, sessionID)
+	sessionConn := connectNATSCredential(t, credential)
+	defer sessionConn.Close()
 
-	httpc := &http.Client{} // no timeout — SSE holds the connection open
-	resp, err := httpc.Do(req)
+	eventsSubject, err := clientcontract.SessionEventsSubject(sessionID)
 	if err != nil {
+		t.Fatalf("session events subject: %v", err)
+	}
+	events := make(chan clientcontract.SessionEvent, 64)
+	sub, err := sessionConn.Subscribe(eventsSubject, func(msg *nats.Msg) {
+		var event clientcontract.SessionEvent
+		if err := json.Unmarshal(msg.Data, &event); err != nil {
+			t.Errorf("decode nats session event: %v", err)
+			return
+		}
+		event.Payload = append(json.RawMessage(nil), event.Payload...)
+		events <- event
+	})
+	if err != nil {
+		t.Fatalf("subscribe nats session events: %v", err)
+	}
+	defer sub.Unsubscribe()
+	if err := sessionConn.FlushWithContext(reqCtx); err != nil {
+		t.Fatalf("flush nats event subscription: %v", err)
+	}
+
+	inputSubject, err := clientcontract.SessionInputSubject(sessionID)
+	if err != nil {
+		t.Fatalf("session input subject: %v", err)
+	}
+	req, err := clientcontract.NewRequest("e2e-message-"+sessionID, env.Space, clientcontract.SendMessageRequest{
+		SpaceID:   env.Space,
+		SessionID: sessionID,
+		Content:   content,
+	})
+	if err != nil {
+		t.Fatalf("build nats message request: %v", err)
+	}
+	if err := requestNATSMessage(reqCtx, sessionConn, inputSubject, req); err != nil {
 		t.Fatalf("post message %s: %v\n%s", opts.Label, err, messageTraceDiagnostics(MessageTrace{}, opts))
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		data, _ := io.ReadAll(resp.Body)
-		t.Fatalf("POST %s: status=%d body=%s", url, resp.StatusCode, string(data))
-	}
-
-	trace, err := readMessageTrace(reqCtx, resp.Body, opts)
+	trace, err := readNATSMessageTrace(reqCtx, events, opts)
 	if err != nil {
 		var rl rateLimitError
 		if AsRateLimitError(err, &rl) {
@@ -132,6 +153,50 @@ func PostMessageTraceWithOptions(t *testing.T, ctx context.Context, env *E2EEnv,
 	trace.SessionID = opts.SessionID
 	trace.RunID = traceRunID(trace)
 	return trace
+}
+
+func readNATSMessageTrace(ctx context.Context, events <-chan clientcontract.SessionEvent, opts MessageTraceOptions) (MessageTrace, error) {
+	var trace MessageTrace
+	var full strings.Builder
+	var idleTimer *time.Timer
+	var idle <-chan time.Time
+	if opts.IdleTimeout > 0 {
+		idleTimer = time.NewTimer(opts.IdleTimeout)
+		idle = idleTimer.C
+		defer idleTimer.Stop()
+	}
+	resetIdle := func() {
+		if idleTimer == nil {
+			return
+		}
+		if !idleTimer.Stop() {
+			select {
+			case <-idleTimer.C:
+			default:
+			}
+		}
+		idleTimer.Reset(opts.IdleTimeout)
+	}
+
+	for {
+		select {
+		case event := <-events:
+			resetIdle()
+			trace.LastEvent = event.Type
+			if event.Type == "done" {
+				trace.Text = full.String()
+				trace.Completed = true
+				return trace, nil
+			}
+			if err := consumeMessageTraceEvent(&trace, &full, event.Type, event.Payload); err != nil {
+				return trace, fmt.Errorf("%w\n%s", err, messageTraceDiagnostics(trace, opts))
+			}
+		case <-idle:
+			return trace, fmt.Errorf("message stream idle timeout after %s\n%s", opts.IdleTimeout, messageTraceDiagnostics(trace, opts))
+		case <-ctx.Done():
+			return trace, fmt.Errorf("message stream context ended: %w\n%s", ctx.Err(), messageTraceDiagnostics(trace, opts))
+		}
+	}
 }
 
 func traceRunID(trace MessageTrace) string {

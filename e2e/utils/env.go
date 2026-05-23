@@ -454,6 +454,7 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 	if _, err := sup.CreateSpace(createCtx, spaceName, quarkfileFor(spaceName, provider, model, embedding, opt.Services, opt.ExtraServicePlugins, opt.Agents, opt.AgentServicePermissions, !opt.DisableKnowledgeServices), workingDir); err != nil {
 		t.Fatalf("create space: %v", err)
 	}
+	runtimeCredential := issueRuntimeCredential(t, natsEndpoints, spaceName)
 
 	env := &E2EEnv{
 		Root:                QuarkRoot(t),
@@ -494,6 +495,9 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 		"QUARK_PLUGINS_DIR":    filepath.Join(spacesDir, spaceName, "plugins"),
 		"QUARK_MODEL_PROVIDER": provider,
 		"QUARK_MODEL_NAME":     model,
+		"QUARK_NATS_URL":       runtimeCredential.URL,
+		"QUARK_NATS_USER":      runtimeCredential.Username,
+		"QUARK_NATS_PASSWORD":  runtimeCredential.Password,
 	}
 	for _, key := range providerCredentialEnvKeys() {
 		if value := supervisorEnv[key]; value != "" {
@@ -504,7 +508,7 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 	StartProcess(t, "runtime", bins.Agent, []string{
 		"start",
 		"--port", fmt.Sprint(agentPort),
-		"--channel", "web",
+		"--channel", "web,nats",
 	}, runtimeEnv)
 	env.Agent = api.RuntimeInfo{
 		ID:     runtimeID,

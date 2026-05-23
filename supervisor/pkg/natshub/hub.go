@@ -276,6 +276,16 @@ func (h *Hub) IssueUserCredential(spaceID string) (Credential, error) {
 	return cloneCredential(credential), nil
 }
 
+func (h *Hub) IssueRuntimeCredential(spaceID string) (Credential, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	space, err := h.provisionSpaceLocked(spaceID)
+	if err != nil {
+		return Credential{}, err
+	}
+	return cloneCredential(space.Runtime), nil
+}
+
 func (h *Hub) IssueAgentCredential(spaceID, agentID string) (Credential, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()

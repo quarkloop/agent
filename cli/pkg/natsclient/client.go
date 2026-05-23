@@ -201,6 +201,16 @@ func (c *Client) IssueSpaceCredential(ctx context.Context, spaceID string) (clie
 	return resp.Credential, nil
 }
 
+func (c *Client) IssueRuntimeCredential(ctx context.Context, spaceID string) (clientcontract.NATSCredential, error) {
+	resp, err := requestPayload[clientcontract.SpaceCredentialResponse](ctx, c, clientcontract.SubjectRuntimeCredential, spaceID, clientcontract.SpaceCredentialRequest{
+		SpaceID: spaceID,
+	})
+	if err != nil {
+		return clientcontract.NATSCredential{}, err
+	}
+	return resp.Credential, nil
+}
+
 func (c *Client) CreateSession(ctx context.Context, req clientcontract.CreateSessionRequest) (clientcontract.SessionInfo, error) {
 	return requestPayload[clientcontract.SessionInfo](ctx, c, clientcontract.SubjectSessionCreate, req.SpaceID, req)
 }

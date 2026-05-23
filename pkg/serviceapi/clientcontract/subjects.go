@@ -20,6 +20,7 @@ const (
 	SubjectSpaceQuarkfile    = "control.space.v1.quarkfile"
 	SubjectSpaceDoctor       = "control.space.v1.doctor"
 	SubjectSpaceCredential   = "control.space.v1.credential"
+	SubjectRuntimeCredential = "control.space.v1.runtime_credential"
 	SubjectSessionCreate     = "control.session.v1.create"
 	SubjectSessionList       = "control.session.v1.list"
 	SubjectSessionGet        = "control.session.v1.get"

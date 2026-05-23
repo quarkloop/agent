@@ -27,6 +27,7 @@ type SpaceProvisioner interface {
 
 type CredentialIssuer interface {
 	IssueUserCredential(spaceID string) (natshub.Credential, error)
+	IssueRuntimeCredential(spaceID string) (natshub.Credential, error)
 	IssueSessionCredential(spaceID, sessionID string) (natshub.Credential, error)
 }
 
@@ -143,6 +144,7 @@ func (s *Server) subscribe() error {
 		clientcontract.SubjectSpaceQuarkfile:    s.getQuarkfile,
 		clientcontract.SubjectSpaceDoctor:       s.doctor,
 		clientcontract.SubjectSpaceCredential:   s.spaceCredential,
+		clientcontract.SubjectRuntimeCredential: s.runtimeCredential,
 		clientcontract.SubjectSessionCreate:     s.createSession,
 		clientcontract.SubjectSessionList:       s.listSessions,
 		clientcontract.SubjectSessionGet:        s.getSession,
@@ -344,6 +346,26 @@ func (s *Server) spaceCredential(req clientcontract.RequestEnvelope) (any, error
 		return nil, err
 	}
 	credential, err := s.credentialIssuer.IssueUserCredential(payload.SpaceID)
+	if err != nil {
+		return nil, err
+	}
+	return clientcontract.SpaceCredentialResponse{
+		Credential: toContractCredential(s.url, credential),
+	}, nil
+}
+
+func (s *Server) runtimeCredential(req clientcontract.RequestEnvelope) (any, error) {
+	var payload clientcontract.SpaceCredentialRequest
+	if err := req.DecodePayload(&payload); err != nil {
+		return nil, err
+	}
+	if s.credentialIssuer == nil {
+		return nil, boundary.New(boundary.Supervisor, boundary.Unavailable, clientcontract.SubjectRuntimeCredential, "runtime credential issuer is not configured")
+	}
+	if _, err := s.store.Get(payload.SpaceID); err != nil {
+		return nil, err
+	}
+	credential, err := s.credentialIssuer.IssueRuntimeCredential(payload.SpaceID)
 	if err != nil {
 		return nil, err
 	}

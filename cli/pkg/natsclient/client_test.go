@@ -175,6 +175,13 @@ func TestTypedControlMethodsUseNATSContracts(t *testing.T) {
 	if spaceCredential.Username == "" || spaceCredential.SpaceID != "docs" {
 		t.Fatalf("space credential = %#v", spaceCredential)
 	}
+	runtimeCredential, err := client.IssueRuntimeCredential(context.Background(), "docs")
+	if err != nil {
+		t.Fatalf("issue runtime credential: %v", err)
+	}
+	if runtimeCredential.Username == "" || runtimeCredential.Role != "runtime" {
+		t.Fatalf("runtime credential = %#v", runtimeCredential)
+	}
 	spaceClient, err := ConnectWithCredential(context.Background(), spaceCredential)
 	if err != nil {
 		t.Fatalf("connect with space credential: %v", err)
@@ -441,6 +448,24 @@ func registerTypedControlResponders(t *testing.T, responder *nats.Conn, hub *nat
 				Account:  credential.Account,
 				Role:     string(credential.Role),
 				SpaceID:  credential.SpaceID,
+			}}
+		},
+		clientcontract.SubjectRuntimeCredential: func(req clientcontract.RequestEnvelope) any {
+			var payload clientcontract.SpaceCredentialRequest
+			if err := req.DecodePayload(&payload); err != nil {
+				t.Errorf("decode runtime credential: %v", err)
+			}
+			space, err := hub.ProvisionSpace(payload.SpaceID)
+			if err != nil {
+				t.Errorf("issue runtime credential: %v", err)
+			}
+			return clientcontract.SpaceCredentialResponse{Credential: clientcontract.NATSCredential{
+				URL:      hub.Endpoints().ClientURL,
+				Username: space.Runtime.Username,
+				Password: space.Runtime.Password,
+				Account:  space.Runtime.Account,
+				Role:     string(space.Runtime.Role),
+				SpaceID:  space.Runtime.SpaceID,
 			}}
 		},
 		clientcontract.SubjectPluginList: func(clientcontract.RequestEnvelope) any {

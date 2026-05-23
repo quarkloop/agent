@@ -51,6 +51,11 @@ func TestSpaceAndSessionContracts(t *testing.T) {
 	}
 	t.Cleanup(spaceClient.Close)
 
+	runtimeCredential := requestPayload[clientcontract.SpaceCredentialResponse](t, fixture.client, clientcontract.SubjectRuntimeCredential, clientcontract.SpaceCredentialRequest{SpaceID: "docs"})
+	if runtimeCredential.Credential.Username == "" || runtimeCredential.Credential.Role != "runtime" {
+		t.Fatalf("runtime credential = %#v", runtimeCredential.Credential)
+	}
+
 	listSpaces := requestPayload[clientcontract.ListSpacesResponse](t, fixture.client, clientcontract.SubjectSpaceList, struct{}{})
 	if len(listSpaces.Spaces) != 1 || listSpaces.Spaces[0].Name != "docs" {
 		t.Fatalf("spaces = %#v", listSpaces.Spaces)
