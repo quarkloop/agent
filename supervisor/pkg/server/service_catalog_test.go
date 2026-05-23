@@ -8,11 +8,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	natsgo "github.com/nats-io/nats.go"
 	"github.com/quarkloop/pkg/plugin"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	spacemodel "github.com/quarkloop/pkg/space"
+	"github.com/quarkloop/supervisor/pkg/natshub"
 	"github.com/quarkloop/supervisor/pkg/pluginmanager"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -365,6 +368,84 @@ services:
 	if descriptors[0].GetName() != "indexer" {
 		t.Fatalf("descriptor name = %q", descriptors[0].GetName())
 	}
+}
+
+func TestImportServiceFunctionRoutesMakesControlServiceReachableFromRuntime(t *testing.T) {
+	cfg := natshub.DefaultConfig(filepath.Join(t.TempDir(), "nats"))
+	cfg.Client.Port = 0
+	cfg.WebSocket.Enabled = false
+	cfg.Monitoring.Enabled = false
+	cfg.NoLog = true
+	hub, err := natshub.New(cfg)
+	if err != nil {
+		t.Fatalf("new hub: %v", err)
+	}
+	if err := hub.Start(t.Context()); err != nil {
+		t.Fatalf("start hub: %v", err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		_ = hub.Stop(ctx)
+	})
+	space, err := hub.ProvisionSpace("docs")
+	if err != nil {
+		t.Fatalf("provision space: %v", err)
+	}
+
+	controlCred, err := hub.ControlCredential()
+	if err != nil {
+		t.Fatalf("control credential: %v", err)
+	}
+	controlConn := connectNATS(t, hub.Endpoints().ClientURL, controlCred.Username, controlCred.Password)
+	defer controlConn.Close()
+	sub, err := controlConn.Subscribe("svc.gateway.v1.generate", func(msg *natsgo.Msg) {
+		if err := msg.Respond([]byte("ok")); err != nil {
+			t.Errorf("respond: %v", err)
+		}
+	})
+	if err != nil {
+		t.Fatalf("subscribe gateway subject: %v", err)
+	}
+	defer sub.Unsubscribe()
+	if err := controlConn.FlushTimeout(time.Second); err != nil {
+		t.Fatalf("flush service subscription: %v", err)
+	}
+
+	srv := &Server{natsHub: hub}
+	err = srv.importServiceFunctionRoutes("docs", []*servicev1.ServiceDescriptor{{
+		Name: "gateway",
+		Rpcs: []*servicev1.RpcDescriptor{{
+			Owner:  "gateway",
+			Method: "Generate",
+		}},
+	}})
+	if err != nil {
+		t.Fatalf("import routes: %v", err)
+	}
+
+	runtimeConn := connectNATS(t, hub.Endpoints().ClientURL, space.Runtime.Username, space.Runtime.Password)
+	defer runtimeConn.Close()
+	msg, err := runtimeConn.Request("svc.gateway.v1.generate", []byte("payload"), time.Second)
+	if err != nil {
+		t.Fatalf("runtime request imported gateway function: %v", err)
+	}
+	if string(msg.Data) != "ok" {
+		t.Fatalf("reply = %q", string(msg.Data))
+	}
+}
+
+func connectNATS(t *testing.T, url, username, password string) *natsgo.Conn {
+	t.Helper()
+	conn, err := natsgo.Connect(url, natsgo.UserInfo(username, password), natsgo.Timeout(time.Second))
+	if err != nil {
+		t.Fatalf("connect nats: %v", err)
+	}
+	if err := conn.FlushTimeout(time.Second); err != nil {
+		conn.Close()
+		t.Fatalf("flush nats: %v", err)
+	}
+	return conn
 }
 
 func startHealthServer(t *testing.T, service string, status healthpb.HealthCheckResponse_ServingStatus) (string, func()) {

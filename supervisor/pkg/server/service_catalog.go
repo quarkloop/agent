@@ -14,6 +14,7 @@ import (
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	spacemodel "github.com/quarkloop/pkg/space"
+	"github.com/quarkloop/supervisor/pkg/natshub"
 	"github.com/quarkloop/supervisor/pkg/pluginmanager"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -225,9 +226,40 @@ func (s *Server) resolveServicePluginCatalog(ctx context.Context, space string) 
 		if err := validateServicePluginDescriptors(pluginDescriptors, item.Manifest); err != nil {
 			return nil, fmt.Errorf("service plugin %s descriptor: %w", item.Manifest.Name, err)
 		}
+		if err := s.importServiceFunctionRoutes(space, pluginDescriptors); err != nil {
+			return nil, fmt.Errorf("service plugin %s nats imports: %w", item.Manifest.Name, err)
+		}
 		descriptors = append(descriptors, pluginDescriptors...)
 	}
 	return descriptors, nil
+}
+
+func (s *Server) importServiceFunctionRoutes(space string, descriptors []*servicev1.ServiceDescriptor) error {
+	if s == nil || s.natsHub == nil || len(descriptors) == 0 {
+		return nil
+	}
+	routes := make([]natshub.ServiceFunctionRoute, 0)
+	for _, desc := range descriptors {
+		for _, rpc := range desc.GetRpcs() {
+			owner := strings.TrimSpace(rpc.GetOwner())
+			if owner == "" && desc != nil {
+				owner = desc.GetName()
+			}
+			method := strings.TrimSpace(rpc.GetMethod())
+			if owner == "" || method == "" {
+				continue
+			}
+			route, err := natshub.NewServiceFunctionRoute(owner, "v1", method)
+			if err != nil {
+				return err
+			}
+			routes = append(routes, route)
+		}
+	}
+	if len(routes) == 0 {
+		return nil
+	}
+	return s.natsHub.ImportServiceFunctions(space, routes)
 }
 
 func applyServiceFunctionMetadata(desc *servicev1.ServiceDescriptor, manifest *plugin.Manifest) error {
