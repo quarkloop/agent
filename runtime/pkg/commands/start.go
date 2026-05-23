@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -17,14 +18,13 @@ import (
 	"github.com/quarkloop/runtime/pkg/agent"
 	"github.com/quarkloop/runtime/pkg/catalogclient"
 	natschannel "github.com/quarkloop/runtime/pkg/channel/nats"
-	"github.com/quarkloop/runtime/pkg/channel/telegram"
-	"github.com/quarkloop/runtime/pkg/channel/web"
 	"github.com/quarkloop/runtime/pkg/coreevents"
 	"github.com/quarkloop/runtime/pkg/gatewayclient"
 	"github.com/quarkloop/runtime/pkg/permissions"
 	"github.com/quarkloop/runtime/pkg/pluginmanager"
 	"github.com/quarkloop/runtime/pkg/runtime"
 	runtimeservices "github.com/quarkloop/runtime/pkg/services"
+	"github.com/quarkloop/runtime/pkg/spaceauth"
 	"github.com/quarkloop/runtime/pkg/spacelease"
 )
 
@@ -32,7 +32,6 @@ const CmdStartDefaultPort = 8765
 
 // Start creates the "runtime start" command.
 func Start() *cobra.Command {
-	var port int
 	var channelsFlag []string
 
 	cmd := &cobra.Command{
@@ -55,20 +54,19 @@ func Start() *cobra.Command {
 			}
 
 			if len(channels) == 0 {
-				channels = []string{"web"} // Fallback
+				channels = []string{"nats"}
 			}
 
-			return runStart(port, channels)
+			return runStart(channels)
 		},
 	}
 
-	cmd.Flags().IntVarP(&port, "port", "p", CmdStartDefaultPort, "HTTP listen port")
-	cmd.Flags().StringSliceVarP(&channelsFlag, "channel", "c", []string{"web"}, "Channels to use (e.g., 'web', 'telegram', 'web,telegram', or 'all')")
+	cmd.Flags().StringSliceVarP(&channelsFlag, "channel", "c", []string{"nats"}, "Channels to use")
 
 	return cmd
 }
 
-func runStart(port int, channels []string) error {
+func runStart(channels []string) error {
 	if os.Getenv("QUARK_SUPERVISOR_URL") == "" {
 		loadEnvFiles()
 	}
@@ -77,8 +75,6 @@ func runStart(port int, channels []string) error {
 	activeChannels := make(map[string]bool)
 	for _, ch := range channels {
 		if ch == "all" {
-			activeChannels["web"] = true
-			activeChannels["telegram"] = true
 			activeChannels["nats"] = true
 		} else {
 			activeChannels[ch] = true
@@ -108,8 +104,10 @@ func runStart(port int, channels []string) error {
 	var validChannels []string
 	for ch := range activeChannels {
 		switch ch {
-		case "web", "telegram", "nats":
+		case "nats":
 			validChannels = append(validChannels, ch)
+		case "web", "telegram":
+			return fmt.Errorf("%s channel is removed from the NATS-native runtime start path", ch)
 		default:
 			return fmt.Errorf("unknown channel requested: %q", ch)
 		}
@@ -118,119 +116,11 @@ func runStart(port int, channels []string) error {
 	slog.Info("starting runtime")
 	slog.Info("enabled channels", "channels", fmt.Sprintf("%v", validChannels))
 
-	catalogSnapshot, err := loadRuntimeCatalogSnapshot(ctx)
-	if err != nil {
-		return err
-	}
-	serviceCatalog, err := loadServiceCatalog(catalogSnapshot)
-	if err != nil {
-		return err
-	}
-	pluginCatalog, err := loadPluginCatalog(catalogSnapshot)
-	if err != nil {
-		return err
-	}
-	requestedAgent := os.Getenv("QUARK_AGENT_PROFILE")
-	if catalogSnapshot != nil && strings.TrimSpace(catalogSnapshot.AgentProfile) != "" {
-		requestedAgent = catalogSnapshot.AgentProfile
-	}
-	agentPlugin, err := resolveAgentPlugin(pluginCatalog, requestedAgent)
-	if err != nil {
-		return err
-	}
-
-	modelProvider, modelName := resolveModelSelection(agentPlugin.AgentProfile, os.Getenv("QUARK_MODEL_PROVIDER"), os.Getenv("QUARK_MODEL_NAME"))
-	if modelProvider == "" || modelName == "" {
-		return fmt.Errorf("model provider and name are required")
-	}
-	slog.Info("using model", "provider", modelProvider, "model", modelName)
-
-	promptAddenda := servicePromptAddenda(serviceCatalog)
-	coreRecorder := coreEventRecorder(serviceCatalog)
-	var modelProviderAdapter plugin.Provider
-	if adapter := modelProviderFromService(serviceCatalog, modelProvider); adapter != nil {
-		modelProviderAdapter = adapter
-	}
-	if strings.TrimSpace(agentPlugin.Skill) != "" {
-		promptAddenda = append(promptAddenda, strings.TrimSpace(agentPlugin.Skill))
-	}
-	agentName := "Main Agent"
-	agentDescription := ""
-	resolvedProfile := agent.Profile{}
-	if agentPlugin.AgentProfile != nil {
-		agentName = agentPlugin.AgentProfile.Name
-		agentDescription = agentPlugin.AgentProfile.Description
-		resolvedProfile = runtimeAgentProfile(agentPlugin)
-		slog.Info("using agent profile", "id", agentPlugin.AgentProfile.ID, "name", agentPlugin.AgentProfile.Name)
-	}
-
-	// Create agent
-	a, err := agent.NewAgent(agent.Config{
-		ID:                   "main",
-		Name:                 agentName,
-		Description:          agentDescription,
-		ModelProvider:        modelProvider,
-		Model:                modelName,
-		ModelListURL:         os.Getenv("MODEL_LIST_URL"),
-		Profile:              resolvedProfile,
-		SystemPrompt:         agentPlugin.SystemPrompt,
-		PluginsDir:           os.Getenv("QUARK_PLUGINS_DIR"),
-		PluginCatalog:        pluginCatalog,
-		SupervisorURL:        os.Getenv("QUARK_SUPERVISOR_URL"),
-		SpaceID:              os.Getenv("QUARK_SPACE"),
-		PromptAddenda:        promptAddenda,
-		PendingRefs:          serviceFunctionPendingRefs(serviceCatalog),
-		ToolResultRef:        serviceFunctionToolResultRef(serviceCatalog),
-		ToolCallArguments:    serviceFunctionToolCallArgumentNormalizer(serviceCatalog),
-		CoreEvents:           coreRecorder,
-		ModelProviderAdapter: modelProviderAdapter,
-		PermissionPolicy:     runtimePermissionPolicy(agentPlugin.AgentProfile),
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create agent: %w", err)
-	}
-	registerServiceFunctions(a, serviceCatalog)
-
 	// Create server with ChannelBus
 	srv := runtime.NewServer()
-
-	// Wire ChannelBus to agent via typed message
-	a.Send(agent.NewInitChannelMsg(srv.Bus()))
-
-	// 3. Instantiate and register the requested channels
-	for _, ch := range validChannels {
-		switch ch {
-		case "web":
-			listenAddr := fmt.Sprintf(":%d", port)
-			slog.Info("registering web channel", "listen_addr", listenAddr)
-			srv.Bus().Register(web.New(listenAddr, a))
-
-		case "telegram":
-			token := os.Getenv("TELEGRAM_BOT_TOKEN")
-			if token == "" {
-				return fmt.Errorf("TELEGRAM_BOT_TOKEN environment variable is required for the telegram channel")
-			}
-
-			slog.Info("registering telegram channel")
-			srv.Bus().Register(telegram.New(
-				telegram.Config{Token: token},
-				a,
-				func(id, chType, title string) { a.Sessions.GetOrCreate(id, chType, title) },
-			))
-		case "nats":
-			slog.Info("registering nats channel")
-			srv.Bus().Register(natschannel.New(
-				natschannel.ConfigFromEnv(),
-				a,
-				a.Sessions,
-				natschannel.WithPlan(a.Plan),
-				natschannel.WithActivity(a.Activity),
-			))
-		}
+	if err := registerSpaceAgents(ctx, srv, spaces); err != nil {
+		return err
 	}
-
-	slog.Info("starting agent background loop")
-	go a.Run(ctx)
 
 	slog.Info("runtime server is running, press Ctrl+C to exit")
 	// Start all channels via ChannelBus and block
@@ -245,15 +135,147 @@ func coreEventRecorder(catalog *runtimeservices.Catalog) *coreevents.Recorder {
 }
 
 func modelProviderFromService(catalog *runtimeservices.Catalog, providerID string) plugin.Provider {
+	return modelProviderFromServiceWithConfig(catalog, providerID, gatewayclient.ConfigFromEnv())
+}
+
+func modelProviderFromServiceWithConfig(catalog *runtimeservices.Catalog, providerID string, cfg gatewayclient.Config) plugin.Provider {
 	if catalog == nil || catalog.Empty() || providerID == "" {
 		return nil
 	}
 	for _, desc := range catalog.Descriptors() {
 		if desc.GetName() == "gateway" || desc.GetType() == "gateway" {
-			return gatewayclient.New(gatewayclient.ConfigFromEnv(), providerID)
+			return gatewayclient.New(cfg, providerID)
 		}
 	}
 	return nil
+}
+
+func registerSpaceAgents(ctx context.Context, srv *runtime.Server, spaces []string) error {
+	spaceConfigs, err := runtimeSpaceConfigs(spaces)
+	if err != nil {
+		return err
+	}
+	if len(spaceConfigs) == 0 {
+		return errors.New("at least one runtime space is required for the NATS-native runtime")
+	}
+	for _, spaceConfig := range spaceConfigs {
+		a, err := newSpaceAgent(ctx, spaceConfig)
+		if err != nil {
+			return err
+		}
+		a.Send(agent.NewInitChannelMsg(srv.Bus()))
+		slog.Info("registering nats channel", "space", spaceConfig.SpaceID)
+		srv.Bus().Register(natschannel.New(
+			natsChannelConfig(spaceConfig.Credential),
+			a,
+			a.Sessions,
+			natschannel.WithPlan(a.Plan),
+			natschannel.WithActivity(a.Activity),
+		))
+		slog.Info("starting agent background loop", "space", spaceConfig.SpaceID, "agent_id", a.ID)
+		go a.Run(ctx)
+	}
+	return nil
+}
+
+type runtimeSpaceConfig struct {
+	SpaceID    string
+	Credential clientcontract.NATSCredential
+}
+
+func runtimeSpaceConfigs(spaces []string) ([]runtimeSpaceConfig, error) {
+	if len(spaces) == 0 {
+		return nil, nil
+	}
+	resolver, err := spaceauth.ResolverFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	if len(spaces) > 1 && !resolver.HasExplicitCredentials() {
+		return nil, fmt.Errorf("%s is required when one runtime serves multiple spaces", spaceauth.EnvRuntimeSpaceCredentials)
+	}
+	out := make([]runtimeSpaceConfig, 0, len(spaces))
+	for _, spaceID := range spaces {
+		credential, err := resolver.Resolve(spaceID)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, runtimeSpaceConfig{SpaceID: spaceID, Credential: credential})
+	}
+	return out, nil
+}
+
+func newSpaceAgent(ctx context.Context, spaceConfig runtimeSpaceConfig) (*agent.Agent, error) {
+	catalogSnapshot, err := loadRuntimeCatalogSnapshotForSpace(ctx, catalogConfig(spaceConfig.Credential))
+	if err != nil {
+		return nil, err
+	}
+	serviceCatalog, err := loadServiceCatalogForSpace(catalogSnapshot, spaceConfig.Credential)
+	if err != nil {
+		return nil, err
+	}
+	pluginCatalog, err := loadPluginCatalog(catalogSnapshot)
+	if err != nil {
+		return nil, err
+	}
+	requestedAgent := os.Getenv("QUARK_AGENT_PROFILE")
+	if catalogSnapshot != nil && strings.TrimSpace(catalogSnapshot.AgentProfile) != "" {
+		requestedAgent = catalogSnapshot.AgentProfile
+	}
+	agentPlugin, err := resolveAgentPlugin(pluginCatalog, requestedAgent)
+	if err != nil {
+		return nil, err
+	}
+	modelProvider, modelName := resolveModelSelection(agentPlugin.AgentProfile, os.Getenv("QUARK_MODEL_PROVIDER"), os.Getenv("QUARK_MODEL_NAME"))
+	if modelProvider == "" || modelName == "" {
+		return nil, fmt.Errorf("model provider and name are required")
+	}
+	slog.Info("using model", "space", spaceConfig.SpaceID, "provider", modelProvider, "model", modelName)
+
+	promptAddenda := servicePromptAddenda(serviceCatalog)
+	coreRecorder := coreEventRecorder(serviceCatalog)
+	var modelProviderAdapter plugin.Provider
+	if adapter := modelProviderFromServiceWithConfig(serviceCatalog, modelProvider, gatewayConfig(spaceConfig.Credential)); adapter != nil {
+		modelProviderAdapter = adapter
+	}
+	if strings.TrimSpace(agentPlugin.Skill) != "" {
+		promptAddenda = append(promptAddenda, strings.TrimSpace(agentPlugin.Skill))
+	}
+	agentName := "Main Agent"
+	agentDescription := ""
+	resolvedProfile := agent.Profile{}
+	if agentPlugin.AgentProfile != nil {
+		agentName = agentPlugin.AgentProfile.Name
+		agentDescription = agentPlugin.AgentProfile.Description
+		resolvedProfile = runtimeAgentProfile(agentPlugin)
+		slog.Info("using agent profile", "space", spaceConfig.SpaceID, "id", agentPlugin.AgentProfile.ID, "name", agentPlugin.AgentProfile.Name)
+	}
+	a, err := agent.NewAgent(agent.Config{
+		ID:                   "main-" + spaceToken(spaceConfig.SpaceID),
+		Name:                 agentName,
+		Description:          agentDescription,
+		ModelProvider:        modelProvider,
+		Model:                modelName,
+		ModelListURL:         os.Getenv("MODEL_LIST_URL"),
+		Profile:              resolvedProfile,
+		SystemPrompt:         agentPlugin.SystemPrompt,
+		PluginsDir:           os.Getenv("QUARK_PLUGINS_DIR"),
+		PluginCatalog:        pluginCatalog,
+		SupervisorURL:        os.Getenv("QUARK_SUPERVISOR_URL"),
+		SpaceID:              spaceConfig.SpaceID,
+		PromptAddenda:        promptAddenda,
+		PendingRefs:          serviceFunctionPendingRefs(serviceCatalog),
+		ToolResultRef:        serviceFunctionToolResultRef(serviceCatalog),
+		ToolCallArguments:    serviceFunctionToolCallArgumentNormalizer(serviceCatalog),
+		CoreEvents:           coreRecorder,
+		ModelProviderAdapter: modelProviderAdapter,
+		PermissionPolicy:     runtimePermissionPolicy(agentPlugin.AgentProfile),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create agent for space %q: %w", spaceConfig.SpaceID, err)
+	}
+	registerServiceFunctions(a, serviceCatalog)
+	return a, nil
 }
 
 func runtimePermissionPolicy(profile *plugin.AgentProfile) *permissions.Policy {
@@ -372,7 +394,10 @@ func serviceFunctionToolCallArgumentNormalizer(catalog *runtimeservices.Catalog)
 }
 
 func loadRuntimeCatalogSnapshot(ctx context.Context) (*clientcontract.RuntimeCatalogResponse, error) {
-	cfg := catalogclient.ConfigFromEnv()
+	return loadRuntimeCatalogSnapshotForSpace(ctx, catalogclient.ConfigFromEnv())
+}
+
+func loadRuntimeCatalogSnapshotForSpace(ctx context.Context, cfg catalogclient.Config) (*clientcontract.RuntimeCatalogResponse, error) {
 	if !cfg.Available() {
 		return nil, nil
 	}
@@ -388,12 +413,16 @@ func loadRuntimeCatalogSnapshot(ctx context.Context) (*clientcontract.RuntimeCat
 }
 
 func loadServiceCatalog(snapshot *clientcontract.RuntimeCatalogResponse) (*runtimeservices.Catalog, error) {
+	return loadServiceCatalogForSpace(snapshot, clientcontract.NATSCredential{})
+}
+
+func loadServiceCatalogForSpace(snapshot *clientcontract.RuntimeCatalogResponse, credential clientcontract.NATSCredential) (*runtimeservices.Catalog, error) {
 	if snapshot != nil && len(snapshot.ServiceCatalog) > 0 {
 		descriptors, err := servicekit.UnmarshalRuntimeServiceCatalog(snapshot.ServiceCatalog)
 		if err != nil {
 			return nil, fmt.Errorf("parse nats runtime service catalog: %w", err)
 		}
-		return runtimeservices.NewCatalog(descriptors), nil
+		return runtimeservices.NewCatalogWithCaller(descriptors, runtimeservices.NewNATSCaller(natsCallerConfig(credential))), nil
 	}
 	slog.Info("no supervisor-resolved service catalog provided")
 	return nil, nil
@@ -450,6 +479,67 @@ func runtimeSpacesFromEnv() []string {
 		out = append(out, value)
 	}
 	return out
+}
+
+func catalogConfig(credential clientcontract.NATSCredential) catalogclient.Config {
+	cfg := catalogclient.ConfigFromEnv()
+	cfg.URL = firstNonEmpty(credential.URL, cfg.URL)
+	cfg.Username = firstNonEmpty(credential.Username, cfg.Username)
+	cfg.Password = firstNonEmpty(credential.Password, cfg.Password)
+	cfg.SpaceID = firstNonEmpty(credential.SpaceID, cfg.SpaceID)
+	return cfg
+}
+
+func natsChannelConfig(credential clientcontract.NATSCredential) natschannel.Config {
+	cfg := natschannel.ConfigFromEnv()
+	cfg.URL = firstNonEmpty(credential.URL, cfg.URL)
+	cfg.Username = firstNonEmpty(credential.Username, cfg.Username)
+	cfg.Password = firstNonEmpty(credential.Password, cfg.Password)
+	if credential.SpaceID != "" {
+		cfg.Name = "quark-runtime-" + spaceToken(credential.SpaceID)
+	}
+	return cfg
+}
+
+func natsCallerConfig(credential clientcontract.NATSCredential) runtimeservices.NATSCallerConfig {
+	cfg := runtimeservices.NATSCallerConfigFromEnv()
+	cfg.URL = firstNonEmpty(credential.URL, cfg.URL)
+	cfg.Username = firstNonEmpty(credential.Username, cfg.Username)
+	cfg.Password = firstNonEmpty(credential.Password, cfg.Password)
+	cfg.SpaceID = firstNonEmpty(credential.SpaceID, cfg.SpaceID)
+	if credential.SpaceID != "" {
+		cfg.Name = "quark-runtime-service-functions-" + spaceToken(credential.SpaceID)
+	}
+	return cfg
+}
+
+func gatewayConfig(credential clientcontract.NATSCredential) gatewayclient.Config {
+	cfg := gatewayclient.ConfigFromEnv()
+	cfg.URL = firstNonEmpty(credential.URL, cfg.URL)
+	cfg.Username = firstNonEmpty(credential.Username, cfg.Username)
+	cfg.Password = firstNonEmpty(credential.Password, cfg.Password)
+	return cfg
+}
+
+func spaceToken(value string) string {
+	token := strings.TrimSpace(value)
+	token = strings.ToLower(token)
+	token = strings.ReplaceAll(token, "/", "_")
+	token = strings.ReplaceAll(token, ".", "_")
+	token = strings.ReplaceAll(token, "-", "_")
+	if token == "" {
+		return "space"
+	}
+	return token
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func claimRuntimeSpaces(ctx context.Context, spaces []string) (*spacelease.Manager, []*spacelease.Lease, error) {

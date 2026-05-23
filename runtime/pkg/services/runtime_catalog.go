@@ -8,7 +8,7 @@ import (
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 )
 
-// Catalog is the runtime view of supervisor-resolved gRPC service plugins.
+// Catalog is the runtime view of supervisor-resolved service plugins.
 type Catalog struct {
 	descriptors []*servicev1.ServiceDescriptor
 	executor    *Executor
@@ -16,6 +16,10 @@ type Catalog struct {
 }
 
 func NewCatalog(descriptors []*servicev1.ServiceDescriptor) *Catalog {
+	return NewCatalogWithCaller(descriptors, NewNATSCaller(NATSCallerConfigFromEnv()))
+}
+
+func NewCatalogWithCaller(descriptors []*servicev1.ServiceDescriptor, caller serviceFunctionCaller) *Catalog {
 	copied := make([]*servicev1.ServiceDescriptor, 0, len(descriptors))
 	for _, desc := range descriptors {
 		if desc == nil {
@@ -25,7 +29,7 @@ func NewCatalog(descriptors []*servicev1.ServiceDescriptor) *Catalog {
 	}
 	return &Catalog{
 		descriptors: copied,
-		executor:    NewExecutor(copied),
+		executor:    NewExecutorWithCaller(copied, caller),
 		prompt:      PromptBlock(copied),
 	}
 }
@@ -61,7 +65,7 @@ func (c *Catalog) ToolSchemas() []ServiceFunctionSchema {
 
 func (c *Catalog) Execute(ctx context.Context, name, arguments string) (string, error) {
 	if c == nil || c.executor == nil || len(c.descriptors) == 0 {
-		return "", fmt.Errorf("no gRPC services are available")
+		return "", fmt.Errorf("no service functions are available")
 	}
 	return c.executor.Execute(ctx, name, arguments)
 }

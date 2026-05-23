@@ -31,7 +31,7 @@ func PromptBlock(descriptors []*servicev1.ServiceDescriptor) string {
 	}
 	var b strings.Builder
 	b.WriteString("\n\n## Available Service Plugins\n\n")
-	b.WriteString("The supervisor resolved the following gRPC service plugins. Call their generated service functions when a task needs service-backed behavior.\n")
+	b.WriteString("The supervisor resolved the following service plugins. Call their generated service functions when a task needs service-backed behavior.\n")
 	b.WriteString("Never claim that data was indexed, embedded, retrieved, released, or persisted unless the matching service function has returned successfully in this session.\n")
 	b.WriteString("When a user gives multiple files or records to index, index every listed item and verify one successful persistence result per item before finalizing.\n")
 	b.WriteString("\nService function arguments must match the protobuf JSON shape for that RPC request message.\n")
@@ -40,7 +40,9 @@ func PromptBlock(descriptors []*servicev1.ServiceDescriptor) string {
 		fmt.Fprintf(&b, "\n### %s\n\n", desc.GetName())
 		fmt.Fprintf(&b, "- Type: `%s`\n", desc.GetType())
 		fmt.Fprintf(&b, "- Version: `%s`\n", desc.GetVersion())
-		fmt.Fprintf(&b, "- Address: `%s`\n", desc.GetAddress())
+		if desc.GetAddress() != "" {
+			fmt.Fprintf(&b, "- Endpoint: `%s`\n", desc.GetAddress())
+		}
 		if len(desc.GetRpcs()) > 0 {
 			b.WriteString("- Functions:\n")
 			for _, rpc := range desc.GetRpcs() {
