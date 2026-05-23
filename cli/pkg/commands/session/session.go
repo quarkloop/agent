@@ -1,6 +1,6 @@
 // Package sessioncmd provides CLI commands for managing supervisor-owned
 // sessions. Sessions live in the supervisor — the agent is notified of
-// create/delete events through the space SSE stream.
+// create/delete events through supervisor-owned NATS subjects.
 package sessioncmd
 
 import (
