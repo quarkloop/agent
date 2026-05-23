@@ -10,6 +10,7 @@ import (
 	natsgo "github.com/nats-io/nats.go"
 	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
+	"github.com/quarkloop/pkg/serviceapi/observability"
 	"github.com/quarkloop/pkg/serviceapi/servicefunction"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -138,16 +139,18 @@ func TestNATSServicePublishesRedactedAuditAndTelemetryEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 	request := servicefunction.RequestEnvelope{
-		Version:   servicefunction.EnvelopeVersion,
-		CallID:    "call-2",
-		SpaceID:   "space-1",
-		SessionID: "session-1",
-		RunID:     "run-1",
-		Actor:     servicefunction.ActorRuntime,
-		Service:   "embedding",
-		Function:  "embed",
-		Subject:   "svc.embedding.v1.embed",
-		Payload:   payload,
+		Version:     servicefunction.EnvelopeVersion,
+		CallID:      "call-2",
+		SpaceID:     "space-1",
+		SessionID:   "session-1",
+		RunID:       "run-1",
+		Actor:       servicefunction.ActorRuntime,
+		Service:     "embedding",
+		Function:    "embed",
+		Subject:     "svc.embedding.v1.embed",
+		Payload:     payload,
+		TraceParent: "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01",
+		TraceState:  "vendor=value",
 	}
 	data, err := json.Marshal(request)
 	if err != nil {
@@ -195,7 +198,7 @@ func assertServiceCallEvent(t *testing.T, sub *natsgo.Subscription, callID strin
 	if err != nil {
 		t.Fatalf("next event: %v", err)
 	}
-	var event ServiceCallEvent
+	var event observability.ServiceCallEvent
 	if err := json.Unmarshal(msg.Data, &event); err != nil {
 		t.Fatalf("decode event: %v", err)
 	}
@@ -204,6 +207,9 @@ func assertServiceCallEvent(t *testing.T, sub *natsgo.Subscription, callID strin
 	}
 	if event.Status != string(servicefunction.StatusOK) {
 		t.Fatalf("event status = %q", event.Status)
+	}
+	if event.TraceParent == "" || event.TraceState == "" {
+		t.Fatalf("event trace fields missing: %+v", event)
 	}
 	if string(msg.Data) == "secret text" {
 		t.Fatalf("event leaked request payload: %s", msg.Data)

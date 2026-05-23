@@ -30,7 +30,7 @@ func TestComposeDeclaresOperatorManagedProcesses(t *testing.T) {
 	if err := yaml.Unmarshal(data, &compose); err != nil {
 		t.Fatalf("parse compose: %v", err)
 	}
-	for _, name := range []string{"supervisor", "runtime", "io", "space", "indexer", "embedding", "vector", "victoria-metrics", "openbao", "temporal"} {
+	for _, name := range []string{"supervisor", "runtime", "io", "space", "indexer", "embedding", "vector", "nats-exporter", "vmagent", "victoria-metrics", "openbao", "temporal"} {
 		if _, ok := compose.Services[name]; !ok {
 			t.Fatalf("compose service %q missing", name)
 		}
@@ -50,7 +50,7 @@ func TestComposeDeclaresOperatorManagedProcesses(t *testing.T) {
 		t.Fatalf("runtime environment incomplete: %+v", runtimeSvc.Environment)
 	}
 	for name, svc := range compose.Services {
-		if name == "dgraph" || name == "vector" || name == "victoria-metrics" || name == "openbao" || name == "temporal" {
+		if name == "dgraph" || name == "vector" || name == "nats-exporter" || name == "vmagent" || name == "victoria-metrics" || name == "openbao" || name == "temporal" {
 			continue
 		}
 		if len(svc.Build) == 0 {
@@ -58,6 +58,31 @@ func TestComposeDeclaresOperatorManagedProcesses(t *testing.T) {
 		}
 		if svc.Restart == "" {
 			t.Fatalf("service %q does not declare a restart policy", name)
+		}
+	}
+}
+
+func TestObservabilityDeploymentDeclaresNATSTelemetryAndMetrics(t *testing.T) {
+	root := repoRoot(t)
+	vectorData, err := os.ReadFile(filepath.Join(root, "deploy", "vector", "vector.toml"))
+	if err != nil {
+		t.Fatalf("read vector config: %v", err)
+	}
+	vectorText := string(vectorData)
+	for _, want := range []string{"type = \"nats\"", "subject = \"audit.>\"", "subject = \"telemetry.>\"", "strategy = \"user_password\""} {
+		if !strings.Contains(vectorText, want) {
+			t.Fatalf("vector config missing %q", want)
+		}
+	}
+
+	vmagentData, err := os.ReadFile(filepath.Join(root, "deploy", "victoria", "vmagent.yml"))
+	if err != nil {
+		t.Fatalf("read vmagent config: %v", err)
+	}
+	vmagentText := string(vmagentData)
+	for _, want := range []string{"job_name: quark_nats", "nats-exporter:7777", "job_name: quark_vmagent"} {
+		if !strings.Contains(vmagentText, want) {
+			t.Fatalf("vmagent config missing %q", want)
 		}
 	}
 }

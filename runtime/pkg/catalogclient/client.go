@@ -79,7 +79,12 @@ func FetchRuntimeCatalog(ctx context.Context, cfg Config) (clientcontract.Runtim
 	}
 	requestCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	reply, err := conn.RequestWithContext(requestCtx, clientcontract.SubjectCatalogRuntimeGet, data)
+	msg := nats.NewMsg(clientcontract.SubjectCatalogRuntimeGet)
+	msg.Data = data
+	for key, value := range req.CorrelationHeaders() {
+		msg.Header.Set(key, value)
+	}
+	reply, err := conn.RequestMsgWithContext(requestCtx, msg)
 	if err != nil {
 		return clientcontract.RuntimeCatalogResponse{}, fmt.Errorf("request runtime catalog: %w", err)
 	}

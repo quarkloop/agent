@@ -291,9 +291,54 @@ services:
     restart: unless-stopped
     networks:
       - quark
+    depends_on:
+      supervisor:
+        condition: service_healthy
     volumes:
       - ../vector/vector.toml:/etc/vector/vector.toml:ro
     command: ["--config", "/etc/vector/vector.toml"]
+    environment:
+      QUARK_NATS_URL: nats://supervisor:4222
+      QUARK_NATS_USER: quark-control
+      QUARK_NATS_PASSWORD: quark-control-dev
+
+  nats-exporter:
+    image: natsio/prometheus-nats-exporter:0.19.2
+    profiles: ["observability"]
+    restart: unless-stopped
+    networks:
+      - quark
+    depends_on:
+      supervisor:
+        condition: service_healthy
+    command:
+      - -varz
+      - http://supervisor:8222
+      - -connz
+      - http://supervisor:8222
+      - -jsz
+      - http://supervisor:8222
+    ports:
+      - "7777:7777"
+
+  vmagent:
+    image: victoriametrics/vmagent:v1.129.1
+    profiles: ["observability"]
+    restart: unless-stopped
+    networks:
+      - quark
+    depends_on:
+      nats-exporter:
+        condition: service_started
+      victoria-metrics:
+        condition: service_started
+    command:
+      - -promscrape.config=/etc/vmagent/vmagent.yml
+      - -remoteWrite.url=http://victoria-metrics:8428/api/v1/write
+    ports:
+      - "8429:8429"
+    volumes:
+      - ../victoria/vmagent.yml:/etc/vmagent/vmagent.yml:ro
 
   victoria-metrics:
     image: victoriametrics/victoria-metrics:v1.129.1

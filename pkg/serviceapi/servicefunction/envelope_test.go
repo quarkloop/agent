@@ -19,11 +19,15 @@ func TestRequestEnvelopeValidationHeadersCloneAndRedaction(t *testing.T) {
 	req.SessionID = "session-1"
 	req.RunID = "run-1"
 	req.TraceParent = "00-trace"
+	req.TraceState = "vendor=value"
 	req.ApprovalToken = "approval-secret"
 	req.Artifacts = []ArtifactRef{{ID: "artifact-1", URI: "file:///tmp/doc.pdf"}}
 
 	headers := req.CorrelationHeaders()
-	if headers[HeaderCallID] != "call-1" || headers[HeaderSessionID] != "session-1" || headers[HeaderTraceParent] != "00-trace" {
+	if headers[HeaderCallID] != "call-1" ||
+		headers[HeaderSessionID] != "session-1" ||
+		headers[HeaderTraceParent] != "00-trace" ||
+		headers[HeaderTraceState] != "vendor=value" {
 		t.Fatalf("headers = %+v", headers)
 	}
 

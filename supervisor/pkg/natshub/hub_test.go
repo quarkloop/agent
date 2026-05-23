@@ -68,6 +68,47 @@ func TestHubStartsAcceptsConnectionAndStops(t *testing.T) {
 	}
 }
 
+func TestHubProvisionsControlStreamsAndCoordinationBuckets(t *testing.T) {
+	hub := startTestHub(t)
+	control, err := hub.ControlCredential()
+	if err != nil {
+		t.Fatalf("control credential: %v", err)
+	}
+	nc := connectWithCredential(t, hub, control)
+	js, err := nc.JetStream()
+	if err != nil {
+		t.Fatalf("jetstream: %v", err)
+	}
+	for _, stream := range []string{StreamAudit, StreamTelemetry, StreamSessionEvents, StreamRuntimeActivity, StreamWorkflowEvents, StreamCatalog, StreamJobs} {
+		info, err := js.StreamInfo(stream)
+		if err != nil {
+			t.Fatalf("stream %s missing: %v", stream, err)
+		}
+		if len(info.Config.Subjects) == 0 || info.Config.Storage != nats.FileStorage {
+			t.Fatalf("stream %s config incomplete: %+v", stream, info.Config)
+		}
+	}
+	for _, bucket := range []string{KVRuntimeSpaceLeases, KVServiceLeases, KVAccountMetadata, KVCatalogCursors} {
+		kv, err := js.KeyValue(bucket)
+		if err != nil {
+			t.Fatalf("kv bucket %s missing: %v", bucket, err)
+		}
+		if _, err := kv.Put("probe", []byte("ok")); err != nil {
+			t.Fatalf("write kv bucket %s: %v", bucket, err)
+		}
+	}
+	if _, err := js.Publish("audit.space_1.service_calls", []byte(`{"type":"service_call"}`)); err != nil {
+		t.Fatalf("publish audit event: %v", err)
+	}
+	info, err := js.StreamInfo(StreamAudit)
+	if err != nil {
+		t.Fatalf("audit stream info: %v", err)
+	}
+	if info.State.Msgs == 0 {
+		t.Fatal("audit stream did not store published event")
+	}
+}
+
 func TestHubStartFailsWhenStateDirIsFile(t *testing.T) {
 	statePath := filepath.Join(t.TempDir(), "nats-state")
 	if err := os.WriteFile(statePath, []byte("not a dir"), 0o644); err != nil {

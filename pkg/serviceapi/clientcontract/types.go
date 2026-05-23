@@ -14,6 +14,7 @@ type RequestEnvelope struct {
 	SessionID   string          `json:"session_id,omitempty"`
 	Actor       string          `json:"actor,omitempty"`
 	TraceParent string          `json:"traceparent,omitempty"`
+	TraceState  string          `json:"tracestate,omitempty"`
 	Payload     json.RawMessage `json:"payload"`
 }
 
@@ -24,6 +25,7 @@ type ResponseEnvelope struct {
 	Payload     json.RawMessage `json:"payload,omitempty"`
 	Error       *ErrorPayload   `json:"error,omitempty"`
 	TraceParent string          `json:"traceparent,omitempty"`
+	TraceState  string          `json:"tracestate,omitempty"`
 }
 
 type ErrorPayload struct {
@@ -453,6 +455,17 @@ func (e RequestEnvelope) Clone() RequestEnvelope {
 	return out
 }
 
+func (e RequestEnvelope) CorrelationHeaders() map[string]string {
+	headers := make(map[string]string)
+	addHeader(headers, "Quark-Request-Id", e.RequestID)
+	addHeader(headers, "Quark-Space-Id", e.SpaceID)
+	addHeader(headers, "Quark-Session-Id", e.SessionID)
+	addHeader(headers, "Quark-Actor", e.Actor)
+	addHeader(headers, "traceparent", e.TraceParent)
+	addHeader(headers, "tracestate", e.TraceState)
+	return headers
+}
+
 func OK(requestID string, payload any) (ResponseEnvelope, error) {
 	data, err := json.Marshal(payload)
 	if err != nil {
@@ -528,4 +541,10 @@ func (e ResponseEnvelope) Clone() ResponseEnvelope {
 		out.Error = &errPayload
 	}
 	return out
+}
+
+func addHeader(headers map[string]string, key, value string) {
+	if strings.TrimSpace(value) != "" {
+		headers[key] = strings.TrimSpace(value)
+	}
 }

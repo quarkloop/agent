@@ -1,7 +1,39 @@
 [sources.internal_metrics]
 type = "internal_metrics"
 
+[sources.quark_audit]
+type = "nats"
+connection_name = "quark-vector-audit"
+subject = "audit.>"
+url = "${QUARK_NATS_URL}"
+
+[sources.quark_audit.auth]
+strategy = "user_password"
+
+[sources.quark_audit.auth.user_password]
+user = "${QUARK_NATS_USER}"
+password = "${QUARK_NATS_PASSWORD}"
+
+[sources.quark_audit.decoding]
+codec = "json"
+
+[sources.quark_telemetry]
+type = "nats"
+connection_name = "quark-vector-telemetry"
+subject = "telemetry.>"
+url = "${QUARK_NATS_URL}"
+
+[sources.quark_telemetry.auth]
+strategy = "user_password"
+
+[sources.quark_telemetry.auth.user_password]
+user = "${QUARK_NATS_USER}"
+password = "${QUARK_NATS_PASSWORD}"
+
+[sources.quark_telemetry.decoding]
+codec = "json"
+
 [sinks.console]
 type = "console"
-inputs = ["internal_metrics"]
+inputs = ["internal_metrics", "quark_audit", "quark_telemetry"]
 encoding.codec = "json"

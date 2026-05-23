@@ -128,12 +128,17 @@ func (c *Client) Request(ctx context.Context, subject string, req clientcontract
 	if err != nil {
 		return clientcontract.ResponseEnvelope{}, fmt.Errorf("marshal request envelope: %w", err)
 	}
-	msg, err := c.conn.RequestWithContext(ctx, subject, data)
+	msg := nats.NewMsg(subject)
+	msg.Data = data
+	for key, value := range req.CorrelationHeaders() {
+		msg.Header.Set(key, value)
+	}
+	reply, err := c.conn.RequestMsgWithContext(ctx, msg)
 	if err != nil {
 		return clientcontract.ResponseEnvelope{}, fmt.Errorf("request %s: %w", subject, err)
 	}
 	var resp clientcontract.ResponseEnvelope
-	if err := json.Unmarshal(msg.Data, &resp); err != nil {
+	if err := json.Unmarshal(reply.Data, &resp); err != nil {
 		return clientcontract.ResponseEnvelope{}, fmt.Errorf("decode response envelope: %w", err)
 	}
 	if err := resp.Validate(); err != nil {

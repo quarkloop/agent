@@ -11,6 +11,7 @@ import (
 	natsgo "github.com/nats-io/nats.go"
 	"github.com/quarkloop/pkg/boundary"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
+	"github.com/quarkloop/pkg/serviceapi/observability"
 	"github.com/quarkloop/pkg/serviceapi/servicefunction"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"google.golang.org/grpc"
@@ -246,22 +247,6 @@ func (s *NATSService) respondAndRecord(msg *natsgo.Msg, req servicefunction.Requ
 	s.publishServiceCallEvents(req, ep, resp, time.Since(started))
 }
 
-type ServiceCallEvent struct {
-	CallID         string `json:"call_id,omitempty"`
-	SpaceID        string `json:"space_id,omitempty"`
-	SessionID      string `json:"session_id,omitempty"`
-	RunID          string `json:"run_id,omitempty"`
-	AgentID        string `json:"agent_id,omitempty"`
-	Service        string `json:"service"`
-	Function       string `json:"function"`
-	Subject        string `json:"subject"`
-	Status         string `json:"status"`
-	ErrorCategory  string `json:"error_category,omitempty"`
-	DurationMillis int64  `json:"duration_millis"`
-	TraceParent    string `json:"traceparent,omitempty"`
-	RecordedAt     string `json:"recorded_at"`
-}
-
 func (s *NATSService) publishServiceCallEvents(req servicefunction.RequestEnvelope, ep endpoint, resp servicefunction.ResponseEnvelope, duration time.Duration) {
 	if s == nil || s.conn == nil {
 		return
@@ -269,11 +254,12 @@ func (s *NATSService) publishServiceCallEvents(req servicefunction.RequestEnvelo
 	if strings.TrimSpace(s.cfg.AuditPrefix) == "" && strings.TrimSpace(s.cfg.TelemetryPrefix) == "" {
 		return
 	}
-	event := ServiceCallEvent{
+	event := observability.ServiceCallEvent{
 		CallID:         req.CallID,
 		SpaceID:        req.SpaceID,
 		SessionID:      req.SessionID,
 		RunID:          req.RunID,
+		WorkflowID:     req.WorkflowID,
 		AgentID:        req.AgentID,
 		Service:        ep.serviceName,
 		Function:       ep.functionName,
@@ -281,18 +267,18 @@ func (s *NATSService) publishServiceCallEvents(req servicefunction.RequestEnvelo
 		Status:         string(resp.Status),
 		DurationMillis: duration.Milliseconds(),
 		TraceParent:    req.TraceParent,
-		RecordedAt:     time.Now().UTC().Format(time.RFC3339Nano),
+		TraceState:     req.TraceState,
 	}
 	if resp.Error != nil {
 		event.ErrorCategory = string(resp.Error.Category)
 	}
-	data, err := json.Marshal(event)
+	data, err := observability.MarshalServiceCallEvent(event)
 	if err != nil {
 		s.cfg.Logger.Error("encode service call event", "subject", ep.subject, "error", err)
 		return
 	}
 	for _, prefix := range []string{s.cfg.AuditPrefix, s.cfg.TelemetryPrefix} {
-		subject := serviceCallEventSubject(prefix, req.SpaceID)
+		subject := observability.ServiceCallSubject(prefix, req.SpaceID)
 		if subject == "" {
 			continue
 		}
@@ -355,40 +341,6 @@ func serviceTimeout(rpc *servicev1.RpcDescriptor, fallback time.Duration) time.D
 		return fallback
 	}
 	return DefaultTimeout
-}
-
-func serviceCallEventSubject(prefix, spaceID string) string {
-	prefix = strings.Trim(strings.TrimSpace(prefix), ".")
-	if prefix == "" {
-		return ""
-	}
-	space := subjectToken(spaceID)
-	if space == "" {
-		space = "unknown"
-	}
-	return prefix + "." + space + ".service_calls"
-}
-
-func subjectToken(value string) string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return ""
-	}
-	var b strings.Builder
-	lastUnderscore := false
-	for _, r := range strings.ToLower(value) {
-		switch {
-		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
-			b.WriteRune(r)
-			lastUnderscore = false
-		case r == '_' || r == '-' || r == '.' || r == '/':
-			if !lastUnderscore && b.Len() > 0 {
-				b.WriteByte('_')
-				lastUnderscore = true
-			}
-		}
-	}
-	return strings.Trim(b.String(), "_")
 }
 
 func decodeRequest(data []byte) (servicefunction.RequestEnvelope, error) {

@@ -98,6 +98,13 @@ func (h *Hub) Start(ctx context.Context) error {
 		srv.WaitForShutdown()
 		return err
 	}
+	if h.cfg.JetStream.Enabled {
+		if err := enableJetStreamAccounts(accounts); err != nil {
+			srv.Shutdown()
+			srv.WaitForShutdown()
+			return err
+		}
+	}
 	if err := credentials.rebindAccounts(accounts); err != nil {
 		srv.Shutdown()
 		srv.WaitForShutdown()
@@ -108,6 +115,10 @@ func (h *Hub) Start(ctx context.Context) error {
 	h.credentials = credentials
 	h.started = true
 	h.applied = make(map[string]map[string]struct{})
+	if err := h.provisionJetStreamLocked(ctx); err != nil {
+		h.shutdownStartedServerLocked()
+		return err
+	}
 	for _, space := range h.spaces {
 		if err := h.applyCatalogImportsLocked(space.Account); err != nil {
 			h.shutdownStartedServerLocked()
@@ -433,6 +444,11 @@ func (h *Hub) accountLocked(accountName string) (*natsserver.Account, error) {
 			return nil, err
 		}
 		account = existing
+	}
+	if h.cfg.JetStream.Enabled && accountName != SystemAccountName && !account.JetStreamEnabled() {
+		if err := account.EnableJetStream(defaultJetStreamAccountLimits(), nil); err != nil {
+			return nil, fmt.Errorf("enable jetstream for account %q: %w", accountName, err)
+		}
 	}
 	if h.accounts == nil {
 		h.accounts = make(map[string]*natsserver.Account)

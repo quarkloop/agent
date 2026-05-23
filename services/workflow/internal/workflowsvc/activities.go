@@ -39,12 +39,17 @@ func (d *NATSDispatcher) Dispatch(ctx context.Context, req servicefunction.Reque
 	}
 	callCtx, cancel := context.WithTimeout(ctx, d.timeout)
 	defer cancel()
-	msg, err := d.conn.RequestWithContext(callCtx, req.Subject, data)
+	msg := natsgo.NewMsg(req.Subject)
+	msg.Data = data
+	for key, value := range req.CorrelationHeaders() {
+		msg.Header.Set(key, value)
+	}
+	reply, err := d.conn.RequestMsgWithContext(callCtx, msg)
 	if err != nil {
 		return servicefunction.ResponseEnvelope{}, err
 	}
 	var resp servicefunction.ResponseEnvelope
-	if err := json.Unmarshal(msg.Data, &resp); err != nil {
+	if err := json.Unmarshal(reply.Data, &resp); err != nil {
 		return servicefunction.ResponseEnvelope{}, err
 	}
 	if err := resp.Validate(); err != nil {

@@ -37,6 +37,7 @@ const (
 	HeaderRunID       = "Quark-Run-Id"
 	HeaderWorkflowID  = "Quark-Workflow-Id"
 	HeaderTraceParent = "traceparent"
+	HeaderTraceState  = "tracestate"
 )
 
 type ArtifactRef struct {
@@ -71,6 +72,7 @@ type RequestEnvelope struct {
 	Payload       json.RawMessage `json:"payload"`
 	ApprovalToken string          `json:"approval_token,omitempty"`
 	TraceParent   string          `json:"traceparent,omitempty"`
+	TraceState    string          `json:"tracestate,omitempty"`
 	Artifacts     []ArtifactRef   `json:"artifacts,omitempty"`
 }
 
@@ -155,6 +157,7 @@ func (e RequestEnvelope) RedactedClone() RequestEnvelope {
 		out.ApprovalToken = "[redacted]"
 	}
 	out.TraceParent = redaction.RedactString(out.TraceParent)
+	out.TraceState = redaction.RedactString(out.TraceState)
 	for i := range out.Artifacts {
 		out.Artifacts[i].URI = redaction.RedactString(out.Artifacts[i].URI)
 		out.Artifacts[i].Digest = redaction.RedactString(out.Artifacts[i].Digest)
@@ -171,6 +174,7 @@ func (e RequestEnvelope) CorrelationHeaders() map[string]string {
 	addHeader(headers, HeaderRunID, e.RunID)
 	addHeader(headers, HeaderWorkflowID, e.WorkflowID)
 	addHeader(headers, HeaderTraceParent, e.TraceParent)
+	addHeader(headers, HeaderTraceState, e.TraceState)
 	return headers
 }
 
