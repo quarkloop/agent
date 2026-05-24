@@ -1,7 +1,6 @@
 package modelsvc
 
 import (
-	modelv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/model/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 )
 
@@ -10,7 +9,7 @@ func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.Ser
 	if skill != nil {
 		skills = append(skills, skill)
 	}
-	serviceName := modelv1.ModelService_ServiceDesc.ServiceName
+	serviceName := "quark.model.v1.ModelService"
 	return &servicev1.ServiceDescriptor{
 		Name:    "gateway",
 		Type:    "gateway",

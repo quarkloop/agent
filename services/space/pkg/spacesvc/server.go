@@ -6,15 +6,13 @@ import (
 	"fmt"
 
 	spacev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/space/v1"
+	"github.com/quarkloop/pkg/serviceapi/serviceerrors"
 	spacemodel "github.com/quarkloop/pkg/space"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type Server struct {
-	spacev1.UnimplementedSpaceServiceServer
 	store *Store
 }
 
@@ -161,14 +159,14 @@ func spaceToProto(space *spacemodel.Metadata) *spacev1.Space {
 func grpcError(err error) error {
 	switch {
 	case errors.Is(err, context.Canceled):
-		return status.Error(codes.Canceled, err.Error())
+		return serviceerrors.Canceled(err.Error())
 	case errors.Is(err, context.DeadlineExceeded):
-		return status.Error(codes.DeadlineExceeded, err.Error())
+		return serviceerrors.DeadlineExceeded(err.Error())
 	case errors.Is(err, ErrAlreadyExists):
-		return status.Error(codes.AlreadyExists, err.Error())
+		return serviceerrors.AlreadyExists(err.Error())
 	case IsNotFound(err):
-		return status.Error(codes.NotFound, err.Error())
+		return serviceerrors.NotFound(err.Error())
 	default:
-		return status.Error(codes.InvalidArgument, err.Error())
+		return serviceerrors.InvalidArgument(err.Error())
 	}
 }

@@ -26,7 +26,7 @@ func TestRecorderPersistsActivityEventsAndAudits(t *testing.T) {
 	if err := bridge.Start(context.Background(), servicebridge.Binding{
 		Descriptor: descriptor,
 		Services: []servicebridge.RPCService{{
-			Desc:           &corev1.CoreService_ServiceDesc,
+			Service:        "quark.core.v1.CoreService",
 			Implementation: coreServer,
 		}},
 	}); err != nil {
@@ -96,7 +96,7 @@ func coreServiceDescriptor() *servicev1.ServiceDescriptor {
 		Address: "svc.core.v1",
 		Rpcs: []*servicev1.RpcDescriptor{
 			{
-				Service:       corev1.CoreService_ServiceDesc.ServiceName,
+				Service:       "quark.core.v1.CoreService",
 				Method:        "PublishEvent",
 				Request:       "quark.core.v1.PublishEventRequest",
 				Response:      "quark.core.v1.PublishEventResponse",
@@ -105,7 +105,7 @@ func coreServiceDescriptor() *servicev1.ServiceDescriptor {
 				TimeoutMillis: 2000,
 			},
 			{
-				Service:       corev1.CoreService_ServiceDesc.ServiceName,
+				Service:       "quark.core.v1.CoreService",
 				Method:        "RecordAuditEvent",
 				Request:       "quark.core.v1.RecordAuditEventRequest",
 				Response:      "quark.core.v1.RecordAuditEventResponse",
@@ -118,7 +118,6 @@ func coreServiceDescriptor() *servicev1.ServiceDescriptor {
 }
 
 type captureCoreServer struct {
-	corev1.UnimplementedCoreServiceServer
 	mu     sync.Mutex
 	events []*corev1.Event
 	audits []*corev1.AuditEvent

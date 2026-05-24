@@ -2,11 +2,10 @@ package systemsvc
 
 import (
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
-	systemv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/system/v1"
 )
 
 func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
-	service := systemv1.SystemService_ServiceDesc.ServiceName
+	service := "quark.system.v1.SystemService"
 	return &servicev1.ServiceDescriptor{
 		Name:    "system",
 		Type:    "system",

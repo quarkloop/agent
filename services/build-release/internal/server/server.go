@@ -6,13 +6,11 @@ import (
 	"fmt"
 
 	buildreleasev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/buildrelease/v1"
+	"github.com/quarkloop/pkg/serviceapi/serviceerrors"
 	"github.com/quarkloop/services/build-release/pkg/buildrelease"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type Server struct {
-	buildreleasev1.UnimplementedBuildReleaseServiceServer
 	runner *buildrelease.Runner
 }
 
@@ -66,10 +64,10 @@ func validateWorkingDir(workingDir string) error {
 func grpcError(err error) error {
 	switch {
 	case errors.Is(err, context.Canceled):
-		return status.Error(codes.Canceled, err.Error())
+		return serviceerrors.Canceled(err.Error())
 	case errors.Is(err, context.DeadlineExceeded):
-		return status.Error(codes.DeadlineExceeded, err.Error())
+		return serviceerrors.DeadlineExceeded(err.Error())
 	default:
-		return status.Error(codes.InvalidArgument, err.Error())
+		return serviceerrors.InvalidArgument(err.Error())
 	}
 }

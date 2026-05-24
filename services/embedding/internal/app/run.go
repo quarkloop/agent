@@ -16,7 +16,6 @@ import (
 )
 
 type server struct {
-	embeddingv1.UnimplementedEmbeddingServiceServer
 	embedder embedder
 }
 
@@ -49,7 +48,7 @@ func Run(ctx context.Context, cfg Config) error {
 		Version: "1.0.0",
 		Address: cfg.Address,
 		Rpcs: []*servicev1.RpcDescriptor{
-			{Service: embeddingv1.EmbeddingService_ServiceDesc.ServiceName, Method: "Embed", Request: "quark.embedding.v1.EmbedRequest", Response: "quark.embedding.v1.EmbedResponse", Description: embedder.Description()},
+			{Service: "quark.embedding.v1.EmbeddingService", Method: "Embed", Request: "quark.embedding.v1.EmbedRequest", Response: "quark.embedding.v1.EmbedResponse", Description: embedder.Description()},
 		},
 		Skills: []*servicev1.SkillDescriptor{skill},
 	}
@@ -58,7 +57,7 @@ func Run(ctx context.Context, cfg Config) error {
 	return servicebridge.RunNATSService(ctx, cfg.NATS, servicebridge.Binding{
 		Descriptor: descriptor,
 		Services: []servicebridge.RPCService{{
-			Desc:           &embeddingv1.EmbeddingService_ServiceDesc,
+			Service:        "quark.embedding.v1.EmbeddingService",
 			Implementation: embeddingServer,
 		}},
 	})

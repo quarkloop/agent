@@ -1,7 +1,6 @@
 package docsvc
 
 import (
-	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 )
 
@@ -10,7 +9,7 @@ func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.Ser
 	if skill != nil {
 		skills = append(skills, skill)
 	}
-	serviceName := documentv1.DocumentService_ServiceDesc.ServiceName
+	serviceName := "quark.document.v1.DocumentService"
 	return &servicev1.ServiceDescriptor{
 		Name:    "document",
 		Type:    "document",

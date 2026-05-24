@@ -8,13 +8,10 @@ import (
 	"time"
 
 	ingestionv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/ingestion/v1"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"github.com/quarkloop/pkg/serviceapi/serviceerrors"
 )
 
 type Server struct {
-	ingestionv1.UnimplementedIngestionServiceServer
-
 	store *fileStore
 	now   func() time.Time
 }
@@ -471,12 +468,12 @@ func (s *Server) timestamp() string {
 func grpcError(err error) error {
 	switch {
 	case errors.Is(err, errInvalidArgument):
-		return status.Error(codes.InvalidArgument, err.Error())
+		return serviceerrors.InvalidArgument(err.Error())
 	case errors.Is(err, errNotFound):
-		return status.Error(codes.NotFound, err.Error())
+		return serviceerrors.NotFound(err.Error())
 	case errors.Is(err, errConflict):
-		return status.Error(codes.FailedPrecondition, err.Error())
+		return serviceerrors.FailedPrecondition(err.Error())
 	default:
-		return status.Error(codes.Internal, err.Error())
+		return serviceerrors.Internal(err.Error())
 	}
 }

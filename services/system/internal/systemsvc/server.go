@@ -18,13 +18,11 @@ import (
 	"time"
 
 	systemv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/system/v1"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"github.com/quarkloop/pkg/serviceapi/serviceerrors"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type Server struct {
-	systemv1.UnimplementedSystemServiceServer
 }
 
 func NewServer() *Server {
@@ -148,14 +146,14 @@ func (s *Server) GetMetrics(context.Context, *systemv1.GetMetricsRequest) (*syst
 
 func (s *Server) KillProcess(_ context.Context, req *systemv1.KillProcessRequest) (*systemv1.KillProcessResponse, error) {
 	if req.GetPid() <= 0 {
-		return nil, status.Error(codes.InvalidArgument, "pid is required")
+		return nil, serviceerrors.InvalidArgument("pid is required")
 	}
 	return &systemv1.KillProcessResponse{Plan: mutationPlan("system.kill_process", fmt.Sprint(req.GetPid()), req.GetReason(), "process.kill")}, nil
 }
 
 func (s *Server) RestartService(_ context.Context, req *systemv1.RestartServiceRequest) (*systemv1.RestartServiceResponse, error) {
 	if strings.TrimSpace(req.GetName()) == "" {
-		return nil, status.Error(codes.InvalidArgument, "name is required")
+		return nil, serviceerrors.InvalidArgument("name is required")
 	}
 	manager := firstNonBlank(req.GetManager(), "systemd")
 	return &systemv1.RestartServiceResponse{Plan: mutationPlan("system.restart_service", manager+":"+req.GetName(), req.GetReason(), "service.restart")}, nil
@@ -657,7 +655,7 @@ func grpcErr(err error) error {
 	if err == nil {
 		return nil
 	}
-	return status.Error(codes.InvalidArgument, err.Error())
+	return serviceerrors.InvalidArgument(err.Error())
 }
 
 func sortedProcesses(processes []*systemv1.Process) {

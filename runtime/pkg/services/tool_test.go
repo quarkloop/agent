@@ -732,7 +732,7 @@ func TestExecutorRetriesRetryableServiceFunctionFailures(t *testing.T) {
 		Name:    "embedding",
 		Address: "nats://service-functions",
 		Rpcs: []*servicev1.RpcDescriptor{{
-			Service:       embeddingv1.EmbeddingService_ServiceDesc.ServiceName,
+			Service:       "quark.embedding.v1.EmbeddingService",
 			Method:        "Embed",
 			Request:       "quark.embedding.v1.EmbedRequest",
 			Response:      "quark.embedding.v1.EmbedResponse",
@@ -779,7 +779,7 @@ func TestExecutorMapsServiceInvalidArgumentToDiagnostics(t *testing.T) {
 		Name:    "embedding",
 		Address: "nats://service-functions",
 		Rpcs: []*servicev1.RpcDescriptor{{
-			Service:      embeddingv1.EmbeddingService_ServiceDesc.ServiceName,
+			Service:      "quark.embedding.v1.EmbeddingService",
 			Method:       "Embed",
 			Request:      "quark.embedding.v1.EmbedRequest",
 			Response:     "quark.embedding.v1.EmbedResponse",

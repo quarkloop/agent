@@ -1,7 +1,6 @@
 package secretssvc
 
 import (
-	secretsv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/secrets/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 )
 
@@ -10,7 +9,7 @@ func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.Ser
 	if skill != nil {
 		skills = append(skills, skill)
 	}
-	serviceName := secretsv1.SecretsService_ServiceDesc.ServiceName
+	serviceName := "quark.secrets.v1.SecretsService"
 	return &servicev1.ServiceDescriptor{
 		Name:    "secrets",
 		Type:    "secrets",

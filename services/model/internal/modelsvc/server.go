@@ -12,12 +12,10 @@ import (
 
 	"github.com/quarkloop/pkg/plugin"
 	modelv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/model/v1"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"github.com/quarkloop/pkg/serviceapi/serviceerrors"
 )
 
 type Server struct {
-	modelv1.UnimplementedModelServiceServer
 	mu              sync.RWMutex
 	providers       map[string]provider
 	providerConfigs map[string]ProviderConfig
@@ -52,7 +50,7 @@ func (s *Server) ProviderIDs() []string {
 func (s *Server) Generate(ctx context.Context, req *modelv1.GenerateRequest) (*modelv1.GenerateResponse, error) {
 	cmd := generateFromProto(req.GetProvider(), req.GetModel(), req.GetMessages(), req.GetTools(), req.GetOptions())
 	if len(cmd.Messages) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "messages are required")
+		return nil, serviceerrors.InvalidArgument("messages are required")
 	}
 	text, calls, usage, err := s.generate(ctx, req.GetProvider(), cmd)
 	if err != nil {
@@ -62,26 +60,10 @@ func (s *Server) Generate(ctx context.Context, req *modelv1.GenerateRequest) (*m
 	return &modelv1.GenerateResponse{Text: text, ToolCalls: toolCallsToProto(calls), Usage: usageToProto(usage)}, nil
 }
 
-func (s *Server) StreamGenerate(req *modelv1.StreamGenerateRequest, stream modelv1.ModelService_StreamGenerateServer) error {
-	events, err := s.StreamGenerateEvents(stream.Context(), req)
-	if err != nil {
-		return grpcProviderError(err)
-	}
-	for event := range events {
-		if event.Err != nil {
-			return grpcProviderError(event.Err)
-		}
-		if err := stream.Send(event.Response); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (s *Server) StreamGenerateEvents(ctx context.Context, req *modelv1.StreamGenerateRequest) (<-chan StreamGenerateEvent, error) {
 	cmd := generateFromProto(req.GetProvider(), req.GetModel(), req.GetMessages(), req.GetTools(), req.GetOptions())
 	if len(cmd.Messages) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "messages are required")
+		return nil, serviceerrors.InvalidArgument("messages are required")
 	}
 	providerID, p, err := s.resolveProvider(req.GetProvider())
 	if err != nil {
@@ -131,7 +113,7 @@ func (s *Server) StreamGenerateEvents(ctx context.Context, req *modelv1.StreamGe
 func (s *Server) Embed(ctx context.Context, req *modelv1.EmbedRequest) (*modelv1.EmbedResponse, error) {
 	cmd := embedFromProto(req)
 	if len(cmd.Input) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "input is required")
+		return nil, serviceerrors.InvalidArgument("input is required")
 	}
 	providerID, p, err := s.resolveProvider(req.GetProvider())
 	if err != nil {
@@ -157,10 +139,10 @@ func (s *Server) Embed(ctx context.Context, req *modelv1.EmbedRequest) (*modelv1
 
 func (s *Server) Rerank(ctx context.Context, req *modelv1.RerankRequest) (*modelv1.RerankResponse, error) {
 	if req.GetQuery() == "" {
-		return nil, status.Error(codes.InvalidArgument, "query is required")
+		return nil, serviceerrors.InvalidArgument("query is required")
 	}
 	if len(req.GetDocuments()) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "documents are required")
+		return nil, serviceerrors.InvalidArgument("documents are required")
 	}
 	providerID := firstNonEmpty(req.GetProvider(), "local")
 	started := time.Now()
@@ -590,18 +572,18 @@ func grpcProviderError(err error) error {
 	if errors.As(err, &providerErr) {
 		switch providerErr.Category {
 		case plugin.ProviderErrorAuth:
-			return status.Error(codes.Unauthenticated, providerErr.Error())
+			return serviceerrors.Auth(providerErr.Error())
 		case plugin.ProviderErrorRateLimit:
-			return status.Error(codes.ResourceExhausted, providerErr.Error())
+			return serviceerrors.RateLimit(providerErr.Error())
 		case plugin.ProviderErrorModelUnavailable:
-			return status.Error(codes.NotFound, providerErr.Error())
+			return serviceerrors.NotFound(providerErr.Error())
 		case plugin.ProviderErrorContextOverflow:
-			return status.Error(codes.OutOfRange, providerErr.Error())
+			return serviceerrors.ContextOverflow(providerErr.Error())
 		case plugin.ProviderErrorInvalidRequest:
-			return status.Error(codes.InvalidArgument, providerErr.Error())
+			return serviceerrors.InvalidArgument(providerErr.Error())
 		default:
-			return status.Error(codes.Unavailable, providerErr.Error())
+			return serviceerrors.Unavailable(providerErr.Error())
 		}
 	}
-	return status.Error(codes.Internal, err.Error())
+	return serviceerrors.Internal(err.Error())
 }

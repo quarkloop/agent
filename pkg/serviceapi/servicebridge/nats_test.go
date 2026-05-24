@@ -23,7 +23,7 @@ func TestNATSServiceDispatchesUnaryServiceFunction(t *testing.T) {
 		Name:    "embedding",
 		Version: "1.0.0",
 		Rpcs: []*servicev1.RpcDescriptor{{
-			Service:      embeddingv1.EmbeddingService_ServiceDesc.ServiceName,
+			Service:      "quark.embedding.v1.EmbeddingService",
 			Method:       "Embed",
 			Request:      "quark.embedding.v1.EmbedRequest",
 			Response:     "quark.embedding.v1.EmbedResponse",
@@ -33,7 +33,7 @@ func TestNATSServiceDispatchesUnaryServiceFunction(t *testing.T) {
 	if err := server.Start(context.Background(), Binding{
 		Descriptor: desc,
 		Services: []RPCService{{
-			Desc:           &embeddingv1.EmbeddingService_ServiceDesc,
+			Service:        "quark.embedding.v1.EmbeddingService",
 			Implementation: impl,
 		}},
 	}); err != nil {
@@ -99,7 +99,7 @@ func TestNATSServicePublishesRedactedAuditAndTelemetryEvents(t *testing.T) {
 		Name:    "embedding",
 		Version: "1.0.0",
 		Rpcs: []*servicev1.RpcDescriptor{{
-			Service:      embeddingv1.EmbeddingService_ServiceDesc.ServiceName,
+			Service:      "quark.embedding.v1.EmbeddingService",
 			Method:       "Embed",
 			Request:      "quark.embedding.v1.EmbedRequest",
 			Response:     "quark.embedding.v1.EmbedResponse",
@@ -109,7 +109,7 @@ func TestNATSServicePublishesRedactedAuditAndTelemetryEvents(t *testing.T) {
 	if err := server.Start(context.Background(), Binding{
 		Descriptor: desc,
 		Services: []RPCService{{
-			Desc:           &embeddingv1.EmbeddingService_ServiceDesc,
+			Service:        "quark.embedding.v1.EmbeddingService",
 			Implementation: impl,
 		}},
 	}); err != nil {
@@ -164,7 +164,6 @@ func TestNATSServicePublishesRedactedAuditAndTelemetryEvents(t *testing.T) {
 }
 
 type embeddingBridgeServer struct {
-	embeddingv1.UnimplementedEmbeddingServiceServer
 }
 
 func (embeddingBridgeServer) Embed(context.Context, *embeddingv1.EmbedRequest) (*embeddingv1.EmbedResponse, error) {

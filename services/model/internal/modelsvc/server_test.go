@@ -5,9 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/quarkloop/pkg/boundary"
 	modelv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/model/v1"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func TestGenerateUsesOrderedFallbackAndReturnsUsage(t *testing.T) {
@@ -159,8 +158,8 @@ func TestUnsupportedProviderMapsToStructuredError(t *testing.T) {
 		Model:    "claude",
 		Messages: []*modelv1.ModelMessage{{Role: "user", Content: "hi"}},
 	})
-	if status.Code(err) != codes.Unavailable {
-		t.Fatalf("code = %s, err = %v", status.Code(err), err)
+	if !boundary.IsCategory(err, boundary.Unavailable) {
+		t.Fatalf("error = %v, want unavailable", err)
 	}
 }
 

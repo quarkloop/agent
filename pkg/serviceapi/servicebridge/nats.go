@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"strings"
 	"time"
 
@@ -14,9 +15,10 @@ import (
 	"github.com/quarkloop/pkg/serviceapi/observability"
 	"github.com/quarkloop/pkg/serviceapi/servicefunction"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
-	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
 )
 
 const (
@@ -47,7 +49,7 @@ type Binding struct {
 }
 
 type RPCService struct {
-	Desc           *grpc.ServiceDesc
+	Service        string
 	Implementation any
 }
 
@@ -136,9 +138,9 @@ func (s *NATSService) registerBinding(binding Binding) error {
 		if rpc.GetStreaming() {
 			continue
 		}
-		method := methods[serviceMethodKey(rpc.GetService(), rpc.GetMethod())]
-		if method.Desc == nil || method.Implementation == nil {
-			return fmt.Errorf("missing implementation for %s/%s", rpc.GetService(), rpc.GetMethod())
+		method, err := methodBindingFor(methods, rpc)
+		if err != nil {
+			return err
 		}
 		subject, serviceName, functionName, err := subjectForRPC(descriptor, rpc)
 		if err != nil {
@@ -149,7 +151,7 @@ func (s *NATSService) registerBinding(binding Binding) error {
 			serviceName:    serviceName,
 			functionName:   functionName,
 			rpc:            servicekit.CloneDescriptor(&servicev1.ServiceDescriptor{Name: descriptor.GetName(), Rpcs: []*servicev1.RpcDescriptor{rpc}}).GetRpcs()[0],
-			method:         method.Desc,
+			method:         method,
 			implementation: method.Implementation,
 		}
 		sub, err := s.conn.QueueSubscribe(subject, s.cfg.Queue, s.handle(endpoint))
@@ -166,12 +168,14 @@ type endpoint struct {
 	serviceName    string
 	functionName   string
 	rpc            *servicev1.RpcDescriptor
-	method         *grpc.MethodDesc
+	method         methodBinding
 	implementation any
 }
 
 type methodBinding struct {
-	Desc           *grpc.MethodDesc
+	Service        string
+	Method         string
+	Request        protoreflect.FullName
 	Implementation any
 }
 
@@ -196,7 +200,12 @@ func (s *NATSService) handle(ep endpoint) func(*natsgo.Msg) {
 			s.respondAndRecord(msg, req, ep, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, ep.subject), started)
 			return
 		}
-		resp, err := ep.method.Handler(ep.implementation, ctx, decoder(req.Payload), nil)
+		protoReq, err := newRequestMessage(ep.method.Request, req.Payload)
+		if err != nil {
+			s.respondAndRecord(msg, req, ep, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, ep.subject), started)
+			return
+		}
+		resp, err := callUnaryMethod(ctx, ep.implementation, ep.method.Method, protoReq)
 		if err != nil {
 			s.respondAndRecord(msg, req, ep, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, ep.subject), started)
 			return
@@ -212,19 +221,6 @@ func (s *NATSService) handle(ep endpoint) func(*natsgo.Msg) {
 			return
 		}
 		s.respondAndRecord(msg, req, ep, servicefunction.OKResponse(req.CallID, payload), started)
-	}
-}
-
-func decoder(payload json.RawMessage) func(any) error {
-	return func(target any) error {
-		msg, ok := target.(proto.Message)
-		if !ok {
-			return fmt.Errorf("request target is not protobuf message")
-		}
-		if len(payload) == 0 {
-			payload = json.RawMessage("{}")
-		}
-		return protojson.UnmarshalOptions{DiscardUnknown: true}.Unmarshal(payload, msg)
 	}
 }
 
@@ -291,18 +287,84 @@ func (s *NATSService) publishServiceCallEvents(req servicefunction.RequestEnvelo
 func serviceMethods(services []RPCService) map[string]methodBinding {
 	out := make(map[string]methodBinding)
 	for _, service := range services {
-		if service.Desc == nil || service.Implementation == nil {
+		if strings.TrimSpace(service.Service) == "" || service.Implementation == nil {
 			continue
 		}
-		for i := range service.Desc.Methods {
-			method := &service.Desc.Methods[i]
-			out[serviceMethodKey(service.Desc.ServiceName, method.MethodName)] = methodBinding{
-				Desc:           method,
-				Implementation: service.Implementation,
-			}
+		out[serviceMethodKey(service.Service, "*")] = methodBinding{
+			Service:        strings.TrimSpace(service.Service),
+			Implementation: service.Implementation,
 		}
 	}
 	return out
+}
+
+func methodBindingFor(methods map[string]methodBinding, rpc *servicev1.RpcDescriptor) (methodBinding, error) {
+	if rpc == nil {
+		return methodBinding{}, fmt.Errorf("rpc descriptor is required")
+	}
+	method, ok := methods[serviceMethodKey(rpc.GetService(), rpc.GetMethod())]
+	if !ok {
+		method, ok = methods[serviceMethodKey(rpc.GetService(), "*")]
+	}
+	if !ok || method.Implementation == nil {
+		return methodBinding{}, fmt.Errorf("missing implementation for %s/%s", rpc.GetService(), rpc.GetMethod())
+	}
+	method.Service = strings.TrimSpace(rpc.GetService())
+	method.Method = strings.TrimSpace(rpc.GetMethod())
+	method.Request = protoreflect.FullName(strings.TrimSpace(rpc.GetRequest()))
+	if method.Method == "" {
+		return methodBinding{}, fmt.Errorf("rpc method is required for %s", rpc.GetService())
+	}
+	if method.Request == "" {
+		return methodBinding{}, fmt.Errorf("rpc request type is required for %s/%s", rpc.GetService(), rpc.GetMethod())
+	}
+	return method, nil
+}
+
+func newRequestMessage(name protoreflect.FullName, payload json.RawMessage) (proto.Message, error) {
+	messageType, err := protoregistry.GlobalTypes.FindMessageByName(name)
+	if err != nil {
+		return nil, fmt.Errorf("resolve protobuf request %s: %w", name, err)
+	}
+	message := messageType.New().Interface()
+	if len(payload) == 0 {
+		payload = json.RawMessage("{}")
+	}
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(payload, message); err != nil {
+		return nil, fmt.Errorf("decode protobuf request %s: %w", name, err)
+	}
+	return message, nil
+}
+
+func callUnaryMethod(ctx context.Context, implementation any, methodName string, req proto.Message) (proto.Message, error) {
+	if implementation == nil {
+		return nil, fmt.Errorf("service implementation is required")
+	}
+	method := reflect.ValueOf(implementation).MethodByName(methodName)
+	if !method.IsValid() {
+		return nil, fmt.Errorf("service implementation does not expose %s", methodName)
+	}
+	methodType := method.Type()
+	if methodType.NumIn() != 2 || methodType.NumOut() != 2 {
+		return nil, fmt.Errorf("service method %s must have signature func(context.Context, proto.Message) (proto.Message, error)", methodName)
+	}
+	if !reflect.TypeOf(ctx).AssignableTo(methodType.In(0)) {
+		return nil, fmt.Errorf("service method %s first argument must accept context.Context", methodName)
+	}
+	reqValue := reflect.ValueOf(req)
+	if !reqValue.Type().AssignableTo(methodType.In(1)) {
+		return nil, fmt.Errorf("service method %s request type mismatch: got %s want %s", methodName, reqValue.Type(), methodType.In(1))
+	}
+	results := method.Call([]reflect.Value{reflect.ValueOf(ctx), reqValue})
+	if errValue := results[1]; !errValue.IsNil() {
+		err, _ := errValue.Interface().(error)
+		return nil, err
+	}
+	resp, ok := results[0].Interface().(proto.Message)
+	if !ok {
+		return nil, fmt.Errorf("service method %s response is not protobuf message", methodName)
+	}
+	return resp, nil
 }
 
 func subjectForRPC(desc *servicev1.ServiceDescriptor, rpc *servicev1.RpcDescriptor) (string, string, string, error) {

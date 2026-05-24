@@ -3,43 +3,28 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"net"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/quarkloop/pkg/boundary"
 	buildreleasev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/buildrelease/v1"
 	"github.com/quarkloop/services/build-release/pkg/buildrelease"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/status"
-	"google.golang.org/grpc/test/bufconn"
 )
 
 func TestBuildReleaseServiceDryRunAndInit(t *testing.T) {
 	t.Parallel()
 
-	listener, stop := startTestServer(t)
-	defer stop()
-
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	conn, err := grpc.DialContext(ctx, "bufnet",
-		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
-			return listener.Dial()
-		}),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
+	server, err := New(buildrelease.NewRunner())
 	if err != nil {
-		t.Fatalf("dial service: %v", err)
+		t.Fatal(err)
 	}
-	defer conn.Close()
-	client := buildreleasev1.NewBuildReleaseServiceClient(conn)
 
 	wd := t.TempDir()
-	initResp, err := client.Init(ctx, &buildreleasev1.InitRequest{WorkingDir: wd})
+	initResp, err := server.Init(ctx, &buildreleasev1.InitRequest{WorkingDir: wd})
 	if err != nil {
 		t.Fatalf("init: %v", err)
 	}
@@ -51,7 +36,7 @@ func TestBuildReleaseServiceDryRunAndInit(t *testing.T) {
 	}
 
 	writeConfig(t, wd)
-	dryResp, err := client.DryRun(ctx, &buildreleasev1.DryRunRequest{WorkingDir: wd, Version: "v9.9.9"})
+	dryResp, err := server.DryRun(ctx, &buildreleasev1.DryRunRequest{WorkingDir: wd, Version: "v9.9.9"})
 	if err != nil {
 		t.Fatalf("dry run: %v", err)
 	}
@@ -72,16 +57,16 @@ func TestBuildReleaseServiceRequiresWorkingDir(t *testing.T) {
 	}
 
 	_, err = server.Init(context.Background(), &buildreleasev1.InitRequest{})
-	if status.Code(err) != codes.InvalidArgument {
-		t.Fatalf("init error = %v, code %s", err, status.Code(err))
+	if !boundary.IsCategory(err, boundary.InvalidArgument) {
+		t.Fatalf("init error = %v, want invalid argument", err)
 	}
 	_, err = server.DryRun(context.Background(), &buildreleasev1.DryRunRequest{})
-	if status.Code(err) != codes.InvalidArgument {
-		t.Fatalf("dry run error = %v, code %s", err, status.Code(err))
+	if !boundary.IsCategory(err, boundary.InvalidArgument) {
+		t.Fatalf("dry run error = %v, want invalid argument", err)
 	}
 	_, err = server.Release(context.Background(), &buildreleasev1.ReleaseRequest{})
-	if status.Code(err) != codes.InvalidArgument {
-		t.Fatalf("release error = %v, code %s", err, status.Code(err))
+	if !boundary.IsCategory(err, boundary.InvalidArgument) {
+		t.Fatalf("release error = %v, want invalid argument", err)
 	}
 }
 
@@ -96,8 +81,8 @@ func TestBuildReleaseServiceMapsCancellation(t *testing.T) {
 	cancel()
 
 	_, err = server.Init(ctx, &buildreleasev1.InitRequest{WorkingDir: t.TempDir()})
-	if status.Code(err) != codes.Canceled {
-		t.Fatalf("cancel error = %v, code %s", err, status.Code(err))
+	if !boundary.IsCategory(err, boundary.Canceled) {
+		t.Fatalf("cancel error = %v, want canceled", err)
 	}
 }
 
@@ -122,19 +107,6 @@ func TestArtifactsToProtoMapsReleaseArtifacts(t *testing.T) {
 	if artifact.GetBuildName() != "quark" || artifact.GetOs() != "linux" || artifact.GetArch() != "amd64" || artifact.GetDurationMillis() != 1500 || artifact.GetError() != "compile failed" {
 		t.Fatalf("artifact = %+v", artifact)
 	}
-}
-
-func startTestServer(t *testing.T) (*bufconn.Listener, func()) {
-	t.Helper()
-	rpcServer, err := New(buildrelease.NewRunner())
-	if err != nil {
-		t.Fatal(err)
-	}
-	grpcServer := grpc.NewServer()
-	buildreleasev1.RegisterBuildReleaseServiceServer(grpcServer, rpcServer)
-	ln := bufconn.Listen(1024 * 1024)
-	go func() { _ = grpcServer.Serve(ln) }()
-	return ln, grpcServer.Stop
 }
 
 func writeConfig(t *testing.T, wd string) {

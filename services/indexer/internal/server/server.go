@@ -6,14 +6,12 @@ import (
 	"fmt"
 
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
+	"github.com/quarkloop/pkg/serviceapi/serviceerrors"
 	"github.com/quarkloop/services/indexer/internal/indexing"
 	"github.com/quarkloop/services/indexer/pkg/indexer"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type Server struct {
-	indexerv1.UnimplementedIndexerServiceServer
 	service *indexing.Service
 }
 
@@ -239,7 +237,7 @@ func toProtoGraph(graph *indexer.GraphFragment) *indexerv1.GraphFragment {
 func grpcError(err error) error {
 	var validation *indexing.ValidationError
 	if errors.As(err, &validation) {
-		return status.Error(codes.InvalidArgument, validation.Error())
+		return serviceerrors.InvalidArgument(validation.Error())
 	}
-	return status.Errorf(codes.Internal, "%v", err)
+	return serviceerrors.Internalf("%v", err)
 }

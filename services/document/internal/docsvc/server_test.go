@@ -8,9 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/quarkloop/pkg/boundary"
 	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type fakePDFExtractor struct {
@@ -165,8 +164,8 @@ func TestMalformedPDFReturnsInvalidArgument(t *testing.T) {
 	_, err := srv.ParseBytes(context.Background(), &documentv1.ParseBytesRequest{
 		Input: &documentv1.DocumentInput{Filename: "bad.pdf", Content: []byte("%PDF-1.7 broken")},
 	})
-	if status.Code(err) != codes.InvalidArgument {
-		t.Fatalf("code = %v, want InvalidArgument; err=%v", status.Code(err), err)
+	if !boundary.IsCategory(err, boundary.InvalidArgument) {
+		t.Fatalf("error = %v, want InvalidArgument", err)
 	}
 }
 
@@ -175,15 +174,15 @@ func TestEmptyUnsupportedAndImageOCRFailures(t *testing.T) {
 	_, err := srv.ParseBytes(context.Background(), &documentv1.ParseBytesRequest{
 		Input: &documentv1.DocumentInput{Filename: "empty.txt", Content: nil},
 	})
-	if status.Code(err) != codes.InvalidArgument {
-		t.Fatalf("empty code = %v, want InvalidArgument", status.Code(err))
+	if !boundary.IsCategory(err, boundary.InvalidArgument) {
+		t.Fatalf("empty error = %v, want InvalidArgument", err)
 	}
 
 	_, err = srv.ParseBytes(context.Background(), &documentv1.ParseBytesRequest{
 		Input: &documentv1.DocumentInput{Filename: "blob.bin", Content: []byte{0x00, 0xff, 0x10}},
 	})
-	if status.Code(err) != codes.InvalidArgument {
-		t.Fatalf("unsupported code = %v, want InvalidArgument", status.Code(err))
+	if !boundary.IsCategory(err, boundary.InvalidArgument) {
+		t.Fatalf("unsupported error = %v, want InvalidArgument", err)
 	}
 
 	imageInput := &documentv1.DocumentInput{Filename: "scan.png", MimeType: "image/png", Content: []byte{0x89, 'P', 'N', 'G'}}
@@ -195,8 +194,8 @@ func TestEmptyUnsupportedAndImageOCRFailures(t *testing.T) {
 		t.Fatalf("expected image reference, got %#v", images.GetImages())
 	}
 	_, err = srv.RunOCR(context.Background(), &documentv1.RunOCRRequest{Input: imageInput})
-	if status.Code(err) != codes.FailedPrecondition {
-		t.Fatalf("image OCR code = %v, want FailedPrecondition", status.Code(err))
+	if !boundary.IsCategory(err, boundary.Conflict) {
+		t.Fatalf("image OCR error = %v, want FailedPrecondition", err)
 	}
 }
 
@@ -205,7 +204,7 @@ func TestContentRefOnlyIsExplicitlyUnimplemented(t *testing.T) {
 	_, err := srv.ExtractText(context.Background(), &documentv1.ExtractTextRequest{
 		Input: &documentv1.DocumentInput{ContentRef: "artifact://source/1"},
 	})
-	if status.Code(err) != codes.Unimplemented {
-		t.Fatalf("code = %v, want Unimplemented", status.Code(err))
+	if !boundary.IsCategory(err, boundary.Unavailable) {
+		t.Fatalf("error = %v, want Unimplemented", err)
 	}
 }

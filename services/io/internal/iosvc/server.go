@@ -7,12 +7,11 @@ import (
 	"os"
 
 	iov1 "github.com/quarkloop/pkg/serviceapi/gen/quark/io/v1"
+	"github.com/quarkloop/pkg/serviceapi/serviceerrors"
 	"github.com/quarkloop/services/io/internal/iofetch"
 	"github.com/quarkloop/services/io/internal/iofs"
 	"github.com/quarkloop/services/io/internal/iosearch"
 	"github.com/quarkloop/services/io/internal/ioshell"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type Config struct {
@@ -21,8 +20,6 @@ type Config struct {
 }
 
 type Server struct {
-	iov1.UnimplementedIOServiceServer
-
 	pdfToText string
 	logger    *slog.Logger
 }
@@ -168,12 +165,12 @@ func fileEntriesToProto(entries []iofs.FileEntry) []*iov1.FileEntry {
 func grpcError(err error) error {
 	switch {
 	case errors.Is(err, iofs.ErrMutationNotApproved), errors.Is(err, ioshell.ErrNotApproved):
-		return status.Error(codes.FailedPrecondition, err.Error())
+		return serviceerrors.FailedPrecondition(err.Error())
 	case errors.Is(err, os.ErrNotExist):
-		return status.Error(codes.NotFound, err.Error())
+		return serviceerrors.NotFound(err.Error())
 	case errors.Is(err, os.ErrPermission):
-		return status.Error(codes.PermissionDenied, err.Error())
+		return serviceerrors.PermissionDenied(err.Error())
 	default:
-		return status.Error(codes.InvalidArgument, err.Error())
+		return serviceerrors.InvalidArgument(err.Error())
 	}
 }

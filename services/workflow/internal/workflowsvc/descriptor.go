@@ -2,7 +2,6 @@ package workflowsvc
 
 import (
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
-	workflowv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/workflow/v1"
 )
 
 func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
@@ -10,7 +9,7 @@ func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.Ser
 	if skill != nil {
 		skills = append(skills, skill)
 	}
-	serviceName := workflowv1.WorkflowService_ServiceDesc.ServiceName
+	serviceName := "quark.workflow.v1.WorkflowService"
 	return &servicev1.ServiceDescriptor{
 		Name:    "workflow",
 		Type:    "workflow",

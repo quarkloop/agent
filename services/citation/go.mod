@@ -4,7 +4,6 @@ go 1.26
 
 require (
 	github.com/quarkloop/pkg/serviceapi v0.0.0
-	google.golang.org/grpc v1.76.0
 )
 
 require (

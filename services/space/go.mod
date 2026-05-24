@@ -6,7 +6,6 @@ require (
 	github.com/quarkloop/pkg/plugin v0.0.0
 	github.com/quarkloop/pkg/serviceapi v0.0.0
 	github.com/quarkloop/pkg/space v0.0.0
-	google.golang.org/grpc v1.76.0
 	google.golang.org/protobuf v1.36.10
 )
 

@@ -7,8 +7,7 @@ import (
 	"strings"
 
 	workflowv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/workflow/v1"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"github.com/quarkloop/pkg/serviceapi/serviceerrors"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -24,7 +23,6 @@ type Engine interface {
 }
 
 type Server struct {
-	workflowv1.UnimplementedWorkflowServiceServer
 	engine Engine
 	logger *slog.Logger
 }
@@ -41,10 +39,10 @@ func NewServer(engine Engine, logger *slog.Logger) (*Server, error) {
 
 func (s *Server) Start(ctx context.Context, req *workflowv1.StartWorkflowRequest) (*workflowv1.StartWorkflowResponse, error) {
 	if req == nil {
-		return nil, status.Error(codes.InvalidArgument, "start workflow request is required")
+		return nil, serviceerrors.InvalidArgument("start workflow request is required")
 	}
 	if strings.TrimSpace(req.GetSpaceId()) == "" {
-		return nil, status.Error(codes.InvalidArgument, "space_id is required")
+		return nil, serviceerrors.InvalidArgument("space_id is required")
 	}
 	workflowType := strings.TrimSpace(req.GetWorkflowType())
 	if workflowType == "" {
@@ -53,7 +51,7 @@ func (s *Server) Start(ctx context.Context, req *workflowv1.StartWorkflowRequest
 		workflowType = req.WorkflowType
 	}
 	if workflowType != WorkflowTypeDocumentIngestion {
-		return nil, status.Errorf(codes.InvalidArgument, "unsupported workflow_type %q", workflowType)
+		return nil, serviceerrors.InvalidArgumentf("unsupported workflow_type %q", workflowType)
 	}
 	info, err := s.engine.Start(ctx, req)
 	if err != nil {
@@ -64,7 +62,7 @@ func (s *Server) Start(ctx context.Context, req *workflowv1.StartWorkflowRequest
 
 func (s *Server) Signal(ctx context.Context, req *workflowv1.SignalWorkflowRequest) (*workflowv1.SignalWorkflowResponse, error) {
 	if req == nil || strings.TrimSpace(req.GetWorkflowId()) == "" || strings.TrimSpace(req.GetSignal()) == "" {
-		return nil, status.Error(codes.InvalidArgument, "workflow_id and signal are required")
+		return nil, serviceerrors.InvalidArgument("workflow_id and signal are required")
 	}
 	info, err := s.engine.Signal(ctx, req)
 	if err != nil {
@@ -75,7 +73,7 @@ func (s *Server) Signal(ctx context.Context, req *workflowv1.SignalWorkflowReque
 
 func (s *Server) Query(ctx context.Context, req *workflowv1.QueryWorkflowRequest) (*workflowv1.QueryWorkflowResponse, error) {
 	if req == nil || strings.TrimSpace(req.GetWorkflowId()) == "" || strings.TrimSpace(req.GetQuery()) == "" {
-		return nil, status.Error(codes.InvalidArgument, "workflow_id and query are required")
+		return nil, serviceerrors.InvalidArgument("workflow_id and query are required")
 	}
 	result, err := s.engine.Query(ctx, req)
 	if err != nil {
@@ -86,7 +84,7 @@ func (s *Server) Query(ctx context.Context, req *workflowv1.QueryWorkflowRequest
 
 func (s *Server) Cancel(ctx context.Context, req *workflowv1.CancelWorkflowRequest) (*workflowv1.CancelWorkflowResponse, error) {
 	if req == nil || strings.TrimSpace(req.GetWorkflowId()) == "" {
-		return nil, status.Error(codes.InvalidArgument, "workflow_id is required")
+		return nil, serviceerrors.InvalidArgument("workflow_id is required")
 	}
 	info, err := s.engine.Cancel(ctx, req)
 	if err != nil {
@@ -97,7 +95,7 @@ func (s *Server) Cancel(ctx context.Context, req *workflowv1.CancelWorkflowReque
 
 func (s *Server) Describe(ctx context.Context, req *workflowv1.DescribeWorkflowRequest) (*workflowv1.DescribeWorkflowResponse, error) {
 	if req == nil || strings.TrimSpace(req.GetWorkflowId()) == "" {
-		return nil, status.Error(codes.InvalidArgument, "workflow_id is required")
+		return nil, serviceerrors.InvalidArgument("workflow_id is required")
 	}
 	info, err := s.engine.Describe(ctx, req)
 	if err != nil {
@@ -117,25 +115,9 @@ func (s *Server) List(ctx context.Context, req *workflowv1.ListWorkflowsRequest)
 	return &workflowv1.ListWorkflowsResponse{Workflows: cloneInfos(workflows)}, nil
 }
 
-func (s *Server) StreamEvents(req *workflowv1.StreamWorkflowEventsRequest, stream workflowv1.WorkflowService_StreamEventsServer) error {
-	if req == nil || strings.TrimSpace(req.GetWorkflowId()) == "" {
-		return status.Error(codes.InvalidArgument, "workflow_id is required")
-	}
-	events, err := s.engine.Events(stream.Context(), req)
-	if err != nil {
-		return err
-	}
-	for event := range events {
-		if err := stream.Send(cloneEvent(event)); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (s *Server) EngineEvents(ctx context.Context, req *workflowv1.StreamWorkflowEventsRequest) (<-chan *workflowv1.WorkflowEvent, error) {
 	if req == nil || strings.TrimSpace(req.GetWorkflowId()) == "" {
-		return nil, status.Error(codes.InvalidArgument, "workflow_id is required")
+		return nil, serviceerrors.InvalidArgument("workflow_id is required")
 	}
 	return s.engine.Events(ctx, req)
 }

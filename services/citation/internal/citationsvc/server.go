@@ -9,8 +9,7 @@ import (
 	"unicode"
 
 	citationv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/citation/v1"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"github.com/quarkloop/pkg/serviceapi/serviceerrors"
 )
 
 const (
@@ -24,7 +23,6 @@ var wordTokenRE = regexp.MustCompile(`[A-Za-z0-9][A-Za-z0-9_-]*`)
 var unsafeIDRE = regexp.MustCompile(`[^a-z0-9_]+`)
 
 type Server struct {
-	citationv1.UnimplementedCitationServiceServer
 }
 
 func NewServer() *Server {
@@ -34,7 +32,7 @@ func NewServer() *Server {
 func (s *Server) ResolveSpans(_ context.Context, req *citationv1.ResolveSpansRequest) (*citationv1.ResolveSpansResponse, error) {
 	sourceText := req.GetSourceText()
 	if strings.TrimSpace(sourceText) == "" {
-		return nil, status.Error(codes.InvalidArgument, "source_text is required")
+		return nil, serviceerrors.InvalidArgument("source_text is required")
 	}
 	spans := make([]*citationv1.CitationSpan, 0, len(req.GetQueries()))
 	for _, query := range req.GetQueries() {
@@ -49,11 +47,11 @@ func (s *Server) ResolveSpans(_ context.Context, req *citationv1.ResolveSpansReq
 
 func (s *Server) CreateCitation(_ context.Context, req *citationv1.CreateCitationRequest) (*citationv1.CitationSpan, error) {
 	if strings.TrimSpace(req.GetSourceText()) == "" {
-		return nil, status.Error(codes.InvalidArgument, "source_text is required")
+		return nil, serviceerrors.InvalidArgument("source_text is required")
 	}
 	span, ok := resolveQuery(req.GetSourceUri(), req.GetSourceText(), req.GetId(), req.GetText(), req.GetHint())
 	if !ok {
-		return nil, status.Error(codes.NotFound, "citation text was not found in source_text")
+		return nil, serviceerrors.NotFound("citation text was not found in source_text")
 	}
 	return span, nil
 }

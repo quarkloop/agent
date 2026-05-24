@@ -8,9 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/quarkloop/pkg/boundary"
 	ingestionv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/ingestion/v1"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func TestStartRunPersistsAndReloads(t *testing.T) {
@@ -134,8 +133,8 @@ func TestMarkCompleteCancelListRunsAndValidation(t *testing.T) {
 	}
 
 	_, err = srv.ResumeRun(context.Background(), &ingestionv1.ResumeRunRequest{RunId: run.GetId()})
-	if status.Code(err) != codes.FailedPrecondition {
-		t.Fatalf("resume completed code = %s, want FailedPrecondition", status.Code(err))
+	if !boundary.IsCategory(err, boundary.Conflict) {
+		t.Fatalf("resume completed error = %v, want FailedPrecondition", err)
 	}
 
 	second := startFixtureRun(t, srv).GetRun()
@@ -159,8 +158,8 @@ func TestMarkCompleteCancelListRunsAndValidation(t *testing.T) {
 	}
 
 	_, err = srv.StartRun(context.Background(), &ingestionv1.StartRunRequest{Space: "test-space"})
-	if status.Code(err) != codes.InvalidArgument {
-		t.Fatalf("empty sources code = %s, want InvalidArgument", status.Code(err))
+	if !boundary.IsCategory(err, boundary.InvalidArgument) {
+		t.Fatalf("empty sources error = %v, want InvalidArgument", err)
 	}
 }
 

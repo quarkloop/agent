@@ -4,7 +4,3 @@ plugins:
     out: pkg/serviceapi/gen
     opt:
       - paths=source_relative
-  - local: protoc-gen-go-grpc
-    out: pkg/serviceapi/gen
-    opt:
-      - paths=source_relative

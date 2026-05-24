@@ -6,8 +6,7 @@ import (
 	"log/slog"
 
 	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"github.com/quarkloop/pkg/serviceapi/serviceerrors"
 )
 
 type Config struct {
@@ -16,8 +15,6 @@ type Config struct {
 }
 
 type Server struct {
-	documentv1.UnimplementedDocumentServiceServer
-
 	parser parser
 }
 
@@ -171,19 +168,19 @@ func sourceForDetection(ctx context.Context, input documentInput) (sourceDocumen
 func grpcError(err error) error {
 	switch {
 	case errors.Is(err, errEmptyInput):
-		return status.Error(codes.InvalidArgument, err.Error())
+		return serviceerrors.InvalidArgument(err.Error())
 	case errors.Is(err, errContentRefOnly):
-		return status.Error(codes.Unimplemented, err.Error())
+		return serviceerrors.Unimplemented(err.Error())
 	case errors.Is(err, errUnsupportedType):
-		return status.Error(codes.InvalidArgument, err.Error())
+		return serviceerrors.InvalidArgument(err.Error())
 	case errors.Is(err, errPDFBackendMissing):
-		return status.Error(codes.FailedPrecondition, err.Error())
+		return serviceerrors.FailedPrecondition(err.Error())
 	case errors.Is(err, errPDFParseFailed):
-		return status.Error(codes.InvalidArgument, err.Error())
+		return serviceerrors.InvalidArgument(err.Error())
 	case errors.Is(err, errOCRBackendMissing):
-		return status.Error(codes.FailedPrecondition, err.Error())
+		return serviceerrors.FailedPrecondition(err.Error())
 	default:
-		return status.Error(codes.Internal, err.Error())
+		return serviceerrors.Internal(err.Error())
 	}
 }
 

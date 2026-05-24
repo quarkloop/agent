@@ -13,8 +13,7 @@ import (
 	"strings"
 
 	devopsv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/devops/v1"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"github.com/quarkloop/pkg/serviceapi/serviceerrors"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -25,12 +24,6 @@ const (
 )
 
 type Server struct {
-	devopsv1.UnimplementedRepoServiceServer
-	devopsv1.UnimplementedBuildServiceServer
-	devopsv1.UnimplementedTestServiceServer
-	devopsv1.UnimplementedContainerServiceServer
-	devopsv1.UnimplementedDeployServiceServer
-	devopsv1.UnimplementedPolicyServiceServer
 }
 
 func NewServer() *Server {
@@ -103,12 +96,12 @@ func (s *Server) ApplyPatch(ctx context.Context, req *devopsv1.ApplyPatchRequest
 	files := filesFromPatch(req.GetPatch())
 	if req.GetDryRun() {
 		if strings.TrimSpace(req.GetPatch()) == "" {
-			return nil, status.Error(codes.InvalidArgument, "patch is required")
+			return nil, serviceerrors.InvalidArgument("patch is required")
 		}
 		cmd := exec.CommandContext(ctx, "git", "-C", root, "apply", "--check")
 		cmd.Stdin = strings.NewReader(req.GetPatch())
 		if output, err := cmd.CombinedOutput(); err != nil {
-			return nil, status.Errorf(codes.InvalidArgument, "patch check failed: %v\n%s", err, string(output))
+			return nil, serviceerrors.InvalidArgumentf("patch check failed: %v\n%s", err, string(output))
 		}
 	}
 	return &devopsv1.ApplyPatchResponse{
@@ -123,7 +116,7 @@ func (s *Server) Commit(_ context.Context, req *devopsv1.CommitRequest) (*devops
 		return nil, grpcErr(err)
 	}
 	if strings.TrimSpace(req.GetMessage()) == "" {
-		return nil, status.Error(codes.InvalidArgument, "message is required")
+		return nil, serviceerrors.InvalidArgument("message is required")
 	}
 	return &devopsv1.CommitResponse{Plan: mutationPlan("repo.commit", root, req.GetReason(), true, "repo.commit")}, nil
 }
@@ -179,7 +172,7 @@ func (s *Server) ResolveTask(_ context.Context, req *devopsv1.ResolveTaskRequest
 			return &devopsv1.ResolveTaskResponse{Task: task}, nil
 		}
 	}
-	return nil, status.Errorf(codes.NotFound, "task %q not found", taskName)
+	return nil, serviceerrors.NotFoundf("task %q not found", taskName)
 }
 
 func (s *Server) RunTask(ctx context.Context, req *devopsv1.RunTaskRequest) (*devopsv1.RunTaskResponse, error) {
@@ -294,7 +287,7 @@ func (s *Server) BuildImage(ctx context.Context, req *devopsv1.BuildImageRequest
 	}
 	result := runCommand(ctx, root, "docker", "build", "-f", dockerfile, "-t", tag, ".")
 	if result.GetStatus() != taskStatusPassed {
-		return nil, status.Errorf(codes.Internal, "docker build failed: %s", strings.Join(result.GetLogs(), "\n"))
+		return nil, serviceerrors.Internalf("docker build failed: %s", strings.Join(result.GetLogs(), "\n"))
 	}
 	return &devopsv1.BuildImageResponse{Plan: plan, Image: &devopsv1.Artifact{Name: tag, Kind: "container-image", Uri: tag}}, nil
 }
@@ -328,7 +321,7 @@ func (s *Server) ListImages(ctx context.Context, req *devopsv1.ListImagesRequest
 
 func (s *Server) PlanRun(_ context.Context, req *devopsv1.PlanRunRequest) (*devopsv1.PlanRunResponse, error) {
 	if strings.TrimSpace(req.GetImage()) == "" {
-		return nil, status.Error(codes.InvalidArgument, "image is required")
+		return nil, serviceerrors.InvalidArgument("image is required")
 	}
 	return &devopsv1.PlanRunResponse{Plan: mutationPlan("container.run", req.GetImage(), "run container with selected args/env", true, "container.run")}, nil
 }
@@ -343,7 +336,7 @@ func (s *Server) Plan(_ context.Context, req *devopsv1.PlanRequest) (*devopsv1.P
 
 func (s *Server) Apply(_ context.Context, req *devopsv1.ApplyRequest) (*devopsv1.ApplyResponse, error) {
 	if strings.TrimSpace(req.GetApprovalId()) == "" {
-		return nil, status.Error(codes.PermissionDenied, "approval_id is required to apply a deployment plan")
+		return nil, serviceerrors.PermissionDenied("approval_id is required to apply a deployment plan")
 	}
 	return &devopsv1.ApplyResponse{Result: &devopsv1.TaskResult{Status: taskStatusPlanned, Summary: "deployment apply adapter is not configured"}}, nil
 }
@@ -618,5 +611,5 @@ func grpcErr(err error) error {
 	if err == nil {
 		return nil
 	}
-	return status.Error(codes.InvalidArgument, err.Error())
+	return serviceerrors.InvalidArgument(err.Error())
 }

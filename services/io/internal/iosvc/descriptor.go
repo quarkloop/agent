@@ -1,7 +1,6 @@
 package iosvc
 
 import (
-	iov1 "github.com/quarkloop/pkg/serviceapi/gen/quark/io/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 )
 
@@ -10,7 +9,7 @@ func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.Ser
 	if skill != nil {
 		skills = append(skills, skill)
 	}
-	serviceName := iov1.IOService_ServiceDesc.ServiceName
+	serviceName := "quark.io.v1.IOService"
 	return &servicev1.ServiceDescriptor{
 		Name:    "io",
 		Type:    "io",

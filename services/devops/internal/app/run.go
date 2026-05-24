@@ -3,14 +3,12 @@ package app
 import (
 	"context"
 	"fmt"
-	"log/slog"
-	"os"
-	"path/filepath"
-
-	devopsv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/devops/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicebridge"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/services/devops/internal/devopssvc"
+	"log/slog"
+	"os"
+	"path/filepath"
 )
 
 type Config struct {
@@ -42,12 +40,12 @@ func Run(ctx context.Context, cfg Config) error {
 	return servicebridge.RunNATSService(ctx, cfg.NATS, servicebridge.Binding{
 		Descriptor: descriptor,
 		Services: []servicebridge.RPCService{
-			{Desc: &devopsv1.RepoService_ServiceDesc, Implementation: server},
-			{Desc: &devopsv1.BuildService_ServiceDesc, Implementation: server},
-			{Desc: &devopsv1.TestService_ServiceDesc, Implementation: server},
-			{Desc: &devopsv1.ContainerService_ServiceDesc, Implementation: server},
-			{Desc: &devopsv1.DeployService_ServiceDesc, Implementation: server},
-			{Desc: &devopsv1.PolicyService_ServiceDesc, Implementation: server},
+			{Service: "quark.devops.v1.RepoService", Implementation: server},
+			{Service: "quark.devops.v1.BuildService", Implementation: server},
+			{Service: "quark.devops.v1.TestService", Implementation: server},
+			{Service: "quark.devops.v1.ContainerService", Implementation: server},
+			{Service: "quark.devops.v1.DeployService", Implementation: server},
+			{Service: "quark.devops.v1.PolicyService", Implementation: server},
 		},
 	})
 }

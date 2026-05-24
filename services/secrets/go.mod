@@ -7,7 +7,6 @@ require (
 	github.com/nats-io/nats.go v1.51.0
 	github.com/quarkloop/pkg/boundary v0.0.0
 	github.com/quarkloop/pkg/serviceapi v0.0.0
-	google.golang.org/grpc v1.76.0
 	google.golang.org/protobuf v1.36.10
 )
 

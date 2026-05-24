@@ -127,7 +127,7 @@ func hasCoreFunctions(descriptors []*servicev1.ServiceDescriptor) bool {
 			continue
 		}
 		for _, rpc := range desc.GetRpcs() {
-			if rpc.GetService() != corev1.CoreService_ServiceDesc.ServiceName {
+			if rpc.GetService() != "quark.core.v1.CoreService" {
 				continue
 			}
 			switch strings.TrimSpace(rpc.GetFunctionName()) {

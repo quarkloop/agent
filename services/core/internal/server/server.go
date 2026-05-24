@@ -9,14 +9,11 @@ import (
 	"strings"
 
 	corev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/core/v1"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"github.com/quarkloop/pkg/serviceapi/serviceerrors"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type Server struct {
-	corev1.UnimplementedCoreServiceServer
-
 	root  string
 	store *fileStore
 }
@@ -141,7 +138,7 @@ func (s *Server) RecordApprovalDecision(_ context.Context, req *corev1.RecordApp
 		return nil, grpcError(err)
 	}
 	if approval.GetStatus() != "pending" {
-		return nil, status.Errorf(codes.FailedPrecondition, "approval %q is already %s", approval.GetId(), approval.GetStatus())
+		return nil, serviceerrors.FailedPreconditionf("approval %q is already %s", approval.GetId(), approval.GetStatus())
 	}
 	ensureTimestamp(&decision.DecidedAt)
 	approval.Decision = decision
@@ -280,7 +277,7 @@ func (s *Server) ApproveWorkspaceMutationPlan(_ context.Context, req *corev1.App
 		return nil, grpcError(err)
 	}
 	if approval.GetStatus() != "approved" || approval.GetDecision() == nil || !approval.GetDecision().GetApproved() {
-		return nil, status.Errorf(codes.FailedPrecondition, "approval %q is not approved", approval.GetId())
+		return nil, serviceerrors.FailedPreconditionf("approval %q is not approved", approval.GetId())
 	}
 	plan.ApprovalId = approval.GetId()
 	plan.Status = "approved"
@@ -437,10 +434,10 @@ func grpcError(err error) error {
 		return nil
 	}
 	if errors.Is(err, errNotFound) {
-		return status.Error(codes.NotFound, err.Error())
+		return serviceerrors.NotFound(err.Error())
 	}
 	if strings.Contains(err.Error(), "required") || strings.Contains(err.Error(), "must") || strings.Contains(err.Error(), "reason is") {
-		return status.Error(codes.InvalidArgument, err.Error())
+		return serviceerrors.InvalidArgument(err.Error())
 	}
-	return status.Error(codes.Internal, err.Error())
+	return serviceerrors.Internal(err.Error())
 }

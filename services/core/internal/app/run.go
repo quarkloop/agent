@@ -3,14 +3,12 @@ package app
 import (
 	"context"
 	"fmt"
-	"log/slog"
-	"os"
-	"path/filepath"
-
-	corev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/core/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicebridge"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/services/core/internal/server"
+	"log/slog"
+	"os"
+	"path/filepath"
 )
 
 type Config struct {
@@ -51,7 +49,7 @@ func Run(ctx context.Context, cfg Config) error {
 	return servicebridge.RunNATSService(ctx, cfg.NATS, servicebridge.Binding{
 		Descriptor: descriptor,
 		Services: []servicebridge.RPCService{{
-			Desc:           &corev1.CoreService_ServiceDesc,
+			Service:        "quark.core.v1.CoreService",
 			Implementation: coreServer,
 		}},
 	})

@@ -3,16 +3,14 @@ package app
 import (
 	"context"
 	"fmt"
-	"log/slog"
-	"os"
-	"path/filepath"
-
-	buildreleasev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/buildrelease/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicebridge"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/services/build-release/internal/server"
 	"github.com/quarkloop/services/build-release/pkg/buildrelease"
+	"log/slog"
+	"os"
+	"path/filepath"
 )
 
 type Config struct {
@@ -48,9 +46,9 @@ func Run(ctx context.Context, cfg Config) error {
 		Version: "1.0.0",
 		Address: cfg.Address,
 		Rpcs: []*servicev1.RpcDescriptor{
-			{Service: buildreleasev1.BuildReleaseService_ServiceDesc.ServiceName, Method: "Release", Request: "quark.buildrelease.v1.ReleaseRequest", Response: "quark.buildrelease.v1.ReleaseResponse", Description: "Run the configured build and release pipeline."},
-			{Service: buildreleasev1.BuildReleaseService_ServiceDesc.ServiceName, Method: "DryRun", Request: "quark.buildrelease.v1.DryRunRequest", Response: "quark.buildrelease.v1.DryRunResponse", Description: "Preview planned release artifacts without compiling."},
-			{Service: buildreleasev1.BuildReleaseService_ServiceDesc.ServiceName, Method: "Init", Request: "quark.buildrelease.v1.InitRequest", Response: "quark.buildrelease.v1.InitResponse", Description: "Create a default build_release.json in a working directory."},
+			{Service: "quark.buildrelease.v1.BuildReleaseService", Method: "Release", Request: "quark.buildrelease.v1.ReleaseRequest", Response: "quark.buildrelease.v1.ReleaseResponse", Description: "Run the configured build and release pipeline."},
+			{Service: "quark.buildrelease.v1.BuildReleaseService", Method: "DryRun", Request: "quark.buildrelease.v1.DryRunRequest", Response: "quark.buildrelease.v1.DryRunResponse", Description: "Preview planned release artifacts without compiling."},
+			{Service: "quark.buildrelease.v1.BuildReleaseService", Method: "Init", Request: "quark.buildrelease.v1.InitRequest", Response: "quark.buildrelease.v1.InitResponse", Description: "Create a default build_release.json in a working directory."},
 		},
 		Skills: []*servicev1.SkillDescriptor{skill},
 	}
@@ -58,7 +56,7 @@ func Run(ctx context.Context, cfg Config) error {
 	return servicebridge.RunNATSService(ctx, cfg.NATS, servicebridge.Binding{
 		Descriptor: descriptor,
 		Services: []servicebridge.RPCService{{
-			Desc:           &buildreleasev1.BuildReleaseService_ServiceDesc,
+			Service:        "quark.buildrelease.v1.BuildReleaseService",
 			Implementation: releaseServer,
 		}},
 	})

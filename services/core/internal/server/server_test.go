@@ -6,9 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/quarkloop/pkg/boundary"
 	corev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/core/v1"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func TestCoreServicePersistsArtifactReferences(t *testing.T) {
@@ -138,7 +137,7 @@ func TestApprovalAndWorkspacePlanFlow(t *testing.T) {
 	if _, err := srv.ApproveWorkspaceMutationPlan(context.Background(), &corev1.ApproveWorkspaceMutationPlanRequest{
 		PlanId:     plan.GetPlan().GetId(),
 		ApprovalId: denied.GetApproval().GetId(),
-	}); status.Code(err) != codes.FailedPrecondition {
+	}); !boundary.IsCategory(err, boundary.Conflict) {
 		t.Fatalf("expected denied approval to block plan, got %v", err)
 	}
 
