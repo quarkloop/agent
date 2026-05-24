@@ -112,10 +112,14 @@ func (p *bifrostProvider) StreamGenerate(ctx context.Context, cmd generateComman
 	if maxOutputTokens, ok := maxOutputTokensOption(cmd.Options); ok {
 		params.MaxCompletionTokens = schemas.Ptr(maxOutputTokens)
 	}
+	messages, err := bifrostMessages(cmd.Messages)
+	if err != nil {
+		return nil, plugin.NewProviderError(plugin.ProviderErrorInvalidRequest, p.id, cmd.Model, 0, err)
+	}
 	req := &schemas.BifrostChatRequest{
 		Provider: p.provider,
 		Model:    firstNonEmpty(cmd.Model, p.model),
-		Input:    bifrostMessages(cmd.Messages),
+		Input:    messages,
 		Params:   params,
 	}
 	stream, bifrostErr := p.client.ChatCompletionStreamRequest(bifrostContext(ctx), req)
@@ -179,6 +183,10 @@ func (p *bifrostProvider) Embed(ctx context.Context, cmd embedCommand) ([]*gatew
 	if model == "" {
 		return nil, plugin.NewProviderError(plugin.ProviderErrorInvalidRequest, p.id, "", 0, fmt.Errorf("embedding model is required"))
 	}
+	inputs, err := textOnlyEmbeddingInputs(cmd.Inputs)
+	if err != nil {
+		return nil, plugin.NewProviderError(plugin.ProviderErrorInvalidRequest, p.id, model, 0, err)
+	}
 	format := "float"
 	params := &schemas.EmbeddingParameters{EncodingFormat: &format}
 	if cmd.Dimensions > 0 {
@@ -188,7 +196,7 @@ func (p *bifrostProvider) Embed(ctx context.Context, cmd embedCommand) ([]*gatew
 	resp, bifrostErr := p.client.EmbeddingRequest(bifrostContext(ctx), &schemas.BifrostEmbeddingRequest{
 		Provider: p.provider,
 		Model:    model,
-		Input:    &schemas.EmbeddingInput{Texts: append([]string(nil), cmd.Input...)},
+		Input:    &schemas.EmbeddingInput{Texts: append([]string(nil), inputs...)},
 		Params:   params,
 	})
 	if bifrostErr != nil {
@@ -203,16 +211,16 @@ func (p *bifrostProvider) Embed(ctx context.Context, cmd embedCommand) ([]*gatew
 		if len(vector) == 0 {
 			return nil, plugin.NewProviderError(plugin.ProviderErrorResponse, p.id, cmd.Model, 0, fmt.Errorf("provider returned non-float embedding format"))
 		}
-		input := ""
-		if i < len(cmd.Input) {
-			input = cmd.Input[i]
+		contentHash := ""
+		if i < len(cmd.Inputs) {
+			contentHash = multimodalInputHash(cmd.Inputs[i])
 		}
 		out = append(out, &gatewayv1.Embedding{
 			Vector:      vector,
 			Provider:    p.id,
 			Model:       firstNonEmpty(resp.Model, model),
 			Dimensions:  int32(len(vector)),
-			ContentHash: contentHash(input),
+			ContentHash: contentHash,
 		})
 	}
 	return out, nil
@@ -321,10 +329,13 @@ func bifrostBaseURL(provider schemas.ModelProvider, baseURL string) string {
 	return baseURL
 }
 
-func bifrostMessages(messages []message) []schemas.ChatMessage {
+func bifrostMessages(messages []message) ([]schemas.ChatMessage, error) {
 	out := make([]schemas.ChatMessage, 0, len(messages))
 	for _, msg := range messages {
-		content := msg.Content
+		content, err := textMessageContent(msg.Content)
+		if err != nil {
+			return nil, err
+		}
 		bmsg := schemas.ChatMessage{
 			Role:    schemas.ChatMessageRole(msg.Role),
 			Content: &schemas.ChatMessageContent{ContentStr: &content},
@@ -338,7 +349,7 @@ func bifrostMessages(messages []message) []schemas.ChatMessage {
 		}
 		out = append(out, bmsg)
 	}
-	return out
+	return out, nil
 }
 
 func bifrostTools(tools []toolSchema) []schemas.ChatTool {

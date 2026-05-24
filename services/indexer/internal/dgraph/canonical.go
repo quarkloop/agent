@@ -195,5 +195,8 @@ uid(%s) <quark.citation_text_span> %s .
 uid(%s) <quark.citation_start_offset> %d .
 uid(%s) <quark.citation_end_offset> %d .
 uid(%s) <quark.citation_confidence> %f .
-`, uidVar, uidVar, quote(citation.ID), uidVar, quote(citation.SourceURI), uidVar, quote(citation.ChunkID), uidVar, quote(citation.TextSpan), uidVar, citation.StartOffset, uidVar, citation.EndOffset, uidVar, citation.Confidence)
+uid(%s) <quark.citation_page_number> %d .
+uid(%s) <quark.citation_media_ref> %s .
+uid(%s) <quark.citation_modality> %s .
+`, uidVar, uidVar, quote(citation.ID), uidVar, quote(citation.SourceURI), uidVar, quote(citation.ChunkID), uidVar, quote(citation.TextSpan), uidVar, citation.StartOffset, uidVar, citation.EndOffset, uidVar, citation.Confidence, uidVar, citation.PageNumber, uidVar, quote(citation.MediaRef), uidVar, quote(citation.Modality))
 }

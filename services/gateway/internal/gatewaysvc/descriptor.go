@@ -18,7 +18,7 @@ func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.Ser
 		Rpcs: []*servicev1.RpcDescriptor{
 			rpc(serviceName, "Generate", "quark.gateway.v1.GenerateRequest", "quark.gateway.v1.GenerateResponse", "Run one non-streaming model generation request."),
 			streamingRPC(serviceName, "StreamGenerate", "quark.gateway.v1.StreamGenerateRequest", "quark.gateway.v1.StreamGenerateResponse", "Run one streaming model generation request."),
-			rpc(serviceName, "Embed", "quark.gateway.v1.EmbedRequest", "quark.gateway.v1.EmbedResponse", "Create embeddings through provider adapters."),
+			rpc(serviceName, "Embed", "quark.gateway.v1.EmbedRequest", "quark.gateway.v1.EmbedResponse", "Create text or supported multimodal embeddings through provider adapters."),
 			rpc(serviceName, "Rerank", "quark.gateway.v1.RerankRequest", "quark.gateway.v1.RerankResponse", "Rerank candidate documents for a query."),
 			rpc(serviceName, "CountTokens", "quark.gateway.v1.CountTokensRequest", "quark.gateway.v1.CountTokensResponse", "Count or estimate model tokens."),
 			rpc(serviceName, "ListModels", "quark.gateway.v1.ListModelsRequest", "quark.gateway.v1.ListModelsResponse", "List provider models."),

@@ -22,7 +22,7 @@ func verifyPersistedPDFIndexState(t *testing.T, ctx context.Context, artifactDir
 	for _, document := range documents {
 		var embedding gatewayv1.EmbedResponse
 		requestServiceFunction(t, ctx, conn, env.Space, "svc.gateway.v1.embed", "gateway", "embed", &gatewayv1.EmbedRequest{
-			Input: []string{document.Name + " " + document.Filename},
+			Inputs: gatewayTextInputs(document.Name + " " + document.Filename),
 		}, &embedding)
 		if len(embedding.GetEmbeddings()) != 1 {
 			t.Fatalf("gateway embedding result count for %s = %d, want 1", document.Filename, len(embedding.GetEmbeddings()))
@@ -68,7 +68,7 @@ func verifyPersistedMarkdownIndexState(t *testing.T, ctx context.Context, artifa
 	for _, document := range documents {
 		var embedding gatewayv1.EmbedResponse
 		requestServiceFunction(t, ctx, conn, env.Space, "svc.gateway.v1.embed", "gateway", "embed", &gatewayv1.EmbedRequest{
-			Input: []string{document.Query},
+			Inputs: gatewayTextInputs(document.Query),
 		}, &embedding)
 		if len(embedding.GetEmbeddings()) != 1 {
 			t.Fatalf("gateway embedding result count for %s = %d, want 1", document.Filename, len(embedding.GetEmbeddings()))
@@ -108,6 +108,17 @@ func verifyPersistedMarkdownIndexState(t *testing.T, ctx context.Context, artifa
 		})
 	}
 	writeJSONArtifact(t, artifactDir, "markdown-direct-index-state.json", report)
+}
+
+func gatewayTextInputs(values ...string) []*gatewayv1.MultimodalInput {
+	inputs := make([]*gatewayv1.MultimodalInput, 0, len(values))
+	for _, value := range values {
+		inputs = append(inputs, &gatewayv1.MultimodalInput{Content: []*gatewayv1.ContentPart{{
+			Kind: gatewayv1.ContentKind_CONTENT_KIND_TEXT,
+			Text: value,
+		}}})
+	}
+	return inputs
 }
 
 func openIndexVerificationConn(t *testing.T, env *utils.E2EEnv) *nats.Conn {

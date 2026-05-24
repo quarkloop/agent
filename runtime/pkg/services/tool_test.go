@@ -413,15 +413,16 @@ func TestExecutorExpandsDocumentContentRefsForEmbeddingRequests(t *testing.T) {
 	if _, ok := embedPayload["contentRef"]; ok {
 		t.Fatalf("contentRef was not removed: %s", expanded)
 	}
-	if got := embedPayload["input"].([]any); len(got) != 1 || got[0] != "Attention Is All You Need\n" {
-		t.Fatalf("input = %+v", got)
+	req := decodeGatewayEmbedRequest(t, expanded)
+	if got := req.GetInputs()[0].GetContent()[0].GetText(); got != "Attention Is All You Need\n" {
+		t.Fatalf("embedded text = %q", got)
 	}
 }
 
 func TestExecutorStripsEmbeddingProviderOverrides(t *testing.T) {
 	executor := NewExecutor(nil)
 
-	expanded, err := executor.expandRuntimeReferences("quark.gateway.v1.EmbedRequest", `{"input":["hello"],"provider":"wrong-provider","model":"wrong-model","dimensions":384,"options":{"route":"wrong"}}`)
+	expanded, err := executor.expandRuntimeReferences("quark.gateway.v1.EmbedRequest", `{"inputs":[{"content":[{"kind":"CONTENT_KIND_TEXT","text":"hello"}]}],"provider":"wrong-provider","model":"wrong-model","dimensions":384,"options":{"route":"wrong"}}`)
 	if err != nil {
 		t.Fatalf("expand refs: %v", err)
 	}
@@ -441,12 +442,13 @@ func TestExecutorStripsEmbeddingProviderOverrides(t *testing.T) {
 	if _, ok := embedPayload["options"]; ok {
 		t.Fatalf("options override was not removed: %s", expanded)
 	}
-	if got := embedPayload["input"].([]any); len(got) != 1 || got[0] != "hello" {
-		t.Fatalf("input = %+v", got)
+	req := decodeGatewayEmbedRequest(t, expanded)
+	if got := req.GetInputs()[0].GetContent()[0].GetText(); got != "hello" {
+		t.Fatalf("embedded text = %q", got)
 	}
 }
 
-func TestExecutorPromotesContentReferencePassedThroughStringFields(t *testing.T) {
+func TestExecutorResolvesTypedContentReferenceParts(t *testing.T) {
 	executor := NewExecutor(nil)
 
 	result, err := executor.documentExtractTextToolResult(&documentv1.ExtractTextResponse{
@@ -461,21 +463,19 @@ func TestExecutorPromotesContentReferencePassedThroughStringFields(t *testing.T)
 	}
 	ref := toolPayload["contentRef"].(string)
 
-	expanded, err := executor.expandRuntimeReferences("quark.gateway.v1.EmbedRequest", `{"input":["`+ref+`"]}`)
+	expanded, err := executor.expandRuntimeReferences("quark.gateway.v1.EmbedRequest", `{"inputs":[{"content":[{"kind":"CONTENT_KIND_CONTENT_REF","ref":"`+ref+`"}]}]}`)
 	if err != nil {
 		t.Fatalf("expand refs: %v", err)
 	}
-	var embedPayload map[string]any
-	if err := json.Unmarshal([]byte(expanded), &embedPayload); err != nil {
-		t.Fatalf("expanded payload is not JSON: %v\n%s", err, expanded)
-	}
-	if got := embedPayload["input"].([]any); len(got) != 1 || got[0] != "Canonical source text\n" {
-		t.Fatalf("input = %+v", got)
+	req := decodeGatewayEmbedRequest(t, expanded)
+	part := req.GetInputs()[0].GetContent()[0]
+	if got := part.GetText(); got != "Canonical source text\n" || part.GetKind() != gatewayv1.ContentKind_CONTENT_KIND_TEXT {
+		t.Fatalf("resolved content part = %+v", part)
 	}
 }
 
-func TestNormalizeStringArgumentsPreservesGatewayTextArray(t *testing.T) {
-	normalized, err := normalizeStringMapArguments("quark.gateway.v1.EmbedRequest", `{"input":["first","second"]}`)
+func TestNormalizeStringArgumentsPreservesGatewayTypedInputs(t *testing.T) {
+	normalized, err := normalizeStringMapArguments("quark.gateway.v1.EmbedRequest", `{"inputs":[{"content":[{"kind":"CONTENT_KIND_TEXT","text":"first"}]},{"content":[{"kind":"CONTENT_KIND_TEXT","text":"second"}]}]}`)
 	if err != nil {
 		t.Fatalf("normalize: %v", err)
 	}
@@ -483,9 +483,64 @@ func TestNormalizeStringArgumentsPreservesGatewayTextArray(t *testing.T) {
 	if err := protojson.Unmarshal([]byte(normalized), &req); err != nil {
 		t.Fatalf("protojson accepts normalized payload: %v\n%s", err, normalized)
 	}
-	if got := req.GetInput(); len(got) != 2 || got[0] != "first" || got[1] != "second" {
-		t.Fatalf("input = %+v", got)
+	if got := req.GetInputs(); len(got) != 2 || got[0].GetContent()[0].GetText() != "first" || got[1].GetContent()[0].GetText() != "second" {
+		t.Fatalf("inputs = %+v", got)
 	}
+}
+
+func TestExecutorKeepsMediaOpaqueUntilGatewayReferenceExpansion(t *testing.T) {
+	executor := NewExecutor(nil)
+	result, err := executor.ioReadMediaToolResult(&iov1.ReadMediaResponse{
+		Source:  &iov1.MediaReference{SourceUri: "/tmp/diagram.png", MimeType: "image/png", Modality: "image"},
+		Content: []byte{0x89, 'P', 'N', 'G'},
+	}, "")
+	if err != nil {
+		t.Fatalf("capture media result: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("media result is not JSON: %v\n%s", err, result)
+	}
+	if _, exposed := payload["content"]; exposed {
+		t.Fatalf("media bytes were exposed in tool result: %s", result)
+	}
+	ref, ok := payload["mediaRef"].(string)
+	if !ok || ref == "" {
+		t.Fatalf("mediaRef missing: %+v", payload)
+	}
+	expanded, err := executor.expandRuntimeReferences("quark.gateway.v1.EmbedRequest", `{"imageRef":"`+ref+`"}`)
+	if err != nil {
+		t.Fatalf("expand media reference: %v", err)
+	}
+	part := decodeGatewayEmbedRequest(t, expanded).GetInputs()[0].GetContent()[0]
+	if part.GetKind() != gatewayv1.ContentKind_CONTENT_KIND_IMAGE_DATA || part.GetMimeType() != "image/png" || string(part.GetImageData()) != string([]byte{0x89, 'P', 'N', 'G'}) {
+		t.Fatalf("expanded media content part = %+v", part)
+	}
+
+	expanded, err = executor.expandRuntimeReferences("quark.gateway.v1.GenerateRequest", `{"messages":[{"role":"user","content":[{"kind":"CONTENT_KIND_IMAGE_REF","ref":"`+ref+`"}]}]}`)
+	if err != nil {
+		t.Fatalf("expand generation media reference: %v", err)
+	}
+	var generation gatewayv1.GenerateRequest
+	if err := protojson.Unmarshal([]byte(expanded), &generation); err != nil {
+		t.Fatalf("decode Gateway generation request: %v\n%s", err, expanded)
+	}
+	generatedPart := generation.GetMessages()[0].GetContent()[0]
+	if generatedPart.GetKind() != gatewayv1.ContentKind_CONTENT_KIND_IMAGE_DATA || generatedPart.GetMimeType() != "image/png" {
+		t.Fatalf("expanded generation media content part = %+v", generatedPart)
+	}
+}
+
+func decodeGatewayEmbedRequest(t *testing.T, payload string) *gatewayv1.EmbedRequest {
+	t.Helper()
+	var req gatewayv1.EmbedRequest
+	if err := protojson.Unmarshal([]byte(payload), &req); err != nil {
+		t.Fatalf("decode Gateway embed request: %v\n%s", err, payload)
+	}
+	if len(req.GetInputs()) == 0 || len(req.GetInputs()[0].GetContent()) == 0 {
+		t.Fatalf("Gateway embed request has no content: %+v", req.GetInputs())
+	}
+	return &req
 }
 
 func TestCanonicalIndexerRequestSchemasExposeRuntimeReferenceFields(t *testing.T) {
@@ -499,6 +554,16 @@ func TestCanonicalIndexerRequestSchemasExposeRuntimeReferenceFields(t *testing.T
 	}
 	if _, ok := embedProperties["dimensions"]; ok {
 		t.Fatalf("EmbedRequest schema exposed dimensions override: %+v", embedSchema)
+	}
+	content := embedProperties["inputs"].(map[string]any)["items"].(map[string]any)["properties"].(map[string]any)["content"].(map[string]any)["items"].(map[string]any)["properties"].(map[string]any)
+	if _, ok := content["imageData"]; ok {
+		t.Fatalf("EmbedRequest schema exposed raw image bytes: %+v", embedSchema)
+	}
+
+	generateSchema := requestParameters("quark.gateway.v1.GenerateRequest")
+	messageContent := generateSchema["properties"].(map[string]any)["messages"].(map[string]any)["items"].(map[string]any)["properties"].(map[string]any)["content"].(map[string]any)["items"].(map[string]any)["properties"].(map[string]any)
+	if _, ok := messageContent["imageData"]; ok {
+		t.Fatalf("GenerateRequest schema exposed raw image bytes: %+v", generateSchema)
 	}
 
 	upsertSchema := requestParameters("quark.indexer.v1.UpsertChunkRequest")
@@ -756,7 +821,7 @@ func TestExecutorRetriesRetryableServiceFunctionFailures(t *testing.T) {
 		}},
 	}}, NewNATSCaller(NATSCallerConfig{URL: ns.ClientURL(), SpaceID: "test-space"}))
 
-	result, err := executor.Execute(context.Background(), "gateway_Embed", `{"input":["hello"]}`)
+	result, err := executor.Execute(context.Background(), "gateway_Embed", `{"inputs":[{"content":[{"kind":"CONTENT_KIND_TEXT","text":"hello"}]}]}`)
 	if err != nil {
 		t.Fatalf("execute retryable service function: %v", err)
 	}
@@ -797,7 +862,7 @@ func TestExecutorMapsServiceInvalidArgumentToDiagnostics(t *testing.T) {
 		}},
 	}}, NewNATSCaller(NATSCallerConfig{URL: ns.ClientURL(), SpaceID: "test-space"}))
 
-	_, err := executor.Execute(context.Background(), "gateway_Embed", `{"input":["bad"]}`)
+	_, err := executor.Execute(context.Background(), "gateway_Embed", `{"inputs":[{"content":[{"kind":"CONTENT_KIND_TEXT","text":"bad"}]}]}`)
 	if !boundary.IsCategory(err, boundary.InvalidArgument) {
 		t.Fatalf("expected invalid argument boundary error, got %v", err)
 	}
@@ -878,7 +943,7 @@ func subscribeGatewayEmbeddingFunction(t *testing.T, url string, handler func(*g
 		respondServiceFunction(t, msg, servicefunction.OKResponse(envelope.CallID, payload))
 	})
 	if err != nil {
-		t.Fatalf("subscribe embedding service: %v", err)
+		t.Fatalf("subscribe Gateway embedding function: %v", err)
 	}
 	t.Cleanup(func() { _ = sub.Unsubscribe() })
 	if err := conn.FlushTimeout(time.Second); err != nil {

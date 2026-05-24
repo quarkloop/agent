@@ -21,7 +21,7 @@ func embedFromProto(req *gatewayv1.EmbedRequest) embedCommand {
 	}
 	return embedCommand{
 		Model:      req.GetModel(),
-		Input:      append([]string(nil), req.GetInput()...),
+		Inputs:     multimodalInputsFromProto(req.GetInputs()),
 		Dimensions: req.GetDimensions(),
 		Options:    cloneStringMap(req.GetOptions()),
 	}
@@ -35,12 +35,68 @@ func messagesFromProto(in []*gatewayv1.ModelMessage) []message {
 		}
 		out = append(out, message{
 			Role:       msg.GetRole(),
-			Content:    msg.GetContent(),
+			Content:    contentPartsFromProto(msg.GetContent()),
 			ToolCalls:  toolCallsFromProto(msg.GetToolCalls()),
 			ToolCallID: msg.GetToolCallId(),
 		})
 	}
 	return out
+}
+
+func multimodalInputsFromProto(in []*gatewayv1.MultimodalInput) []multimodalInput {
+	out := make([]multimodalInput, 0, len(in))
+	for _, input := range in {
+		if input == nil {
+			continue
+		}
+		out = append(out, multimodalInput{
+			Content:  contentPartsFromProto(input.GetContent()),
+			Metadata: cloneStringMap(input.GetMetadata()),
+		})
+	}
+	return out
+}
+
+func contentPartsFromProto(in []*gatewayv1.ContentPart) []contentPart {
+	out := make([]contentPart, 0, len(in))
+	for _, part := range in {
+		if part == nil {
+			continue
+		}
+		out = append(out, contentPart{
+			Kind:      contentKindFromProto(part.GetKind()),
+			Text:      part.GetText(),
+			ImageURL:  part.GetImageUrl(),
+			ImageData: append([]byte(nil), part.GetImageData()...),
+			MIMEType:  part.GetMimeType(),
+			Ref:       part.GetRef(),
+			Metadata:  cloneStringMap(part.GetMetadata()),
+		})
+	}
+	return out
+}
+
+func contentKindFromProto(kind gatewayv1.ContentKind) contentKind {
+	switch kind {
+	case gatewayv1.ContentKind_CONTENT_KIND_TEXT:
+		return contentText
+	case gatewayv1.ContentKind_CONTENT_KIND_IMAGE_URL:
+		return contentImageURL
+	case gatewayv1.ContentKind_CONTENT_KIND_IMAGE_DATA:
+		return contentImageData
+	case gatewayv1.ContentKind_CONTENT_KIND_CONTENT_REF:
+		return contentContentRef
+	case gatewayv1.ContentKind_CONTENT_KIND_IMAGE_REF:
+		return contentImageRef
+	case gatewayv1.ContentKind_CONTENT_KIND_PAGE_REF:
+		return contentPageRef
+	case gatewayv1.ContentKind_CONTENT_KIND_ARTIFACT_REF:
+		return contentArtifactRef
+	case gatewayv1.ContentKind_CONTENT_KIND_FILE_REF:
+		return contentFileRef
+	default:
+		return 0
+	}
 }
 
 func toolsFromProto(in []*gatewayv1.ToolSchema) []toolSchema {

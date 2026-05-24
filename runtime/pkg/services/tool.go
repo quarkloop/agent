@@ -31,6 +31,10 @@ type Executor struct {
 	contents      map[string]string
 	contentInfo   map[string]map[string]any
 	contentBorn   map[string]time.Time
+	nextMedia     int
+	media         map[string][]byte
+	mediaInfo     map[string]map[string]any
+	mediaBorn     map[string]time.Time
 	pending       map[string]struct{}
 }
 
@@ -58,6 +62,9 @@ func NewExecutorWithCaller(descriptors []*servicev1.ServiceDescriptor, caller se
 		contents:      make(map[string]string),
 		contentInfo:   make(map[string]map[string]any),
 		contentBorn:   make(map[string]time.Time),
+		media:         make(map[string][]byte),
+		mediaInfo:     make(map[string]map[string]any),
+		mediaBorn:     make(map[string]time.Time),
 		pending:       make(map[string]struct{}),
 	}
 }
@@ -163,8 +170,14 @@ func (e *Executor) Execute(ctx context.Context, functionName, arguments string) 
 	if rpc.GetResponse() == "quark.document.v1.ExtractTextResponse" {
 		return e.documentExtractTextToolResult(out, arguments)
 	}
+	if rpc.GetResponse() == "quark.document.v1.ExtractImagesResponse" || rpc.GetResponse() == "quark.document.v1.GetPagesResponse" {
+		return e.documentMediaToolResult(out, arguments)
+	}
 	if rpc.GetResponse() == "quark.io.v1.ReadResponse" {
 		return e.ioReadToolResult(out, arguments)
+	}
+	if rpc.GetResponse() == "quark.io.v1.ReadMediaResponse" {
+		return e.ioReadMediaToolResult(out, arguments)
 	}
 	data, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(out)
 	if err != nil {

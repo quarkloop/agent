@@ -187,7 +187,7 @@ func knowledgeRecord(cmd IndexCommand) indexer.KnowledgeRecord {
 			Vector:            cloneVector(cmd.Vector),
 			Metadata:          cloneMetadata(cmd.Metadata),
 			Document:          cloneDocument(cmd.Document),
-			EmbeddingMetadata: cmd.EmbeddingMetadata,
+			EmbeddingMetadata: cloneEmbeddingMetadata(cmd.EmbeddingMetadata),
 			Facts:             cloneFacts(cmd.Facts),
 			Citations:         cloneCitations(cmd.Citations),
 			Provenance:        cloneProvenance(cmd.Provenance),
@@ -347,6 +347,7 @@ func normalizeDocument(document indexer.Document, metadata map[string]string, ch
 		Type:      typ,
 		SourceURI: sourceURI,
 		Metadata:  cloneMetadata(document.Metadata),
+		Sources:   normalizeSourceReferences(document.Sources),
 	}
 }
 
@@ -376,12 +377,19 @@ func normalizeEmbeddingMetadata(embedding indexer.EmbeddingMetadata, metadata ma
 	if dimensions <= 0 {
 		dimensions = vectorLength
 	}
+	modalities := normalizeModalities(embedding.Modalities)
+	if len(modalities) == 0 {
+		modalities = normalizeModalities(strings.FieldsFunc(firstMetadata(metadata, "embedding_modalities", "embeddingModalities", "modality"), func(r rune) bool {
+			return r == ',' || r == ';'
+		}))
+	}
 	return indexer.EmbeddingMetadata{
 		Provider:    provider,
 		Model:       model,
 		Dimensions:  dimensions,
 		ContentHash: contentHash,
 		Version:     version,
+		Modalities:  modalities,
 	}
 }
 
@@ -410,6 +418,7 @@ func normalizeProvenance(provenance indexer.Provenance, metadata map[string]stri
 		ProducedBy: producedBy,
 		TraceID:    traceID,
 		Metadata:   cloneMetadata(provenance.Metadata),
+		Sources:    normalizeSourceReferences(provenance.Sources),
 	}
 }
 
@@ -422,6 +431,10 @@ func normalizeSourceMetadata(metadata map[string]string, document indexer.Docume
 	setMetadataDefault(out, "document_type", document.Type)
 	setMetadataDefault(out, "source_uri", firstNonEmpty(document.SourceURI, provenance.SourceURI))
 	setMetadataDefault(out, "source_hash", provenance.SourceHash)
+	if len(document.Sources) > 0 {
+		setMetadataDefault(out, "modality", document.Sources[0].Modality)
+		setMetadataDefault(out, "mime_type", document.Sources[0].MIMEType)
+	}
 	if firstMetadata(out, "filename") == "" {
 		setMetadataDefault(out, "filename", bestSourceFilename(out, document, provenance))
 	}
@@ -529,6 +542,9 @@ func normalizeCitations(citations []indexer.Citation, chunkID, sourceURI string)
 			StartOffset: citation.StartOffset,
 			EndOffset:   citation.EndOffset,
 			Confidence:  confidence,
+			PageNumber:  citation.PageNumber,
+			MediaRef:    strings.TrimSpace(citation.MediaRef),
+			Modality:    strings.TrimSpace(citation.Modality),
 		})
 	}
 	if len(out) == 0 && sourceURI != "" {
@@ -709,7 +725,7 @@ func cloneChunk(chunk indexer.Chunk) indexer.Chunk {
 		Vector:            cloneVector(chunk.Vector),
 		Metadata:          cloneMetadata(chunk.Metadata),
 		Document:          cloneDocument(chunk.Document),
-		EmbeddingMetadata: chunk.EmbeddingMetadata,
+		EmbeddingMetadata: cloneEmbeddingMetadata(chunk.EmbeddingMetadata),
 		Facts:             cloneFacts(chunk.Facts),
 		Citations:         cloneCitations(chunk.Citations),
 		Provenance:        cloneProvenance(chunk.Provenance),
@@ -740,6 +756,7 @@ func cloneDocument(in indexer.Document) indexer.Document {
 		Type:      in.Type,
 		SourceURI: in.SourceURI,
 		Metadata:  cloneMetadata(in.Metadata),
+		Sources:   cloneSourceReferences(in.Sources),
 	}
 }
 
@@ -773,7 +790,60 @@ func cloneProvenance(in indexer.Provenance) indexer.Provenance {
 		ProducedBy: in.ProducedBy,
 		TraceID:    in.TraceID,
 		Metadata:   cloneMetadata(in.Metadata),
+		Sources:    cloneSourceReferences(in.Sources),
 	}
+}
+
+func normalizeSourceReferences(in []indexer.SourceReference) []indexer.SourceReference {
+	out := make([]indexer.SourceReference, 0, len(in))
+	for _, source := range in {
+		source = indexer.SourceReference{
+			Modality:    strings.TrimSpace(source.Modality),
+			MIMEType:    strings.TrimSpace(source.MIMEType),
+			PageNumber:  source.PageNumber,
+			ContentRef:  strings.TrimSpace(source.ContentRef),
+			MediaRef:    strings.TrimSpace(source.MediaRef),
+			ContentHash: strings.TrimSpace(source.ContentHash),
+			SourceURI:   strings.TrimSpace(source.SourceURI),
+			Metadata:    cloneMetadata(source.Metadata),
+		}
+		if source.Modality == "" && source.MIMEType == "" && source.PageNumber == 0 && source.ContentRef == "" && source.MediaRef == "" && source.ContentHash == "" && source.SourceURI == "" && len(source.Metadata) == 0 {
+			continue
+		}
+		out = append(out, source)
+	}
+	return out
+}
+
+func cloneSourceReferences(in []indexer.SourceReference) []indexer.SourceReference {
+	out := make([]indexer.SourceReference, len(in))
+	for i, source := range in {
+		out[i] = source
+		out[i].Metadata = cloneMetadata(source.Metadata)
+	}
+	return out
+}
+
+func cloneEmbeddingMetadata(in indexer.EmbeddingMetadata) indexer.EmbeddingMetadata {
+	in.Modalities = append([]string(nil), in.Modalities...)
+	return in
+}
+
+func normalizeModalities(in []string) []string {
+	out := make([]string, 0, len(in))
+	seen := make(map[string]struct{}, len(in))
+	for _, modality := range in {
+		modality = strings.ToLower(strings.TrimSpace(modality))
+		if modality == "" {
+			continue
+		}
+		if _, ok := seen[modality]; ok {
+			continue
+		}
+		seen[modality] = struct{}{}
+		out = append(out, modality)
+	}
+	return out
 }
 
 func cloneGraphFragment(in *indexer.GraphFragment) *indexer.GraphFragment {

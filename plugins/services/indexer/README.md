@@ -9,8 +9,8 @@ metadata, and provenance after semantic extraction in the runtime/model path.
 
 | Function | RPC method | Risk | Approval | Idempotent | Purpose |
 | --- | --- | --- | --- | --- | --- |
-| `indexer_UpsertDocument` | `quark.indexer.v1.IndexerService/UpsertDocument` | write | no | yes | Persist one canonical source document record. |
-| `indexer_UpsertChunk` | `quark.indexer.v1.IndexerService/UpsertChunk` | write | no | yes | Persist one canonical chunk with embedding metadata, facts, entities, relations, citations, and provenance. |
+| `indexer_UpsertDocument` | `quark.indexer.v1.IndexerService/UpsertDocument` | write | no | yes | Persist one canonical source document record with typed source references. |
+| `indexer_UpsertChunk` | `quark.indexer.v1.IndexerService/UpsertChunk` | write | no | yes | Persist one canonical chunk with embedding modality metadata, facts, entities, relations, citations, and provenance. |
 | `indexer_UpsertFact` | `quark.indexer.v1.IndexerService/UpsertFact` | write | no | yes | Persist one canonical fact record. |
 | `indexer_UpsertEntity` | `quark.indexer.v1.IndexerService/UpsertEntity` | write | no | yes | Persist one canonical entity record. |
 | `indexer_UpsertRelation` | `quark.indexer.v1.IndexerService/UpsertRelation` | write | no | yes | Persist one canonical relation record. |

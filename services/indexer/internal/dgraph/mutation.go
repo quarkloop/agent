@@ -269,13 +269,15 @@ func chunkMutationNQuads(chunk indexer.Chunk, metaJSON, canonicalJSON string) st
 
 func documentMutationNQuads(uidVar string, document indexer.Document) string {
 	metaJSON, _ := json.Marshal(document.Metadata)
+	sourcesJSON, _ := json.Marshal(document.Sources)
 	return fmt.Sprintf(`uid(%s) <dgraph.type> "QuarkDocument" .
 uid(%s) <quark.document_id> %s .
 uid(%s) <quark.document_name> %s .
 uid(%s) <quark.document_type> %s .
 uid(%s) <quark.document_source_uri> %s .
 uid(%s) <quark.document_metadata_json> %s .
-`, uidVar, uidVar, quote(document.ID), uidVar, quote(document.Name), uidVar, quote(document.Type), uidVar, quote(document.SourceURI), uidVar, quote(string(metaJSON)))
+uid(%s) <quark.document_sources_json> %s .
+`, uidVar, uidVar, quote(document.ID), uidVar, quote(document.Name), uidVar, quote(document.Type), uidVar, quote(document.SourceURI), uidVar, quote(string(metaJSON)), uidVar, quote(string(sourcesJSON)))
 }
 
 func entityMutationNQuads(uidVar string, entity indexer.Entity) string {

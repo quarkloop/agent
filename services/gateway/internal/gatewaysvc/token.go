@@ -5,7 +5,10 @@ import "encoding/json"
 func estimateMessagesTokens(messages []message, tools []toolSchema) int64 {
 	var chars int64
 	for _, msg := range messages {
-		chars += int64(len(msg.Role) + len(msg.Content) + len(msg.ToolCallID))
+		chars += int64(len(msg.Role) + len(msg.ToolCallID))
+		for _, part := range msg.Content {
+			chars += int64(len(part.Text) + len(part.ImageURL) + len(part.ImageData) + len(part.MIMEType))
+		}
 		for _, call := range msg.ToolCalls {
 			chars += int64(len(call.ID) + len(call.Type) + len(call.Name) + len(call.ArgumentsJSON))
 		}

@@ -12,6 +12,7 @@ and legacy PDF text extraction.
 | `io_Read` | `quark.io.v1.IOService/Read` | read | no | yes | Read a text file, optionally with a 1-based inclusive line range. |
 | `io_List` | `quark.io.v1.IOService/List` | read | no | yes | List directory entries with optional recursion and sha256 hashes. |
 | `io_Stat` | `quark.io.v1.IOService/Stat` | read | no | yes | Return file metadata and optional sha256 for regular files. |
+| `io_ReadMedia` | `quark.io.v1.IOService/ReadMedia` | read | no | yes | Read bounded media bytes for a runtime-managed media reference. |
 | `io_ExtractPdf` | `quark.io.v1.IOService/ExtractPdf` | read | no | yes | Extract PDF text with `pdftotext`; document service functions are preferred for knowledge indexing. |
 | `io_SearchWeb` | `quark.io.v1.IOService/SearchWeb` | read | no | yes | Search the web through Brave or SerpAPI when API keys are configured. |
 | `io_Fetch` | `quark.io.v1.IOService/Fetch` | read | no | yes | Fetch an HTTP/HTTPS URL with bounded size, timeout, redirect, and private-network guards. |

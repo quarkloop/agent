@@ -95,6 +95,17 @@ func (s *Server) Remove(_ context.Context, req *iov1.RemoveRequest) (*iov1.Remov
 	return &iov1.RemoveResponse{}, nil
 }
 
+func (s *Server) ReadMedia(_ context.Context, req *iov1.ReadMediaRequest) (*iov1.ReadMediaResponse, error) {
+	result, err := iofs.ReadMedia(req.GetPath(), req.GetMaxBytes())
+	if err != nil {
+		return nil, grpcError(err)
+	}
+	return &iov1.ReadMediaResponse{
+		Source:  mediaReferenceToProto(result.Source),
+		Content: append([]byte(nil), result.Content...),
+	}, nil
+}
+
 func (s *Server) ExtractPdf(ctx context.Context, req *iov1.ExtractPdfRequest) (*iov1.ExtractPdfResponse, error) {
 	result, err := iofs.ExtractPdf(ctx, req.GetPath(), req.GetMaxChars(), s.pdfToText)
 	if err != nil {
@@ -105,7 +116,18 @@ func (s *Server) ExtractPdf(ctx context.Context, req *iov1.ExtractPdfRequest) (*
 		Chars:         result.Chars,
 		OriginalChars: result.OriginalChars,
 		Truncated:     result.Truncated,
+		Source:        mediaReferenceToProto(result.Source),
 	}, nil
+}
+
+func mediaReferenceToProto(source iofs.MediaReference) *iov1.MediaReference {
+	return &iov1.MediaReference{
+		SourceUri: source.SourceURI,
+		Sha256:    source.SHA256,
+		MimeType:  source.MIMEType,
+		Modality:  source.Modality,
+		Bytes:     source.Bytes,
+	}
 }
 
 func (s *Server) Execute(_ context.Context, req *iov1.ExecuteRequest) (*iov1.ExecuteResponse, error) {

@@ -15,10 +15,11 @@ func TestGetContextReturnsOwnedCopies(t *testing.T) {
 			Text:              "hello",
 			Vector:            []float32{0.1, 0.2},
 			Metadata:          map[string]string{"source": "fixture.pdf"},
-			EmbeddingMetadata: indexer.EmbeddingMetadata{Provider: "fixture", Model: "fixture/embed", Dimensions: 2},
+			Document:          indexer.Document{Sources: []indexer.SourceReference{{MediaRef: "media-1", Metadata: map[string]string{"page": "1"}}}},
+			EmbeddingMetadata: indexer.EmbeddingMetadata{Provider: "fixture", Model: "fixture/embed", Dimensions: 2, Modalities: []string{"text", "image"}},
 			Facts:             []indexer.Fact{{ID: "fact-1", Subject: "Quark", Predicate: "stores", Object: "context", Confidence: 0.8}},
 			Citations:         []indexer.Citation{{SourceURI: "fixture.pdf", ChunkID: "chunk-1"}},
-			Provenance:        indexer.Provenance{SourceURI: "fixture.pdf", Metadata: map[string]string{"trace": "t1"}},
+			Provenance:        indexer.Provenance{SourceURI: "fixture.pdf", Metadata: map[string]string{"trace": "t1"}, Sources: []indexer.SourceReference{{ContentRef: "content-1", Metadata: map[string]string{"page": "1"}}}},
 			Score:             1.2,
 		}},
 		graph: &indexer.GraphFragment{
@@ -38,8 +39,11 @@ func TestGetContextReturnsOwnedCopies(t *testing.T) {
 
 	result.Chunks[0].Vector[0] = 9
 	result.Chunks[0].Metadata["source"] = "mutated"
+	result.Chunks[0].Document.Sources[0].Metadata["page"] = "mutated"
+	result.Chunks[0].EmbeddingMetadata.Modalities[0] = "mutated"
 	result.Chunks[0].Citations[0].SourceURI = "mutated"
 	result.Chunks[0].Provenance.Metadata["trace"] = "mutated"
+	result.Chunks[0].Provenance.Sources[0].Metadata["page"] = "mutated"
 	result.Package.Chunks[0].Text = "mutated"
 	result.Package.Facts[0].Object = "mutated"
 	result.Package.Provenance[0].Metadata["trace"] = "mutated"
@@ -52,11 +56,17 @@ func TestGetContextReturnsOwnedCopies(t *testing.T) {
 	if store.chunks[0].Metadata["source"] != "fixture.pdf" {
 		t.Fatalf("chunk metadata was mutated through result: %+v", store.chunks[0].Metadata)
 	}
+	if store.chunks[0].Document.Sources[0].Metadata["page"] != "1" || store.chunks[0].EmbeddingMetadata.Modalities[0] != "text" {
+		t.Fatalf("typed source/embed metadata was mutated through result: %+v %+v", store.chunks[0].Document, store.chunks[0].EmbeddingMetadata)
+	}
 	if store.chunks[0].Citations[0].SourceURI != "fixture.pdf" {
 		t.Fatalf("chunk citations were mutated through result: %+v", store.chunks[0].Citations)
 	}
 	if store.chunks[0].Provenance.Metadata["trace"] != "t1" {
 		t.Fatalf("chunk provenance was mutated through result: %+v", store.chunks[0].Provenance)
+	}
+	if store.chunks[0].Provenance.Sources[0].Metadata["page"] != "1" {
+		t.Fatalf("provenance sources were mutated through result: %+v", store.chunks[0].Provenance)
 	}
 	if store.chunks[0].Facts[0].Object != "context" {
 		t.Fatalf("chunk facts were mutated through package: %+v", store.chunks[0].Facts)
@@ -95,7 +105,9 @@ func TestIndexDocumentNormalizesCanonicalRecord(t *testing.T) {
 			"embedding_dimensions":   "3",
 			"embedding_content_hash": "abc123",
 			"trace_id":               "trace-1",
+			"embedding_modalities":   "text,image,text",
 		},
+		Document: indexer.Document{Sources: []indexer.SourceReference{{Modality: " image ", MIMEType: " image/png ", MediaRef: " media-1 ", Metadata: map[string]string{"page": "1"}}}},
 		Facts: []indexer.Fact{{
 			Subject:   "Quark",
 			Predicate: "indexes",
@@ -114,6 +126,9 @@ func TestIndexDocumentNormalizesCanonicalRecord(t *testing.T) {
 	}
 	if chunk.EmbeddingMetadata.Provider != "fixture" || chunk.EmbeddingMetadata.Model != "fixture/embed" || chunk.EmbeddingMetadata.Dimensions != 3 || chunk.EmbeddingMetadata.ContentHash != "abc123" {
 		t.Fatalf("embedding metadata normalization failed: %+v", chunk.EmbeddingMetadata)
+	}
+	if len(chunk.EmbeddingMetadata.Modalities) != 2 || chunk.EmbeddingMetadata.Modalities[1] != "image" || chunk.Document.Sources[0].MediaRef != "media-1" {
+		t.Fatalf("multimodal source normalization failed: %+v %+v", chunk.EmbeddingMetadata, chunk.Document.Sources)
 	}
 	if chunk.Provenance.SourceURI != "/tmp/source.pdf" || chunk.Provenance.TraceID != "trace-1" {
 		t.Fatalf("provenance normalization failed: %+v", chunk.Provenance)

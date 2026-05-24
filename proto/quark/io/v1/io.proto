@@ -14,6 +14,7 @@ service IOService {
   rpc Append(AppendRequest) returns (AppendResponse);
   rpc Replace(ReplaceRequest) returns (ReplaceResponse);
   rpc Remove(RemoveRequest) returns (RemoveResponse);
+  rpc ReadMedia(ReadMediaRequest) returns (ReadMediaResponse);
   rpc ExtractPdf(ExtractPdfRequest) returns (ExtractPdfResponse);
   rpc Execute(ExecuteRequest) returns (ExecuteResponse);
   rpc SearchWeb(SearchWebRequest) returns (SearchWebResponse);
@@ -102,6 +103,25 @@ message RemoveRequest {
 
 message RemoveResponse {}
 
+message ReadMediaRequest {
+  string path = 1;
+  int64 max_bytes = 2;
+}
+
+message ReadMediaResponse {
+  MediaReference source = 1;
+  bytes content = 2;
+}
+
+message MediaReference {
+  string source_uri = 1;
+  string sha256 = 2;
+  string mime_type = 3;
+  string modality = 4;
+  int64 bytes = 5;
+  map<string, string> metadata = 6;
+}
+
 message ExtractPdfRequest {
   string path = 1;
   int32 max_chars = 2;
@@ -112,6 +132,7 @@ message ExtractPdfResponse {
   int32 chars = 2;
   int32 original_chars = 3;
   bool truncated = 4;
+  MediaReference source = 5;
 }
 
 message ExecuteRequest {

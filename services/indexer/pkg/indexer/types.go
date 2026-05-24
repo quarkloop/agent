@@ -27,14 +27,16 @@ type Document struct {
 	Type      string            `json:"type,omitempty"`
 	SourceURI string            `json:"source_uri,omitempty"`
 	Metadata  map[string]string `json:"metadata,omitempty"`
+	Sources   []SourceReference `json:"sources,omitempty"`
 }
 
 type EmbeddingMetadata struct {
-	Provider    string `json:"provider,omitempty"`
-	Model       string `json:"model,omitempty"`
-	Dimensions  int    `json:"dimensions,omitempty"`
-	ContentHash string `json:"content_hash,omitempty"`
-	Version     string `json:"version,omitempty"`
+	Provider    string   `json:"provider,omitempty"`
+	Model       string   `json:"model,omitempty"`
+	Dimensions  int      `json:"dimensions,omitempty"`
+	ContentHash string   `json:"content_hash,omitempty"`
+	Version     string   `json:"version,omitempty"`
+	Modalities  []string `json:"modalities,omitempty"`
 }
 
 type Entity struct {
@@ -67,6 +69,9 @@ type Citation struct {
 	StartOffset int     `json:"start_offset,omitempty"`
 	EndOffset   int     `json:"end_offset,omitempty"`
 	Confidence  float32 `json:"confidence,omitempty"`
+	PageNumber  int     `json:"page_number,omitempty"`
+	MediaRef    string  `json:"media_ref,omitempty"`
+	Modality    string  `json:"modality,omitempty"`
 }
 
 type Provenance struct {
@@ -76,6 +81,20 @@ type Provenance struct {
 	ProducedBy string            `json:"produced_by,omitempty"`
 	TraceID    string            `json:"trace_id,omitempty"`
 	Metadata   map[string]string `json:"metadata,omitempty"`
+	Sources    []SourceReference `json:"sources,omitempty"`
+}
+
+// SourceReference records source evidence without making indexer responsible
+// for reading or interpreting the referenced media.
+type SourceReference struct {
+	Modality    string            `json:"modality,omitempty"`
+	MIMEType    string            `json:"mime_type,omitempty"`
+	PageNumber  int               `json:"page_number,omitempty"`
+	ContentRef  string            `json:"content_ref,omitempty"`
+	MediaRef    string            `json:"media_ref,omitempty"`
+	ContentHash string            `json:"content_hash,omitempty"`
+	SourceURI   string            `json:"source_uri,omitempty"`
+	Metadata    map[string]string `json:"metadata,omitempty"`
 }
 
 type GraphNode struct {

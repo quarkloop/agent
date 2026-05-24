@@ -1,6 +1,7 @@
 package iofs
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -57,6 +58,27 @@ func TestReadWorksInReadOnlyDirectory(t *testing.T) {
 	}
 	if result.Content != "hello" {
 		t.Fatalf("content = %q, want hello", result.Content)
+	}
+}
+
+func TestReadMediaReturnsBoundedTypedContent(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "scan.png")
+	content := []byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'}
+	if err := os.WriteFile(path, content, 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+	result, err := ReadMedia(path, 64)
+	if err != nil {
+		t.Fatalf("read media: %v", err)
+	}
+	if result.Source.Modality != "image" || result.Source.MIMEType != "image/png" || result.Source.SHA256 == "" {
+		t.Fatalf("source = %+v", result.Source)
+	}
+	if string(result.Content) != string(content) {
+		t.Fatalf("content = %x, want %x", result.Content, content)
+	}
+	if _, err := ReadMedia(path, 2); !errors.Is(err, ErrMediaTooLarge) {
+		t.Fatalf("oversize error = %v", err)
 	}
 }
 

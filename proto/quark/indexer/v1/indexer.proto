@@ -79,6 +79,7 @@ message Document {
   string type = 3;
   string source_uri = 4;
   map<string, string> metadata = 5;
+  repeated SourceReference sources = 6;
 }
 
 message EmbeddingMetadata {
@@ -87,6 +88,7 @@ message EmbeddingMetadata {
   int32 dimensions = 3;
   string content_hash = 4;
   string version = 5;
+  repeated string modalities = 6;
 }
 
 message Entity {
@@ -119,6 +121,9 @@ message Citation {
   int32 start_offset = 5;
   int32 end_offset = 6;
   float confidence = 7;
+  int32 page_number = 8;
+  string media_ref = 9;
+  string modality = 10;
 }
 
 message Provenance {
@@ -128,6 +133,18 @@ message Provenance {
   string produced_by = 4;
   string trace_id = 5;
   map<string, string> metadata = 6;
+  repeated SourceReference sources = 7;
+}
+
+message SourceReference {
+  string modality = 1;
+  string mime_type = 2;
+  int32 page_number = 3;
+  string content_ref = 4;
+  string media_ref = 5;
+  string content_hash = 6;
+  string source_uri = 7;
+  map<string, string> metadata = 8;
 }
 
 message IndexStatus {

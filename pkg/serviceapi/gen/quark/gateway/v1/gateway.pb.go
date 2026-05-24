@@ -21,6 +21,73 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type ContentKind int32
+
+const (
+	ContentKind_CONTENT_KIND_UNSPECIFIED  ContentKind = 0
+	ContentKind_CONTENT_KIND_TEXT         ContentKind = 1
+	ContentKind_CONTENT_KIND_IMAGE_URL    ContentKind = 2
+	ContentKind_CONTENT_KIND_IMAGE_DATA   ContentKind = 3
+	ContentKind_CONTENT_KIND_CONTENT_REF  ContentKind = 4
+	ContentKind_CONTENT_KIND_IMAGE_REF    ContentKind = 5
+	ContentKind_CONTENT_KIND_PAGE_REF     ContentKind = 6
+	ContentKind_CONTENT_KIND_ARTIFACT_REF ContentKind = 7
+	ContentKind_CONTENT_KIND_FILE_REF     ContentKind = 8
+)
+
+// Enum value maps for ContentKind.
+var (
+	ContentKind_name = map[int32]string{
+		0: "CONTENT_KIND_UNSPECIFIED",
+		1: "CONTENT_KIND_TEXT",
+		2: "CONTENT_KIND_IMAGE_URL",
+		3: "CONTENT_KIND_IMAGE_DATA",
+		4: "CONTENT_KIND_CONTENT_REF",
+		5: "CONTENT_KIND_IMAGE_REF",
+		6: "CONTENT_KIND_PAGE_REF",
+		7: "CONTENT_KIND_ARTIFACT_REF",
+		8: "CONTENT_KIND_FILE_REF",
+	}
+	ContentKind_value = map[string]int32{
+		"CONTENT_KIND_UNSPECIFIED":  0,
+		"CONTENT_KIND_TEXT":         1,
+		"CONTENT_KIND_IMAGE_URL":    2,
+		"CONTENT_KIND_IMAGE_DATA":   3,
+		"CONTENT_KIND_CONTENT_REF":  4,
+		"CONTENT_KIND_IMAGE_REF":    5,
+		"CONTENT_KIND_PAGE_REF":     6,
+		"CONTENT_KIND_ARTIFACT_REF": 7,
+		"CONTENT_KIND_FILE_REF":     8,
+	}
+)
+
+func (x ContentKind) Enum() *ContentKind {
+	p := new(ContentKind)
+	*p = x
+	return p
+}
+
+func (x ContentKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ContentKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_quark_gateway_v1_gateway_proto_enumTypes[0].Descriptor()
+}
+
+func (ContentKind) Type() protoreflect.EnumType {
+	return &file_quark_gateway_v1_gateway_proto_enumTypes[0]
+}
+
+func (x ContentKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ContentKind.Descriptor instead.
+func (ContentKind) EnumDescriptor() ([]byte, []int) {
+	return file_quark_gateway_v1_gateway_proto_rawDescGZIP(), []int{0}
+}
+
 type GenerateRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Provider      string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
@@ -305,7 +372,7 @@ type EmbedRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Provider      string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
 	Model         string                 `protobuf:"bytes,2,opt,name=model,proto3" json:"model,omitempty"`
-	Input         []string               `protobuf:"bytes,3,rep,name=input,proto3" json:"input,omitempty"`
+	Inputs        []*MultimodalInput     `protobuf:"bytes,3,rep,name=inputs,proto3" json:"inputs,omitempty"`
 	Dimensions    int32                  `protobuf:"varint,4,opt,name=dimensions,proto3" json:"dimensions,omitempty"`
 	Options       map[string]string      `protobuf:"bytes,5,rep,name=options,proto3" json:"options,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
@@ -356,9 +423,9 @@ func (x *EmbedRequest) GetModel() string {
 	return ""
 }
 
-func (x *EmbedRequest) GetInput() []string {
+func (x *EmbedRequest) GetInputs() []*MultimodalInput {
 	if x != nil {
-		return x.Input
+		return x.Inputs
 	}
 	return nil
 }
@@ -1200,7 +1267,7 @@ func (x *GatewayFallbackPolicy) GetFallbacks() []string {
 type ModelMessage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Role          string                 `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
-	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	Content       []*ContentPart         `protobuf:"bytes,2,rep,name=content,proto3" json:"content,omitempty"`
 	ToolCalls     []*ToolCall            `protobuf:"bytes,3,rep,name=tool_calls,json=toolCalls,proto3" json:"tool_calls,omitempty"`
 	ToolCallId    string                 `protobuf:"bytes,4,opt,name=tool_call_id,json=toolCallId,proto3" json:"tool_call_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1244,11 +1311,11 @@ func (x *ModelMessage) GetRole() string {
 	return ""
 }
 
-func (x *ModelMessage) GetContent() string {
+func (x *ModelMessage) GetContent() []*ContentPart {
 	if x != nil {
 		return x.Content
 	}
-	return ""
+	return nil
 }
 
 func (x *ModelMessage) GetToolCalls() []*ToolCall {
@@ -1265,6 +1332,154 @@ func (x *ModelMessage) GetToolCallId() string {
 	return ""
 }
 
+// MultimodalInput is one embedding unit. A provider returns one vector for
+// each input, including when the input combines text and image content.
+type MultimodalInput struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Content       []*ContentPart         `protobuf:"bytes,1,rep,name=content,proto3" json:"content,omitempty"`
+	Metadata      map[string]string      `protobuf:"bytes,2,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MultimodalInput) Reset() {
+	*x = MultimodalInput{}
+	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MultimodalInput) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MultimodalInput) ProtoMessage() {}
+
+func (x *MultimodalInput) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MultimodalInput.ProtoReflect.Descriptor instead.
+func (*MultimodalInput) Descriptor() ([]byte, []int) {
+	return file_quark_gateway_v1_gateway_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *MultimodalInput) GetContent() []*ContentPart {
+	if x != nil {
+		return x.Content
+	}
+	return nil
+}
+
+func (x *MultimodalInput) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+// ContentPart is normalized Gateway input. Reference kinds are accepted at
+// the runtime tool boundary and must be resolved before provider dispatch.
+type ContentPart struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          ContentKind            `protobuf:"varint,1,opt,name=kind,proto3,enum=quark.gateway.v1.ContentKind" json:"kind,omitempty"`
+	Text          string                 `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
+	ImageUrl      string                 `protobuf:"bytes,3,opt,name=image_url,json=imageUrl,proto3" json:"image_url,omitempty"`
+	ImageData     []byte                 `protobuf:"bytes,4,opt,name=image_data,json=imageData,proto3" json:"image_data,omitempty"`
+	MimeType      string                 `protobuf:"bytes,5,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
+	Ref           string                 `protobuf:"bytes,6,opt,name=ref,proto3" json:"ref,omitempty"`
+	Metadata      map[string]string      `protobuf:"bytes,7,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ContentPart) Reset() {
+	*x = ContentPart{}
+	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ContentPart) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ContentPart) ProtoMessage() {}
+
+func (x *ContentPart) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ContentPart.ProtoReflect.Descriptor instead.
+func (*ContentPart) Descriptor() ([]byte, []int) {
+	return file_quark_gateway_v1_gateway_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *ContentPart) GetKind() ContentKind {
+	if x != nil {
+		return x.Kind
+	}
+	return ContentKind_CONTENT_KIND_UNSPECIFIED
+}
+
+func (x *ContentPart) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *ContentPart) GetImageUrl() string {
+	if x != nil {
+		return x.ImageUrl
+	}
+	return ""
+}
+
+func (x *ContentPart) GetImageData() []byte {
+	if x != nil {
+		return x.ImageData
+	}
+	return nil
+}
+
+func (x *ContentPart) GetMimeType() string {
+	if x != nil {
+		return x.MimeType
+	}
+	return ""
+}
+
+func (x *ContentPart) GetRef() string {
+	if x != nil {
+		return x.Ref
+	}
+	return ""
+}
+
+func (x *ContentPart) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
 type ToolSchema struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Name           string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -1276,7 +1491,7 @@ type ToolSchema struct {
 
 func (x *ToolSchema) Reset() {
 	*x = ToolSchema{}
-	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[21]
+	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1288,7 +1503,7 @@ func (x *ToolSchema) String() string {
 func (*ToolSchema) ProtoMessage() {}
 
 func (x *ToolSchema) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[21]
+	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1301,7 +1516,7 @@ func (x *ToolSchema) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolSchema.ProtoReflect.Descriptor instead.
 func (*ToolSchema) Descriptor() ([]byte, []int) {
-	return file_quark_gateway_v1_gateway_proto_rawDescGZIP(), []int{21}
+	return file_quark_gateway_v1_gateway_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ToolSchema) GetName() string {
@@ -1338,7 +1553,7 @@ type ToolCall struct {
 
 func (x *ToolCall) Reset() {
 	*x = ToolCall{}
-	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[22]
+	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1350,7 +1565,7 @@ func (x *ToolCall) String() string {
 func (*ToolCall) ProtoMessage() {}
 
 func (x *ToolCall) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[22]
+	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1363,7 +1578,7 @@ func (x *ToolCall) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolCall.ProtoReflect.Descriptor instead.
 func (*ToolCall) Descriptor() ([]byte, []int) {
-	return file_quark_gateway_v1_gateway_proto_rawDescGZIP(), []int{22}
+	return file_quark_gateway_v1_gateway_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ToolCall) GetIndex() int32 {
@@ -1414,7 +1629,7 @@ type Embedding struct {
 
 func (x *Embedding) Reset() {
 	*x = Embedding{}
-	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[23]
+	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1426,7 +1641,7 @@ func (x *Embedding) String() string {
 func (*Embedding) ProtoMessage() {}
 
 func (x *Embedding) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[23]
+	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1439,7 +1654,7 @@ func (x *Embedding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Embedding.ProtoReflect.Descriptor instead.
 func (*Embedding) Descriptor() ([]byte, []int) {
-	return file_quark_gateway_v1_gateway_proto_rawDescGZIP(), []int{23}
+	return file_quark_gateway_v1_gateway_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *Embedding) GetVector() []float32 {
@@ -1487,7 +1702,7 @@ type RerankResult struct {
 
 func (x *RerankResult) Reset() {
 	*x = RerankResult{}
-	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[24]
+	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1499,7 +1714,7 @@ func (x *RerankResult) String() string {
 func (*RerankResult) ProtoMessage() {}
 
 func (x *RerankResult) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[24]
+	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1512,7 +1727,7 @@ func (x *RerankResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RerankResult.ProtoReflect.Descriptor instead.
 func (*RerankResult) Descriptor() ([]byte, []int) {
-	return file_quark_gateway_v1_gateway_proto_rawDescGZIP(), []int{24}
+	return file_quark_gateway_v1_gateway_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *RerankResult) GetIndex() int32 {
@@ -1542,7 +1757,7 @@ type ModelInfo struct {
 
 func (x *ModelInfo) Reset() {
 	*x = ModelInfo{}
-	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[25]
+	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1554,7 +1769,7 @@ func (x *ModelInfo) String() string {
 func (*ModelInfo) ProtoMessage() {}
 
 func (x *ModelInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[25]
+	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1567,7 +1782,7 @@ func (x *ModelInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelInfo.ProtoReflect.Descriptor instead.
 func (*ModelInfo) Descriptor() ([]byte, []int) {
-	return file_quark_gateway_v1_gateway_proto_rawDescGZIP(), []int{25}
+	return file_quark_gateway_v1_gateway_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ModelInfo) GetId() string {
@@ -1625,7 +1840,7 @@ type ModelUsage struct {
 
 func (x *ModelUsage) Reset() {
 	*x = ModelUsage{}
-	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[26]
+	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1637,7 +1852,7 @@ func (x *ModelUsage) String() string {
 func (*ModelUsage) ProtoMessage() {}
 
 func (x *ModelUsage) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[26]
+	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1650,7 +1865,7 @@ func (x *ModelUsage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelUsage.ProtoReflect.Descriptor instead.
 func (*ModelUsage) Descriptor() ([]byte, []int) {
-	return file_quark_gateway_v1_gateway_proto_rawDescGZIP(), []int{26}
+	return file_quark_gateway_v1_gateway_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ModelUsage) GetProvider() string {
@@ -1755,7 +1970,7 @@ type UsageAggregate struct {
 
 func (x *UsageAggregate) Reset() {
 	*x = UsageAggregate{}
-	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[27]
+	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1767,7 +1982,7 @@ func (x *UsageAggregate) String() string {
 func (*UsageAggregate) ProtoMessage() {}
 
 func (x *UsageAggregate) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[27]
+	mi := &file_quark_gateway_v1_gateway_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1780,7 +1995,7 @@ func (x *UsageAggregate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UsageAggregate.ProtoReflect.Descriptor instead.
 func (*UsageAggregate) Descriptor() ([]byte, []int) {
-	return file_quark_gateway_v1_gateway_proto_rawDescGZIP(), []int{27}
+	return file_quark_gateway_v1_gateway_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *UsageAggregate) GetProvider() string {
@@ -1886,11 +2101,11 @@ const file_quark_gateway_v1_gateway_proto_rawDesc = "" +
 	"\n" +
 	"tool_calls\x18\x02 \x03(\v2\x1a.quark.gateway.v1.ToolCallR\ttoolCalls\x12\x12\n" +
 	"\x04done\x18\x03 \x01(\bR\x04done\x122\n" +
-	"\x05usage\x18\x04 \x01(\v2\x1c.quark.gateway.v1.ModelUsageR\x05usage\"\xf9\x01\n" +
+	"\x05usage\x18\x04 \x01(\v2\x1c.quark.gateway.v1.ModelUsageR\x05usage\"\x9e\x02\n" +
 	"\fEmbedRequest\x12\x1a\n" +
 	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x14\n" +
-	"\x05model\x18\x02 \x01(\tR\x05model\x12\x14\n" +
-	"\x05input\x18\x03 \x03(\tR\x05input\x12\x1e\n" +
+	"\x05model\x18\x02 \x01(\tR\x05model\x129\n" +
+	"\x06inputs\x18\x03 \x03(\v2!.quark.gateway.v1.MultimodalInputR\x06inputs\x12\x1e\n" +
 	"\n" +
 	"dimensions\x18\x04 \x01(\x05R\n" +
 	"dimensions\x12E\n" +
@@ -1952,14 +2167,32 @@ const file_quark_gateway_v1_gateway_proto_rawDesc = "" +
 	"\x0fembedding_model\x18\x06 \x01(\tR\x0eembeddingModel\"Q\n" +
 	"\x15GatewayFallbackPolicy\x12\x1a\n" +
 	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x1c\n" +
-	"\tfallbacks\x18\x02 \x03(\tR\tfallbacks\"\x99\x01\n" +
+	"\tfallbacks\x18\x02 \x03(\tR\tfallbacks\"\xb8\x01\n" +
 	"\fModelMessage\x12\x12\n" +
-	"\x04role\x18\x01 \x01(\tR\x04role\x12\x18\n" +
-	"\acontent\x18\x02 \x01(\tR\acontent\x129\n" +
+	"\x04role\x18\x01 \x01(\tR\x04role\x127\n" +
+	"\acontent\x18\x02 \x03(\v2\x1d.quark.gateway.v1.ContentPartR\acontent\x129\n" +
 	"\n" +
 	"tool_calls\x18\x03 \x03(\v2\x1a.quark.gateway.v1.ToolCallR\ttoolCalls\x12 \n" +
 	"\ftool_call_id\x18\x04 \x01(\tR\n" +
-	"toolCallId\"k\n" +
+	"toolCallId\"\xd4\x01\n" +
+	"\x0fMultimodalInput\x127\n" +
+	"\acontent\x18\x01 \x03(\v2\x1d.quark.gateway.v1.ContentPartR\acontent\x12K\n" +
+	"\bmetadata\x18\x02 \x03(\v2/.quark.gateway.v1.MultimodalInput.MetadataEntryR\bmetadata\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc5\x02\n" +
+	"\vContentPart\x121\n" +
+	"\x04kind\x18\x01 \x01(\x0e2\x1d.quark.gateway.v1.ContentKindR\x04kind\x12\x12\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\x12\x1b\n" +
+	"\timage_url\x18\x03 \x01(\tR\bimageUrl\x12\x1d\n" +
+	"\n" +
+	"image_data\x18\x04 \x01(\fR\timageData\x12\x1b\n" +
+	"\tmime_type\x18\x05 \x01(\tR\bmimeType\x12\x10\n" +
+	"\x03ref\x18\x06 \x01(\tR\x03ref\x12G\n" +
+	"\bmetadata\x18\a \x03(\v2+.quark.gateway.v1.ContentPart.MetadataEntryR\bmetadata\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"k\n" +
 	"\n" +
 	"ToolSchema\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
@@ -2015,7 +2248,17 @@ const file_quark_gateway_v1_gateway_proto_rawDesc = "" +
 	"\x0elatency_millis\x18\b \x01(\x03R\rlatencyMillis\x12#\n" +
 	"\rcost_estimate\x18\t \x01(\x01R\fcostEstimate\x12%\n" +
 	"\x0efallback_chain\x18\n" +
-	" \x03(\tR\rfallbackChain2\xb9\x06\n" +
+	" \x03(\tR\rfallbackChain*\x8a\x02\n" +
+	"\vContentKind\x12\x1c\n" +
+	"\x18CONTENT_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
+	"\x11CONTENT_KIND_TEXT\x10\x01\x12\x1a\n" +
+	"\x16CONTENT_KIND_IMAGE_URL\x10\x02\x12\x1b\n" +
+	"\x17CONTENT_KIND_IMAGE_DATA\x10\x03\x12\x1c\n" +
+	"\x18CONTENT_KIND_CONTENT_REF\x10\x04\x12\x1a\n" +
+	"\x16CONTENT_KIND_IMAGE_REF\x10\x05\x12\x19\n" +
+	"\x15CONTENT_KIND_PAGE_REF\x10\x06\x12\x1d\n" +
+	"\x19CONTENT_KIND_ARTIFACT_REF\x10\a\x12\x19\n" +
+	"\x15CONTENT_KIND_FILE_REF\x10\b2\xb9\x06\n" +
 	"\x0eGatewayService\x12Q\n" +
 	"\bGenerate\x12!.quark.gateway.v1.GenerateRequest\x1a\".quark.gateway.v1.GenerateResponse\x12e\n" +
 	"\x0eStreamGenerate\x12'.quark.gateway.v1.StreamGenerateRequest\x1a(.quark.gateway.v1.StreamGenerateResponse0\x01\x12H\n" +
@@ -2040,89 +2283,101 @@ func file_quark_gateway_v1_gateway_proto_rawDescGZIP() []byte {
 	return file_quark_gateway_v1_gateway_proto_rawDescData
 }
 
-var file_quark_gateway_v1_gateway_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
+var file_quark_gateway_v1_gateway_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_quark_gateway_v1_gateway_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
 var file_quark_gateway_v1_gateway_proto_goTypes = []any{
-	(*GenerateRequest)(nil),        // 0: quark.gateway.v1.GenerateRequest
-	(*GenerateResponse)(nil),       // 1: quark.gateway.v1.GenerateResponse
-	(*StreamGenerateRequest)(nil),  // 2: quark.gateway.v1.StreamGenerateRequest
-	(*StreamGenerateResponse)(nil), // 3: quark.gateway.v1.StreamGenerateResponse
-	(*EmbedRequest)(nil),           // 4: quark.gateway.v1.EmbedRequest
-	(*EmbedResponse)(nil),          // 5: quark.gateway.v1.EmbedResponse
-	(*RerankRequest)(nil),          // 6: quark.gateway.v1.RerankRequest
-	(*RerankResponse)(nil),         // 7: quark.gateway.v1.RerankResponse
-	(*CountTokensRequest)(nil),     // 8: quark.gateway.v1.CountTokensRequest
-	(*CountTokensResponse)(nil),    // 9: quark.gateway.v1.CountTokensResponse
-	(*ListModelsRequest)(nil),      // 10: quark.gateway.v1.ListModelsRequest
-	(*ListModelsResponse)(nil),     // 11: quark.gateway.v1.ListModelsResponse
-	(*ProviderHealthRequest)(nil),  // 12: quark.gateway.v1.ProviderHealthRequest
-	(*ProviderHealthResponse)(nil), // 13: quark.gateway.v1.ProviderHealthResponse
-	(*UsageSummaryRequest)(nil),    // 14: quark.gateway.v1.UsageSummaryRequest
-	(*UsageSummaryResponse)(nil),   // 15: quark.gateway.v1.UsageSummaryResponse
-	(*ReloadConfigRequest)(nil),    // 16: quark.gateway.v1.ReloadConfigRequest
-	(*ReloadConfigResponse)(nil),   // 17: quark.gateway.v1.ReloadConfigResponse
-	(*GatewayProviderConfig)(nil),  // 18: quark.gateway.v1.GatewayProviderConfig
-	(*GatewayFallbackPolicy)(nil),  // 19: quark.gateway.v1.GatewayFallbackPolicy
-	(*ModelMessage)(nil),           // 20: quark.gateway.v1.ModelMessage
-	(*ToolSchema)(nil),             // 21: quark.gateway.v1.ToolSchema
-	(*ToolCall)(nil),               // 22: quark.gateway.v1.ToolCall
-	(*Embedding)(nil),              // 23: quark.gateway.v1.Embedding
-	(*RerankResult)(nil),           // 24: quark.gateway.v1.RerankResult
-	(*ModelInfo)(nil),              // 25: quark.gateway.v1.ModelInfo
-	(*ModelUsage)(nil),             // 26: quark.gateway.v1.ModelUsage
-	(*UsageAggregate)(nil),         // 27: quark.gateway.v1.UsageAggregate
-	nil,                            // 28: quark.gateway.v1.GenerateRequest.OptionsEntry
-	nil,                            // 29: quark.gateway.v1.StreamGenerateRequest.OptionsEntry
-	nil,                            // 30: quark.gateway.v1.EmbedRequest.OptionsEntry
-	nil,                            // 31: quark.gateway.v1.RerankRequest.OptionsEntry
+	(ContentKind)(0),               // 0: quark.gateway.v1.ContentKind
+	(*GenerateRequest)(nil),        // 1: quark.gateway.v1.GenerateRequest
+	(*GenerateResponse)(nil),       // 2: quark.gateway.v1.GenerateResponse
+	(*StreamGenerateRequest)(nil),  // 3: quark.gateway.v1.StreamGenerateRequest
+	(*StreamGenerateResponse)(nil), // 4: quark.gateway.v1.StreamGenerateResponse
+	(*EmbedRequest)(nil),           // 5: quark.gateway.v1.EmbedRequest
+	(*EmbedResponse)(nil),          // 6: quark.gateway.v1.EmbedResponse
+	(*RerankRequest)(nil),          // 7: quark.gateway.v1.RerankRequest
+	(*RerankResponse)(nil),         // 8: quark.gateway.v1.RerankResponse
+	(*CountTokensRequest)(nil),     // 9: quark.gateway.v1.CountTokensRequest
+	(*CountTokensResponse)(nil),    // 10: quark.gateway.v1.CountTokensResponse
+	(*ListModelsRequest)(nil),      // 11: quark.gateway.v1.ListModelsRequest
+	(*ListModelsResponse)(nil),     // 12: quark.gateway.v1.ListModelsResponse
+	(*ProviderHealthRequest)(nil),  // 13: quark.gateway.v1.ProviderHealthRequest
+	(*ProviderHealthResponse)(nil), // 14: quark.gateway.v1.ProviderHealthResponse
+	(*UsageSummaryRequest)(nil),    // 15: quark.gateway.v1.UsageSummaryRequest
+	(*UsageSummaryResponse)(nil),   // 16: quark.gateway.v1.UsageSummaryResponse
+	(*ReloadConfigRequest)(nil),    // 17: quark.gateway.v1.ReloadConfigRequest
+	(*ReloadConfigResponse)(nil),   // 18: quark.gateway.v1.ReloadConfigResponse
+	(*GatewayProviderConfig)(nil),  // 19: quark.gateway.v1.GatewayProviderConfig
+	(*GatewayFallbackPolicy)(nil),  // 20: quark.gateway.v1.GatewayFallbackPolicy
+	(*ModelMessage)(nil),           // 21: quark.gateway.v1.ModelMessage
+	(*MultimodalInput)(nil),        // 22: quark.gateway.v1.MultimodalInput
+	(*ContentPart)(nil),            // 23: quark.gateway.v1.ContentPart
+	(*ToolSchema)(nil),             // 24: quark.gateway.v1.ToolSchema
+	(*ToolCall)(nil),               // 25: quark.gateway.v1.ToolCall
+	(*Embedding)(nil),              // 26: quark.gateway.v1.Embedding
+	(*RerankResult)(nil),           // 27: quark.gateway.v1.RerankResult
+	(*ModelInfo)(nil),              // 28: quark.gateway.v1.ModelInfo
+	(*ModelUsage)(nil),             // 29: quark.gateway.v1.ModelUsage
+	(*UsageAggregate)(nil),         // 30: quark.gateway.v1.UsageAggregate
+	nil,                            // 31: quark.gateway.v1.GenerateRequest.OptionsEntry
+	nil,                            // 32: quark.gateway.v1.StreamGenerateRequest.OptionsEntry
+	nil,                            // 33: quark.gateway.v1.EmbedRequest.OptionsEntry
+	nil,                            // 34: quark.gateway.v1.RerankRequest.OptionsEntry
+	nil,                            // 35: quark.gateway.v1.MultimodalInput.MetadataEntry
+	nil,                            // 36: quark.gateway.v1.ContentPart.MetadataEntry
 }
 var file_quark_gateway_v1_gateway_proto_depIdxs = []int32{
-	20, // 0: quark.gateway.v1.GenerateRequest.messages:type_name -> quark.gateway.v1.ModelMessage
-	21, // 1: quark.gateway.v1.GenerateRequest.tools:type_name -> quark.gateway.v1.ToolSchema
-	28, // 2: quark.gateway.v1.GenerateRequest.options:type_name -> quark.gateway.v1.GenerateRequest.OptionsEntry
-	22, // 3: quark.gateway.v1.GenerateResponse.tool_calls:type_name -> quark.gateway.v1.ToolCall
-	26, // 4: quark.gateway.v1.GenerateResponse.usage:type_name -> quark.gateway.v1.ModelUsage
-	20, // 5: quark.gateway.v1.StreamGenerateRequest.messages:type_name -> quark.gateway.v1.ModelMessage
-	21, // 6: quark.gateway.v1.StreamGenerateRequest.tools:type_name -> quark.gateway.v1.ToolSchema
-	29, // 7: quark.gateway.v1.StreamGenerateRequest.options:type_name -> quark.gateway.v1.StreamGenerateRequest.OptionsEntry
-	22, // 8: quark.gateway.v1.StreamGenerateResponse.tool_calls:type_name -> quark.gateway.v1.ToolCall
-	26, // 9: quark.gateway.v1.StreamGenerateResponse.usage:type_name -> quark.gateway.v1.ModelUsage
-	30, // 10: quark.gateway.v1.EmbedRequest.options:type_name -> quark.gateway.v1.EmbedRequest.OptionsEntry
-	23, // 11: quark.gateway.v1.EmbedResponse.embeddings:type_name -> quark.gateway.v1.Embedding
-	26, // 12: quark.gateway.v1.EmbedResponse.usage:type_name -> quark.gateway.v1.ModelUsage
-	31, // 13: quark.gateway.v1.RerankRequest.options:type_name -> quark.gateway.v1.RerankRequest.OptionsEntry
-	24, // 14: quark.gateway.v1.RerankResponse.results:type_name -> quark.gateway.v1.RerankResult
-	26, // 15: quark.gateway.v1.RerankResponse.usage:type_name -> quark.gateway.v1.ModelUsage
-	20, // 16: quark.gateway.v1.CountTokensRequest.messages:type_name -> quark.gateway.v1.ModelMessage
-	21, // 17: quark.gateway.v1.CountTokensRequest.tools:type_name -> quark.gateway.v1.ToolSchema
-	26, // 18: quark.gateway.v1.CountTokensResponse.usage:type_name -> quark.gateway.v1.ModelUsage
-	25, // 19: quark.gateway.v1.ListModelsResponse.models:type_name -> quark.gateway.v1.ModelInfo
-	27, // 20: quark.gateway.v1.UsageSummaryResponse.usage:type_name -> quark.gateway.v1.UsageAggregate
-	18, // 21: quark.gateway.v1.ReloadConfigRequest.providers:type_name -> quark.gateway.v1.GatewayProviderConfig
-	19, // 22: quark.gateway.v1.ReloadConfigRequest.fallbacks:type_name -> quark.gateway.v1.GatewayFallbackPolicy
-	22, // 23: quark.gateway.v1.ModelMessage.tool_calls:type_name -> quark.gateway.v1.ToolCall
-	0,  // 24: quark.gateway.v1.GatewayService.Generate:input_type -> quark.gateway.v1.GenerateRequest
-	2,  // 25: quark.gateway.v1.GatewayService.StreamGenerate:input_type -> quark.gateway.v1.StreamGenerateRequest
-	4,  // 26: quark.gateway.v1.GatewayService.Embed:input_type -> quark.gateway.v1.EmbedRequest
-	6,  // 27: quark.gateway.v1.GatewayService.Rerank:input_type -> quark.gateway.v1.RerankRequest
-	8,  // 28: quark.gateway.v1.GatewayService.CountTokens:input_type -> quark.gateway.v1.CountTokensRequest
-	10, // 29: quark.gateway.v1.GatewayService.ListModels:input_type -> quark.gateway.v1.ListModelsRequest
-	12, // 30: quark.gateway.v1.GatewayService.ProviderHealth:input_type -> quark.gateway.v1.ProviderHealthRequest
-	14, // 31: quark.gateway.v1.GatewayService.UsageSummary:input_type -> quark.gateway.v1.UsageSummaryRequest
-	16, // 32: quark.gateway.v1.GatewayService.ReloadConfig:input_type -> quark.gateway.v1.ReloadConfigRequest
-	1,  // 33: quark.gateway.v1.GatewayService.Generate:output_type -> quark.gateway.v1.GenerateResponse
-	3,  // 34: quark.gateway.v1.GatewayService.StreamGenerate:output_type -> quark.gateway.v1.StreamGenerateResponse
-	5,  // 35: quark.gateway.v1.GatewayService.Embed:output_type -> quark.gateway.v1.EmbedResponse
-	7,  // 36: quark.gateway.v1.GatewayService.Rerank:output_type -> quark.gateway.v1.RerankResponse
-	9,  // 37: quark.gateway.v1.GatewayService.CountTokens:output_type -> quark.gateway.v1.CountTokensResponse
-	11, // 38: quark.gateway.v1.GatewayService.ListModels:output_type -> quark.gateway.v1.ListModelsResponse
-	13, // 39: quark.gateway.v1.GatewayService.ProviderHealth:output_type -> quark.gateway.v1.ProviderHealthResponse
-	15, // 40: quark.gateway.v1.GatewayService.UsageSummary:output_type -> quark.gateway.v1.UsageSummaryResponse
-	17, // 41: quark.gateway.v1.GatewayService.ReloadConfig:output_type -> quark.gateway.v1.ReloadConfigResponse
-	33, // [33:42] is the sub-list for method output_type
-	24, // [24:33] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	21, // 0: quark.gateway.v1.GenerateRequest.messages:type_name -> quark.gateway.v1.ModelMessage
+	24, // 1: quark.gateway.v1.GenerateRequest.tools:type_name -> quark.gateway.v1.ToolSchema
+	31, // 2: quark.gateway.v1.GenerateRequest.options:type_name -> quark.gateway.v1.GenerateRequest.OptionsEntry
+	25, // 3: quark.gateway.v1.GenerateResponse.tool_calls:type_name -> quark.gateway.v1.ToolCall
+	29, // 4: quark.gateway.v1.GenerateResponse.usage:type_name -> quark.gateway.v1.ModelUsage
+	21, // 5: quark.gateway.v1.StreamGenerateRequest.messages:type_name -> quark.gateway.v1.ModelMessage
+	24, // 6: quark.gateway.v1.StreamGenerateRequest.tools:type_name -> quark.gateway.v1.ToolSchema
+	32, // 7: quark.gateway.v1.StreamGenerateRequest.options:type_name -> quark.gateway.v1.StreamGenerateRequest.OptionsEntry
+	25, // 8: quark.gateway.v1.StreamGenerateResponse.tool_calls:type_name -> quark.gateway.v1.ToolCall
+	29, // 9: quark.gateway.v1.StreamGenerateResponse.usage:type_name -> quark.gateway.v1.ModelUsage
+	22, // 10: quark.gateway.v1.EmbedRequest.inputs:type_name -> quark.gateway.v1.MultimodalInput
+	33, // 11: quark.gateway.v1.EmbedRequest.options:type_name -> quark.gateway.v1.EmbedRequest.OptionsEntry
+	26, // 12: quark.gateway.v1.EmbedResponse.embeddings:type_name -> quark.gateway.v1.Embedding
+	29, // 13: quark.gateway.v1.EmbedResponse.usage:type_name -> quark.gateway.v1.ModelUsage
+	34, // 14: quark.gateway.v1.RerankRequest.options:type_name -> quark.gateway.v1.RerankRequest.OptionsEntry
+	27, // 15: quark.gateway.v1.RerankResponse.results:type_name -> quark.gateway.v1.RerankResult
+	29, // 16: quark.gateway.v1.RerankResponse.usage:type_name -> quark.gateway.v1.ModelUsage
+	21, // 17: quark.gateway.v1.CountTokensRequest.messages:type_name -> quark.gateway.v1.ModelMessage
+	24, // 18: quark.gateway.v1.CountTokensRequest.tools:type_name -> quark.gateway.v1.ToolSchema
+	29, // 19: quark.gateway.v1.CountTokensResponse.usage:type_name -> quark.gateway.v1.ModelUsage
+	28, // 20: quark.gateway.v1.ListModelsResponse.models:type_name -> quark.gateway.v1.ModelInfo
+	30, // 21: quark.gateway.v1.UsageSummaryResponse.usage:type_name -> quark.gateway.v1.UsageAggregate
+	19, // 22: quark.gateway.v1.ReloadConfigRequest.providers:type_name -> quark.gateway.v1.GatewayProviderConfig
+	20, // 23: quark.gateway.v1.ReloadConfigRequest.fallbacks:type_name -> quark.gateway.v1.GatewayFallbackPolicy
+	23, // 24: quark.gateway.v1.ModelMessage.content:type_name -> quark.gateway.v1.ContentPart
+	25, // 25: quark.gateway.v1.ModelMessage.tool_calls:type_name -> quark.gateway.v1.ToolCall
+	23, // 26: quark.gateway.v1.MultimodalInput.content:type_name -> quark.gateway.v1.ContentPart
+	35, // 27: quark.gateway.v1.MultimodalInput.metadata:type_name -> quark.gateway.v1.MultimodalInput.MetadataEntry
+	0,  // 28: quark.gateway.v1.ContentPart.kind:type_name -> quark.gateway.v1.ContentKind
+	36, // 29: quark.gateway.v1.ContentPart.metadata:type_name -> quark.gateway.v1.ContentPart.MetadataEntry
+	1,  // 30: quark.gateway.v1.GatewayService.Generate:input_type -> quark.gateway.v1.GenerateRequest
+	3,  // 31: quark.gateway.v1.GatewayService.StreamGenerate:input_type -> quark.gateway.v1.StreamGenerateRequest
+	5,  // 32: quark.gateway.v1.GatewayService.Embed:input_type -> quark.gateway.v1.EmbedRequest
+	7,  // 33: quark.gateway.v1.GatewayService.Rerank:input_type -> quark.gateway.v1.RerankRequest
+	9,  // 34: quark.gateway.v1.GatewayService.CountTokens:input_type -> quark.gateway.v1.CountTokensRequest
+	11, // 35: quark.gateway.v1.GatewayService.ListModels:input_type -> quark.gateway.v1.ListModelsRequest
+	13, // 36: quark.gateway.v1.GatewayService.ProviderHealth:input_type -> quark.gateway.v1.ProviderHealthRequest
+	15, // 37: quark.gateway.v1.GatewayService.UsageSummary:input_type -> quark.gateway.v1.UsageSummaryRequest
+	17, // 38: quark.gateway.v1.GatewayService.ReloadConfig:input_type -> quark.gateway.v1.ReloadConfigRequest
+	2,  // 39: quark.gateway.v1.GatewayService.Generate:output_type -> quark.gateway.v1.GenerateResponse
+	4,  // 40: quark.gateway.v1.GatewayService.StreamGenerate:output_type -> quark.gateway.v1.StreamGenerateResponse
+	6,  // 41: quark.gateway.v1.GatewayService.Embed:output_type -> quark.gateway.v1.EmbedResponse
+	8,  // 42: quark.gateway.v1.GatewayService.Rerank:output_type -> quark.gateway.v1.RerankResponse
+	10, // 43: quark.gateway.v1.GatewayService.CountTokens:output_type -> quark.gateway.v1.CountTokensResponse
+	12, // 44: quark.gateway.v1.GatewayService.ListModels:output_type -> quark.gateway.v1.ListModelsResponse
+	14, // 45: quark.gateway.v1.GatewayService.ProviderHealth:output_type -> quark.gateway.v1.ProviderHealthResponse
+	16, // 46: quark.gateway.v1.GatewayService.UsageSummary:output_type -> quark.gateway.v1.UsageSummaryResponse
+	18, // 47: quark.gateway.v1.GatewayService.ReloadConfig:output_type -> quark.gateway.v1.ReloadConfigResponse
+	39, // [39:48] is the sub-list for method output_type
+	30, // [30:39] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_quark_gateway_v1_gateway_proto_init() }
@@ -2135,13 +2390,14 @@ func file_quark_gateway_v1_gateway_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_quark_gateway_v1_gateway_proto_rawDesc), len(file_quark_gateway_v1_gateway_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   32,
+			NumEnums:      1,
+			NumMessages:   36,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_quark_gateway_v1_gateway_proto_goTypes,
 		DependencyIndexes: file_quark_gateway_v1_gateway_proto_depIdxs,
+		EnumInfos:         file_quark_gateway_v1_gateway_proto_enumTypes,
 		MessageInfos:      file_quark_gateway_v1_gateway_proto_msgTypes,
 	}.Build()
 	File_quark_gateway_v1_gateway_proto = out.File

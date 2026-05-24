@@ -20,6 +20,7 @@ quark.document_name: string @index(term, exact) .
 quark.document_type: string @index(exact) .
 quark.document_source_uri: string @index(exact) .
 quark.document_metadata_json: string .
+quark.document_sources_json: string .
 quark.chunk_document: uid @reverse .
 quark.entity_id: string @index(exact) @upsert .
 quark.entity_name: string @index(term, exact) .
@@ -45,6 +46,9 @@ quark.citation_text_span: string .
 quark.citation_start_offset: int .
 quark.citation_end_offset: int .
 quark.citation_confidence: float .
+quark.citation_page_number: int .
+quark.citation_media_ref: string @index(exact) .
+quark.citation_modality: string @index(exact) .
 quark.citation_chunk: uid @reverse .
 
 type QuarkChunk {
@@ -64,6 +68,7 @@ type QuarkDocument {
 	quark.document_type
 	quark.document_source_uri
 	quark.document_metadata_json
+	quark.document_sources_json
 }
 
 type QuarkEntity {
@@ -98,6 +103,9 @@ type QuarkCitation {
 	quark.citation_start_offset
 	quark.citation_end_offset
 	quark.citation_confidence
+	quark.citation_page_number
+	quark.citation_media_ref
+	quark.citation_modality
 	quark.citation_chunk
 }
 `

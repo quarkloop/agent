@@ -68,8 +68,9 @@ func (s *Server) ExtractText(ctx context.Context, req *documentv1.ExtractTextReq
 	text, pages := limitedTextPages(parsed.Pages, req.GetMaxChars())
 	return &documentv1.ExtractTextResponse{
 		Text:       text,
-		Pages:      pagesToProto(pages),
+		Pages:      pagesToProto(pages, req.GetInput(), parsed),
 		SourceHash: parsed.SourceHash,
+		Source:     sourceReference(req.GetInput(), parsed, 0, "text"),
 	}, nil
 }
 
@@ -135,7 +136,7 @@ func (s *Server) RunOCR(ctx context.Context, req *documentv1.RunOCRRequest) (*do
 	}
 	pages := selectPages(parsed.Pages, req.GetPageNumbers())
 	return &documentv1.RunOCRResponse{
-		Pages:      pagesToProto(pages),
+		Pages:      pagesToProto(pages, req.GetInput(), parsed),
 		Confidence: 1,
 		Engine:     "text-layer",
 	}, nil
@@ -205,7 +206,7 @@ func selectPages(pages []textPage, selected []int32) []textPage {
 	return out
 }
 
-func pagesToProto(pages []textPage) []*documentv1.PageText {
+func pagesToProto(pages []textPage, input *documentv1.DocumentInput, parsed parsedDocument) []*documentv1.PageText {
 	out := make([]*documentv1.PageText, 0, len(pages))
 	for _, page := range pages {
 		out = append(out, &documentv1.PageText{
@@ -213,6 +214,7 @@ func pagesToProto(pages []textPage) []*documentv1.PageText {
 			Text:        page.Text,
 			StartOffset: page.StartOffset,
 			EndOffset:   page.EndOffset,
+			Source:      sourceReference(input, parsed, page.PageNumber, "text"),
 		})
 	}
 	return out
@@ -270,9 +272,38 @@ func imagesToProto(images []image) []*documentv1.Image {
 			MimeType:   item.MIMEType,
 			Box:        boxToProto(item.Box),
 			Metadata:   cloneMap(item.Metadata),
+			Content:    cloneBytes(item.Content),
+			Source: &documentv1.SourceReference{
+				SourceUri:  item.SourceURI,
+				SourceHash: item.SourceHash,
+				MimeType:   item.MIMEType,
+				Modality:   "image",
+				PageNumber: item.PageNumber,
+				Metadata:   cloneMap(item.Metadata),
+			},
 		})
 	}
 	return out
+}
+
+func sourceReference(input *documentv1.DocumentInput, parsed parsedDocument, pageNumber int32, modality string) *documentv1.SourceReference {
+	sourceURI := ""
+	artifactRef := ""
+	metadata := map[string]string(nil)
+	if input != nil {
+		sourceURI = input.GetSourceUri()
+		artifactRef = input.GetContentRef()
+		metadata = cloneMap(input.GetMetadata())
+	}
+	return &documentv1.SourceReference{
+		SourceUri:   sourceURI,
+		SourceHash:  parsed.SourceHash,
+		MimeType:    parsed.MIMEType,
+		Modality:    modality,
+		PageNumber:  pageNumber,
+		ArtifactRef: artifactRef,
+		Metadata:    metadata,
+	}
 }
 
 func boxToProto(box box) *documentv1.BoundingBox {

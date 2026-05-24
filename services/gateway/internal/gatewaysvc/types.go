@@ -48,16 +48,44 @@ type generateCommand struct {
 
 type embedCommand struct {
 	Model      string
-	Input      []string
+	Inputs     []multimodalInput
 	Dimensions int32
 	Options    map[string]string
 }
 
 type message struct {
 	Role       string
-	Content    string
+	Content    []contentPart
 	ToolCalls  []toolCall
 	ToolCallID string
+}
+
+type contentKind uint8
+
+const (
+	contentText contentKind = iota + 1
+	contentImageURL
+	contentImageData
+	contentContentRef
+	contentImageRef
+	contentPageRef
+	contentArtifactRef
+	contentFileRef
+)
+
+type contentPart struct {
+	Kind      contentKind
+	Text      string
+	ImageURL  string
+	ImageData []byte
+	MIMEType  string
+	Ref       string
+	Metadata  map[string]string
+}
+
+type multimodalInput struct {
+	Content  []contentPart
+	Metadata map[string]string
 }
 
 type toolSchema struct {

@@ -17,7 +17,7 @@ plain filesystem reads.
 3. Keep semantic work in the agent LLM loop: classify the document, infer an
    extraction schema, normalize fields, choose chunks, extract facts, extract
    entities and relations, and select citations.
-4. Pass agent-produced semantic records to embedding and indexer service
+4. Pass agent-produced semantic records to Gateway embedding and indexer service
    functions. Do not ask the document service to index or answer.
 
 ## RPCs
@@ -28,6 +28,8 @@ plain filesystem reads.
   - Generated service function: `document_ParseBytes`
 - `ExtractText(ExtractTextRequest) -> ExtractTextResponse`
   - Generated service function: `document_ExtractText`
+  - Returns source/page provenance; runtime exposes opaque content/page
+    references for subsequent Gateway and indexer calls.
 - `ExtractLayout(ExtractLayoutRequest) -> ExtractLayoutResponse`
   - Generated service function: `document_ExtractLayout`
 - `GetPages(GetPagesRequest) -> GetPagesResponse`
@@ -36,6 +38,8 @@ plain filesystem reads.
   - Generated service function: `document_ExtractTables`
 - `ExtractImages(ExtractImagesRequest) -> ExtractImagesResponse`
   - Generated service function: `document_ExtractImages`
+  - Runtime converts media bytes into opaque image references; never copy
+    binary content into a prompt.
 - `RunOCR(RunOCRRequest) -> RunOCRResponse`
   - Generated service function: `document_RunOCR`
 

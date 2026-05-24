@@ -236,7 +236,7 @@ func messagesToProto(messages []plugin.Message) []*gatewayv1.ModelMessage {
 	for _, msg := range messages {
 		out = append(out, &gatewayv1.ModelMessage{
 			Role:       msg.Role,
-			Content:    msg.Content,
+			Content:    []*gatewayv1.ContentPart{{Kind: gatewayv1.ContentKind_CONTENT_KIND_TEXT, Text: msg.Content}},
 			ToolCalls:  toolCallsToProto(msg.ToolCalls),
 			ToolCallId: msg.ToolCallID,
 		})

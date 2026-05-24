@@ -418,6 +418,7 @@ type ExtractTextResponse struct {
 	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
 	Pages         []*PageText            `protobuf:"bytes,2,rep,name=pages,proto3" json:"pages,omitempty"`
 	SourceHash    string                 `protobuf:"bytes,3,opt,name=source_hash,json=sourceHash,proto3" json:"source_hash,omitempty"`
+	Source        *SourceReference       `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -473,12 +474,20 @@ func (x *ExtractTextResponse) GetSourceHash() string {
 	return ""
 }
 
+func (x *ExtractTextResponse) GetSource() *SourceReference {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
 type PageText struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	PageNumber    int32                  `protobuf:"varint,1,opt,name=page_number,json=pageNumber,proto3" json:"page_number,omitempty"`
 	Text          string                 `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
 	StartOffset   int32                  `protobuf:"varint,3,opt,name=start_offset,json=startOffset,proto3" json:"start_offset,omitempty"`
 	EndOffset     int32                  `protobuf:"varint,4,opt,name=end_offset,json=endOffset,proto3" json:"end_offset,omitempty"`
+	Source        *SourceReference       `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -539,6 +548,13 @@ func (x *PageText) GetEndOffset() int32 {
 		return x.EndOffset
 	}
 	return 0
+}
+
+func (x *PageText) GetSource() *SourceReference {
+	if x != nil {
+		return x.Source
+	}
+	return nil
 }
 
 type ExtractLayoutRequest struct {
@@ -1292,6 +1308,8 @@ type Image struct {
 	MimeType      string                 `protobuf:"bytes,3,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
 	Box           *BoundingBox           `protobuf:"bytes,4,opt,name=box,proto3" json:"box,omitempty"`
 	Metadata      map[string]string      `protobuf:"bytes,5,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Content       []byte                 `protobuf:"bytes,6,opt,name=content,proto3" json:"content,omitempty"`
+	Source        *SourceReference       `protobuf:"bytes,7,opt,name=source,proto3" json:"source,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1361,6 +1379,114 @@ func (x *Image) GetMetadata() map[string]string {
 	return nil
 }
 
+func (x *Image) GetContent() []byte {
+	if x != nil {
+		return x.Content
+	}
+	return nil
+}
+
+func (x *Image) GetSource() *SourceReference {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
+// SourceReference is mechanical media provenance. Runtime creates opaque
+// session references when exposing source content to an agent.
+type SourceReference struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SourceUri     string                 `protobuf:"bytes,1,opt,name=source_uri,json=sourceUri,proto3" json:"source_uri,omitempty"`
+	SourceHash    string                 `protobuf:"bytes,2,opt,name=source_hash,json=sourceHash,proto3" json:"source_hash,omitempty"`
+	MimeType      string                 `protobuf:"bytes,3,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
+	Modality      string                 `protobuf:"bytes,4,opt,name=modality,proto3" json:"modality,omitempty"`
+	PageNumber    int32                  `protobuf:"varint,5,opt,name=page_number,json=pageNumber,proto3" json:"page_number,omitempty"`
+	ArtifactRef   string                 `protobuf:"bytes,6,opt,name=artifact_ref,json=artifactRef,proto3" json:"artifact_ref,omitempty"`
+	Metadata      map[string]string      `protobuf:"bytes,7,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SourceReference) Reset() {
+	*x = SourceReference{}
+	mi := &file_quark_document_v1_document_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SourceReference) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SourceReference) ProtoMessage() {}
+
+func (x *SourceReference) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_document_v1_document_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SourceReference.ProtoReflect.Descriptor instead.
+func (*SourceReference) Descriptor() ([]byte, []int) {
+	return file_quark_document_v1_document_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *SourceReference) GetSourceUri() string {
+	if x != nil {
+		return x.SourceUri
+	}
+	return ""
+}
+
+func (x *SourceReference) GetSourceHash() string {
+	if x != nil {
+		return x.SourceHash
+	}
+	return ""
+}
+
+func (x *SourceReference) GetMimeType() string {
+	if x != nil {
+		return x.MimeType
+	}
+	return ""
+}
+
+func (x *SourceReference) GetModality() string {
+	if x != nil {
+		return x.Modality
+	}
+	return ""
+}
+
+func (x *SourceReference) GetPageNumber() int32 {
+	if x != nil {
+		return x.PageNumber
+	}
+	return 0
+}
+
+func (x *SourceReference) GetArtifactRef() string {
+	if x != nil {
+		return x.ArtifactRef
+	}
+	return ""
+}
+
+func (x *SourceReference) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
 type RunOCRRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Input         *DocumentInput         `protobuf:"bytes,1,opt,name=input,proto3" json:"input,omitempty"`
@@ -1372,7 +1498,7 @@ type RunOCRRequest struct {
 
 func (x *RunOCRRequest) Reset() {
 	*x = RunOCRRequest{}
-	mi := &file_quark_document_v1_document_proto_msgTypes[23]
+	mi := &file_quark_document_v1_document_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1384,7 +1510,7 @@ func (x *RunOCRRequest) String() string {
 func (*RunOCRRequest) ProtoMessage() {}
 
 func (x *RunOCRRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_document_v1_document_proto_msgTypes[23]
+	mi := &file_quark_document_v1_document_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1397,7 +1523,7 @@ func (x *RunOCRRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunOCRRequest.ProtoReflect.Descriptor instead.
 func (*RunOCRRequest) Descriptor() ([]byte, []int) {
-	return file_quark_document_v1_document_proto_rawDescGZIP(), []int{23}
+	return file_quark_document_v1_document_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *RunOCRRequest) GetInput() *DocumentInput {
@@ -1432,7 +1558,7 @@ type RunOCRResponse struct {
 
 func (x *RunOCRResponse) Reset() {
 	*x = RunOCRResponse{}
-	mi := &file_quark_document_v1_document_proto_msgTypes[24]
+	mi := &file_quark_document_v1_document_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1444,7 +1570,7 @@ func (x *RunOCRResponse) String() string {
 func (*RunOCRResponse) ProtoMessage() {}
 
 func (x *RunOCRResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_document_v1_document_proto_msgTypes[24]
+	mi := &file_quark_document_v1_document_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1457,7 +1583,7 @@ func (x *RunOCRResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunOCRResponse.ProtoReflect.Descriptor instead.
 func (*RunOCRResponse) Descriptor() ([]byte, []int) {
-	return file_quark_document_v1_document_proto_rawDescGZIP(), []int{24}
+	return file_quark_document_v1_document_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *RunOCRResponse) GetPages() []*PageText {
@@ -1529,19 +1655,21 @@ const file_quark_document_v1_document_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"i\n" +
 	"\x12ExtractTextRequest\x126\n" +
 	"\x05input\x18\x01 \x01(\v2 .quark.document.v1.DocumentInputR\x05input\x12\x1b\n" +
-	"\tmax_chars\x18\x02 \x01(\x05R\bmaxChars\"}\n" +
+	"\tmax_chars\x18\x02 \x01(\x05R\bmaxChars\"\xb9\x01\n" +
 	"\x13ExtractTextResponse\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x121\n" +
 	"\x05pages\x18\x02 \x03(\v2\x1b.quark.document.v1.PageTextR\x05pages\x12\x1f\n" +
 	"\vsource_hash\x18\x03 \x01(\tR\n" +
-	"sourceHash\"\x81\x01\n" +
+	"sourceHash\x12:\n" +
+	"\x06source\x18\x04 \x01(\v2\".quark.document.v1.SourceReferenceR\x06source\"\xbd\x01\n" +
 	"\bPageText\x12\x1f\n" +
 	"\vpage_number\x18\x01 \x01(\x05R\n" +
 	"pageNumber\x12\x12\n" +
 	"\x04text\x18\x02 \x01(\tR\x04text\x12!\n" +
 	"\fstart_offset\x18\x03 \x01(\x05R\vstartOffset\x12\x1d\n" +
 	"\n" +
-	"end_offset\x18\x04 \x01(\x05R\tendOffset\"N\n" +
+	"end_offset\x18\x04 \x01(\x05R\tendOffset\x12:\n" +
+	"\x06source\x18\x05 \x01(\v2\".quark.document.v1.SourceReferenceR\x06source\"N\n" +
 	"\x14ExtractLayoutRequest\x126\n" +
 	"\x05input\x18\x01 \x01(\v2 .quark.document.v1.DocumentInputR\x05input\"L\n" +
 	"\x15ExtractLayoutResponse\x123\n" +
@@ -1589,14 +1717,30 @@ const file_quark_document_v1_document_proto_rawDesc = "" +
 	"\x14ExtractImagesRequest\x126\n" +
 	"\x05input\x18\x01 \x01(\v2 .quark.document.v1.DocumentInputR\x05input\"I\n" +
 	"\x15ExtractImagesResponse\x120\n" +
-	"\x06images\x18\x01 \x03(\v2\x18.quark.document.v1.ImageR\x06images\"\x95\x02\n" +
+	"\x06images\x18\x01 \x03(\v2\x18.quark.document.v1.ImageR\x06images\"\xeb\x02\n" +
 	"\x05Image\x12\x1f\n" +
 	"\vpage_number\x18\x01 \x01(\x05R\n" +
 	"pageNumber\x12\x1b\n" +
 	"\timage_ref\x18\x02 \x01(\tR\bimageRef\x12\x1b\n" +
 	"\tmime_type\x18\x03 \x01(\tR\bmimeType\x120\n" +
 	"\x03box\x18\x04 \x01(\v2\x1e.quark.document.v1.BoundingBoxR\x03box\x12B\n" +
-	"\bmetadata\x18\x05 \x03(\v2&.quark.document.v1.Image.MetadataEntryR\bmetadata\x1a;\n" +
+	"\bmetadata\x18\x05 \x03(\v2&.quark.document.v1.Image.MetadataEntryR\bmetadata\x12\x18\n" +
+	"\acontent\x18\x06 \x01(\fR\acontent\x12:\n" +
+	"\x06source\x18\a \x01(\v2\".quark.document.v1.SourceReferenceR\x06source\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xd9\x02\n" +
+	"\x0fSourceReference\x12\x1d\n" +
+	"\n" +
+	"source_uri\x18\x01 \x01(\tR\tsourceUri\x12\x1f\n" +
+	"\vsource_hash\x18\x02 \x01(\tR\n" +
+	"sourceHash\x12\x1b\n" +
+	"\tmime_type\x18\x03 \x01(\tR\bmimeType\x12\x1a\n" +
+	"\bmodality\x18\x04 \x01(\tR\bmodality\x12\x1f\n" +
+	"\vpage_number\x18\x05 \x01(\x05R\n" +
+	"pageNumber\x12!\n" +
+	"\fartifact_ref\x18\x06 \x01(\tR\vartifactRef\x12L\n" +
+	"\bmetadata\x18\a \x03(\v20.quark.document.v1.SourceReference.MetadataEntryR\bmetadata\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x8f\x01\n" +
@@ -1634,7 +1778,7 @@ func file_quark_document_v1_document_proto_rawDescGZIP() []byte {
 	return file_quark_document_v1_document_proto_rawDescData
 }
 
-var file_quark_document_v1_document_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
+var file_quark_document_v1_document_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_quark_document_v1_document_proto_goTypes = []any{
 	(*DocumentInput)(nil),         // 0: quark.document.v1.DocumentInput
 	(*DetectTypeRequest)(nil),     // 1: quark.document.v1.DetectTypeRequest
@@ -1659,61 +1803,67 @@ var file_quark_document_v1_document_proto_goTypes = []any{
 	(*ExtractImagesRequest)(nil),  // 20: quark.document.v1.ExtractImagesRequest
 	(*ExtractImagesResponse)(nil), // 21: quark.document.v1.ExtractImagesResponse
 	(*Image)(nil),                 // 22: quark.document.v1.Image
-	(*RunOCRRequest)(nil),         // 23: quark.document.v1.RunOCRRequest
-	(*RunOCRResponse)(nil),        // 24: quark.document.v1.RunOCRResponse
-	nil,                           // 25: quark.document.v1.DocumentInput.MetadataEntry
-	nil,                           // 26: quark.document.v1.DetectTypeResponse.MetadataEntry
-	nil,                           // 27: quark.document.v1.ParseBytesResponse.MetadataEntry
-	nil,                           // 28: quark.document.v1.Image.MetadataEntry
+	(*SourceReference)(nil),       // 23: quark.document.v1.SourceReference
+	(*RunOCRRequest)(nil),         // 24: quark.document.v1.RunOCRRequest
+	(*RunOCRResponse)(nil),        // 25: quark.document.v1.RunOCRResponse
+	nil,                           // 26: quark.document.v1.DocumentInput.MetadataEntry
+	nil,                           // 27: quark.document.v1.DetectTypeResponse.MetadataEntry
+	nil,                           // 28: quark.document.v1.ParseBytesResponse.MetadataEntry
+	nil,                           // 29: quark.document.v1.Image.MetadataEntry
+	nil,                           // 30: quark.document.v1.SourceReference.MetadataEntry
 }
 var file_quark_document_v1_document_proto_depIdxs = []int32{
-	25, // 0: quark.document.v1.DocumentInput.metadata:type_name -> quark.document.v1.DocumentInput.MetadataEntry
+	26, // 0: quark.document.v1.DocumentInput.metadata:type_name -> quark.document.v1.DocumentInput.MetadataEntry
 	0,  // 1: quark.document.v1.DetectTypeRequest.input:type_name -> quark.document.v1.DocumentInput
-	26, // 2: quark.document.v1.DetectTypeResponse.metadata:type_name -> quark.document.v1.DetectTypeResponse.MetadataEntry
+	27, // 2: quark.document.v1.DetectTypeResponse.metadata:type_name -> quark.document.v1.DetectTypeResponse.MetadataEntry
 	0,  // 3: quark.document.v1.ParseBytesRequest.input:type_name -> quark.document.v1.DocumentInput
-	27, // 4: quark.document.v1.ParseBytesResponse.metadata:type_name -> quark.document.v1.ParseBytesResponse.MetadataEntry
+	28, // 4: quark.document.v1.ParseBytesResponse.metadata:type_name -> quark.document.v1.ParseBytesResponse.MetadataEntry
 	0,  // 5: quark.document.v1.ExtractTextRequest.input:type_name -> quark.document.v1.DocumentInput
 	7,  // 6: quark.document.v1.ExtractTextResponse.pages:type_name -> quark.document.v1.PageText
-	0,  // 7: quark.document.v1.ExtractLayoutRequest.input:type_name -> quark.document.v1.DocumentInput
-	10, // 8: quark.document.v1.ExtractLayoutResponse.pages:type_name -> quark.document.v1.LayoutPage
-	11, // 9: quark.document.v1.LayoutPage.blocks:type_name -> quark.document.v1.LayoutBlock
-	12, // 10: quark.document.v1.LayoutBlock.box:type_name -> quark.document.v1.BoundingBox
-	0,  // 11: quark.document.v1.GetPagesRequest.input:type_name -> quark.document.v1.DocumentInput
-	15, // 12: quark.document.v1.GetPagesResponse.pages:type_name -> quark.document.v1.Page
-	11, // 13: quark.document.v1.Page.blocks:type_name -> quark.document.v1.LayoutBlock
-	18, // 14: quark.document.v1.Page.tables:type_name -> quark.document.v1.Table
-	22, // 15: quark.document.v1.Page.images:type_name -> quark.document.v1.Image
-	0,  // 16: quark.document.v1.ExtractTablesRequest.input:type_name -> quark.document.v1.DocumentInput
-	18, // 17: quark.document.v1.ExtractTablesResponse.tables:type_name -> quark.document.v1.Table
-	19, // 18: quark.document.v1.Table.rows:type_name -> quark.document.v1.TableRow
-	12, // 19: quark.document.v1.Table.box:type_name -> quark.document.v1.BoundingBox
-	0,  // 20: quark.document.v1.ExtractImagesRequest.input:type_name -> quark.document.v1.DocumentInput
-	22, // 21: quark.document.v1.ExtractImagesResponse.images:type_name -> quark.document.v1.Image
-	12, // 22: quark.document.v1.Image.box:type_name -> quark.document.v1.BoundingBox
-	28, // 23: quark.document.v1.Image.metadata:type_name -> quark.document.v1.Image.MetadataEntry
-	0,  // 24: quark.document.v1.RunOCRRequest.input:type_name -> quark.document.v1.DocumentInput
-	7,  // 25: quark.document.v1.RunOCRResponse.pages:type_name -> quark.document.v1.PageText
-	1,  // 26: quark.document.v1.DocumentService.DetectType:input_type -> quark.document.v1.DetectTypeRequest
-	3,  // 27: quark.document.v1.DocumentService.ParseBytes:input_type -> quark.document.v1.ParseBytesRequest
-	5,  // 28: quark.document.v1.DocumentService.ExtractText:input_type -> quark.document.v1.ExtractTextRequest
-	8,  // 29: quark.document.v1.DocumentService.ExtractLayout:input_type -> quark.document.v1.ExtractLayoutRequest
-	13, // 30: quark.document.v1.DocumentService.GetPages:input_type -> quark.document.v1.GetPagesRequest
-	16, // 31: quark.document.v1.DocumentService.ExtractTables:input_type -> quark.document.v1.ExtractTablesRequest
-	20, // 32: quark.document.v1.DocumentService.ExtractImages:input_type -> quark.document.v1.ExtractImagesRequest
-	23, // 33: quark.document.v1.DocumentService.RunOCR:input_type -> quark.document.v1.RunOCRRequest
-	2,  // 34: quark.document.v1.DocumentService.DetectType:output_type -> quark.document.v1.DetectTypeResponse
-	4,  // 35: quark.document.v1.DocumentService.ParseBytes:output_type -> quark.document.v1.ParseBytesResponse
-	6,  // 36: quark.document.v1.DocumentService.ExtractText:output_type -> quark.document.v1.ExtractTextResponse
-	9,  // 37: quark.document.v1.DocumentService.ExtractLayout:output_type -> quark.document.v1.ExtractLayoutResponse
-	14, // 38: quark.document.v1.DocumentService.GetPages:output_type -> quark.document.v1.GetPagesResponse
-	17, // 39: quark.document.v1.DocumentService.ExtractTables:output_type -> quark.document.v1.ExtractTablesResponse
-	21, // 40: quark.document.v1.DocumentService.ExtractImages:output_type -> quark.document.v1.ExtractImagesResponse
-	24, // 41: quark.document.v1.DocumentService.RunOCR:output_type -> quark.document.v1.RunOCRResponse
-	34, // [34:42] is the sub-list for method output_type
-	26, // [26:34] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	23, // 7: quark.document.v1.ExtractTextResponse.source:type_name -> quark.document.v1.SourceReference
+	23, // 8: quark.document.v1.PageText.source:type_name -> quark.document.v1.SourceReference
+	0,  // 9: quark.document.v1.ExtractLayoutRequest.input:type_name -> quark.document.v1.DocumentInput
+	10, // 10: quark.document.v1.ExtractLayoutResponse.pages:type_name -> quark.document.v1.LayoutPage
+	11, // 11: quark.document.v1.LayoutPage.blocks:type_name -> quark.document.v1.LayoutBlock
+	12, // 12: quark.document.v1.LayoutBlock.box:type_name -> quark.document.v1.BoundingBox
+	0,  // 13: quark.document.v1.GetPagesRequest.input:type_name -> quark.document.v1.DocumentInput
+	15, // 14: quark.document.v1.GetPagesResponse.pages:type_name -> quark.document.v1.Page
+	11, // 15: quark.document.v1.Page.blocks:type_name -> quark.document.v1.LayoutBlock
+	18, // 16: quark.document.v1.Page.tables:type_name -> quark.document.v1.Table
+	22, // 17: quark.document.v1.Page.images:type_name -> quark.document.v1.Image
+	0,  // 18: quark.document.v1.ExtractTablesRequest.input:type_name -> quark.document.v1.DocumentInput
+	18, // 19: quark.document.v1.ExtractTablesResponse.tables:type_name -> quark.document.v1.Table
+	19, // 20: quark.document.v1.Table.rows:type_name -> quark.document.v1.TableRow
+	12, // 21: quark.document.v1.Table.box:type_name -> quark.document.v1.BoundingBox
+	0,  // 22: quark.document.v1.ExtractImagesRequest.input:type_name -> quark.document.v1.DocumentInput
+	22, // 23: quark.document.v1.ExtractImagesResponse.images:type_name -> quark.document.v1.Image
+	12, // 24: quark.document.v1.Image.box:type_name -> quark.document.v1.BoundingBox
+	29, // 25: quark.document.v1.Image.metadata:type_name -> quark.document.v1.Image.MetadataEntry
+	23, // 26: quark.document.v1.Image.source:type_name -> quark.document.v1.SourceReference
+	30, // 27: quark.document.v1.SourceReference.metadata:type_name -> quark.document.v1.SourceReference.MetadataEntry
+	0,  // 28: quark.document.v1.RunOCRRequest.input:type_name -> quark.document.v1.DocumentInput
+	7,  // 29: quark.document.v1.RunOCRResponse.pages:type_name -> quark.document.v1.PageText
+	1,  // 30: quark.document.v1.DocumentService.DetectType:input_type -> quark.document.v1.DetectTypeRequest
+	3,  // 31: quark.document.v1.DocumentService.ParseBytes:input_type -> quark.document.v1.ParseBytesRequest
+	5,  // 32: quark.document.v1.DocumentService.ExtractText:input_type -> quark.document.v1.ExtractTextRequest
+	8,  // 33: quark.document.v1.DocumentService.ExtractLayout:input_type -> quark.document.v1.ExtractLayoutRequest
+	13, // 34: quark.document.v1.DocumentService.GetPages:input_type -> quark.document.v1.GetPagesRequest
+	16, // 35: quark.document.v1.DocumentService.ExtractTables:input_type -> quark.document.v1.ExtractTablesRequest
+	20, // 36: quark.document.v1.DocumentService.ExtractImages:input_type -> quark.document.v1.ExtractImagesRequest
+	24, // 37: quark.document.v1.DocumentService.RunOCR:input_type -> quark.document.v1.RunOCRRequest
+	2,  // 38: quark.document.v1.DocumentService.DetectType:output_type -> quark.document.v1.DetectTypeResponse
+	4,  // 39: quark.document.v1.DocumentService.ParseBytes:output_type -> quark.document.v1.ParseBytesResponse
+	6,  // 40: quark.document.v1.DocumentService.ExtractText:output_type -> quark.document.v1.ExtractTextResponse
+	9,  // 41: quark.document.v1.DocumentService.ExtractLayout:output_type -> quark.document.v1.ExtractLayoutResponse
+	14, // 42: quark.document.v1.DocumentService.GetPages:output_type -> quark.document.v1.GetPagesResponse
+	17, // 43: quark.document.v1.DocumentService.ExtractTables:output_type -> quark.document.v1.ExtractTablesResponse
+	21, // 44: quark.document.v1.DocumentService.ExtractImages:output_type -> quark.document.v1.ExtractImagesResponse
+	25, // 45: quark.document.v1.DocumentService.RunOCR:output_type -> quark.document.v1.RunOCRResponse
+	38, // [38:46] is the sub-list for method output_type
+	30, // [30:38] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_quark_document_v1_document_proto_init() }
@@ -1727,7 +1877,7 @@ func file_quark_document_v1_document_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_quark_document_v1_document_proto_rawDesc), len(file_quark_document_v1_document_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   29,
+			NumMessages:   31,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

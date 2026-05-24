@@ -8,6 +8,8 @@ Keep the agent as coordinator:
 - read source files through approved tools,
 - call document service functions for mechanical parsing, OCR, layout, pages,
   tables, and images when the file needs them,
+- use opaque runtime media references for image-bearing Gateway embeddings;
+  never inline binary source data in agent-authored payloads,
 - use the runtime/model LLM path for document classification, schema inference,
   field normalization, chunk decisions, fact extraction, entity extraction,
   relation extraction, and citation selection,

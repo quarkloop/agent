@@ -47,7 +47,7 @@ func TestNATSServiceDispatchesUnaryServiceFunction(t *testing.T) {
 	}
 	defer conn.Close()
 
-	payload, err := protojson.Marshal(&gatewayv1.EmbedRequest{Input: []string{"hello"}})
+	payload, err := protojson.Marshal(textEmbeddingRequest("hello"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestNATSServicePublishesRedactedAuditAndTelemetryEvents(t *testing.T) {
 		t.Fatalf("flush subscriptions: %v", err)
 	}
 
-	payload, err := protojson.Marshal(&gatewayv1.EmbedRequest{Input: []string{"secret text"}})
+	payload, err := protojson.Marshal(textEmbeddingRequest("secret text"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,6 +164,13 @@ func TestNATSServicePublishesRedactedAuditAndTelemetryEvents(t *testing.T) {
 }
 
 type embeddingBridgeServer struct {
+}
+
+func textEmbeddingRequest(text string) *gatewayv1.EmbedRequest {
+	return &gatewayv1.EmbedRequest{Inputs: []*gatewayv1.MultimodalInput{{Content: []*gatewayv1.ContentPart{{
+		Kind: gatewayv1.ContentKind_CONTENT_KIND_TEXT,
+		Text: text,
+	}}}}}
 }
 
 func (embeddingBridgeServer) Embed(context.Context, *gatewayv1.EmbedRequest) (*gatewayv1.EmbedResponse, error) {

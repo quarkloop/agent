@@ -85,4 +85,7 @@ type image struct {
 	MIMEType   string
 	Box        box
 	Metadata   map[string]string
+	Content    []byte
+	SourceURI  string
+	SourceHash string
 }

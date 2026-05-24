@@ -51,7 +51,7 @@ message StreamGenerateResponse {
 message EmbedRequest {
   string provider = 1;
   string model = 2;
-  repeated string input = 3;
+  repeated MultimodalInput inputs = 3;
   int32 dimensions = 4;
   map<string, string> options = 5;
 }
@@ -137,9 +137,40 @@ message GatewayFallbackPolicy {
 
 message ModelMessage {
   string role = 1;
-  string content = 2;
+  repeated ContentPart content = 2;
   repeated ToolCall tool_calls = 3;
   string tool_call_id = 4;
+}
+
+// MultimodalInput is one embedding unit. A provider returns one vector for
+// each input, including when the input combines text and image content.
+message MultimodalInput {
+  repeated ContentPart content = 1;
+  map<string, string> metadata = 2;
+}
+
+// ContentPart is normalized Gateway input. Reference kinds are accepted at
+// the runtime tool boundary and must be resolved before provider dispatch.
+message ContentPart {
+  ContentKind kind = 1;
+  string text = 2;
+  string image_url = 3;
+  bytes image_data = 4;
+  string mime_type = 5;
+  string ref = 6;
+  map<string, string> metadata = 7;
+}
+
+enum ContentKind {
+  CONTENT_KIND_UNSPECIFIED = 0;
+  CONTENT_KIND_TEXT = 1;
+  CONTENT_KIND_IMAGE_URL = 2;
+  CONTENT_KIND_IMAGE_DATA = 3;
+  CONTENT_KIND_CONTENT_REF = 4;
+  CONTENT_KIND_IMAGE_REF = 5;
+  CONTENT_KIND_PAGE_REF = 6;
+  CONTENT_KIND_ARTIFACT_REF = 7;
+  CONTENT_KIND_FILE_REF = 8;
 }
 
 message ToolSchema {

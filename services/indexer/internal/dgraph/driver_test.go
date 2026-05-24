@@ -180,11 +180,13 @@ func TestCanonicalMutationHelpersUseTypedRecords(t *testing.T) {
 		Type:      "paper",
 		SourceURI: "file:///paper.pdf",
 		Metadata:  map[string]string{"tenant": "acme"},
+		Sources:   []indexer.SourceReference{{Modality: "image", MediaRef: "media-1"}},
 	})
 	for _, want := range []string{
 		`uid(d) <dgraph.type> "QuarkDocument"`,
 		`uid(d) <quark.document_id> "doc-1"`,
 		`uid(d) <quark.document_metadata_json> "{\"tenant\":\"acme\"}"`,
+		`uid(d) <quark.document_sources_json> "[{\"modality\":\"image\",\"media_ref\":\"media-1\"}]"`,
 	} {
 		if !strings.Contains(docNQuads, want) {
 			t.Fatalf("document nquads missing %q:\n%s", want, docNQuads)
@@ -218,12 +220,17 @@ func TestCanonicalMutationHelpersUseTypedRecords(t *testing.T) {
 		StartOffset: 11,
 		EndOffset:   20,
 		Confidence:  1,
+		PageNumber:  2,
+		MediaRef:    "media-1",
+		Modality:    "image",
 	}) + citationChunkLinkNQuads("chunk-1", "cite")
 	for _, want := range []string{
 		`uid(cite) <dgraph.type> "QuarkCitation"`,
 		`uid(cite) <quark.citation_id> "cite-1"`,
 		`uid(cite) <quark.citation_start_offset> 11`,
 		`uid(cite) <quark.citation_end_offset> 20`,
+		`uid(cite) <quark.citation_page_number> 2`,
+		`uid(cite) <quark.citation_media_ref> "media-1"`,
 		`uid(cite) <quark.citation_chunk> uid(c)`,
 	} {
 		if !strings.Contains(citationNQuads, want) {

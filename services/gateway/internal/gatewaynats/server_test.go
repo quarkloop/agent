@@ -41,7 +41,7 @@ func TestGatewayNATSGenerateAndUsageSummary(t *testing.T) {
 	callGateway(t, conn, "generate", &gatewayv1.GenerateRequest{
 		Provider: "fixture",
 		Model:    "fixture/chat",
-		Messages: []*gatewayv1.ModelMessage{{Role: "user", Content: "say hello"}},
+		Messages: []*gatewayv1.ModelMessage{gatewayTextMessage("user", "say hello")},
 	}, &generated)
 	if generated.GetText() == "" || generated.GetUsage().GetProvider() != "fixture" {
 		t.Fatalf("generate response = %+v", &generated)
@@ -111,7 +111,7 @@ func TestGatewayNATSStreamGenerate(t *testing.T) {
 	payload, err := protojson.Marshal(&gatewayv1.StreamGenerateRequest{
 		Provider: "fixture",
 		Model:    "fixture/chat",
-		Messages: []*gatewayv1.ModelMessage{{Role: "user", Content: "stream this"}},
+		Messages: []*gatewayv1.ModelMessage{gatewayTextMessage("user", "stream this")},
 	})
 	if err != nil {
 		t.Fatalf("marshal request: %v", err)
@@ -180,6 +180,13 @@ func newConfiguredGatewayServer(t *testing.T) *gatewaysvc.Server {
 	}
 	t.Cleanup(func() { _ = srv.Close() })
 	return srv
+}
+
+func gatewayTextMessage(role, text string) *gatewayv1.ModelMessage {
+	return &gatewayv1.ModelMessage{Role: role, Content: []*gatewayv1.ContentPart{{
+		Kind: gatewayv1.ContentKind_CONTENT_KIND_TEXT,
+		Text: text,
+	}}}
 }
 
 func startTestNATS(t *testing.T) *natsserver.Server {

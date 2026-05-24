@@ -122,7 +122,7 @@ func toProtoChunks(chunks []indexer.Chunk) []*indexerv1.Chunk {
 }
 
 func toProtoDocument(document indexer.Document) *indexerv1.Document {
-	if document.ID == "" && document.Name == "" && document.Type == "" && document.SourceURI == "" && len(document.Metadata) == 0 {
+	if document.ID == "" && document.Name == "" && document.Type == "" && document.SourceURI == "" && len(document.Metadata) == 0 && len(document.Sources) == 0 {
 		return nil
 	}
 	return &indexerv1.Document{
@@ -131,11 +131,12 @@ func toProtoDocument(document indexer.Document) *indexerv1.Document {
 		Type:      document.Type,
 		SourceUri: document.SourceURI,
 		Metadata:  cloneMap(document.Metadata),
+		Sources:   toProtoSourceReferences(document.Sources),
 	}
 }
 
 func toProtoEmbeddingMetadata(embedding indexer.EmbeddingMetadata) *indexerv1.EmbeddingMetadata {
-	if embedding.Provider == "" && embedding.Model == "" && embedding.Dimensions == 0 && embedding.ContentHash == "" && embedding.Version == "" {
+	if embedding.Provider == "" && embedding.Model == "" && embedding.Dimensions == 0 && embedding.ContentHash == "" && embedding.Version == "" && len(embedding.Modalities) == 0 {
 		return nil
 	}
 	return &indexerv1.EmbeddingMetadata{
@@ -144,6 +145,7 @@ func toProtoEmbeddingMetadata(embedding indexer.EmbeddingMetadata) *indexerv1.Em
 		Dimensions:  int32(embedding.Dimensions),
 		ContentHash: embedding.ContentHash,
 		Version:     embedding.Version,
+		Modalities:  append([]string(nil), embedding.Modalities...),
 	}
 }
 
@@ -174,13 +176,16 @@ func toProtoCitations(citations []indexer.Citation) []*indexerv1.Citation {
 			StartOffset: int32(citation.StartOffset),
 			EndOffset:   int32(citation.EndOffset),
 			Confidence:  citation.Confidence,
+			PageNumber:  int32(citation.PageNumber),
+			MediaRef:    citation.MediaRef,
+			Modality:    citation.Modality,
 		})
 	}
 	return out
 }
 
 func toProtoProvenance(provenance indexer.Provenance) *indexerv1.Provenance {
-	if provenance.SourceURI == "" && provenance.SourceHash == "" && provenance.IngestedAt == "" && provenance.ProducedBy == "" && provenance.TraceID == "" && len(provenance.Metadata) == 0 {
+	if provenance.SourceURI == "" && provenance.SourceHash == "" && provenance.IngestedAt == "" && provenance.ProducedBy == "" && provenance.TraceID == "" && len(provenance.Metadata) == 0 && len(provenance.Sources) == 0 {
 		return nil
 	}
 	return &indexerv1.Provenance{
@@ -190,7 +195,25 @@ func toProtoProvenance(provenance indexer.Provenance) *indexerv1.Provenance {
 		ProducedBy: provenance.ProducedBy,
 		TraceId:    provenance.TraceID,
 		Metadata:   cloneMap(provenance.Metadata),
+		Sources:    toProtoSourceReferences(provenance.Sources),
 	}
+}
+
+func toProtoSourceReferences(sources []indexer.SourceReference) []*indexerv1.SourceReference {
+	out := make([]*indexerv1.SourceReference, 0, len(sources))
+	for _, source := range sources {
+		out = append(out, &indexerv1.SourceReference{
+			Modality:    source.Modality,
+			MimeType:    source.MIMEType,
+			PageNumber:  int32(source.PageNumber),
+			ContentRef:  source.ContentRef,
+			MediaRef:    source.MediaRef,
+			ContentHash: source.ContentHash,
+			SourceUri:   source.SourceURI,
+			Metadata:    cloneMap(source.Metadata),
+		})
+	}
+	return out
 }
 
 func toProtoProvenanceList(provenance []indexer.Provenance) []*indexerv1.Provenance {

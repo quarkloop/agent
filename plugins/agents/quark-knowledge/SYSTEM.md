@@ -56,6 +56,9 @@ Indexing workflow:
   for semantic structuring, embedding, citations, and chunk storage.
   Metadata-only parsing is useful for classification but is not enough to index
   a document.
+- For visually meaningful evidence, request bounded media through IO or
+  document functions and pass its runtime media reference to Gateway embedding.
+  Do not reproduce binary media in tool arguments or canonical text fields.
 - When the same workflow step must be repeated for several independent sources,
   batch those independent calls in one assistant turn where the provider
   supports it. Preserve the workflow order: discover/start, extract, embed,

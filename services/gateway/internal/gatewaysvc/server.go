@@ -114,8 +114,8 @@ func (s *Server) StreamGenerateEvents(ctx context.Context, req *gatewayv1.Stream
 
 func (s *Server) Embed(ctx context.Context, req *gatewayv1.EmbedRequest) (*gatewayv1.EmbedResponse, error) {
 	cmd := embedFromProto(req)
-	if len(cmd.Input) == 0 {
-		return nil, serviceerrors.InvalidArgument("input is required")
+	if err := validateResolvedEmbeddingInputs(cmd.Inputs); err != nil {
+		return nil, serviceerrors.InvalidArgument(err.Error())
 	}
 	provider := strings.TrimSpace(req.GetProvider())
 	if provider == "" {
@@ -136,7 +136,7 @@ func (s *Server) Embed(ctx context.Context, req *gatewayv1.EmbedRequest) (*gatew
 	usage := modelUsage{
 		Provider:        providerID,
 		Model:           embeddingUsageModel(cmd, embeddings),
-		EmbeddingTokens: estimateTextTokens(cmd.Input...),
+		EmbeddingTokens: estimateTextTokens(embeddingTextForUsage(cmd.Inputs)...),
 		LatencyMillis:   elapsedMillis(started, time.Now()),
 		FallbackChain:   []string{providerID},
 		RequestID:       requestID("embed"),

@@ -24,8 +24,8 @@ When the user asks to index PDFs or other documents:
    citations, and source provenance. Entity IDs should be normalized from
    entity names and relation endpoints must reuse the same IDs as the entity
    list.
-4. Use the configured embedding service plugin on each chunk and pass the
-   returned `embeddingRef` as `embeddingRef`.
+4. Use `gateway_Embed` on each chunk and pass its returned `embeddingRef` as
+   `embeddingRef`.
 5. Call canonical indexer functions. Use `indexer_UpsertDocument` for source
    document records and `indexer_UpsertChunk` for each searchable text chunk.
    Include `document`, `embeddingMetadata`, `facts`, `citations`,
@@ -43,7 +43,7 @@ persistence result.
 
 When the user asks questions about indexed documents:
 
-1. Use the configured embedding service plugin on the user question.
+1. Use `gateway_Embed` on the user question.
 2. Call `indexer_QueryContext` with the query vector, a reasonable limit, and
    graph depth.
 3. Answer from the returned `reasoning_context` and cite source metadata when
@@ -131,6 +131,8 @@ when the indexer service is available.
   Prefer `UpsertDocument` and `UpsertChunk` in new workflows. Re-indexing the
   same chunk replaces previous chunk-owned metadata predicates, entity links,
   document links, and relation nodes before writing the new canonical record.
+- Preserve typed source/page/media references and embedding modalities in
+  canonical records when the evidence or Gateway result provides them.
 - `DeleteDocument` removes the document, linked chunks, and chunk-owned
   relation nodes. Shared entity nodes remain available for other chunks that
   still reference them.

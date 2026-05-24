@@ -73,6 +73,9 @@ func TestMarkdownExtractionTablesLayoutAndOCRTextLayer(t *testing.T) {
 	if len(text.GetPages()) != 1 {
 		t.Fatalf("pages = %d, want 1", len(text.GetPages()))
 	}
+	if text.GetPages()[0].GetSource().GetPageNumber() != 1 || text.GetSource().GetModality() != "text" {
+		t.Fatalf("text source references = %#v %#v", text.GetSource(), text.GetPages()[0].GetSource())
+	}
 
 	tables, err := srv.ExtractTables(context.Background(), &documentv1.ExtractTablesRequest{Input: input})
 	if err != nil {
@@ -192,6 +195,9 @@ func TestEmptyUnsupportedAndImageOCRFailures(t *testing.T) {
 	}
 	if len(images.GetImages()) != 1 || images.GetImages()[0].GetImageRef() == "" {
 		t.Fatalf("expected image reference, got %#v", images.GetImages())
+	}
+	if len(images.GetImages()[0].GetContent()) == 0 || images.GetImages()[0].GetSource().GetModality() != "image" {
+		t.Fatalf("expected image bytes and typed source reference, got %#v", images.GetImages()[0])
 	}
 	_, err = srv.RunOCR(context.Background(), &documentv1.RunOCRRequest{Input: imageInput})
 	if !boundary.IsCategory(err, boundary.Conflict) {

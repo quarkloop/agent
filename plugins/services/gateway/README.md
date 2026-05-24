@@ -16,7 +16,7 @@ there is no local synthetic embedding fallback.
 | --- | --- | --- | --- | --- | --- | --- |
 | `gateway_Generate` | `svc.gateway.v1.generate` | `quark.gateway.v1.GatewayService/Generate` | read | no | no | Run one generation request and return text, tool calls, and usage. |
 | `gateway_StreamGenerate` | `svc.gateway.v1.stream_generate` | `quark.gateway.v1.GatewayService/StreamGenerate` | read | no | yes | Stream generation deltas/tool calls and final usage. |
-| `gateway_Embed` | `svc.gateway.v1.embed` | `quark.gateway.v1.GatewayService/Embed` | read | no | no | Create embeddings through Gateway provider policy. |
+| `gateway_Embed` | `svc.gateway.v1.embed` | `quark.gateway.v1.GatewayService/Embed` | read | no | no | Create text or supported multimodal embeddings through Gateway provider policy. |
 | `gateway_Rerank` | `svc.gateway.v1.rerank` | `quark.gateway.v1.GatewayService/Rerank` | read | no | no | Rerank candidate documents for a query. |
 | `gateway_CountTokens` | `svc.gateway.v1.count_tokens` | `quark.gateway.v1.GatewayService/CountTokens` | read | no | no | Count or estimate model prompt/tool tokens. |
 | `gateway_ListModels` | `svc.gateway.v1.list_models` | `quark.gateway.v1.GatewayService/ListModels` | read | no | no | List provider models visible through Gateway. |
@@ -57,6 +57,14 @@ Gateway returns structured provider failure categories:
 
 Fallback is explicit and ordered. Diagnostics include provider, model, fallback
 chain, failure category, and reset time when available.
+
+## Multimodal Inputs
+
+`gateway_Embed` accepts typed content parts. Runtime resolves opaque text/page
+and media references into provider payloads; agents do not inline binary
+artifacts. The OpenRouter adapter supports text/image embedding content.
+Adapters without a representable multimodal request shape return an explicit
+invalid-input error.
 
 ## Health And Readiness
 

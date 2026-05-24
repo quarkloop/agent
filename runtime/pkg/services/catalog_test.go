@@ -75,13 +75,13 @@ func TestServiceFunctionSchemaUsesRuntimeEmbeddingReferences(t *testing.T) {
 	if !ok {
 		t.Fatalf("embedding properties missing: %+v", embedParams)
 	}
-	for _, want := range []string{"input", "inputRef", "contentRef"} {
+	for _, want := range []string{"inputs", "inputRef", "contentRef", "pageRef", "imageRef"} {
 		if _, ok := embedProperties[want]; !ok {
 			t.Fatalf("embedding schema missing %q: %+v", want, embedProperties)
 		}
 	}
-	if required, ok := embedParams["required"].([]string); ok && containsString(required, "input") {
-		t.Fatalf("embedding input should be replaceable by inputRef/contentRef, required=%+v", required)
+	if required, ok := embedParams["required"].([]string); ok && containsString(required, "inputs") {
+		t.Fatalf("embedding inputs should be replaceable by runtime references, required=%+v", required)
 	}
 
 	params := requestParameters("quark.indexer.v1.IndexRequest")

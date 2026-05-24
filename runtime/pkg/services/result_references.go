@@ -2,6 +2,7 @@ package services
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -127,12 +128,41 @@ func (e *Executor) documentExtractTextToolResult(msg protoreflect.ProtoMessage, 
 	if sourceHash != "" {
 		payload["sourceHash"] = mustJSONRaw(sourceHash)
 	}
+	registerPageReferences(e, payload, sourceInfo)
 	compactDocumentExtractTextPayload(payload)
 	out, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
 		return "", fmt.Errorf("encode document text content reference: %w", err)
 	}
 	return string(out), nil
+}
+
+func registerPageReferences(e *Executor, payload map[string]json.RawMessage, sourceInfo map[string]any) {
+	raw, ok := payload["pages"]
+	if !ok {
+		return
+	}
+	var pages []map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &pages); err != nil {
+		return
+	}
+	for _, page := range pages {
+		text := rawStringArgument(page, "text")
+		if strings.TrimSpace(text) == "" {
+			continue
+		}
+		info := cloneMetadata(sourceInfo)
+		if rawPage, ok := page["pageNumber"]; ok {
+			var pageNumber int
+			if err := json.Unmarshal(rawPage, &pageNumber); err == nil {
+				info["pageNumber"] = pageNumber
+			}
+		}
+		info["modality"] = "text"
+		ref, _ := e.registerContent(text, info)
+		page["pageRef"] = mustJSONRaw(ref)
+	}
+	payload["pages"] = mustJSONRaw(pages)
 }
 
 func (e *Executor) ioReadToolResult(msg protoreflect.ProtoMessage, requestArguments string) (string, error) {
@@ -165,6 +195,101 @@ func (e *Executor) ioReadToolResult(msg protoreflect.ProtoMessage, requestArgume
 		return "", fmt.Errorf("encode io read content reference: %w", err)
 	}
 	return string(out), nil
+}
+
+func (e *Executor) ioReadMediaToolResult(msg protoreflect.ProtoMessage, _ string) (string, error) {
+	data, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(msg)
+	if err != nil {
+		return "", fmt.Errorf("encode io media response: %w", err)
+	}
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return "", fmt.Errorf("decode io media response: %w", err)
+	}
+	rawContent, ok := payload["content"]
+	if !ok {
+		return string(data), nil
+	}
+	var encoded string
+	if err := json.Unmarshal(rawContent, &encoded); err != nil {
+		return "", fmt.Errorf("decode io media content: %w", err)
+	}
+	content, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return "", fmt.Errorf("decode io media bytes: %w", err)
+	}
+	info := rawObjectMetadata(payload["source"])
+	info["serviceFunction"] = "io_ReadMedia"
+	ref, mediaInfo := e.registerMedia(content, info)
+	delete(payload, "content")
+	payload["mediaRef"] = mustJSONRaw(ref)
+	payload["contentHash"] = mustJSONRaw(mediaInfo["contentHash"])
+	out, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("encode io media reference: %w", err)
+	}
+	return string(out), nil
+}
+
+func (e *Executor) documentMediaToolResult(msg protoreflect.ProtoMessage, _ string) (string, error) {
+	data, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(msg)
+	if err != nil {
+		return "", fmt.Errorf("encode document media response: %w", err)
+	}
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return "", fmt.Errorf("decode document media response: %w", err)
+	}
+	if raw, ok := payload["images"]; ok {
+		payload["images"] = e.referenceImageArray(raw)
+	}
+	if raw, ok := payload["pages"]; ok {
+		var pages []map[string]json.RawMessage
+		if json.Unmarshal(raw, &pages) == nil {
+			for _, page := range pages {
+				if rawImages, ok := page["images"]; ok {
+					page["images"] = e.referenceImageArray(rawImages)
+				}
+			}
+			payload["pages"] = mustJSONRaw(pages)
+		}
+	}
+	out, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("encode document media references: %w", err)
+	}
+	return string(out), nil
+}
+
+func (e *Executor) referenceImageArray(raw json.RawMessage) json.RawMessage {
+	var images []map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &images); err != nil {
+		return raw
+	}
+	for _, image := range images {
+		var encoded string
+		if rawContent, ok := image["content"]; ok && json.Unmarshal(rawContent, &encoded) == nil {
+			content, err := base64.StdEncoding.DecodeString(encoded)
+			if err == nil && len(content) > 0 {
+				info := rawObjectMetadata(image["source"])
+				info["serviceFunction"] = "document_ExtractImages"
+				ref, metadata := e.registerMedia(content, info)
+				image["mediaRef"] = mustJSONRaw(ref)
+				image["contentHash"] = mustJSONRaw(metadata["contentHash"])
+			}
+			delete(image, "content")
+		}
+	}
+	return mustJSONRaw(images)
+}
+
+func rawObjectMetadata(raw json.RawMessage) map[string]any {
+	out := make(map[string]any)
+	if len(raw) == 0 {
+		return out
+	}
+	_ = json.Unmarshal(raw, &out)
+	return out
 }
 
 func ioReadSourceInfo(arguments string) map[string]any {
@@ -251,6 +376,37 @@ func (e *Executor) registerContent(content string, metadata map[string]any) (str
 	e.contentBorn[ref] = now
 	e.contentBorn[contentHash] = now
 	return ref, cloneMetadata(info)
+}
+
+func (e *Executor) registerMedia(content []byte, metadata map[string]any) (string, map[string]any) {
+	sum := sha256.Sum256(content)
+	contentHash := hex.EncodeToString(sum[:])
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.nextMedia++
+	ref := fmt.Sprintf("media_%d", e.nextMedia)
+	now := time.Now()
+	info := cloneMetadata(metadata)
+	info["contentHash"] = contentHash
+	info["bytes"] = len(content)
+	e.media[ref] = append([]byte(nil), content...)
+	e.media[contentHash] = append([]byte(nil), content...)
+	e.mediaInfo[ref] = cloneMetadata(info)
+	e.mediaInfo[contentHash] = cloneMetadata(info)
+	e.mediaBorn[ref] = now
+	e.mediaBorn[contentHash] = now
+	return ref, cloneMetadata(info)
+}
+
+func (e *Executor) mediaByRef(ref string) ([]byte, map[string]any, bool) {
+	e.CleanupExpiredReferences(time.Now())
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	content, ok := e.media[ref]
+	if !ok {
+		return nil, nil, false
+	}
+	return append([]byte(nil), content...), cloneMetadata(e.mediaInfo[ref]), true
 }
 
 func (e *Executor) contentByRef(ref string) (string, bool) {
@@ -416,6 +572,14 @@ func (e *Executor) CleanupExpiredReferences(now time.Time) {
 		delete(e.embeddings, ref)
 		delete(e.embeddingInfo, ref)
 		delete(e.pending, ref)
+	}
+	for ref, born := range e.mediaBorn {
+		if now.Sub(born) <= e.refTTL {
+			continue
+		}
+		delete(e.mediaBorn, ref)
+		delete(e.media, ref)
+		delete(e.mediaInfo, ref)
 	}
 }
 

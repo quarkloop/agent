@@ -15,21 +15,24 @@ func TestIndexCommandMapsProtoToOwnedDomainCommand(t *testing.T) {
 		SourceMetadata: map[string]string{
 			"filename": "source.pdf",
 		},
-		Document:          &indexerv1.Document{Id: "doc-1", Name: "source.pdf", SourceUri: "file:///source.pdf", Metadata: map[string]string{"kind": "paper"}},
-		EmbeddingMetadata: &indexerv1.EmbeddingMetadata{Provider: "fixture", Model: "fixture/embed", Dimensions: 2, ContentHash: "hash"},
+		Document:          &indexerv1.Document{Id: "doc-1", Name: "source.pdf", SourceUri: "file:///source.pdf", Metadata: map[string]string{"kind": "paper"}, Sources: []*indexerv1.SourceReference{{Modality: "image", MimeType: "image/png", MediaRef: "media-1", Metadata: map[string]string{"page": "1"}}}},
+		EmbeddingMetadata: &indexerv1.EmbeddingMetadata{Provider: "fixture", Model: "fixture/embed", Dimensions: 2, ContentHash: "hash", Modalities: []string{"text", "image"}},
 		Entities:          []*indexerv1.Entity{{Id: "quark", Name: "Quark", Type: "PROJECT"}},
 		Relations:         []*indexerv1.Relation{{FromId: "quark", ToId: "knowledge", Relation: "INDEXES"}},
 		Facts:             []*indexerv1.Fact{{Id: "fact-1", Subject: "Quark", Predicate: "indexes", Object: "knowledge", Metadata: map[string]string{"source": "llm"}}},
-		Citations:         []*indexerv1.Citation{{Id: "cite-1", SourceUri: "file:///source.pdf", ChunkId: "chunk-1", TextSpan: "Quark indexes knowledge."}},
-		Provenance:        &indexerv1.Provenance{SourceUri: "file:///source.pdf", SourceHash: "sha256:abc", TraceId: "trace-1", Metadata: map[string]string{"agent": "knowledge"}},
+		Citations:         []*indexerv1.Citation{{Id: "cite-1", SourceUri: "file:///source.pdf", ChunkId: "chunk-1", TextSpan: "Quark indexes knowledge.", PageNumber: 1, MediaRef: "media-1", Modality: "image"}},
+		Provenance:        &indexerv1.Provenance{SourceUri: "file:///source.pdf", SourceHash: "sha256:abc", TraceId: "trace-1", Metadata: map[string]string{"agent": "knowledge"}, Sources: []*indexerv1.SourceReference{{Modality: "text", ContentRef: "content-1", Metadata: map[string]string{"page": "1"}}}},
 	}
 
 	cmd := indexCommand(req)
 	req.Embedding[0] = 9
 	req.SourceMetadata["filename"] = "mutated"
 	req.Document.Metadata["kind"] = "mutated"
+	req.Document.Sources[0].Metadata["page"] = "mutated"
+	req.EmbeddingMetadata.Modalities[0] = "mutated"
 	req.Facts[0].Metadata["source"] = "mutated"
 	req.Provenance.Metadata["agent"] = "mutated"
+	req.Provenance.Sources[0].Metadata["page"] = "mutated"
 
 	if cmd.Vector[0] != 0.1 {
 		t.Fatalf("vector was not copied: %+v", cmd.Vector)
@@ -40,11 +43,17 @@ func TestIndexCommandMapsProtoToOwnedDomainCommand(t *testing.T) {
 	if cmd.Document.Metadata["kind"] != "paper" {
 		t.Fatalf("document metadata was not copied: %+v", cmd.Document.Metadata)
 	}
+	if cmd.Document.Sources[0].Metadata["page"] != "1" || cmd.EmbeddingMetadata.Modalities[0] != "text" {
+		t.Fatalf("typed source/embed metadata was not copied: %+v %+v", cmd.Document.Sources, cmd.EmbeddingMetadata)
+	}
 	if cmd.Facts[0].Metadata["source"] != "llm" {
 		t.Fatalf("fact metadata was not copied: %+v", cmd.Facts[0].Metadata)
 	}
 	if cmd.Provenance.Metadata["agent"] != "knowledge" {
 		t.Fatalf("provenance metadata was not copied: %+v", cmd.Provenance.Metadata)
+	}
+	if cmd.Provenance.Sources[0].Metadata["page"] != "1" || cmd.Citations[0].MediaRef != "media-1" {
+		t.Fatalf("provenance/citation evidence was not mapped: %+v %+v", cmd.Provenance, cmd.Citations)
 	}
 }
 
@@ -86,21 +95,23 @@ func TestContextResponseMapsDomainToOwnedProtoResponse(t *testing.T) {
 		ID:       "chunk-1",
 		Text:     "Quark indexes knowledge.",
 		Metadata: map[string]string{"filename": "source.pdf"},
-		Document: indexer.Document{ID: "doc-1", Metadata: map[string]string{"kind": "paper"}},
+		Document: indexer.Document{ID: "doc-1", Metadata: map[string]string{"kind": "paper"}, Sources: []indexer.SourceReference{{Modality: "image", MediaRef: "media-1", Metadata: map[string]string{"page": "1"}}}},
 		Facts: []indexer.Fact{{
 			ID:       "fact-1",
 			Subject:  "Quark",
 			Metadata: map[string]string{"source": "llm"},
 		}},
-		Citations:  []indexer.Citation{{ID: "cite-1", SourceURI: "file:///source.pdf"}},
-		Provenance: indexer.Provenance{SourceURI: "file:///source.pdf", Metadata: map[string]string{"agent": "knowledge"}},
+		Citations:  []indexer.Citation{{ID: "cite-1", SourceURI: "file:///source.pdf", PageNumber: 1, MediaRef: "media-1", Modality: "image"}},
+		Provenance: indexer.Provenance{SourceURI: "file:///source.pdf", Metadata: map[string]string{"agent": "knowledge"}, Sources: []indexer.SourceReference{{ContentRef: "content-1", Metadata: map[string]string{"page": "1"}}}},
 	}}
 
 	protoChunks := toProtoChunks(chunks)
 	chunks[0].Metadata["filename"] = "mutated"
 	chunks[0].Document.Metadata["kind"] = "mutated"
+	chunks[0].Document.Sources[0].Metadata["page"] = "mutated"
 	chunks[0].Facts[0].Metadata["source"] = "mutated"
 	chunks[0].Provenance.Metadata["agent"] = "mutated"
+	chunks[0].Provenance.Sources[0].Metadata["page"] = "mutated"
 	protoChunks[0].Metadata["filename"] = "proto-mutated"
 
 	if protoChunks[0].Metadata["filename"] != "proto-mutated" {
@@ -112,10 +123,16 @@ func TestContextResponseMapsDomainToOwnedProtoResponse(t *testing.T) {
 	if protoChunks[0].Document.Metadata["kind"] != "paper" {
 		t.Fatalf("document metadata was not copied to proto: %+v", protoChunks[0].Document.Metadata)
 	}
+	if protoChunks[0].Document.Sources[0].Metadata["page"] != "1" {
+		t.Fatalf("document source references were not copied to proto: %+v", protoChunks[0].Document.Sources)
+	}
 	if protoChunks[0].Facts[0].Metadata["source"] != "llm" {
 		t.Fatalf("fact metadata was not copied to proto: %+v", protoChunks[0].Facts[0].Metadata)
 	}
 	if protoChunks[0].Provenance.Metadata["agent"] != "knowledge" {
 		t.Fatalf("provenance metadata was not copied to proto: %+v", protoChunks[0].Provenance.Metadata)
+	}
+	if protoChunks[0].Provenance.Sources[0].Metadata["page"] != "1" || protoChunks[0].Citations[0].GetMediaRef() != "media-1" {
+		t.Fatalf("provenance/citation evidence was not copied to proto: %+v %+v", protoChunks[0].Provenance, protoChunks[0].Citations)
 	}
 }

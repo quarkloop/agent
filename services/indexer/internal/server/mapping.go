@@ -76,6 +76,7 @@ func protoDocument(document *indexerv1.Document) indexer.Document {
 		Type:      document.GetType(),
 		SourceURI: document.GetSourceUri(),
 		Metadata:  cloneMap(document.GetMetadata()),
+		Sources:   protoSourceReferences(document.GetSources()),
 	}
 }
 
@@ -89,6 +90,7 @@ func protoEmbeddingMetadata(embedding *indexerv1.EmbeddingMetadata) indexer.Embe
 		Dimensions:  int(embedding.GetDimensions()),
 		ContentHash: embedding.GetContentHash(),
 		Version:     embedding.GetVersion(),
+		Modalities:  append([]string(nil), embedding.GetModalities()...),
 	}
 }
 
@@ -154,6 +156,9 @@ func protoCitation(citation *indexerv1.Citation) indexer.Citation {
 		StartOffset: int(citation.GetStartOffset()),
 		EndOffset:   int(citation.GetEndOffset()),
 		Confidence:  citation.GetConfidence(),
+		PageNumber:  int(citation.GetPageNumber()),
+		MediaRef:    citation.GetMediaRef(),
+		Modality:    citation.GetModality(),
 	}
 }
 
@@ -168,7 +173,28 @@ func protoProvenance(provenance *indexerv1.Provenance) indexer.Provenance {
 		ProducedBy: provenance.GetProducedBy(),
 		TraceID:    provenance.GetTraceId(),
 		Metadata:   cloneMap(provenance.GetMetadata()),
+		Sources:    protoSourceReferences(provenance.GetSources()),
 	}
+}
+
+func protoSourceReferences(sources []*indexerv1.SourceReference) []indexer.SourceReference {
+	out := make([]indexer.SourceReference, 0, len(sources))
+	for _, source := range sources {
+		if source == nil {
+			continue
+		}
+		out = append(out, indexer.SourceReference{
+			Modality:    source.GetModality(),
+			MIMEType:    source.GetMimeType(),
+			PageNumber:  int(source.GetPageNumber()),
+			ContentRef:  source.GetContentRef(),
+			MediaRef:    source.GetMediaRef(),
+			ContentHash: source.GetContentHash(),
+			SourceURI:   source.GetSourceUri(),
+			Metadata:    cloneMap(source.GetMetadata()),
+		})
+	}
+	return out
 }
 
 func cloneVector(in []float32) []float32 {

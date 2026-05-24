@@ -9,8 +9,8 @@ create embeddings, or call other services.
 
 | Function | RPC method | Request | Response | Purpose |
 | --- | --- | --- | --- | --- |
-| `indexer_UpsertDocument` | `quark.indexer.v1.IndexerService/UpsertDocument` | `UpsertDocumentRequest` | `IndexStatus` | Persist one canonical source document record. |
-| `indexer_UpsertChunk` | `quark.indexer.v1.IndexerService/UpsertChunk` | `UpsertChunkRequest` | `IndexStatus` | Persist one canonical knowledge chunk with text, embedding vector or runtime embedding reference, graph data, facts, citations, and provenance. |
+| `indexer_UpsertDocument` | `quark.indexer.v1.IndexerService/UpsertDocument` | `UpsertDocumentRequest` | `IndexStatus` | Persist one canonical source document record and typed source references. |
+| `indexer_UpsertChunk` | `quark.indexer.v1.IndexerService/UpsertChunk` | `UpsertChunkRequest` | `IndexStatus` | Persist one canonical knowledge chunk with text, embedding metadata/modalities, graph data, facts, citations, and provenance. |
 | `indexer_UpsertFact` | `quark.indexer.v1.IndexerService/UpsertFact` | `UpsertFactRequest` | `IndexStatus` | Persist one canonical fact record. |
 | `indexer_UpsertEntity` | `quark.indexer.v1.IndexerService/UpsertEntity` | `UpsertEntityRequest` | `IndexStatus` | Persist one canonical entity record. |
 | `indexer_UpsertRelation` | `quark.indexer.v1.IndexerService/UpsertRelation` | `UpsertRelationRequest` | `IndexStatus` | Persist one canonical relation record. |
@@ -35,6 +35,8 @@ create embeddings, or call other services.
   functions, not an ingestion pipeline. Re-indexing the same chunk replaces
   prior chunk-owned metadata predicates, document links, entity links, and
   relation nodes before writing the new canonical record.
+- Canonical evidence may carry text, image, page, MIME, and media-reference
+  metadata. Indexer preserves this data; it never reads media or calls Gateway.
 - `IndexDocument` remains only as a compatibility alias for the canonical chunk
   upsert path.
 - `DeleteDocument` deletes the document, linked chunks, and chunk-owned

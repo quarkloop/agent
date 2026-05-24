@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,11 +16,13 @@ import (
 
 const (
 	DefaultPDFMaxChars       = 30000
+	DefaultMediaMaxBytes     = 20 << 20
 	MutationApprovalRequired = "workspace mutation requires explicit user approval"
 )
 
 var ErrMutationNotApproved = errors.New(MutationApprovalRequired)
 var ErrInvalidPath = errors.New("path is required")
+var ErrMediaTooLarge = errors.New("media file exceeds configured byte limit")
 
 type FileEntry struct {
 	Name         string
@@ -49,6 +52,20 @@ type ExtractPdfResult struct {
 	Chars         int32
 	OriginalChars int32
 	Truncated     bool
+	Source        MediaReference
+}
+
+type MediaReference struct {
+	SourceURI string
+	SHA256    string
+	MIMEType  string
+	Modality  string
+	Bytes     int64
+}
+
+type ReadMediaResult struct {
+	Source  MediaReference
+	Content []byte
 }
 
 func Read(path string, startLine, endLine int32) (ReadResult, error) {
@@ -193,6 +210,42 @@ func Remove(path string, approved bool) error {
 	return os.RemoveAll(path)
 }
 
+func ReadMedia(path string, maxBytes int64) (ReadMediaResult, error) {
+	path, err := cleanPath(path)
+	if err != nil {
+		return ReadMediaResult{}, err
+	}
+	if maxBytes <= 0 {
+		maxBytes = DefaultMediaMaxBytes
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return ReadMediaResult{}, err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return ReadMediaResult{}, err
+	}
+	if info.IsDir() {
+		return ReadMediaResult{}, fmt.Errorf("%s is a directory", path)
+	}
+	if info.Size() > maxBytes {
+		return ReadMediaResult{}, ErrMediaTooLarge
+	}
+	data, err := io.ReadAll(io.LimitReader(file, maxBytes+1))
+	if err != nil {
+		return ReadMediaResult{}, err
+	}
+	if int64(len(data)) > maxBytes {
+		return ReadMediaResult{}, ErrMediaTooLarge
+	}
+	return ReadMediaResult{
+		Source:  mediaReference(path, data),
+		Content: append([]byte(nil), data...),
+	}, nil
+}
+
 func ExtractPdf(ctx context.Context, path string, maxChars int32, pdftotext string) (ExtractPdfResult, error) {
 	path, err := cleanPath(path)
 	if err != nil {
@@ -222,12 +275,42 @@ func ExtractPdf(ctx context.Context, path string, maxChars int32, pdftotext stri
 		content = string(runes[:maxChars])
 		truncated = true
 	}
+	sourceData, err := os.ReadFile(path)
+	if err != nil {
+		return ExtractPdfResult{}, fmt.Errorf("read extracted PDF source %s: %w", path, err)
+	}
 	return ExtractPdfResult{
 		Content:       content,
 		Chars:         int32(len([]rune(content))),
 		OriginalChars: original,
 		Truncated:     truncated,
+		Source:        mediaReference(path, sourceData),
 	}, nil
+}
+
+func mediaReference(path string, content []byte) MediaReference {
+	sum := sha256.Sum256(content)
+	mimeType := http.DetectContentType(content)
+	return MediaReference{
+		SourceURI: path,
+		SHA256:    hex.EncodeToString(sum[:]),
+		MIMEType:  mimeType,
+		Modality:  modalityForMIMEType(mimeType),
+		Bytes:     int64(len(content)),
+	}
+}
+
+func modalityForMIMEType(mimeType string) string {
+	switch {
+	case strings.HasPrefix(mimeType, "image/"):
+		return "image"
+	case mimeType == "application/pdf":
+		return "document"
+	case strings.HasPrefix(mimeType, "text/"):
+		return "text"
+	default:
+		return "binary"
+	}
 }
 
 func requireApproved(approved bool) error {

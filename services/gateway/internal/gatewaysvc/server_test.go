@@ -17,7 +17,7 @@ func TestGenerateUsesOrderedFallbackAndReturnsUsage(t *testing.T) {
 	resp, err := srv.Generate(context.Background(), &gatewayv1.GenerateRequest{
 		Provider: "missing",
 		Model:    "fixture/chat",
-		Messages: []*gatewayv1.ModelMessage{{Role: "user", Content: "summarize this"}},
+		Messages: []*gatewayv1.ModelMessage{gatewayTextMessage("user", "summarize this")},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -36,7 +36,7 @@ func TestGenerateUsesOrderedFallbackAndReturnsUsage(t *testing.T) {
 func TestEmbedUsesConfiguredProviderModelAndReturnsUsage(t *testing.T) {
 	srv := newConfiguredGatewayServer(t, nil)
 	resp, err := srv.Embed(context.Background(), &gatewayv1.EmbedRequest{
-		Input: []string{"alpha", "beta"},
+		Inputs: gatewayTextInputs("alpha", "beta"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -66,7 +66,7 @@ func TestRerankCountTokensAndProviderHealth(t *testing.T) {
 	}
 	count, err := srv.CountTokens(context.Background(), &gatewayv1.CountTokensRequest{
 		Provider: "fixture",
-		Messages: []*gatewayv1.ModelMessage{{Role: "user", Content: "hello world"}},
+		Messages: []*gatewayv1.ModelMessage{gatewayTextMessage("user", "hello world")},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -88,7 +88,7 @@ func TestUsageSummaryAndReloadConfig(t *testing.T) {
 	if _, err := srv.CountTokens(context.Background(), &gatewayv1.CountTokensRequest{
 		Provider: "fixture",
 		Model:    "fixture/chat",
-		Messages: []*gatewayv1.ModelMessage{{Role: "user", Content: "hello usage"}},
+		Messages: []*gatewayv1.ModelMessage{gatewayTextMessage("user", "hello usage")},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +133,7 @@ func TestUnsupportedProviderMapsToStructuredError(t *testing.T) {
 	_, err = srv.Generate(context.Background(), &gatewayv1.GenerateRequest{
 		Provider: "anthropic",
 		Model:    "claude",
-		Messages: []*gatewayv1.ModelMessage{{Role: "user", Content: "hi"}},
+		Messages: []*gatewayv1.ModelMessage{gatewayTextMessage("user", "hi")},
 	})
 	if !boundary.IsCategory(err, boundary.Unavailable) {
 		t.Fatalf("error = %v, want unavailable", err)
@@ -199,4 +199,25 @@ func newConfiguredGatewayServer(t *testing.T, fallbacks map[string][]string) *Se
 	}
 	t.Cleanup(func() { _ = srv.Close() })
 	return srv
+}
+
+func gatewayTextMessage(role, text string) *gatewayv1.ModelMessage {
+	return &gatewayv1.ModelMessage{
+		Role: role,
+		Content: []*gatewayv1.ContentPart{{
+			Kind: gatewayv1.ContentKind_CONTENT_KIND_TEXT,
+			Text: text,
+		}},
+	}
+}
+
+func gatewayTextInputs(values ...string) []*gatewayv1.MultimodalInput {
+	out := make([]*gatewayv1.MultimodalInput, 0, len(values))
+	for _, value := range values {
+		out = append(out, &gatewayv1.MultimodalInput{Content: []*gatewayv1.ContentPart{{
+			Kind: gatewayv1.ContentKind_CONTENT_KIND_TEXT,
+			Text: value,
+		}}})
+	}
+	return out
 }

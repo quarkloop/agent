@@ -878,7 +878,7 @@ func knowledgeQueryContinuationDetail(stepID string) string {
 	case "embed-query":
 		return "Embed the user question first. Do not invent query vectors."
 	case "retrieve":
-		return "Retrieve from the index using the query vector reference returned by the embedding service."
+		return "Retrieve from the index using the query vector reference returned by gateway_Embed."
 	case "ground":
 		return "Verify or render citations from retrieved evidence before answering."
 	default:

@@ -7,6 +7,7 @@ Mechanical filesystem, shell, web search, and HTTP fetch. Does not call LLMs or 
 - `io_Read` — read text; optional `start_line` / `end_line` (1-based inclusive)
 - `io_List` — list directory; `recursive`, `include_hash`
 - `io_Stat` — metadata; set `include_hash` for sha256 on regular files
+- `io_ReadMedia` — read bounded image/document bytes; runtime exposes only an opaque media reference to the agent
 - `io_ExtractPdf` — legacy PDF text via pdftotext; for knowledge indexing prefer `document_ExtractText`
 - `io_Write`, `io_Append`, `io_Replace` — atomic file mutations; require `approved: true` after explicit user approval
 - `io_Remove` — admin-risk file or directory removal; requires `approved: true` after explicit user approval

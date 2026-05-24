@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -58,9 +59,13 @@ func (p *openAICompatibleProvider) StreamGenerate(ctx context.Context, cmd gener
 	if p.baseURL == "" {
 		return nil, plugin.NewProviderError(plugin.ProviderErrorInvalidRequest, p.id, cmd.Model, 0, fmt.Errorf("base URL is required"))
 	}
+	messages, err := openAIMessages(cmd.Messages)
+	if err != nil {
+		return nil, plugin.NewProviderError(plugin.ProviderErrorInvalidRequest, p.id, cmd.Model, 0, err)
+	}
 	reqBody := openAIChatRequest{
 		Model:    firstNonEmpty(cmd.Model, p.model),
-		Messages: openAIMessages(cmd.Messages),
+		Messages: messages,
 		Tools:    openAITools(cmd.Tools),
 		Stream:   true,
 	}
@@ -97,11 +102,19 @@ func (p *openAICompatibleProvider) Embed(ctx context.Context, cmd embedCommand) 
 	if model == "" {
 		return nil, plugin.NewProviderError(plugin.ProviderErrorInvalidRequest, p.id, "", 0, fmt.Errorf("embedding model is required"))
 	}
-	body, err := json.Marshal(map[string]any{
+	input, err := p.embeddingInputPayload(cmd.Inputs)
+	if err != nil {
+		return nil, plugin.NewProviderError(plugin.ProviderErrorInvalidRequest, p.id, model, 0, err)
+	}
+	payload := map[string]any{
 		"model":           model,
-		"input":           append([]string(nil), cmd.Input...),
+		"input":           input,
 		"encoding_format": "float",
-	})
+	}
+	if cmd.Dimensions > 0 {
+		payload["dimensions"] = cmd.Dimensions
+	}
+	body, err := json.Marshal(payload)
 	if err != nil {
 		return nil, plugin.NewProviderError(plugin.ProviderErrorInvalidRequest, p.id, cmd.Model, 0, fmt.Errorf("marshal embeddings request: %w", err))
 	}
@@ -125,17 +138,35 @@ func (p *openAICompatibleProvider) Embed(ctx context.Context, cmd embedCommand) 
 	}
 	out := make([]*gatewayv1.Embedding, 0, len(parsed.Data))
 	for i, item := range parsed.Data {
-		input := ""
-		if i < len(cmd.Input) {
-			input = cmd.Input[i]
+		contentHash := ""
+		if i < len(cmd.Inputs) {
+			contentHash = multimodalInputHash(cmd.Inputs[i])
 		}
 		out = append(out, &gatewayv1.Embedding{
 			Vector:      append([]float32(nil), item.Embedding...),
 			Provider:    p.id,
 			Model:       model,
 			Dimensions:  int32(len(item.Embedding)),
-			ContentHash: contentHash(input),
+			ContentHash: contentHash,
 		})
+	}
+	return out, nil
+}
+
+func (p *openAICompatibleProvider) embeddingInputPayload(inputs []multimodalInput) (any, error) {
+	if !containsMediaInput(inputs) {
+		return textOnlyEmbeddingInputs(inputs)
+	}
+	if !strings.EqualFold(p.id, "openrouter") {
+		return nil, fmt.Errorf("provider %q does not advertise multimodal embedding support through this adapter", p.id)
+	}
+	out := make([]openAIEmbeddingInput, 0, len(inputs))
+	for _, input := range inputs {
+		content, err := openAIContentParts(input.Content)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, openAIEmbeddingInput{Content: content})
 	}
 	return out, nil
 }
@@ -200,9 +231,23 @@ type openAIChatRequest struct {
 
 type openAIMessage struct {
 	Role       string           `json:"role"`
-	Content    string           `json:"content"`
+	Content    any              `json:"content"`
 	ToolCalls  []openAIToolCall `json:"tool_calls,omitempty"`
 	ToolCallID string           `json:"tool_call_id,omitempty"`
+}
+
+type openAIEmbeddingInput struct {
+	Content []openAIContentPart `json:"content"`
+}
+
+type openAIContentPart struct {
+	Type     string          `json:"type"`
+	Text     string          `json:"text,omitempty"`
+	ImageURL *openAIImageURL `json:"image_url,omitempty"`
+}
+
+type openAIImageURL struct {
+	URL string `json:"url"`
 }
 
 type openAITool struct {
@@ -243,10 +288,14 @@ type openAIEmbeddingResponse struct {
 	} `json:"data"`
 }
 
-func openAIMessages(messages []message) []openAIMessage {
+func openAIMessages(messages []message) ([]openAIMessage, error) {
 	out := make([]openAIMessage, 0, len(messages))
 	for _, msg := range messages {
-		converted := openAIMessage{Role: msg.Role, Content: msg.Content, ToolCallID: msg.ToolCallID}
+		content, err := openAIMessageContent(msg.Content)
+		if err != nil {
+			return nil, err
+		}
+		converted := openAIMessage{Role: msg.Role, Content: content, ToolCallID: msg.ToolCallID}
 		for _, call := range msg.ToolCalls {
 			converted.ToolCalls = append(converted.ToolCalls, openAIToolCall{
 				Index: call.Index,
@@ -260,7 +309,35 @@ func openAIMessages(messages []message) []openAIMessage {
 		}
 		out = append(out, converted)
 	}
-	return out
+	return out, nil
+}
+
+func openAIMessageContent(parts []contentPart) (any, error) {
+	if len(parts) == 1 && parts[0].Kind == contentText {
+		return parts[0].Text, nil
+	}
+	return openAIContentParts(parts)
+}
+
+func openAIContentParts(parts []contentPart) ([]openAIContentPart, error) {
+	out := make([]openAIContentPart, 0, len(parts))
+	for _, part := range parts {
+		if err := validateResolvedContentPart(part); err != nil {
+			return nil, err
+		}
+		switch part.Kind {
+		case contentText:
+			out = append(out, openAIContentPart{Type: "text", Text: part.Text})
+		case contentImageURL:
+			out = append(out, openAIContentPart{Type: "image_url", ImageURL: &openAIImageURL{URL: part.ImageURL}})
+		case contentImageData:
+			dataURL := "data:" + part.MIMEType + ";base64," + base64.StdEncoding.EncodeToString(part.ImageData)
+			out = append(out, openAIContentPart{Type: "image_url", ImageURL: &openAIImageURL{URL: dataURL}})
+		default:
+			return nil, fmt.Errorf("unsupported resolved content kind %d", part.Kind)
+		}
+	}
+	return out, nil
 }
 
 func openAITools(tools []toolSchema) []openAITool {

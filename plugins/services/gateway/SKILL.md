@@ -35,7 +35,9 @@ providers directly.
 - `Embed(EmbedRequest) -> EmbedResponse`
   - Generated service function: `gateway_Embed`
   - NATS subject: `svc.gateway.v1.embed`
-  - Creates provider-backed embeddings with provider/model/dimension metadata.
+  - Creates provider-backed text or supported multimodal embeddings with
+    provider/model/dimension metadata. Use runtime content, page, or media
+    references for extracted material.
 
 - `Rerank(RerankRequest) -> RerankResponse`
   - Generated service function: `gateway_Rerank`
@@ -73,6 +75,8 @@ providers directly.
   response usage accounting, provider diagnostics, and provider error mapping.
 - Embedding requests use the configured Gateway embedding provider and model;
   do not request local or synthetic vectors.
+- The OpenRouter-compatible adapter supports mixed text/image embedding
+  content. Adapters that cannot represent media inputs reject them explicitly.
 - Runtime owns session/run accumulation and persistence through runtime/Core
   activity storage.
 - Provider secrets are resolved by deployment or the future Secrets service and

@@ -10,11 +10,11 @@ embedding, indexing, retrieval, or answer generation.
 | --- | --- | --- | --- | --- | --- |
 | `document_DetectType` | `quark.document.v1.DocumentService/DetectType` | read | no | yes | Detect MIME type, extension, and coarse document family. |
 | `document_ParseBytes` | `quark.document.v1.DocumentService/ParseBytes` | read | no | yes | Parse bytes into mechanical metadata: source hash, page count, and text availability. |
-| `document_ExtractText` | `quark.document.v1.DocumentService/ExtractText` | read | no | yes | Extract raw text and per-page offsets. |
+| `document_ExtractText` | `quark.document.v1.DocumentService/ExtractText` | read | no | yes | Extract raw text with typed source and per-page provenance. |
 | `document_ExtractLayout` | `quark.document.v1.DocumentService/ExtractLayout` | read | no | yes | Extract layout blocks and bounding boxes. |
 | `document_GetPages` | `quark.document.v1.DocumentService/GetPages` | read | no | yes | Return page records with text, layout, tables, and images. |
 | `document_ExtractTables` | `quark.document.v1.DocumentService/ExtractTables` | read | no | yes | Extract detected tables as headers and cells. |
-| `document_ExtractImages` | `quark.document.v1.DocumentService/ExtractImages` | read | no | yes | Extract image references, MIME types, and coordinates. |
+| `document_ExtractImages` | `quark.document.v1.DocumentService/ExtractImages` | read | no | yes | Extract typed image media for runtime-managed references. |
 | `document_RunOCR` | `quark.document.v1.DocumentService/RunOCR` | read | no | yes | Run OCR and return raw text with confidence. |
 
 ## Boundary
@@ -22,8 +22,9 @@ embedding, indexing, retrieval, or answer generation.
 Mechanical extraction belongs here. LLM semantic extraction belongs in the
 agent/runtime model path. The agent classifies documents, infers schemas,
 normalizes fields, chooses chunks, extracts facts/entities/relations, selects
-citations, and sends the resulting canonical records to embedding and indexer
-service functions.
+citations, and sends the resulting canonical records to Gateway embedding and
+indexer service functions. Raw media bytes remain behind runtime-managed
+references when an agent consumes results.
 
 ## Health And Readiness
 

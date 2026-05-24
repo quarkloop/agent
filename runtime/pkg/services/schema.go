@@ -34,7 +34,7 @@ func applyRuntimeReferenceFields(typeName string, schema map[string]any) {
 	switch typeName {
 	case "quark.gateway.v1.EmbedRequest":
 		if description, ok := schema["description"].(string); ok {
-			schema["description"] = description + " For input, prefer inputRef or contentRef returned from io_Read or document_ExtractText results when embedding source files; otherwise provide explicit input as a string array. Provider, model, dimensions, and options are controlled by Gateway configuration."
+			schema["description"] = description + " For source material, prefer contentRef/pageRef/imageRef returned from IO or document results. For explicit public images or mixed input use typed inputs[].content[]. Provider, model, dimensions, and options are controlled by Gateway configuration."
 		}
 		delete(properties, "provider")
 		delete(properties, "model")
@@ -42,12 +42,26 @@ func applyRuntimeReferenceFields(typeName string, schema map[string]any) {
 		delete(properties, "options")
 		properties["inputRef"] = map[string]any{
 			"type":        "string",
-			"description": "Reference returned by io_Read or document_ExtractText. Prefer this over copying source text into input.",
+			"description": "Reference returned by io_Read or document_ExtractText. Prefer this over copying source text into inputs.",
 		}
 		properties["contentRef"] = map[string]any{
 			"type":        "string",
 			"description": "Alias for inputRef. Reference returned by io_Read or document_ExtractText.",
 		}
+		properties["pageRef"] = map[string]any{
+			"type":        "string",
+			"description": "Page text reference returned by document_ExtractText.",
+		}
+		properties["imageRef"] = map[string]any{
+			"type":        "string",
+			"description": "Image/media reference returned by io_ReadMedia or document_ExtractImages.",
+		}
+		removeGatewayInlineImageBytes(properties)
+	case "quark.gateway.v1.GenerateRequest", "quark.gateway.v1.StreamGenerateRequest":
+		if description, ok := schema["description"].(string); ok {
+			schema["description"] = description + " Use typed message content and opaque runtime references for extracted text/pages/media. Do not inline binary media bytes."
+		}
+		removeGatewayMessageInlineImageBytes(properties)
 	case "quark.indexer.v1.IndexRequest":
 		if description, ok := schema["description"].(string); ok {
 			schema["description"] = description + " Runtime tool calls must use embeddingRef returned from gateway_Embed; direct embedding vectors are not accepted. For textContent, prefer textContentRef returned from io_Read or document_ExtractText results when indexing source files; otherwise provide explicit textContent."
@@ -94,6 +108,32 @@ func applyRuntimeReferenceFields(typeName string, schema map[string]any) {
 			schema["description"] = description + " citations[] must be CitationSpan objects using only id, sourceUri, textSpan, startOffset, endOffset, and confidence. Do not use chunkId, filename, source, sourceText, or arbitrary metadata fields inside citation spans."
 		}
 	}
+}
+
+func removeGatewayInlineImageBytes(properties map[string]any) {
+	inputs, ok := properties["inputs"].(map[string]any)
+	if !ok {
+		return
+	}
+	items, _ := inputs["items"].(map[string]any)
+	inputProps, _ := items["properties"].(map[string]any)
+	content, _ := inputProps["content"].(map[string]any)
+	contentItems, _ := content["items"].(map[string]any)
+	contentProps, _ := contentItems["properties"].(map[string]any)
+	delete(contentProps, "imageData")
+}
+
+func removeGatewayMessageInlineImageBytes(properties map[string]any) {
+	messages, ok := properties["messages"].(map[string]any)
+	if !ok {
+		return
+	}
+	items, _ := messages["items"].(map[string]any)
+	messageProps, _ := items["properties"].(map[string]any)
+	content, _ := messageProps["content"].(map[string]any)
+	contentItems, _ := content["items"].(map[string]any)
+	contentProps, _ := contentItems["properties"].(map[string]any)
+	delete(contentProps, "imageData")
 }
 
 func applyCanonicalUpsertChunkPropertyDescriptions(properties map[string]any) {
