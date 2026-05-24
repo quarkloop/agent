@@ -10,7 +10,7 @@ service:
   address_env: QUARK_GATEWAY_SERVICE_ADDR
   health:
     protocol: nats_service
-    service: quark.model.v1.ModelService
+    service: quark.gateway.v1.GatewayService
     timeout: 5s
   readiness:
     required: true
@@ -18,93 +18,93 @@ service:
   skill: SKILL.md
   readme: README.md
   proto_services:
-    - quark.model.v1.ModelService
+    - quark.gateway.v1.GatewayService
   functions:
     - name: gateway_Generate
-      service: quark.model.v1.ModelService
+      service: quark.gateway.v1.GatewayService
       method: Generate
-      request: quark.model.v1.GenerateRequest
-      response: quark.model.v1.GenerateResponse
+      request: quark.gateway.v1.GenerateRequest
+      response: quark.gateway.v1.GenerateResponse
       description: "Run one non-streaming model generation request through Gateway and return text, tool calls, and usage."
       risk_level: read
       approval_required: false
       streaming: false
       idempotent: false
     - name: gateway_StreamGenerate
-      service: quark.model.v1.ModelService
+      service: quark.gateway.v1.GatewayService
       method: StreamGenerate
-      request: quark.model.v1.StreamGenerateRequest
-      response: quark.model.v1.StreamGenerateResponse
+      request: quark.gateway.v1.StreamGenerateRequest
+      response: quark.gateway.v1.StreamGenerateResponse
       description: "Run one streaming model generation request through Gateway and return deltas, tool calls, and final usage."
       risk_level: read
       approval_required: false
       streaming: true
       idempotent: false
     - name: gateway_Embed
-      service: quark.model.v1.ModelService
+      service: quark.gateway.v1.GatewayService
       method: Embed
-      request: quark.model.v1.EmbedRequest
-      response: quark.model.v1.EmbedResponse
+      request: quark.gateway.v1.EmbedRequest
+      response: quark.gateway.v1.EmbedResponse
       description: "Create embeddings through Gateway provider policy and return vectors with usage."
       risk_level: read
       approval_required: false
       streaming: false
       idempotent: false
     - name: gateway_Rerank
-      service: quark.model.v1.ModelService
+      service: quark.gateway.v1.GatewayService
       method: Rerank
-      request: quark.model.v1.RerankRequest
-      response: quark.model.v1.RerankResponse
+      request: quark.gateway.v1.RerankRequest
+      response: quark.gateway.v1.RerankResponse
       description: "Rerank candidate documents for a query through Gateway provider policy."
       risk_level: read
       approval_required: false
       streaming: false
       idempotent: false
     - name: gateway_CountTokens
-      service: quark.model.v1.ModelService
+      service: quark.gateway.v1.GatewayService
       method: CountTokens
-      request: quark.model.v1.CountTokensRequest
-      response: quark.model.v1.CountTokensResponse
+      request: quark.gateway.v1.CountTokensRequest
+      response: quark.gateway.v1.CountTokensResponse
       description: "Estimate or count tokens for model messages and tool schemas."
       risk_level: read
       approval_required: false
       streaming: false
       idempotent: true
     - name: gateway_ListModels
-      service: quark.model.v1.ModelService
+      service: quark.gateway.v1.GatewayService
       method: ListModels
-      request: quark.model.v1.ListModelsRequest
-      response: quark.model.v1.ListModelsResponse
+      request: quark.gateway.v1.ListModelsRequest
+      response: quark.gateway.v1.ListModelsResponse
       description: "List provider models visible through Gateway."
       risk_level: read
       approval_required: false
       streaming: false
       idempotent: true
     - name: gateway_ProviderHealth
-      service: quark.model.v1.ModelService
+      service: quark.gateway.v1.GatewayService
       method: ProviderHealth
-      request: quark.model.v1.ProviderHealthRequest
-      response: quark.model.v1.ProviderHealthResponse
+      request: quark.gateway.v1.ProviderHealthRequest
+      response: quark.gateway.v1.ProviderHealthResponse
       description: "Check whether a Gateway provider adapter is configured and usable."
       risk_level: read
       approval_required: false
       streaming: false
       idempotent: true
     - name: gateway_UsageSummary
-      service: quark.model.v1.ModelService
+      service: quark.gateway.v1.GatewayService
       method: UsageSummary
-      request: quark.model.v1.UsageSummaryRequest
-      response: quark.model.v1.UsageSummaryResponse
+      request: quark.gateway.v1.UsageSummaryRequest
+      response: quark.gateway.v1.UsageSummaryResponse
       description: "Return redacted Gateway usage aggregates by provider and model."
       risk_level: read
       approval_required: false
       streaming: false
       idempotent: true
     - name: gateway_ReloadConfig
-      service: quark.model.v1.ModelService
+      service: quark.gateway.v1.GatewayService
       method: ReloadConfig
-      request: quark.model.v1.ReloadConfigRequest
-      response: quark.model.v1.ReloadConfigResponse
+      request: quark.gateway.v1.ReloadConfigRequest
+      response: quark.gateway.v1.ReloadConfigResponse
       description: "Reload Gateway provider and fallback policy using the current approved secret source."
       risk_level: admin
       approval_required: true

@@ -167,7 +167,7 @@ func TestIngestionServiceDoesNotCallOtherServices(t *testing.T) {
 	root := filepath.Join("..", "..")
 	banned := []string{
 		"New" + "DocumentServiceClient",
-		"New" + "ModelServiceClient",
+		"New" + "GatewayServiceClient",
 		"New" + "EmbeddingServiceClient",
 		"New" + "IndexerServiceClient",
 		"New" + "CitationServiceClient",

@@ -8,7 +8,7 @@ import (
 	"github.com/quarkloop/runtime/pkg/modelservice"
 )
 
-func TestRegistryLoadsEntriesThroughModelService(t *testing.T) {
+func TestRegistryLoadsEntriesThroughGatewayService(t *testing.T) {
 	var usage []modelservice.Usage
 	models := modelservice.New(map[string]Provider{
 		"openrouter": fakeProvider{stream: func(context.Context, *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
@@ -23,7 +23,7 @@ func TestRegistryLoadsEntriesThroughModelService(t *testing.T) {
 	})
 
 	registry := NewRegistry()
-	err := registry.LoadEntriesWithModelService([]plugin.ModelEntry{
+	err := registry.LoadEntriesWithGatewayService([]plugin.ModelEntry{
 		{ID: "openai/gpt-test", Provider: "openrouter", Default: true, ContextWindow: 1024},
 		{ID: "missing/model", Provider: "missing"},
 	}, models)

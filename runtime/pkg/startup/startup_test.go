@@ -137,10 +137,10 @@ func TestRegisterServiceFunctionsSkipsStreamingRPCs(t *testing.T) {
 		Type:    "gateway",
 		Address: "127.0.0.1:7306",
 		Rpcs: []*servicev1.RpcDescriptor{{
-			Service:      "quark.model.v1.ModelService",
+			Service:      "quark.gateway.v1.GatewayService",
 			Method:       "StreamGenerate",
-			Request:      "quark.model.v1.StreamGenerateRequest",
-			Response:     "quark.model.v1.StreamGenerateResponse",
+			Request:      "quark.gateway.v1.StreamGenerateRequest",
+			Response:     "quark.gateway.v1.StreamGenerateResponse",
 			FunctionName: "gateway_StreamGenerate",
 			Streaming:    true,
 		}},

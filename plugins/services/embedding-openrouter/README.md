@@ -12,7 +12,7 @@ provider-backed embedding work migrates behind the Quark Model Service boundary.
 | `embedding_Embed` | `quark.embedding.v1.EmbeddingService/Embed` | read | no | yes | Create an OpenRouter-backed embedding for supplied text and return provider/model/dimension/content-hash metadata. |
 
 Provider credentials are resolved through environment/configuration outside the
-service function payload. Runtime records model usage through the model-service
+service function payload. Runtime records model usage through the gateway-service
 usage path when model calls are involved.
 
 ## Configuration

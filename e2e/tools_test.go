@@ -28,7 +28,7 @@ func TestIOExecute(t *testing.T) {
 		},
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
-			startGatewayServiceAt(t, bins.Model, gatewayAddr, setup.NATS.ClientURL)
+			startGatewayServiceAt(t, bins.Gateway, gatewayAddr, setup.NATS.ClientURL)
 			startIOServiceAt(t, bins.IO, ioAddr, setup.NATS)
 		},
 	})

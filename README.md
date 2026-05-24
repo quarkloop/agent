@@ -22,7 +22,7 @@ data-flow rules.
 | Supervisor | Control plane for spaces, sessions, plugin installs, service discovery, readiness, catalogs, and embedded NATS. |
 | Runtime | Agent loop, profile prompts, LLM/model calls, tool execution, service-function dispatch, permissions, activity, and workflow guards. |
 | Agents | Required Quark Main coordinator plus installable Knowledge, DevOps, and System specialist profiles. |
-| Services | Typed NATS service functions for gateway/model, core, document, ingestion, indexer, citation, DevOps, System, Space, and embedding compatibility. |
+| Services | Typed NATS service functions for Gateway, core, document, ingestion, indexer, citation, DevOps, System, Space, and embedding compatibility. |
 | Observability | Redacted activity, tool/service timelines, model usage records, diagnostics, and E2E artifacts. |
 
 The core product shape is simple: the agent reasons and coordinates; services

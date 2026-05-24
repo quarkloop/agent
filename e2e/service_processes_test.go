@@ -200,7 +200,7 @@ func standardKnowledgeServicesStartOptions(t *testing.T, embedding utils.Embeddi
 			dgraphAddr := utils.StartDgraph(t)
 			startIOServiceAt(t, bins.IO, addresses.IO, setup.NATS)
 			startCoreServiceAt(t, bins.Core, addresses.Core, filepath.Join(setup.SpacesDir, setup.Space, "services", "core"), setup.NATS)
-			startGatewayServiceAt(t, bins.Model, addresses.Gateway, setup.NATS.ClientURL)
+			startGatewayServiceAt(t, bins.Gateway, addresses.Gateway, setup.NATS.ClientURL)
 			startIndexerServiceAt(t, bins.Indexer, dgraphAddr, addresses.Indexer, setup.NATS)
 			startDocumentServiceAt(t, bins.Document, addresses.Document, setup.NATS)
 			startIngestionServiceAt(t, bins.Ingestion, addresses.Ingestion, filepath.Join(setup.SpacesDir, setup.Space, "services", "ingestion"), setup.NATS)
@@ -229,7 +229,7 @@ func standardDevOpsServicesStartOptions(t *testing.T, workingDir string) utils.S
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
 			startIOServiceAt(t, bins.IO, ioAddr, setup.NATS)
-			startGatewayServiceAt(t, bins.Model, gatewayAddr, setup.NATS.ClientURL)
+			startGatewayServiceAt(t, bins.Gateway, gatewayAddr, setup.NATS.ClientURL)
 			startDevOpsServiceAt(t, bins.DevOps, devopsAddr, setup.NATS)
 		},
 	}
@@ -251,7 +251,7 @@ func standardDevOpsOnlyServicesStartOptions(t *testing.T, workingDir string) uti
 		},
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
-			startGatewayServiceAt(t, bins.Model, gatewayAddr, setup.NATS.ClientURL)
+			startGatewayServiceAt(t, bins.Gateway, gatewayAddr, setup.NATS.ClientURL)
 			startDevOpsServiceAt(t, bins.DevOps, devopsAddr, setup.NATS)
 		},
 	}
@@ -273,7 +273,7 @@ func standardSystemServicesStartOptions(t *testing.T, workingDir string) utils.S
 		},
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
-			startGatewayServiceAt(t, bins.Model, gatewayAddr, setup.NATS.ClientURL)
+			startGatewayServiceAt(t, bins.Gateway, gatewayAddr, setup.NATS.ClientURL)
 			startSystemServiceAt(t, bins.System, systemAddr, setup.NATS)
 		},
 	}

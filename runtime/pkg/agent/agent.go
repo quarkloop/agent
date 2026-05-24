@@ -473,7 +473,7 @@ func (a *Agent) handleInitLLM(ctx context.Context, msg loop.Message) error {
 	models := modelservice.New(providers, a.recordModelUsage)
 
 	if payload.ModelListURL != "" {
-		if err := a.Models.LoadFromURLWithModelService(payload.ModelListURL, models); err != nil {
+		if err := a.Models.LoadFromURLWithGatewayService(payload.ModelListURL, models); err != nil {
 			slog.Warn("remote model list failed, using fallback", "error", err)
 		}
 	}
@@ -481,7 +481,7 @@ func (a *Agent) handleInitLLM(ctx context.Context, msg loop.Message) error {
 	// Fallback: load from config if registry is empty
 	if a.Models.GetDefault() == nil && len(payload.Fallback) > 0 {
 		if len(payload.Fallback) > 0 {
-			if err := a.Models.LoadEntriesWithModelService(payload.Fallback, models); err != nil {
+			if err := a.Models.LoadEntriesWithGatewayService(payload.Fallback, models); err != nil {
 				slog.Error("fallback model init failed", "error", err)
 			}
 		}

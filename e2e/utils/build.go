@@ -22,7 +22,7 @@ type BuiltBinaries struct {
 	Embedding  string
 	Citation   string
 	Core       string
-	Model      string
+	Gateway    string
 	DevOps     string
 	Document   string
 	Ingestion  string
@@ -84,7 +84,7 @@ func BuildAllOnce(t *testing.T) BuiltBinaries {
 		buildRes.Embedding = build("./services/embedding/cmd/embedding", "embedding")
 		buildRes.Citation = build("./services/citation/cmd/citation", "citation")
 		buildRes.Core = build("./services/core/cmd/core", "core")
-		buildRes.Model = build("./services/model/cmd/model", "model")
+		buildRes.Gateway = build("./services/gateway/cmd/gateway", "gateway")
 		buildRes.DevOps = build("./services/devops/cmd/devops", "devops")
 		buildRes.Document = build("./services/document/cmd/document", "document")
 		buildRes.Ingestion = build("./services/ingestion/cmd/ingestion", "ingestion")

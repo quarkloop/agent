@@ -44,7 +44,7 @@ The workspace modules are listed in `go.work`:
   `pkg/toolkit`
 - `services/citation`, `services/core`, `services/devops`,
   `services/document`, `services/embedding`, `services/indexer`,
-  `services/ingestion`, `services/model`, `services/space`,
+  `services/ingestion`, `services/gateway`, `services/space`,
   `services/system`
 - `services/io`
 - `plugins/agents/quark-knowledge`, `plugins/agents/quark-devops`,

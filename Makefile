@@ -23,7 +23,7 @@ MODULES := \
 		services/embedding \
 		services/ingestion \
 		services/indexer \
-		services/model \
+		services/gateway \
 		services/secrets \
 		services/space \
 		services/system \
@@ -68,8 +68,8 @@ build-services:
 		go build -o $(BINARY_DIR)/devops-service ./services/devops/cmd/devops
 		@echo "--- Building service: document ---"
 		go build -o $(BINARY_DIR)/document-service ./services/document/cmd/document
-		@echo "--- Building service: model ---"
-		go build -o $(BINARY_DIR)/model-service ./services/model/cmd/model
+		@echo "--- Building service: gateway ---"
+		go build -o $(BINARY_DIR)/gateway-service ./services/gateway/cmd/gateway
 		@echo "--- Building service: space ---"
 		go build -o $(BINARY_DIR)/space-service ./services/space/cmd/space
 		@echo "--- Building service: secrets ---"

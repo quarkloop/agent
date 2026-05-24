@@ -9,7 +9,7 @@ import (
 	natsserver "github.com/nats-io/nats-server/v2/server"
 	natsgo "github.com/nats-io/nats.go"
 	"github.com/quarkloop/pkg/plugin"
-	modelv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/model/v1"
+	gatewayv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/gateway/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicefunction"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -29,7 +29,7 @@ func TestProviderStreamsGatewayResponsesAndUsage(t *testing.T) {
 			t.Errorf("decode request: %v", err)
 			return
 		}
-		var payload modelv1.StreamGenerateRequest
+		var payload gatewayv1.StreamGenerateRequest
 		if err := protojson.Unmarshal(req.Payload, &payload); err != nil {
 			t.Errorf("decode payload: %v", err)
 			return
@@ -42,10 +42,10 @@ func TestProviderStreamsGatewayResponsesAndUsage(t *testing.T) {
 			t.Errorf("max_output_tokens option = %q", payload.GetOptions()["max_output_tokens"])
 			return
 		}
-		publishProviderChunk(t, conn, msg.Reply, req.CallID, &modelv1.StreamGenerateResponse{Delta: "hello"})
-		publishProviderChunk(t, conn, msg.Reply, req.CallID, &modelv1.StreamGenerateResponse{
+		publishProviderChunk(t, conn, msg.Reply, req.CallID, &gatewayv1.StreamGenerateResponse{Delta: "hello"})
+		publishProviderChunk(t, conn, msg.Reply, req.CallID, &gatewayv1.StreamGenerateResponse{
 			Done: true,
-			Usage: &modelv1.ModelUsage{
+			Usage: &gatewayv1.ModelUsage{
 				Provider:      "openrouter",
 				Model:         "test/model",
 				InputTokens:   7,
@@ -156,7 +156,7 @@ func connectProviderTestNATS(t *testing.T, url string) *natsgo.Conn {
 	return conn
 }
 
-func publishProviderChunk(t *testing.T, conn *natsgo.Conn, reply, callID string, chunk *modelv1.StreamGenerateResponse) {
+func publishProviderChunk(t *testing.T, conn *natsgo.Conn, reply, callID string, chunk *gatewayv1.StreamGenerateResponse) {
 	t.Helper()
 	payload, err := protojson.Marshal(chunk)
 	if err != nil {
@@ -173,7 +173,7 @@ func publishProviderChunk(t *testing.T, conn *natsgo.Conn, reply, callID string,
 	}
 }
 
-func usageEnvelope(usage *modelv1.ModelUsage) *servicefunction.Usage {
+func usageEnvelope(usage *gatewayv1.ModelUsage) *servicefunction.Usage {
 	if usage == nil {
 		return nil
 	}

@@ -1,6 +1,6 @@
 # Gateway Service Plugin
 
-Gateway declares the agent-facing model service functions for generation,
+Gateway declares the agent-facing Gateway service functions for generation,
 streaming generation, embeddings, reranking, token counting, model listing,
 provider health, fallback, and usage accounting.
 
@@ -11,15 +11,15 @@ other services do not call provider APIs directly.
 
 | Function | NATS subject | RPC method | Risk | Approval | Streaming | Purpose |
 | --- | --- | --- | --- | --- | --- | --- |
-| `gateway_Generate` | `svc.gateway.v1.generate` | `quark.model.v1.ModelService/Generate` | read | no | no | Run one generation request and return text, tool calls, and usage. |
-| `gateway_StreamGenerate` | `svc.gateway.v1.stream_generate` | `quark.model.v1.ModelService/StreamGenerate` | read | no | yes | Stream generation deltas/tool calls and final usage. |
-| `gateway_Embed` | `svc.gateway.v1.embed` | `quark.model.v1.ModelService/Embed` | read | no | no | Create embeddings through Gateway provider policy. |
-| `gateway_Rerank` | `svc.gateway.v1.rerank` | `quark.model.v1.ModelService/Rerank` | read | no | no | Rerank candidate documents for a query. |
-| `gateway_CountTokens` | `svc.gateway.v1.count_tokens` | `quark.model.v1.ModelService/CountTokens` | read | no | no | Count or estimate model prompt/tool tokens. |
-| `gateway_ListModels` | `svc.gateway.v1.list_models` | `quark.model.v1.ModelService/ListModels` | read | no | no | List provider models visible through Gateway. |
-| `gateway_ProviderHealth` | `svc.gateway.v1.provider_health` | `quark.model.v1.ModelService/ProviderHealth` | read | no | no | Report provider adapter readiness. |
-| `gateway_UsageSummary` | `svc.gateway.v1.usage_summary` | `quark.model.v1.ModelService/UsageSummary` | read | no | no | Return redacted Gateway usage aggregates by provider and model. |
-| `gateway_ReloadConfig` | `svc.gateway.v1.reload_config` | `quark.model.v1.ModelService/ReloadConfig` | admin | yes | no | Reload Gateway provider and fallback policy. |
+| `gateway_Generate` | `svc.gateway.v1.generate` | `quark.gateway.v1.GatewayService/Generate` | read | no | no | Run one generation request and return text, tool calls, and usage. |
+| `gateway_StreamGenerate` | `svc.gateway.v1.stream_generate` | `quark.gateway.v1.GatewayService/StreamGenerate` | read | no | yes | Stream generation deltas/tool calls and final usage. |
+| `gateway_Embed` | `svc.gateway.v1.embed` | `quark.gateway.v1.GatewayService/Embed` | read | no | no | Create embeddings through Gateway provider policy. |
+| `gateway_Rerank` | `svc.gateway.v1.rerank` | `quark.gateway.v1.GatewayService/Rerank` | read | no | no | Rerank candidate documents for a query. |
+| `gateway_CountTokens` | `svc.gateway.v1.count_tokens` | `quark.gateway.v1.GatewayService/CountTokens` | read | no | no | Count or estimate model prompt/tool tokens. |
+| `gateway_ListModels` | `svc.gateway.v1.list_models` | `quark.gateway.v1.GatewayService/ListModels` | read | no | no | List provider models visible through Gateway. |
+| `gateway_ProviderHealth` | `svc.gateway.v1.provider_health` | `quark.gateway.v1.GatewayService/ProviderHealth` | read | no | no | Report provider adapter readiness. |
+| `gateway_UsageSummary` | `svc.gateway.v1.usage_summary` | `quark.gateway.v1.GatewayService/UsageSummary` | read | no | no | Return redacted Gateway usage aggregates by provider and model. |
+| `gateway_ReloadConfig` | `svc.gateway.v1.reload_config` | `quark.gateway.v1.GatewayService/ReloadConfig` | admin | yes | no | Reload Gateway provider and fallback policy. |
 
 ## Usage Fields
 
@@ -58,7 +58,7 @@ chain, failure category, and reset time when available.
 ## Health And Readiness
 
 - Health protocol: NATS service-function readiness.
-- Health service: `quark.model.v1.ModelService`.
+- Health service: `quark.gateway.v1.GatewayService`.
 - NATS subjects: `svc.gateway.v1.*`.
 - Descriptor registry: `quark.service.v1.ServiceRegistry`.
 - Readiness is required before runtime receives Gateway in the resolved catalog.

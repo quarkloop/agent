@@ -12,7 +12,7 @@ import (
 
 	natsgo "github.com/nats-io/nats.go"
 	"github.com/quarkloop/pkg/plugin"
-	modelv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/model/v1"
+	gatewayv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/gateway/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicefunction"
 	"github.com/quarkloop/runtime/pkg/modelservice"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -22,8 +22,8 @@ const (
 	EnvNATSURL         = "QUARK_NATS_URL"
 	EnvNATSUser        = "QUARK_NATS_USER"
 	EnvNATSPassword    = "QUARK_NATS_PASSWORD"
-	EnvGatewayTimeout  = "QUARK_MODEL_GATEWAY_TIMEOUT"
-	EnvMaxOutputTokens = "QUARK_MODEL_MAX_OUTPUT_TOKENS"
+	EnvGatewayTimeout  = "QUARK_GATEWAY_REQUEST_TIMEOUT"
+	EnvMaxOutputTokens = "QUARK_GATEWAY_MAX_OUTPUT_TOKENS"
 
 	DefaultURL     = "nats://127.0.0.1:4222"
 	DefaultUser    = "quark-runtime"
@@ -76,7 +76,7 @@ func (p *Provider) ChatCompletionStream(ctx context.Context, req *plugin.ChatReq
 		conn.Close()
 		return nil, err
 	}
-	payload, err := protojson.Marshal(&modelv1.StreamGenerateRequest{
+	payload, err := protojson.Marshal(&gatewayv1.StreamGenerateRequest{
 		Provider: p.provider,
 		Model:    requestModel(req),
 		Messages: messagesToProto(req.Messages),
@@ -151,7 +151,7 @@ func (p *Provider) ChatCompletionStream(ctx context.Context, req *plugin.ChatReq
 				out <- plugin.StreamEvent{Err: fmt.Errorf("%s", envelope.Error.Message)}
 				return
 			}
-			var chunk modelv1.StreamGenerateResponse
+			var chunk gatewayv1.StreamGenerateResponse
 			if err := protojson.Unmarshal(envelope.Payload, &chunk); err != nil {
 				out <- plugin.StreamEvent{Err: err}
 				return
@@ -231,10 +231,10 @@ func (p *Provider) ParseToolCalls(content string) ([]plugin.ToolCall, string) {
 	return calls, strings.TrimSpace(re.ReplaceAllString(content, ""))
 }
 
-func messagesToProto(messages []plugin.Message) []*modelv1.ModelMessage {
-	out := make([]*modelv1.ModelMessage, 0, len(messages))
+func messagesToProto(messages []plugin.Message) []*gatewayv1.ModelMessage {
+	out := make([]*gatewayv1.ModelMessage, 0, len(messages))
 	for _, msg := range messages {
-		out = append(out, &modelv1.ModelMessage{
+		out = append(out, &gatewayv1.ModelMessage{
 			Role:       msg.Role,
 			Content:    msg.Content,
 			ToolCalls:  toolCallsToProto(msg.ToolCalls),
@@ -244,11 +244,11 @@ func messagesToProto(messages []plugin.Message) []*modelv1.ModelMessage {
 	return out
 }
 
-func toolsToProto(tools []plugin.ToolSchema) []*modelv1.ToolSchema {
-	out := make([]*modelv1.ToolSchema, 0, len(tools))
+func toolsToProto(tools []plugin.ToolSchema) []*gatewayv1.ToolSchema {
+	out := make([]*gatewayv1.ToolSchema, 0, len(tools))
 	for _, tool := range tools {
 		params, _ := json.Marshal(tool.Parameters)
-		out = append(out, &modelv1.ToolSchema{
+		out = append(out, &gatewayv1.ToolSchema{
 			Name:           tool.Name,
 			Description:    tool.Description,
 			ParametersJson: string(params),
@@ -257,10 +257,10 @@ func toolsToProto(tools []plugin.ToolSchema) []*modelv1.ToolSchema {
 	return out
 }
 
-func toolCallsToProto(calls []plugin.ToolCall) []*modelv1.ToolCall {
-	out := make([]*modelv1.ToolCall, 0, len(calls))
+func toolCallsToProto(calls []plugin.ToolCall) []*gatewayv1.ToolCall {
+	out := make([]*gatewayv1.ToolCall, 0, len(calls))
 	for _, call := range calls {
-		out = append(out, &modelv1.ToolCall{
+		out = append(out, &gatewayv1.ToolCall{
 			Index:         int32(call.Index),
 			Id:            call.ID,
 			Type:          call.Type,
@@ -271,7 +271,7 @@ func toolCallsToProto(calls []plugin.ToolCall) []*modelv1.ToolCall {
 	return out
 }
 
-func toolCallsFromProto(calls []*modelv1.ToolCall) []plugin.ToolCall {
+func toolCallsFromProto(calls []*gatewayv1.ToolCall) []plugin.ToolCall {
 	out := make([]plugin.ToolCall, 0, len(calls))
 	for _, call := range calls {
 		out = append(out, plugin.ToolCall{
@@ -287,7 +287,7 @@ func toolCallsFromProto(calls []*modelv1.ToolCall) []plugin.ToolCall {
 	return out
 }
 
-func streamUsageFromProto(usage *modelv1.ModelUsage, envelopeUsage *servicefunction.Usage) *plugin.StreamUsage {
+func streamUsageFromProto(usage *gatewayv1.ModelUsage, envelopeUsage *servicefunction.Usage) *plugin.StreamUsage {
 	if usage == nil && envelopeUsage == nil {
 		return nil
 	}

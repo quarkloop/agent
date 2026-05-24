@@ -8,7 +8,7 @@
     "service_plugin": "Installable descriptor for a gRPC service and its exported service functions.",
     "service_function": "Agent-facing callable service capability exposed through the runtime tool-call envelope.",
     "tool_plugin": "Installable tool implementation with schema, execution code, and SKILL.md guidance.",
-    "provider_plugin": "Model provider adapter. Long-term provider dispatch moves behind the model service.",
+    "provider_plugin": "Legacy model-provider adapter category removed from runtime; provider dispatch is owned by Gateway.",
     "space": "Isolated workspace identity and persistent state boundary.",
     "catalog": "Supervisor-resolved startup input consumed by runtime.",
     "quarkfile_override": "Space-level configuration overlay that supervisor validates before runtime launch."

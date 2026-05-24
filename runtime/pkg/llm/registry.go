@@ -28,12 +28,12 @@ func NewRegistry() *Registry {
 
 // LoadFromURL fetches a model list from a remote URL and initializes clients.
 func (r *Registry) LoadFromURL(url string, providers map[string]Provider) error {
-	return r.LoadFromURLWithModelService(url, modelservice.New(providers, nil))
+	return r.LoadFromURLWithGatewayService(url, modelservice.New(providers, nil))
 }
 
-// LoadFromURLWithModelService fetches a model list and initializes clients
+// LoadFromURLWithGatewayService fetches a model list and initializes clients
 // through the Gateway-backed model boundary.
-func (r *Registry) LoadFromURLWithModelService(url string, service *modelservice.Service) error {
+func (r *Registry) LoadFromURLWithGatewayService(url string, service *modelservice.Service) error {
 	resp, err := http.Get(url)
 	if err != nil {
 		return fmt.Errorf("fetch model list: %w", err)
@@ -50,17 +50,17 @@ func (r *Registry) LoadFromURLWithModelService(url string, service *modelservice
 		return fmt.Errorf("parse model list: %w", err)
 	}
 
-	return r.LoadEntriesWithModelService(entries, service)
+	return r.LoadEntriesWithGatewayService(entries, service)
 }
 
 // LoadEntries initializes clients from a list of model entries.
 func (r *Registry) LoadEntries(entries []plugin.ModelEntry, providers map[string]Provider) error {
-	return r.LoadEntriesWithModelService(entries, modelservice.New(providers, nil))
+	return r.LoadEntriesWithGatewayService(entries, modelservice.New(providers, nil))
 }
 
-// LoadEntriesWithModelService initializes clients from a list of model entries
+// LoadEntriesWithGatewayService initializes clients from a list of model entries
 // and routes every provider call through the Gateway-backed model boundary.
-func (r *Registry) LoadEntriesWithModelService(entries []plugin.ModelEntry, service *modelservice.Service) error {
+func (r *Registry) LoadEntriesWithGatewayService(entries []plugin.ModelEntry, service *modelservice.Service) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

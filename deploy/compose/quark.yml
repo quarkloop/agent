@@ -164,7 +164,7 @@ services:
     build:
       <<: *go-build
       args:
-        PACKAGE: ./services/model/cmd/model
+        PACKAGE: ./services/gateway/cmd/gateway
     command: ["--addr", "0.0.0.0:7309", "--skill-dir", "/plugins/services/gateway", "--nats-url", "nats://supervisor:4222", "--nats-user", "quark-control", "--nats-password", "quark-control-dev"]
     depends_on:
       supervisor:
