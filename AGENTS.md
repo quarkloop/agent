@@ -42,11 +42,10 @@ The workspace modules are listed in `go.work`:
 - `e2e`
 - `pkg/boundary`, `pkg/event`, `pkg/plugin`, `pkg/serviceapi`, `pkg/space`,
   `pkg/toolkit`
-- `services/build-release`, `services/citation`, `services/core`,
-  `services/devops`, `services/document`, `services/embedding`,
-  `services/indexer`, `services/ingestion`, `services/model`,
-  `services/space`, `services/system`
-- `plugins/tools/build-release`
+- `services/citation`, `services/core`, `services/devops`,
+  `services/document`, `services/embedding`, `services/indexer`,
+  `services/ingestion`, `services/model`, `services/space`,
+  `services/system`
 - `services/io`
 - `plugins/agents/quark-knowledge`, `plugins/agents/quark-devops`,
   `plugins/agents/quark-system`

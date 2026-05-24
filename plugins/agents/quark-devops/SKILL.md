@@ -30,15 +30,12 @@ Use selected DevOps service functions:
 - `deploy_Apply`
 - `policy_EvaluateChange`
 
-For release automation, prefer the build-release service functions:
+For release automation, use the DevOps release functions:
 
-- `build_release_DryRun` to preview version and artifact plans.
-- `build_release_Init` to create `build_release.json` after approval.
-- `build_release_Release` to run the approved release pipeline.
+- `build_DryRunRelease` to preview version and artifact plans.
+- `build_InitReleaseConfig` to create `build_release.json` after approval.
+- `build_RunRelease` to run the approved release pipeline.
 
-Use the legacy `build-release` tool only as a compatibility fallback when the
-build-release service plugin is unavailable.
-
-Do not use build-release service functions for test-failure analysis,
+Do not use release service functions for test-failure analysis,
 repository status, or build-debugging prompts unless the user explicitly asks
 for release/package/artifact planning.

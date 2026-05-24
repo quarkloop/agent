@@ -14,9 +14,9 @@ import (
 	"github.com/quarkloop/e2e/utils"
 )
 
-func TestAgentUsesBuildReleaseServiceFunction(t *testing.T) {
+func TestAgentUsesDevOpsReleaseServiceFunction(t *testing.T) {
 	workingDir := t.TempDir()
-	writeBuildReleaseFixture(t, workingDir)
+	writeDevOpsReleaseFixture(t, workingDir)
 	initGitRepository(t, workingDir)
 
 	env := utils.StartE2E(t, true, standardDevOpsServicesStartOptions(t, workingDir))
@@ -26,19 +26,19 @@ func TestAgentUsesBuildReleaseServiceFunction(t *testing.T) {
 
 	prompt := buildReleaseDryRunPrompt(workingDir)
 	trace := runChatPrompt(t, ctx, env, workingDir, chatPromptRun{
-		Title:          "build-release-devops-test",
-		Label:          "build-release",
-		ArtifactPrefix: "build-release-agent",
+		Title:          "devops-release-test",
+		Label:          "devops release",
+		ArtifactPrefix: "devops-release-agent",
 		Prompt:         prompt,
-		TraceOptions:   devOpsServiceTraceOptions("build-release dry run through service function"),
+		TraceOptions:   devOpsServiceTraceOptions("devops release dry run through service function"),
 	})
 
 	assertToolStarted(t, trace, "repo_Status")
 	assertToolStarted(t, trace, "build_DetectProject")
 	assertToolStarted(t, trace, "policy_EvaluateChange")
-	assertToolStarted(t, trace, "build_release_DryRun")
-	assertToolLatestResultsSucceeded(t, trace, "repo_Status", "build_DetectProject", "policy_EvaluateChange", "build_release_DryRun")
-	assertToolResultContains(t, trace, "build_release_DryRun", "v9.9.9", "quark-devops-fixture")
+	assertToolStarted(t, trace, "build_DryRunRelease")
+	assertToolLatestResultsSucceeded(t, trace, "repo_Status", "build_DetectProject", "policy_EvaluateChange", "build_DryRunRelease")
+	assertToolResultContains(t, trace, "build_DryRunRelease", "v9.9.9", "quark-devops-fixture")
 	assertAnswerContains(t, trace.Text, "v9.9.9", "quark-devops-fixture")
 }
 
@@ -64,13 +64,13 @@ func TestAgentUsesDevOpsServiceForTestFailureExplanation(t *testing.T) {
 	assertToolStarted(t, trace, "repo_Status")
 	assertToolStarted(t, trace, "test_RunTests")
 	assertToolStarted(t, trace, "test_ExplainFailure")
-	assertToolNotStarted(t, trace, "build_release_DryRun")
+	assertToolNotStarted(t, trace, "build_DryRunRelease")
 	assertToolLatestResultsSucceeded(t, trace, "repo_Status", "test_RunTests", "test_ExplainFailure")
 	assertToolResultContains(t, trace, "test_RunTests", "TestBroken", "expected stable behavior")
 	assertAnswerContainsAny(t, trace.Text, "TestBroken", "expected stable behavior", "failure")
 }
 
-func writeBuildReleaseFixture(t *testing.T, dir string) {
+func writeDevOpsReleaseFixture(t *testing.T, dir string) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/quarkdevopsfixture\n\ngo 1.26\n"), 0o644); err != nil {
 		t.Fatal(err)

@@ -4,7 +4,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev
 LDFLAGS := -X github.com/quarkloop/cli/pkg/buildinfo.Version=$(VERSION)
 
 # Tool plugins
-TOOLS := build-release
+TOOLS :=
 
 # Provider plugins
 PROVIDERS := openrouter openai anthropic
@@ -19,7 +19,6 @@ MODULES := \
 		pkg/serviceapi \
 		pkg/space \
 		pkg/toolkit \
-		services/build-release \
 		services/citation \
 		services/core \
 		services/devops \
@@ -33,7 +32,6 @@ MODULES := \
 		services/system \
 		services/workflow \
 		services/io \
-		plugins/tools/build-release \
 		plugins/providers/openrouter \
 		plugins/providers/openai \
 		plugins/providers/anthropic
@@ -52,6 +50,10 @@ build-plugins: build-tools build-tools-lib build-providers
 
 ## Build tool plugins as binaries
 build-tools:
+		@if [ -z "$(strip $(TOOLS))" ]; then \
+			echo "--- No tool plugins configured ---"; \
+			exit 0; \
+		fi
 		@for tool in $(TOOLS); do \
 			echo "--- Building tool (binary): $$tool ---"; \
 			go build -o $(BINARY_DIR)/$$tool ./$(PLUGIN_DIR)/tools/$$tool/cmd/$$tool; \
@@ -64,8 +66,6 @@ build-services:
 		go build -o $(BINARY_DIR)/embedding-service ./services/embedding/cmd/embedding
 		@echo "--- Building service: ingestion ---"
 		go build -o $(BINARY_DIR)/ingestion-service ./services/ingestion/cmd/ingestion
-		@echo "--- Building service: build-release ---"
-		go build -o $(BINARY_DIR)/build-release-service ./services/build-release/cmd/build-release
 		@echo "--- Building service: citation ---"
 		go build -o $(BINARY_DIR)/citation-service ./services/citation/cmd/citation
 		@echo "--- Building service: core ---"
@@ -89,6 +89,10 @@ build-services:
 
 ## Build tool plugins as .so files (lib mode, requires CGO)
 build-tools-lib:
+		@if [ -z "$(strip $(TOOLS))" ]; then \
+			echo "--- No tool plugins configured ---"; \
+			exit 0; \
+		fi
 		@for tool in $(TOOLS); do \
 			if [ -f $(PLUGIN_DIR)/tools/$$tool/plugin.go ]; then \
 				echo "--- Building tool (lib): $$tool ---"; \
@@ -133,7 +137,7 @@ test:
 
 ## Run local deterministic E2E tests that do not require provider credentials
 test-e2e-local:
-		go test -tags e2e -v -timeout 12m -run '^(TestLongE2EPromptsAreOwnedByBuilders|TestPDFPromptBuildersExposeAgentWorkflowContract|TestMarkdownPromptBuildersExposeAgentWorkflowContract|TestBuildReleasePromptBuilderUsesServiceFunctionContract|TestSupervisorSessionEventReachesAgent|TestLocalDeterministicSupervisorRuntimeAndServices|TestIndexerServiceWithRealDgraph)$$' ./e2e
+		go test -tags e2e -v -timeout 12m -run '^(TestLongE2EPromptsAreOwnedByBuilders|TestPDFPromptBuildersExposeAgentWorkflowContract|TestMarkdownPromptBuildersExposeAgentWorkflowContract|TestDevOpsReleasePromptBuilderUsesServiceFunctionContract|TestSupervisorSessionEventReachesAgent|TestLocalDeterministicSupervisorRuntimeAndServices|TestIndexerServiceWithRealDgraph)$$' ./e2e
 
 E2E_TIMEOUT ?= 20m
 E2E_PDF_TIMEOUT ?= 20m

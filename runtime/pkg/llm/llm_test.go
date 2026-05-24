@@ -696,7 +696,7 @@ func TestInferRetriesAfterOnlyMalformedToolCallArguments(t *testing.T) {
 							ID:    "bad-json",
 							Type:  "function",
 							Function: plugin.ToolCallFunction{
-								Name:      "build_release_DryRun",
+								Name:      "build_DryRunRelease",
 								Arguments: `{"projectRoot":`,
 							},
 						}},
@@ -723,7 +723,7 @@ func TestInferRetriesAfterOnlyMalformedToolCallArguments(t *testing.T) {
 	result, err := client.Infer(
 		context.Background(),
 		[]plugin.Message{{Role: "user", Content: "dry run"}},
-		[]plugin.ToolSchema{{Name: "build_release_DryRun"}},
+		[]plugin.ToolSchema{{Name: "build_DryRunRelease"}},
 		func(context.Context, string, string) (string, error) {
 			t.Fatal("malformed tool call arguments should not execute")
 			return "", nil

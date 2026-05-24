@@ -15,21 +15,20 @@ import (
 // BuiltBinaries collects the paths of subprocesses the suite compiles once
 // per `go test` invocation.
 type BuiltBinaries struct {
-	Supervisor   string
-	Agent        string
-	IO           string
-	Indexer      string
-	Embedding    string
-	Citation     string
-	Core         string
-	Model        string
-	DevOps       string
-	Document     string
-	Ingestion    string
-	System       string
-	BuildRelease string
-	Workflow     string
-	Secrets      string
+	Supervisor string
+	Agent      string
+	IO         string
+	Indexer    string
+	Embedding  string
+	Citation   string
+	Core       string
+	Model      string
+	DevOps     string
+	Document   string
+	Ingestion  string
+	System     string
+	Workflow   string
+	Secrets    string
 }
 
 var (
@@ -90,7 +89,6 @@ func BuildAllOnce(t *testing.T) BuiltBinaries {
 		buildRes.Document = build("./services/document/cmd/document", "document")
 		buildRes.Ingestion = build("./services/ingestion/cmd/ingestion", "ingestion")
 		buildRes.System = build("./services/system/cmd/system", "system")
-		buildRes.BuildRelease = build("./services/build-release/cmd/build-release", "build-release")
 		buildRes.Workflow = build("./services/workflow/cmd/workflow", "workflow")
 		buildRes.Secrets = build("./services/secrets/cmd/secrets", "secrets")
 	})

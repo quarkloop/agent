@@ -104,7 +104,6 @@ plugins:
   - ref: quark/agent-quark-devops
   - ref: quark/service-io
   - ref: quark/service-devops
-  - ref: quark/service-build-release
 agents:
   - profile: quark-devops
     enabled: true
@@ -113,10 +112,6 @@ services:
     ref: quark/service-devops
     mode: local
     address_env: QUARK_DEVOPS_ADDR
-  - name: build-release
-    ref: quark/service-build-release
-    mode: local
-    address_env: QUARK_BUILD_RELEASE_ADDR
 ```
 
 ## System

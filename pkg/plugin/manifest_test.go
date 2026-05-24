@@ -492,6 +492,9 @@ func TestQuarkDevOpsProfileDeclaresConcreteServiceFunctions(t *testing.T) {
 		"build_ResolveTask",
 		"build_RunTask",
 		"build_CreateArtifact",
+		"build_InitReleaseConfig",
+		"build_DryRunRelease",
+		"build_RunRelease",
 		"test_DiscoverTests",
 		"test_RunTests",
 		"test_ExplainFailure",
@@ -501,9 +504,6 @@ func TestQuarkDevOpsProfileDeclaresConcreteServiceFunctions(t *testing.T) {
 		"deploy_Plan",
 		"deploy_Apply",
 		"policy_EvaluateChange",
-		"build_release_DryRun",
-		"build_release_Init",
-		"build_release_Release",
 	} {
 		if !permissions[want] {
 			t.Fatalf("quark devops profile missing service function permission %q", want)

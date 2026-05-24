@@ -278,9 +278,6 @@ func firstNonEmpty(values ...string) string {
 }
 
 func serviceNameFromTool(name string) (string, bool) {
-	if strings.HasPrefix(name, "build_release_") {
-		return "build-release", true
-	}
 	before, _, ok := strings.Cut(name, "_")
 	if !ok || before == "" {
 		return "", false
@@ -293,15 +290,9 @@ func serviceSubjectFromTool(name string) string {
 	if !ok {
 		return ""
 	}
-	function := ""
-	if strings.HasPrefix(name, "build_release_") {
-		function = strings.TrimPrefix(name, "build_release_")
-	} else {
-		_, after, ok := strings.Cut(name, "_")
-		if !ok {
-			return ""
-		}
-		function = after
+	_, function, ok := strings.Cut(name, "_")
+	if !ok {
+		return ""
 	}
 	subject, err := servicefunction.Subject(service, servicefunction.DefaultVersion, function)
 	if err != nil {

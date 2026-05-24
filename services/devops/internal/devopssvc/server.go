@@ -14,6 +14,7 @@ import (
 
 	devopsv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/devops/v1"
 	"github.com/quarkloop/pkg/serviceapi/serviceerrors"
+	"github.com/quarkloop/services/devops/internal/buildrelease"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -24,10 +25,11 @@ const (
 )
 
 type Server struct {
+	releaseRunner *buildrelease.Runner
 }
 
 func NewServer() *Server {
-	return &Server{}
+	return &Server{releaseRunner: buildrelease.NewRunner()}
 }
 
 func (s *Server) Status(ctx context.Context, req *devopsv1.StatusRequest) (*devopsv1.StatusResponse, error) {

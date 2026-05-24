@@ -125,6 +125,38 @@ service:
       approval_requirements:
         - artifact.write
       idempotent: false
+    - name: build_InitReleaseConfig
+      service: quark.devops.v1.BuildService
+      method: InitReleaseConfig
+      request: quark.devops.v1.InitReleaseConfigRequest
+      response: quark.devops.v1.InitReleaseConfigResponse
+      description: "Create a default release configuration in an approved workspace."
+      risk_level: write
+      approval_required: true
+      approval_requirements:
+        - workspace.write
+      idempotent: false
+    - name: build_DryRunRelease
+      service: quark.devops.v1.BuildService
+      method: DryRunRelease
+      request: quark.devops.v1.DryRunReleaseRequest
+      response: quark.devops.v1.DryRunReleaseResponse
+      description: "Preview release version and artifact matrix without compiling or publishing."
+      risk_level: read
+      idempotent: true
+    - name: build_RunRelease
+      service: quark.devops.v1.BuildService
+      method: RunRelease
+      request: quark.devops.v1.RunReleaseRequest
+      response: quark.devops.v1.RunReleaseResponse
+      description: "Run an approved release pipeline and return generated artifacts."
+      risk_level: admin
+      approval_required: true
+      approval_requirements:
+        - command.execute
+        - artifact.write
+        - release.publish
+      idempotent: false
     - name: test_DiscoverTests
       service: quark.devops.v1.TestService
       method: DiscoverTests

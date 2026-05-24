@@ -32,10 +32,6 @@ func TestServicePluginInventoryHasE2ECoveragePlan(t *testing.T) {
 	e2eTests := listE2ETests(t, root)
 
 	expectations := map[string]serviceCoverageExpectation{
-		"build-release": {
-			Mode:  "runtime-backed",
-			Tests: []string{"TestAgentUsesBuildReleaseServiceFunction"},
-		},
 		"citation": {
 			Mode:  "contract-only",
 			Tests: []string{"TestAgentIndexesUploadedPDFDataset", "TestAgentIndexesITCompanyMarkdownDocuments"},
@@ -45,8 +41,8 @@ func TestServicePluginInventoryHasE2ECoveragePlan(t *testing.T) {
 			Tests: []string{"TestSupervisorSessionEventReachesAgent", "TestAgentRunArtifactsAreRedactedAndStructured", "TestLocalDeterministicSupervisorRuntimeAndServices"},
 		},
 		"devops": {
-			Mode:  "contract-only",
-			Tests: []string{"TestAgentUsesBuildReleaseServiceFunction"},
+			Mode:  "runtime-backed",
+			Tests: []string{"TestAgentUsesDevOpsReleaseServiceFunction"},
 		},
 		"document": {
 			Mode:  "runtime-backed",
@@ -74,7 +70,7 @@ func TestServicePluginInventoryHasE2ECoveragePlan(t *testing.T) {
 		},
 		"io": {
 			Mode:  "runtime-backed",
-			Tests: []string{"TestLocalDeterministicSupervisorRuntimeAndServices", "TestAgentIndexesUploadedPDFDataset", "TestAgentUsesBuildReleaseServiceFunction"},
+			Tests: []string{"TestLocalDeterministicSupervisorRuntimeAndServices", "TestAgentIndexesUploadedPDFDataset", "TestAgentUsesDevOpsReleaseServiceFunction"},
 		},
 		"memory": {
 			Mode:  "contract-only",

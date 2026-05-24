@@ -9,8 +9,8 @@ execution layer.
 1. Prefer read-only functions before proposing changes.
 2. Use `policy_EvaluateChange` before write/admin work when the user request is
    ambiguous or risky.
-3. Use the existing build-release service for release automation:
-   `build_release_DryRun`, `build_release_Init`, and `build_release_Release`.
+3. Use the DevOps release functions for release automation:
+   `build_DryRunRelease`, `build_InitReleaseConfig`, and `build_RunRelease`.
 4. Do not mirror full Git, Docker, Kubernetes, Helm, or Terraform APIs through
    prompts. Select the narrow service function that matches the user request.
 5. Treat write/admin functions as plans until approval has been granted and the
@@ -29,6 +29,9 @@ execution layer.
 - `build_ResolveTask`
 - `build_RunTask`
 - `build_CreateArtifact`
+- `build_InitReleaseConfig`
+- `build_DryRunRelease`
+- `build_RunRelease`
 - `test_DiscoverTests`
 - `test_RunTests`
 - `test_ExplainFailure`
@@ -42,6 +45,7 @@ execution layer.
 ## Approval
 
 `repo_ApplyPatch`, `repo_Commit`, `build_RunTask`, `build_CreateArtifact`,
-`test_RunTests`, `container_BuildImage`, `container_PlanRun`, `deploy_Plan`, and
-`deploy_Apply` require approval. Do not describe those actions as completed
-until the approved execution result is available.
+`build_InitReleaseConfig`, `build_RunRelease`, `test_RunTests`,
+`container_BuildImage`, `container_PlanRun`, `deploy_Plan`, and `deploy_Apply`
+require approval. Do not describe those actions as completed until the approved
+execution result is available.

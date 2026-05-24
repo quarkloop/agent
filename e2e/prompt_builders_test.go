@@ -112,7 +112,7 @@ func TestMarkdownPromptBuildersExposeAgentWorkflowContract(t *testing.T) {
 	)
 }
 
-func TestBuildReleasePromptBuilderUsesServiceFunctionContract(t *testing.T) {
+func TestDevOpsReleasePromptBuilderUsesServiceFunctionContract(t *testing.T) {
 	prompt := buildReleaseDryRunPrompt("/workspace/project")
 	assertPromptContains(t, prompt,
 		"/workspace/project",
@@ -123,7 +123,7 @@ func TestBuildReleasePromptBuilderUsesServiceFunctionContract(t *testing.T) {
 		"planned version",
 	)
 	assertPromptExcludes(t, prompt,
-		"build_release_DryRun",
+		"build_DryRunRelease",
 		"repo_Status",
 		"build_DetectProject",
 		"service function",

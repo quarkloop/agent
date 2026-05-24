@@ -165,11 +165,11 @@ func TestServiceFunctionSchemasIncludeKnowledgeContracts(t *testing.T) {
 func TestToolNameForIsDeterministicAndSafe(t *testing.T) {
 	t.Parallel()
 
-	got := ToolNameFor("build-release", "Dry Run")
-	if got != "build_release_Dry_Run" {
-		t.Fatalf("tool name = %q, want build_release_Dry_Run", got)
+	got := ToolNameFor("devops", "Dry Run Release")
+	if got != "devops_Dry_Run_Release" {
+		t.Fatalf("tool name = %q, want devops_Dry_Run_Release", got)
 	}
-	if again := ToolNameFor("build-release", "Dry Run"); again != got {
+	if again := ToolNameFor("devops", "Dry Run Release"); again != got {
 		t.Fatalf("tool name not deterministic: %q then %q", got, again)
 	}
 	if empty := ToolNameFor("", ""); empty != "service_call" {

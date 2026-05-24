@@ -4,9 +4,8 @@ The DevOps service plugin defines selected repository, build, test, container,
 deploy, and policy service functions for Quark DevOps. It does not mirror every
 Git, Docker, Kubernetes, Helm, or Terraform command.
 
-Release automation remains owned by the existing `build-release` service
-plugin. This DevOps plugin handles adjacent repo/build/test/container/deploy
-operations.
+Release automation is part of this DevOps service. There is no separate
+release automation production service or tool plugin path.
 
 ## Service Functions
 
@@ -23,6 +22,9 @@ operations.
 | `build_ResolveTask` | `quark.devops.v1.BuildService/ResolveTask` | read | no | yes | Resolve one named build task. |
 | `build_RunTask` | `quark.devops.v1.BuildService/RunTask` | write | yes | no | Run or plan one approved build task. |
 | `build_CreateArtifact` | `quark.devops.v1.BuildService/CreateArtifact` | write | yes | no | Create or plan artifacts for an approved task. |
+| `build_InitReleaseConfig` | `quark.devops.v1.BuildService/InitReleaseConfig` | write | yes | no | Create a default release configuration in an approved workspace. |
+| `build_DryRunRelease` | `quark.devops.v1.BuildService/DryRunRelease` | read | no | yes | Preview release version and artifact matrix without compiling or publishing. |
+| `build_RunRelease` | `quark.devops.v1.BuildService/RunRelease` | admin | yes | no | Run an approved release pipeline and return generated artifacts. |
 | `test_DiscoverTests` | `quark.devops.v1.TestService/DiscoverTests` | read | no | yes | Discover project test targets. |
 | `test_RunTests` | `quark.devops.v1.TestService/RunTests` | write | yes | no | Run selected tests or produce a dry-run test plan. |
 | `test_ExplainFailure` | `quark.devops.v1.TestService/ExplainFailure` | read | no | yes | Summarize structured test failure evidence. |
@@ -51,8 +53,8 @@ discovery, and policy evaluation functions do not.
 - No full clone of Git, Docker, Kubernetes, Helm, Terraform, or CI APIs.
 - No hidden shell command execution outside service function contracts.
 - No service-to-service calls.
-- No release business logic here; use `build_release_DryRun`,
-  `build_release_Init`, and `build_release_Release`.
+- No broad shell adapter for release work; use the typed release functions
+  listed above.
 
 ## Health And Readiness
 

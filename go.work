@@ -3,8 +3,8 @@ go 1.26.2
 use (
 	./cli
 	./e2e
-	./pkg/event
 	./pkg/boundary
+	./pkg/event
 	./pkg/plugin
 	./pkg/serviceapi
 	./pkg/space
@@ -12,17 +12,15 @@ use (
 	./plugins/providers/anthropic
 	./plugins/providers/openai
 	./plugins/providers/openrouter
-	./plugins/tools/build-release
 	./runtime
-	./services/build-release
 	./services/citation
 	./services/core
 	./services/devops
 	./services/document
 	./services/embedding
+	./services/indexer
 	./services/ingestion
 	./services/io
-	./services/indexer
 	./services/model
 	./services/secrets
 	./services/space
@@ -33,8 +31,8 @@ use (
 
 replace (
 	github.com/quarkloop/cli v0.0.0 => ./cli
-	github.com/quarkloop/pkg/event v0.0.0 => ./pkg/event
 	github.com/quarkloop/pkg/boundary v0.0.0 => ./pkg/boundary
+	github.com/quarkloop/pkg/event v0.0.0 => ./pkg/event
 	github.com/quarkloop/pkg/plugin v0.0.0 => ./pkg/plugin
 	github.com/quarkloop/pkg/serviceapi v0.0.0 => ./pkg/serviceapi
 	github.com/quarkloop/pkg/space v0.0.0 => ./pkg/space
@@ -42,17 +40,15 @@ replace (
 	github.com/quarkloop/plugins/providers/anthropic v0.0.0 => ./plugins/providers/anthropic
 	github.com/quarkloop/plugins/providers/openai v0.0.0 => ./plugins/providers/openai
 	github.com/quarkloop/plugins/providers/openrouter v0.0.0 => ./plugins/providers/openrouter
-	github.com/quarkloop/plugins/tools/build-release v0.0.0 => ./plugins/tools/build-release
 	github.com/quarkloop/runtime v0.0.0 => ./runtime
-	github.com/quarkloop/services/io v0.0.0 => ./services/io
-	github.com/quarkloop/services/build-release v0.0.0 => ./services/build-release
 	github.com/quarkloop/services/citation v0.0.0 => ./services/citation
 	github.com/quarkloop/services/core v0.0.0 => ./services/core
 	github.com/quarkloop/services/devops v0.0.0 => ./services/devops
 	github.com/quarkloop/services/document v0.0.0 => ./services/document
 	github.com/quarkloop/services/embedding v0.0.0 => ./services/embedding
-	github.com/quarkloop/services/ingestion v0.0.0 => ./services/ingestion
 	github.com/quarkloop/services/indexer v0.0.0 => ./services/indexer
+	github.com/quarkloop/services/ingestion v0.0.0 => ./services/ingestion
+	github.com/quarkloop/services/io v0.0.0 => ./services/io
 	github.com/quarkloop/services/model v0.0.0 => ./services/model
 	github.com/quarkloop/services/secrets v0.0.0 => ./services/secrets
 	github.com/quarkloop/services/space v0.0.0 => ./services/space

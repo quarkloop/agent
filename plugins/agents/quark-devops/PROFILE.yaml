@@ -31,6 +31,9 @@ permissions:
     - build_ResolveTask
     - build_RunTask
     - build_CreateArtifact
+    - build_InitReleaseConfig
+    - build_DryRunRelease
+    - build_RunRelease
     - test_DiscoverTests
     - test_RunTests
     - test_ExplainFailure
@@ -40,9 +43,6 @@ permissions:
     - deploy_Plan
     - deploy_Apply
     - policy_EvaluateChange
-    - build_release_Release
-    - build_release_DryRun
-    - build_release_Init
 memory:
   scope: space
   collections:
@@ -58,6 +58,8 @@ approval:
     - repo_Commit
     - build_RunTask
     - build_CreateArtifact
+    - build_InitReleaseConfig
+    - build_RunRelease
     - test_RunTests
     - container_BuildImage
     - container_PlanRun

@@ -247,19 +247,6 @@ services:
     volumes:
       - ../../plugins:/plugins:ro
 
-  build-release:
-    <<: *service-defaults
-    profiles: ["services", "devops"]
-    build:
-      <<: *go-build
-      args:
-        PACKAGE: ./services/build-release/cmd/build-release
-    command: ["--addr", "0.0.0.0:7314", "--skill-dir", "/plugins/services/build-release"]
-    ports:
-      - "7314:7314"
-    volumes:
-      - ../../plugins:/plugins:ro
-
   system:
     <<: *service-defaults
     profiles: ["services", "system"]

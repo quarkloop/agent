@@ -1206,6 +1206,414 @@ func (x *CreateArtifactResponse) GetArtifacts() []*Artifact {
 	return nil
 }
 
+type InitReleaseConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Overwrite     bool                   `protobuf:"varint,2,opt,name=overwrite,proto3" json:"overwrite,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InitReleaseConfigRequest) Reset() {
+	*x = InitReleaseConfigRequest{}
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InitReleaseConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InitReleaseConfigRequest) ProtoMessage() {}
+
+func (x *InitReleaseConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InitReleaseConfigRequest.ProtoReflect.Descriptor instead.
+func (*InitReleaseConfigRequest) Descriptor() ([]byte, []int) {
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *InitReleaseConfigRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *InitReleaseConfigRequest) GetOverwrite() bool {
+	if x != nil {
+		return x.Overwrite
+	}
+	return false
+}
+
+func (x *InitReleaseConfigRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type InitReleaseConfigResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Plan          *MutationPlan          `protobuf:"bytes,1,opt,name=plan,proto3" json:"plan,omitempty"`
+	ConfigPath    string                 `protobuf:"bytes,2,opt,name=config_path,json=configPath,proto3" json:"config_path,omitempty"`
+	Created       bool                   `protobuf:"varint,3,opt,name=created,proto3" json:"created,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InitReleaseConfigResponse) Reset() {
+	*x = InitReleaseConfigResponse{}
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InitReleaseConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InitReleaseConfigResponse) ProtoMessage() {}
+
+func (x *InitReleaseConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InitReleaseConfigResponse.ProtoReflect.Descriptor instead.
+func (*InitReleaseConfigResponse) Descriptor() ([]byte, []int) {
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *InitReleaseConfigResponse) GetPlan() *MutationPlan {
+	if x != nil {
+		return x.Plan
+	}
+	return nil
+}
+
+func (x *InitReleaseConfigResponse) GetConfigPath() string {
+	if x != nil {
+		return x.ConfigPath
+	}
+	return ""
+}
+
+func (x *InitReleaseConfigResponse) GetCreated() bool {
+	if x != nil {
+		return x.Created
+	}
+	return false
+}
+
+type DryRunReleaseRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	ConfigPath    string                 `protobuf:"bytes,2,opt,name=config_path,json=configPath,proto3" json:"config_path,omitempty"`
+	Version       string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	Parallelism   int32                  `protobuf:"varint,4,opt,name=parallelism,proto3" json:"parallelism,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DryRunReleaseRequest) Reset() {
+	*x = DryRunReleaseRequest{}
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DryRunReleaseRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DryRunReleaseRequest) ProtoMessage() {}
+
+func (x *DryRunReleaseRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DryRunReleaseRequest.ProtoReflect.Descriptor instead.
+func (*DryRunReleaseRequest) Descriptor() ([]byte, []int) {
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *DryRunReleaseRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *DryRunReleaseRequest) GetConfigPath() string {
+	if x != nil {
+		return x.ConfigPath
+	}
+	return ""
+}
+
+func (x *DryRunReleaseRequest) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *DryRunReleaseRequest) GetParallelism() int32 {
+	if x != nil {
+		return x.Parallelism
+	}
+	return 0
+}
+
+type DryRunReleaseResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Version       string                 `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
+	Planned       []*ReleaseArtifact     `protobuf:"bytes,2,rep,name=planned,proto3" json:"planned,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DryRunReleaseResponse) Reset() {
+	*x = DryRunReleaseResponse{}
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DryRunReleaseResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DryRunReleaseResponse) ProtoMessage() {}
+
+func (x *DryRunReleaseResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DryRunReleaseResponse.ProtoReflect.Descriptor instead.
+func (*DryRunReleaseResponse) Descriptor() ([]byte, []int) {
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *DryRunReleaseResponse) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *DryRunReleaseResponse) GetPlanned() []*ReleaseArtifact {
+	if x != nil {
+		return x.Planned
+	}
+	return nil
+}
+
+type RunReleaseRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	ConfigPath    string                 `protobuf:"bytes,2,opt,name=config_path,json=configPath,proto3" json:"config_path,omitempty"`
+	Version       string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	Parallelism   int32                  `protobuf:"varint,4,opt,name=parallelism,proto3" json:"parallelism,omitempty"`
+	SkipTests     bool                   `protobuf:"varint,5,opt,name=skip_tests,json=skipTests,proto3" json:"skip_tests,omitempty"`
+	Reason        string                 `protobuf:"bytes,6,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunReleaseRequest) Reset() {
+	*x = RunReleaseRequest{}
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunReleaseRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunReleaseRequest) ProtoMessage() {}
+
+func (x *RunReleaseRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunReleaseRequest.ProtoReflect.Descriptor instead.
+func (*RunReleaseRequest) Descriptor() ([]byte, []int) {
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *RunReleaseRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *RunReleaseRequest) GetConfigPath() string {
+	if x != nil {
+		return x.ConfigPath
+	}
+	return ""
+}
+
+func (x *RunReleaseRequest) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *RunReleaseRequest) GetParallelism() int32 {
+	if x != nil {
+		return x.Parallelism
+	}
+	return 0
+}
+
+func (x *RunReleaseRequest) GetSkipTests() bool {
+	if x != nil {
+		return x.SkipTests
+	}
+	return false
+}
+
+func (x *RunReleaseRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type RunReleaseResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Plan          *MutationPlan          `protobuf:"bytes,1,opt,name=plan,proto3" json:"plan,omitempty"`
+	Success       bool                   `protobuf:"varint,2,opt,name=success,proto3" json:"success,omitempty"`
+	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	Version       string                 `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
+	ReleaseDir    string                 `protobuf:"bytes,5,opt,name=release_dir,json=releaseDir,proto3" json:"release_dir,omitempty"`
+	Artifacts     []*ReleaseArtifact     `protobuf:"bytes,6,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunReleaseResponse) Reset() {
+	*x = RunReleaseResponse{}
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunReleaseResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunReleaseResponse) ProtoMessage() {}
+
+func (x *RunReleaseResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunReleaseResponse.ProtoReflect.Descriptor instead.
+func (*RunReleaseResponse) Descriptor() ([]byte, []int) {
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *RunReleaseResponse) GetPlan() *MutationPlan {
+	if x != nil {
+		return x.Plan
+	}
+	return nil
+}
+
+func (x *RunReleaseResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *RunReleaseResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *RunReleaseResponse) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *RunReleaseResponse) GetReleaseDir() string {
+	if x != nil {
+		return x.ReleaseDir
+	}
+	return ""
+}
+
+func (x *RunReleaseResponse) GetArtifacts() []*ReleaseArtifact {
+	if x != nil {
+		return x.Artifacts
+	}
+	return nil
+}
+
 type DiscoverTestsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
@@ -1215,7 +1623,7 @@ type DiscoverTestsRequest struct {
 
 func (x *DiscoverTestsRequest) Reset() {
 	*x = DiscoverTestsRequest{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[22]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1227,7 +1635,7 @@ func (x *DiscoverTestsRequest) String() string {
 func (*DiscoverTestsRequest) ProtoMessage() {}
 
 func (x *DiscoverTestsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[22]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1240,7 +1648,7 @@ func (x *DiscoverTestsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoverTestsRequest.ProtoReflect.Descriptor instead.
 func (*DiscoverTestsRequest) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{22}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *DiscoverTestsRequest) GetPath() string {
@@ -1259,7 +1667,7 @@ type DiscoverTestsResponse struct {
 
 func (x *DiscoverTestsResponse) Reset() {
 	*x = DiscoverTestsResponse{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[23]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1271,7 +1679,7 @@ func (x *DiscoverTestsResponse) String() string {
 func (*DiscoverTestsResponse) ProtoMessage() {}
 
 func (x *DiscoverTestsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[23]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1284,7 +1692,7 @@ func (x *DiscoverTestsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoverTestsResponse.ProtoReflect.Descriptor instead.
 func (*DiscoverTestsResponse) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{23}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *DiscoverTestsResponse) GetTests() []*TestTarget {
@@ -1305,7 +1713,7 @@ type RunTestsRequest struct {
 
 func (x *RunTestsRequest) Reset() {
 	*x = RunTestsRequest{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[24]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1317,7 +1725,7 @@ func (x *RunTestsRequest) String() string {
 func (*RunTestsRequest) ProtoMessage() {}
 
 func (x *RunTestsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[24]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1330,7 +1738,7 @@ func (x *RunTestsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunTestsRequest.ProtoReflect.Descriptor instead.
 func (*RunTestsRequest) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{24}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *RunTestsRequest) GetPath() string {
@@ -1364,7 +1772,7 @@ type RunTestsResponse struct {
 
 func (x *RunTestsResponse) Reset() {
 	*x = RunTestsResponse{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[25]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1376,7 +1784,7 @@ func (x *RunTestsResponse) String() string {
 func (*RunTestsResponse) ProtoMessage() {}
 
 func (x *RunTestsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[25]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1389,7 +1797,7 @@ func (x *RunTestsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunTestsResponse.ProtoReflect.Descriptor instead.
 func (*RunTestsResponse) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{25}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *RunTestsResponse) GetResult() *TaskResult {
@@ -1417,7 +1825,7 @@ type ExplainFailureRequest struct {
 
 func (x *ExplainFailureRequest) Reset() {
 	*x = ExplainFailureRequest{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[26]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1429,7 +1837,7 @@ func (x *ExplainFailureRequest) String() string {
 func (*ExplainFailureRequest) ProtoMessage() {}
 
 func (x *ExplainFailureRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[26]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1442,7 +1850,7 @@ func (x *ExplainFailureRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExplainFailureRequest.ProtoReflect.Descriptor instead.
 func (*ExplainFailureRequest) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{26}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *ExplainFailureRequest) GetPath() string {
@@ -1477,7 +1885,7 @@ type ExplainFailureResponse struct {
 
 func (x *ExplainFailureResponse) Reset() {
 	*x = ExplainFailureResponse{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[27]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1489,7 +1897,7 @@ func (x *ExplainFailureResponse) String() string {
 func (*ExplainFailureResponse) ProtoMessage() {}
 
 func (x *ExplainFailureResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[27]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1502,7 +1910,7 @@ func (x *ExplainFailureResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExplainFailureResponse.ProtoReflect.Descriptor instead.
 func (*ExplainFailureResponse) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{27}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ExplainFailureResponse) GetSummary() string {
@@ -1539,7 +1947,7 @@ type BuildImageRequest struct {
 
 func (x *BuildImageRequest) Reset() {
 	*x = BuildImageRequest{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[28]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1551,7 +1959,7 @@ func (x *BuildImageRequest) String() string {
 func (*BuildImageRequest) ProtoMessage() {}
 
 func (x *BuildImageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[28]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1564,7 +1972,7 @@ func (x *BuildImageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BuildImageRequest.ProtoReflect.Descriptor instead.
 func (*BuildImageRequest) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{28}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *BuildImageRequest) GetPath() string {
@@ -1612,7 +2020,7 @@ type BuildImageResponse struct {
 
 func (x *BuildImageResponse) Reset() {
 	*x = BuildImageResponse{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[29]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1624,7 +2032,7 @@ func (x *BuildImageResponse) String() string {
 func (*BuildImageResponse) ProtoMessage() {}
 
 func (x *BuildImageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[29]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1637,7 +2045,7 @@ func (x *BuildImageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BuildImageResponse.ProtoReflect.Descriptor instead.
 func (*BuildImageResponse) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{29}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *BuildImageResponse) GetPlan() *MutationPlan {
@@ -1664,7 +2072,7 @@ type ListImagesRequest struct {
 
 func (x *ListImagesRequest) Reset() {
 	*x = ListImagesRequest{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[30]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1676,7 +2084,7 @@ func (x *ListImagesRequest) String() string {
 func (*ListImagesRequest) ProtoMessage() {}
 
 func (x *ListImagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[30]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1689,7 +2097,7 @@ func (x *ListImagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListImagesRequest.ProtoReflect.Descriptor instead.
 func (*ListImagesRequest) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{30}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *ListImagesRequest) GetFilter() string {
@@ -1715,7 +2123,7 @@ type ListImagesResponse struct {
 
 func (x *ListImagesResponse) Reset() {
 	*x = ListImagesResponse{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[31]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1727,7 +2135,7 @@ func (x *ListImagesResponse) String() string {
 func (*ListImagesResponse) ProtoMessage() {}
 
 func (x *ListImagesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[31]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1740,7 +2148,7 @@ func (x *ListImagesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListImagesResponse.ProtoReflect.Descriptor instead.
 func (*ListImagesResponse) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{31}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *ListImagesResponse) GetImages() []*ContainerImage {
@@ -1761,7 +2169,7 @@ type PlanRunRequest struct {
 
 func (x *PlanRunRequest) Reset() {
 	*x = PlanRunRequest{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[32]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1773,7 +2181,7 @@ func (x *PlanRunRequest) String() string {
 func (*PlanRunRequest) ProtoMessage() {}
 
 func (x *PlanRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[32]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1786,7 +2194,7 @@ func (x *PlanRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanRunRequest.ProtoReflect.Descriptor instead.
 func (*PlanRunRequest) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{32}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *PlanRunRequest) GetImage() string {
@@ -1819,7 +2227,7 @@ type PlanRunResponse struct {
 
 func (x *PlanRunResponse) Reset() {
 	*x = PlanRunResponse{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[33]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1831,7 +2239,7 @@ func (x *PlanRunResponse) String() string {
 func (*PlanRunResponse) ProtoMessage() {}
 
 func (x *PlanRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[33]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1844,7 +2252,7 @@ func (x *PlanRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanRunResponse.ProtoReflect.Descriptor instead.
 func (*PlanRunResponse) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{33}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *PlanRunResponse) GetPlan() *MutationPlan {
@@ -1865,7 +2273,7 @@ type PlanRequest struct {
 
 func (x *PlanRequest) Reset() {
 	*x = PlanRequest{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[34]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1877,7 +2285,7 @@ func (x *PlanRequest) String() string {
 func (*PlanRequest) ProtoMessage() {}
 
 func (x *PlanRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[34]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1890,7 +2298,7 @@ func (x *PlanRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanRequest.ProtoReflect.Descriptor instead.
 func (*PlanRequest) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{34}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *PlanRequest) GetPath() string {
@@ -1924,7 +2332,7 @@ type PlanResponse struct {
 
 func (x *PlanResponse) Reset() {
 	*x = PlanResponse{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[35]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1936,7 +2344,7 @@ func (x *PlanResponse) String() string {
 func (*PlanResponse) ProtoMessage() {}
 
 func (x *PlanResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[35]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1949,7 +2357,7 @@ func (x *PlanResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanResponse.ProtoReflect.Descriptor instead.
 func (*PlanResponse) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{35}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *PlanResponse) GetPlan() *MutationPlan {
@@ -1976,7 +2384,7 @@ type ApplyRequest struct {
 
 func (x *ApplyRequest) Reset() {
 	*x = ApplyRequest{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[36]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1988,7 +2396,7 @@ func (x *ApplyRequest) String() string {
 func (*ApplyRequest) ProtoMessage() {}
 
 func (x *ApplyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[36]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2001,7 +2409,7 @@ func (x *ApplyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyRequest.ProtoReflect.Descriptor instead.
 func (*ApplyRequest) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{36}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *ApplyRequest) GetPlanId() string {
@@ -2027,7 +2435,7 @@ type ApplyResponse struct {
 
 func (x *ApplyResponse) Reset() {
 	*x = ApplyResponse{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[37]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2039,7 +2447,7 @@ func (x *ApplyResponse) String() string {
 func (*ApplyResponse) ProtoMessage() {}
 
 func (x *ApplyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[37]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2052,7 +2460,7 @@ func (x *ApplyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyResponse.ProtoReflect.Descriptor instead.
 func (*ApplyResponse) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{37}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *ApplyResponse) GetResult() *TaskResult {
@@ -2073,7 +2481,7 @@ type EvaluateChangeRequest struct {
 
 func (x *EvaluateChangeRequest) Reset() {
 	*x = EvaluateChangeRequest{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[38]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2085,7 +2493,7 @@ func (x *EvaluateChangeRequest) String() string {
 func (*EvaluateChangeRequest) ProtoMessage() {}
 
 func (x *EvaluateChangeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[38]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2098,7 +2506,7 @@ func (x *EvaluateChangeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvaluateChangeRequest.ProtoReflect.Descriptor instead.
 func (*EvaluateChangeRequest) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{38}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *EvaluateChangeRequest) GetPath() string {
@@ -2133,7 +2541,7 @@ type EvaluateChangeResponse struct {
 
 func (x *EvaluateChangeResponse) Reset() {
 	*x = EvaluateChangeResponse{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[39]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2145,7 +2553,7 @@ func (x *EvaluateChangeResponse) String() string {
 func (*EvaluateChangeResponse) ProtoMessage() {}
 
 func (x *EvaluateChangeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[39]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2158,7 +2566,7 @@ func (x *EvaluateChangeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvaluateChangeResponse.ProtoReflect.Descriptor instead.
 func (*EvaluateChangeResponse) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{39}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *EvaluateChangeResponse) GetAllowed() bool {
@@ -2193,7 +2601,7 @@ type FileChange struct {
 
 func (x *FileChange) Reset() {
 	*x = FileChange{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[40]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2205,7 +2613,7 @@ func (x *FileChange) String() string {
 func (*FileChange) ProtoMessage() {}
 
 func (x *FileChange) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[40]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2218,7 +2626,7 @@ func (x *FileChange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileChange.ProtoReflect.Descriptor instead.
 func (*FileChange) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{40}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *FileChange) GetPath() string {
@@ -2254,7 +2662,7 @@ type Project struct {
 
 func (x *Project) Reset() {
 	*x = Project{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[41]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2266,7 +2674,7 @@ func (x *Project) String() string {
 func (*Project) ProtoMessage() {}
 
 func (x *Project) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[41]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2279,7 +2687,7 @@ func (x *Project) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Project.ProtoReflect.Descriptor instead.
 func (*Project) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{41}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *Project) GetKind() string {
@@ -2323,7 +2731,7 @@ type BuildTask struct {
 
 func (x *BuildTask) Reset() {
 	*x = BuildTask{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[42]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2335,7 +2743,7 @@ func (x *BuildTask) String() string {
 func (*BuildTask) ProtoMessage() {}
 
 func (x *BuildTask) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[42]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2348,7 +2756,7 @@ func (x *BuildTask) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BuildTask.ProtoReflect.Descriptor instead.
 func (*BuildTask) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{42}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *BuildTask) GetName() string {
@@ -2398,7 +2806,7 @@ type TaskResult struct {
 
 func (x *TaskResult) Reset() {
 	*x = TaskResult{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[43]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2410,7 +2818,7 @@ func (x *TaskResult) String() string {
 func (*TaskResult) ProtoMessage() {}
 
 func (x *TaskResult) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[43]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2423,7 +2831,7 @@ func (x *TaskResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaskResult.ProtoReflect.Descriptor instead.
 func (*TaskResult) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{43}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *TaskResult) GetStatus() string {
@@ -2466,7 +2874,7 @@ type TestTarget struct {
 
 func (x *TestTarget) Reset() {
 	*x = TestTarget{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[44]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2478,7 +2886,7 @@ func (x *TestTarget) String() string {
 func (*TestTarget) ProtoMessage() {}
 
 func (x *TestTarget) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[44]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2491,7 +2899,7 @@ func (x *TestTarget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TestTarget.ProtoReflect.Descriptor instead.
 func (*TestTarget) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{44}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *TestTarget) GetId() string {
@@ -2533,7 +2941,7 @@ type TestResult struct {
 
 func (x *TestResult) Reset() {
 	*x = TestResult{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[45]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2545,7 +2953,7 @@ func (x *TestResult) String() string {
 func (*TestResult) ProtoMessage() {}
 
 func (x *TestResult) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[45]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2558,7 +2966,7 @@ func (x *TestResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TestResult.ProtoReflect.Descriptor instead.
 func (*TestResult) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{45}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *TestResult) GetId() string {
@@ -2594,7 +3002,7 @@ type Artifact struct {
 
 func (x *Artifact) Reset() {
 	*x = Artifact{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[46]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2606,7 +3014,7 @@ func (x *Artifact) String() string {
 func (*Artifact) ProtoMessage() {}
 
 func (x *Artifact) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[46]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2619,7 +3027,7 @@ func (x *Artifact) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Artifact.ProtoReflect.Descriptor instead.
 func (*Artifact) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{46}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *Artifact) GetName() string {
@@ -2650,6 +3058,122 @@ func (x *Artifact) GetDigest() string {
 	return ""
 }
 
+type ReleaseArtifact struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	BuildName      string                 `protobuf:"bytes,1,opt,name=build_name,json=buildName,proto3" json:"build_name,omitempty"`
+	Os             string                 `protobuf:"bytes,2,opt,name=os,proto3" json:"os,omitempty"`
+	Arch           string                 `protobuf:"bytes,3,opt,name=arch,proto3" json:"arch,omitempty"`
+	Arm            string                 `protobuf:"bytes,4,opt,name=arm,proto3" json:"arm,omitempty"`
+	Filename       string                 `protobuf:"bytes,5,opt,name=filename,proto3" json:"filename,omitempty"`
+	ArchiveName    string                 `protobuf:"bytes,6,opt,name=archive_name,json=archiveName,proto3" json:"archive_name,omitempty"`
+	Checksum       string                 `protobuf:"bytes,7,opt,name=checksum,proto3" json:"checksum,omitempty"`
+	Size           int64                  `protobuf:"varint,8,opt,name=size,proto3" json:"size,omitempty"`
+	DurationMillis int64                  `protobuf:"varint,9,opt,name=duration_millis,json=durationMillis,proto3" json:"duration_millis,omitempty"`
+	Error          string                 `protobuf:"bytes,10,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ReleaseArtifact) Reset() {
+	*x = ReleaseArtifact{}
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReleaseArtifact) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReleaseArtifact) ProtoMessage() {}
+
+func (x *ReleaseArtifact) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReleaseArtifact.ProtoReflect.Descriptor instead.
+func (*ReleaseArtifact) Descriptor() ([]byte, []int) {
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *ReleaseArtifact) GetBuildName() string {
+	if x != nil {
+		return x.BuildName
+	}
+	return ""
+}
+
+func (x *ReleaseArtifact) GetOs() string {
+	if x != nil {
+		return x.Os
+	}
+	return ""
+}
+
+func (x *ReleaseArtifact) GetArch() string {
+	if x != nil {
+		return x.Arch
+	}
+	return ""
+}
+
+func (x *ReleaseArtifact) GetArm() string {
+	if x != nil {
+		return x.Arm
+	}
+	return ""
+}
+
+func (x *ReleaseArtifact) GetFilename() string {
+	if x != nil {
+		return x.Filename
+	}
+	return ""
+}
+
+func (x *ReleaseArtifact) GetArchiveName() string {
+	if x != nil {
+		return x.ArchiveName
+	}
+	return ""
+}
+
+func (x *ReleaseArtifact) GetChecksum() string {
+	if x != nil {
+		return x.Checksum
+	}
+	return ""
+}
+
+func (x *ReleaseArtifact) GetSize() int64 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
+func (x *ReleaseArtifact) GetDurationMillis() int64 {
+	if x != nil {
+		return x.DurationMillis
+	}
+	return 0
+}
+
+func (x *ReleaseArtifact) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
 type ContainerImage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -2662,7 +3186,7 @@ type ContainerImage struct {
 
 func (x *ContainerImage) Reset() {
 	*x = ContainerImage{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[47]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2674,7 +3198,7 @@ func (x *ContainerImage) String() string {
 func (*ContainerImage) ProtoMessage() {}
 
 func (x *ContainerImage) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[47]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2687,7 +3211,7 @@ func (x *ContainerImage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContainerImage.ProtoReflect.Descriptor instead.
 func (*ContainerImage) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{47}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *ContainerImage) GetId() string {
@@ -2732,7 +3256,7 @@ type MutationPlan struct {
 
 func (x *MutationPlan) Reset() {
 	*x = MutationPlan{}
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[48]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2744,7 +3268,7 @@ func (x *MutationPlan) String() string {
 func (*MutationPlan) ProtoMessage() {}
 
 func (x *MutationPlan) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_devops_v1_devops_proto_msgTypes[48]
+	mi := &file_quark_devops_v1_devops_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2757,7 +3281,7 @@ func (x *MutationPlan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MutationPlan.ProtoReflect.Descriptor instead.
 func (*MutationPlan) Descriptor() ([]byte, []int) {
-	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{48}
+	return file_quark_devops_v1_devops_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *MutationPlan) GetId() string {
@@ -2879,7 +3403,42 @@ const file_quark_devops_v1_devops_proto_rawDesc = "" +
 	"\x06reason\x18\x04 \x01(\tR\x06reason\"\x84\x01\n" +
 	"\x16CreateArtifactResponse\x121\n" +
 	"\x04plan\x18\x01 \x01(\v2\x1d.quark.devops.v1.MutationPlanR\x04plan\x127\n" +
-	"\tartifacts\x18\x02 \x03(\v2\x19.quark.devops.v1.ArtifactR\tartifacts\"*\n" +
+	"\tartifacts\x18\x02 \x03(\v2\x19.quark.devops.v1.ArtifactR\tartifacts\"d\n" +
+	"\x18InitReleaseConfigRequest\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1c\n" +
+	"\toverwrite\x18\x02 \x01(\bR\toverwrite\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"\x89\x01\n" +
+	"\x19InitReleaseConfigResponse\x121\n" +
+	"\x04plan\x18\x01 \x01(\v2\x1d.quark.devops.v1.MutationPlanR\x04plan\x12\x1f\n" +
+	"\vconfig_path\x18\x02 \x01(\tR\n" +
+	"configPath\x12\x18\n" +
+	"\acreated\x18\x03 \x01(\bR\acreated\"\x87\x01\n" +
+	"\x14DryRunReleaseRequest\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1f\n" +
+	"\vconfig_path\x18\x02 \x01(\tR\n" +
+	"configPath\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\x12 \n" +
+	"\vparallelism\x18\x04 \x01(\x05R\vparallelism\"m\n" +
+	"\x15DryRunReleaseResponse\x12\x18\n" +
+	"\aversion\x18\x01 \x01(\tR\aversion\x12:\n" +
+	"\aplanned\x18\x02 \x03(\v2 .quark.devops.v1.ReleaseArtifactR\aplanned\"\xbb\x01\n" +
+	"\x11RunReleaseRequest\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1f\n" +
+	"\vconfig_path\x18\x02 \x01(\tR\n" +
+	"configPath\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\x12 \n" +
+	"\vparallelism\x18\x04 \x01(\x05R\vparallelism\x12\x1d\n" +
+	"\n" +
+	"skip_tests\x18\x05 \x01(\bR\tskipTests\x12\x16\n" +
+	"\x06reason\x18\x06 \x01(\tR\x06reason\"\xf6\x01\n" +
+	"\x12RunReleaseResponse\x121\n" +
+	"\x04plan\x18\x01 \x01(\v2\x1d.quark.devops.v1.MutationPlanR\x04plan\x12\x18\n" +
+	"\asuccess\x18\x02 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\x12\x18\n" +
+	"\aversion\x18\x04 \x01(\tR\aversion\x12\x1f\n" +
+	"\vrelease_dir\x18\x05 \x01(\tR\n" +
+	"releaseDir\x12>\n" +
+	"\tartifacts\x18\x06 \x03(\v2 .quark.devops.v1.ReleaseArtifactR\tartifacts\"*\n" +
 	"\x14DiscoverTestsRequest\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\"J\n" +
 	"\x15DiscoverTestsResponse\x121\n" +
@@ -2982,7 +3541,20 @@ const file_quark_devops_v1_devops_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x10\n" +
 	"\x03uri\x18\x03 \x01(\tR\x03uri\x12\x16\n" +
-	"\x06digest\x18\x04 \x01(\tR\x06digest\"j\n" +
+	"\x06digest\x18\x04 \x01(\tR\x06digest\"\x94\x02\n" +
+	"\x0fReleaseArtifact\x12\x1d\n" +
+	"\n" +
+	"build_name\x18\x01 \x01(\tR\tbuildName\x12\x0e\n" +
+	"\x02os\x18\x02 \x01(\tR\x02os\x12\x12\n" +
+	"\x04arch\x18\x03 \x01(\tR\x04arch\x12\x10\n" +
+	"\x03arm\x18\x04 \x01(\tR\x03arm\x12\x1a\n" +
+	"\bfilename\x18\x05 \x01(\tR\bfilename\x12!\n" +
+	"\farchive_name\x18\x06 \x01(\tR\varchiveName\x12\x1a\n" +
+	"\bchecksum\x18\a \x01(\tR\bchecksum\x12\x12\n" +
+	"\x04size\x18\b \x01(\x03R\x04size\x12'\n" +
+	"\x0fduration_millis\x18\t \x01(\x03R\x0edurationMillis\x12\x14\n" +
+	"\x05error\x18\n" +
+	" \x01(\tR\x05error\"j\n" +
 	"\x0eContainerImage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
 	"\n" +
@@ -3005,12 +3577,16 @@ const file_quark_devops_v1_devops_proto_rawDesc = "" +
 	"\n" +
 	"ApplyPatch\x12\".quark.devops.v1.ApplyPatchRequest\x1a#.quark.devops.v1.ApplyPatchResponse\x12I\n" +
 	"\x06Commit\x12\x1e.quark.devops.v1.CommitRequest\x1a\x1f.quark.devops.v1.CommitResponse\x12s\n" +
-	"\x14GenerateReleaseNotes\x12,.quark.devops.v1.GenerateReleaseNotesRequest\x1a-.quark.devops.v1.GenerateReleaseNotesResponse2\xf9\x02\n" +
+	"\x14GenerateReleaseNotes\x12,.quark.devops.v1.GenerateReleaseNotesRequest\x1a-.quark.devops.v1.GenerateReleaseNotesResponse2\x9c\x05\n" +
 	"\fBuildService\x12^\n" +
 	"\rDetectProject\x12%.quark.devops.v1.DetectProjectRequest\x1a&.quark.devops.v1.DetectProjectResponse\x12X\n" +
 	"\vResolveTask\x12#.quark.devops.v1.ResolveTaskRequest\x1a$.quark.devops.v1.ResolveTaskResponse\x12L\n" +
 	"\aRunTask\x12\x1f.quark.devops.v1.RunTaskRequest\x1a .quark.devops.v1.RunTaskResponse\x12a\n" +
-	"\x0eCreateArtifact\x12&.quark.devops.v1.CreateArtifactRequest\x1a'.quark.devops.v1.CreateArtifactResponse2\xa1\x02\n" +
+	"\x0eCreateArtifact\x12&.quark.devops.v1.CreateArtifactRequest\x1a'.quark.devops.v1.CreateArtifactResponse\x12j\n" +
+	"\x11InitReleaseConfig\x12).quark.devops.v1.InitReleaseConfigRequest\x1a*.quark.devops.v1.InitReleaseConfigResponse\x12^\n" +
+	"\rDryRunRelease\x12%.quark.devops.v1.DryRunReleaseRequest\x1a&.quark.devops.v1.DryRunReleaseResponse\x12U\n" +
+	"\n" +
+	"RunRelease\x12\".quark.devops.v1.RunReleaseRequest\x1a#.quark.devops.v1.RunReleaseResponse2\xa1\x02\n" +
 	"\vTestService\x12^\n" +
 	"\rDiscoverTests\x12%.quark.devops.v1.DiscoverTestsRequest\x1a&.quark.devops.v1.DiscoverTestsResponse\x12O\n" +
 	"\bRunTests\x12 .quark.devops.v1.RunTestsRequest\x1a!.quark.devops.v1.RunTestsResponse\x12a\n" +
@@ -3039,7 +3615,7 @@ func file_quark_devops_v1_devops_proto_rawDescGZIP() []byte {
 	return file_quark_devops_v1_devops_proto_rawDescData
 }
 
-var file_quark_devops_v1_devops_proto_msgTypes = make([]protoimpl.MessageInfo, 49)
+var file_quark_devops_v1_devops_proto_msgTypes = make([]protoimpl.MessageInfo, 56)
 var file_quark_devops_v1_devops_proto_goTypes = []any{
 	(*StatusRequest)(nil),                // 0: quark.devops.v1.StatusRequest
 	(*StatusResponse)(nil),               // 1: quark.devops.v1.StatusResponse
@@ -3063,103 +3639,120 @@ var file_quark_devops_v1_devops_proto_goTypes = []any{
 	(*RunTaskResponse)(nil),              // 19: quark.devops.v1.RunTaskResponse
 	(*CreateArtifactRequest)(nil),        // 20: quark.devops.v1.CreateArtifactRequest
 	(*CreateArtifactResponse)(nil),       // 21: quark.devops.v1.CreateArtifactResponse
-	(*DiscoverTestsRequest)(nil),         // 22: quark.devops.v1.DiscoverTestsRequest
-	(*DiscoverTestsResponse)(nil),        // 23: quark.devops.v1.DiscoverTestsResponse
-	(*RunTestsRequest)(nil),              // 24: quark.devops.v1.RunTestsRequest
-	(*RunTestsResponse)(nil),             // 25: quark.devops.v1.RunTestsResponse
-	(*ExplainFailureRequest)(nil),        // 26: quark.devops.v1.ExplainFailureRequest
-	(*ExplainFailureResponse)(nil),       // 27: quark.devops.v1.ExplainFailureResponse
-	(*BuildImageRequest)(nil),            // 28: quark.devops.v1.BuildImageRequest
-	(*BuildImageResponse)(nil),           // 29: quark.devops.v1.BuildImageResponse
-	(*ListImagesRequest)(nil),            // 30: quark.devops.v1.ListImagesRequest
-	(*ListImagesResponse)(nil),           // 31: quark.devops.v1.ListImagesResponse
-	(*PlanRunRequest)(nil),               // 32: quark.devops.v1.PlanRunRequest
-	(*PlanRunResponse)(nil),              // 33: quark.devops.v1.PlanRunResponse
-	(*PlanRequest)(nil),                  // 34: quark.devops.v1.PlanRequest
-	(*PlanResponse)(nil),                 // 35: quark.devops.v1.PlanResponse
-	(*ApplyRequest)(nil),                 // 36: quark.devops.v1.ApplyRequest
-	(*ApplyResponse)(nil),                // 37: quark.devops.v1.ApplyResponse
-	(*EvaluateChangeRequest)(nil),        // 38: quark.devops.v1.EvaluateChangeRequest
-	(*EvaluateChangeResponse)(nil),       // 39: quark.devops.v1.EvaluateChangeResponse
-	(*FileChange)(nil),                   // 40: quark.devops.v1.FileChange
-	(*Project)(nil),                      // 41: quark.devops.v1.Project
-	(*BuildTask)(nil),                    // 42: quark.devops.v1.BuildTask
-	(*TaskResult)(nil),                   // 43: quark.devops.v1.TaskResult
-	(*TestTarget)(nil),                   // 44: quark.devops.v1.TestTarget
-	(*TestResult)(nil),                   // 45: quark.devops.v1.TestResult
-	(*Artifact)(nil),                     // 46: quark.devops.v1.Artifact
-	(*ContainerImage)(nil),               // 47: quark.devops.v1.ContainerImage
-	(*MutationPlan)(nil),                 // 48: quark.devops.v1.MutationPlan
-	(*timestamppb.Timestamp)(nil),        // 49: google.protobuf.Timestamp
+	(*InitReleaseConfigRequest)(nil),     // 22: quark.devops.v1.InitReleaseConfigRequest
+	(*InitReleaseConfigResponse)(nil),    // 23: quark.devops.v1.InitReleaseConfigResponse
+	(*DryRunReleaseRequest)(nil),         // 24: quark.devops.v1.DryRunReleaseRequest
+	(*DryRunReleaseResponse)(nil),        // 25: quark.devops.v1.DryRunReleaseResponse
+	(*RunReleaseRequest)(nil),            // 26: quark.devops.v1.RunReleaseRequest
+	(*RunReleaseResponse)(nil),           // 27: quark.devops.v1.RunReleaseResponse
+	(*DiscoverTestsRequest)(nil),         // 28: quark.devops.v1.DiscoverTestsRequest
+	(*DiscoverTestsResponse)(nil),        // 29: quark.devops.v1.DiscoverTestsResponse
+	(*RunTestsRequest)(nil),              // 30: quark.devops.v1.RunTestsRequest
+	(*RunTestsResponse)(nil),             // 31: quark.devops.v1.RunTestsResponse
+	(*ExplainFailureRequest)(nil),        // 32: quark.devops.v1.ExplainFailureRequest
+	(*ExplainFailureResponse)(nil),       // 33: quark.devops.v1.ExplainFailureResponse
+	(*BuildImageRequest)(nil),            // 34: quark.devops.v1.BuildImageRequest
+	(*BuildImageResponse)(nil),           // 35: quark.devops.v1.BuildImageResponse
+	(*ListImagesRequest)(nil),            // 36: quark.devops.v1.ListImagesRequest
+	(*ListImagesResponse)(nil),           // 37: quark.devops.v1.ListImagesResponse
+	(*PlanRunRequest)(nil),               // 38: quark.devops.v1.PlanRunRequest
+	(*PlanRunResponse)(nil),              // 39: quark.devops.v1.PlanRunResponse
+	(*PlanRequest)(nil),                  // 40: quark.devops.v1.PlanRequest
+	(*PlanResponse)(nil),                 // 41: quark.devops.v1.PlanResponse
+	(*ApplyRequest)(nil),                 // 42: quark.devops.v1.ApplyRequest
+	(*ApplyResponse)(nil),                // 43: quark.devops.v1.ApplyResponse
+	(*EvaluateChangeRequest)(nil),        // 44: quark.devops.v1.EvaluateChangeRequest
+	(*EvaluateChangeResponse)(nil),       // 45: quark.devops.v1.EvaluateChangeResponse
+	(*FileChange)(nil),                   // 46: quark.devops.v1.FileChange
+	(*Project)(nil),                      // 47: quark.devops.v1.Project
+	(*BuildTask)(nil),                    // 48: quark.devops.v1.BuildTask
+	(*TaskResult)(nil),                   // 49: quark.devops.v1.TaskResult
+	(*TestTarget)(nil),                   // 50: quark.devops.v1.TestTarget
+	(*TestResult)(nil),                   // 51: quark.devops.v1.TestResult
+	(*Artifact)(nil),                     // 52: quark.devops.v1.Artifact
+	(*ReleaseArtifact)(nil),              // 53: quark.devops.v1.ReleaseArtifact
+	(*ContainerImage)(nil),               // 54: quark.devops.v1.ContainerImage
+	(*MutationPlan)(nil),                 // 55: quark.devops.v1.MutationPlan
+	(*timestamppb.Timestamp)(nil),        // 56: google.protobuf.Timestamp
 }
 var file_quark_devops_v1_devops_proto_depIdxs = []int32{
-	40, // 0: quark.devops.v1.StatusResponse.changes:type_name -> quark.devops.v1.FileChange
-	49, // 1: quark.devops.v1.StatusResponse.observed_at:type_name -> google.protobuf.Timestamp
-	40, // 2: quark.devops.v1.ListChangedFilesResponse.changes:type_name -> quark.devops.v1.FileChange
-	48, // 3: quark.devops.v1.ApplyPatchResponse.plan:type_name -> quark.devops.v1.MutationPlan
-	40, // 4: quark.devops.v1.ApplyPatchResponse.expected_changes:type_name -> quark.devops.v1.FileChange
-	48, // 5: quark.devops.v1.CommitResponse.plan:type_name -> quark.devops.v1.MutationPlan
-	41, // 6: quark.devops.v1.DetectProjectResponse.project:type_name -> quark.devops.v1.Project
-	42, // 7: quark.devops.v1.ResolveTaskResponse.task:type_name -> quark.devops.v1.BuildTask
-	48, // 8: quark.devops.v1.RunTaskResponse.plan:type_name -> quark.devops.v1.MutationPlan
-	43, // 9: quark.devops.v1.RunTaskResponse.result:type_name -> quark.devops.v1.TaskResult
-	48, // 10: quark.devops.v1.CreateArtifactResponse.plan:type_name -> quark.devops.v1.MutationPlan
-	46, // 11: quark.devops.v1.CreateArtifactResponse.artifacts:type_name -> quark.devops.v1.Artifact
-	44, // 12: quark.devops.v1.DiscoverTestsResponse.tests:type_name -> quark.devops.v1.TestTarget
-	43, // 13: quark.devops.v1.RunTestsResponse.result:type_name -> quark.devops.v1.TaskResult
-	45, // 14: quark.devops.v1.RunTestsResponse.tests:type_name -> quark.devops.v1.TestResult
-	48, // 15: quark.devops.v1.BuildImageResponse.plan:type_name -> quark.devops.v1.MutationPlan
-	46, // 16: quark.devops.v1.BuildImageResponse.image:type_name -> quark.devops.v1.Artifact
-	47, // 17: quark.devops.v1.ListImagesResponse.images:type_name -> quark.devops.v1.ContainerImage
-	48, // 18: quark.devops.v1.PlanRunResponse.plan:type_name -> quark.devops.v1.MutationPlan
-	48, // 19: quark.devops.v1.PlanResponse.plan:type_name -> quark.devops.v1.MutationPlan
-	43, // 20: quark.devops.v1.ApplyResponse.result:type_name -> quark.devops.v1.TaskResult
-	42, // 21: quark.devops.v1.Project.tasks:type_name -> quark.devops.v1.BuildTask
-	0,  // 22: quark.devops.v1.RepoService.Status:input_type -> quark.devops.v1.StatusRequest
-	2,  // 23: quark.devops.v1.RepoService.Diff:input_type -> quark.devops.v1.DiffRequest
-	4,  // 24: quark.devops.v1.RepoService.GetBranch:input_type -> quark.devops.v1.GetBranchRequest
-	6,  // 25: quark.devops.v1.RepoService.ListChangedFiles:input_type -> quark.devops.v1.ListChangedFilesRequest
-	8,  // 26: quark.devops.v1.RepoService.ApplyPatch:input_type -> quark.devops.v1.ApplyPatchRequest
-	10, // 27: quark.devops.v1.RepoService.Commit:input_type -> quark.devops.v1.CommitRequest
-	12, // 28: quark.devops.v1.RepoService.GenerateReleaseNotes:input_type -> quark.devops.v1.GenerateReleaseNotesRequest
-	14, // 29: quark.devops.v1.BuildService.DetectProject:input_type -> quark.devops.v1.DetectProjectRequest
-	16, // 30: quark.devops.v1.BuildService.ResolveTask:input_type -> quark.devops.v1.ResolveTaskRequest
-	18, // 31: quark.devops.v1.BuildService.RunTask:input_type -> quark.devops.v1.RunTaskRequest
-	20, // 32: quark.devops.v1.BuildService.CreateArtifact:input_type -> quark.devops.v1.CreateArtifactRequest
-	22, // 33: quark.devops.v1.TestService.DiscoverTests:input_type -> quark.devops.v1.DiscoverTestsRequest
-	24, // 34: quark.devops.v1.TestService.RunTests:input_type -> quark.devops.v1.RunTestsRequest
-	26, // 35: quark.devops.v1.TestService.ExplainFailure:input_type -> quark.devops.v1.ExplainFailureRequest
-	28, // 36: quark.devops.v1.ContainerService.BuildImage:input_type -> quark.devops.v1.BuildImageRequest
-	30, // 37: quark.devops.v1.ContainerService.ListImages:input_type -> quark.devops.v1.ListImagesRequest
-	32, // 38: quark.devops.v1.ContainerService.PlanRun:input_type -> quark.devops.v1.PlanRunRequest
-	34, // 39: quark.devops.v1.DeployService.Plan:input_type -> quark.devops.v1.PlanRequest
-	36, // 40: quark.devops.v1.DeployService.Apply:input_type -> quark.devops.v1.ApplyRequest
-	38, // 41: quark.devops.v1.PolicyService.EvaluateChange:input_type -> quark.devops.v1.EvaluateChangeRequest
-	1,  // 42: quark.devops.v1.RepoService.Status:output_type -> quark.devops.v1.StatusResponse
-	3,  // 43: quark.devops.v1.RepoService.Diff:output_type -> quark.devops.v1.DiffResponse
-	5,  // 44: quark.devops.v1.RepoService.GetBranch:output_type -> quark.devops.v1.GetBranchResponse
-	7,  // 45: quark.devops.v1.RepoService.ListChangedFiles:output_type -> quark.devops.v1.ListChangedFilesResponse
-	9,  // 46: quark.devops.v1.RepoService.ApplyPatch:output_type -> quark.devops.v1.ApplyPatchResponse
-	11, // 47: quark.devops.v1.RepoService.Commit:output_type -> quark.devops.v1.CommitResponse
-	13, // 48: quark.devops.v1.RepoService.GenerateReleaseNotes:output_type -> quark.devops.v1.GenerateReleaseNotesResponse
-	15, // 49: quark.devops.v1.BuildService.DetectProject:output_type -> quark.devops.v1.DetectProjectResponse
-	17, // 50: quark.devops.v1.BuildService.ResolveTask:output_type -> quark.devops.v1.ResolveTaskResponse
-	19, // 51: quark.devops.v1.BuildService.RunTask:output_type -> quark.devops.v1.RunTaskResponse
-	21, // 52: quark.devops.v1.BuildService.CreateArtifact:output_type -> quark.devops.v1.CreateArtifactResponse
-	23, // 53: quark.devops.v1.TestService.DiscoverTests:output_type -> quark.devops.v1.DiscoverTestsResponse
-	25, // 54: quark.devops.v1.TestService.RunTests:output_type -> quark.devops.v1.RunTestsResponse
-	27, // 55: quark.devops.v1.TestService.ExplainFailure:output_type -> quark.devops.v1.ExplainFailureResponse
-	29, // 56: quark.devops.v1.ContainerService.BuildImage:output_type -> quark.devops.v1.BuildImageResponse
-	31, // 57: quark.devops.v1.ContainerService.ListImages:output_type -> quark.devops.v1.ListImagesResponse
-	33, // 58: quark.devops.v1.ContainerService.PlanRun:output_type -> quark.devops.v1.PlanRunResponse
-	35, // 59: quark.devops.v1.DeployService.Plan:output_type -> quark.devops.v1.PlanResponse
-	37, // 60: quark.devops.v1.DeployService.Apply:output_type -> quark.devops.v1.ApplyResponse
-	39, // 61: quark.devops.v1.PolicyService.EvaluateChange:output_type -> quark.devops.v1.EvaluateChangeResponse
-	42, // [42:62] is the sub-list for method output_type
-	22, // [22:42] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	46, // 0: quark.devops.v1.StatusResponse.changes:type_name -> quark.devops.v1.FileChange
+	56, // 1: quark.devops.v1.StatusResponse.observed_at:type_name -> google.protobuf.Timestamp
+	46, // 2: quark.devops.v1.ListChangedFilesResponse.changes:type_name -> quark.devops.v1.FileChange
+	55, // 3: quark.devops.v1.ApplyPatchResponse.plan:type_name -> quark.devops.v1.MutationPlan
+	46, // 4: quark.devops.v1.ApplyPatchResponse.expected_changes:type_name -> quark.devops.v1.FileChange
+	55, // 5: quark.devops.v1.CommitResponse.plan:type_name -> quark.devops.v1.MutationPlan
+	47, // 6: quark.devops.v1.DetectProjectResponse.project:type_name -> quark.devops.v1.Project
+	48, // 7: quark.devops.v1.ResolveTaskResponse.task:type_name -> quark.devops.v1.BuildTask
+	55, // 8: quark.devops.v1.RunTaskResponse.plan:type_name -> quark.devops.v1.MutationPlan
+	49, // 9: quark.devops.v1.RunTaskResponse.result:type_name -> quark.devops.v1.TaskResult
+	55, // 10: quark.devops.v1.CreateArtifactResponse.plan:type_name -> quark.devops.v1.MutationPlan
+	52, // 11: quark.devops.v1.CreateArtifactResponse.artifacts:type_name -> quark.devops.v1.Artifact
+	55, // 12: quark.devops.v1.InitReleaseConfigResponse.plan:type_name -> quark.devops.v1.MutationPlan
+	53, // 13: quark.devops.v1.DryRunReleaseResponse.planned:type_name -> quark.devops.v1.ReleaseArtifact
+	55, // 14: quark.devops.v1.RunReleaseResponse.plan:type_name -> quark.devops.v1.MutationPlan
+	53, // 15: quark.devops.v1.RunReleaseResponse.artifacts:type_name -> quark.devops.v1.ReleaseArtifact
+	50, // 16: quark.devops.v1.DiscoverTestsResponse.tests:type_name -> quark.devops.v1.TestTarget
+	49, // 17: quark.devops.v1.RunTestsResponse.result:type_name -> quark.devops.v1.TaskResult
+	51, // 18: quark.devops.v1.RunTestsResponse.tests:type_name -> quark.devops.v1.TestResult
+	55, // 19: quark.devops.v1.BuildImageResponse.plan:type_name -> quark.devops.v1.MutationPlan
+	52, // 20: quark.devops.v1.BuildImageResponse.image:type_name -> quark.devops.v1.Artifact
+	54, // 21: quark.devops.v1.ListImagesResponse.images:type_name -> quark.devops.v1.ContainerImage
+	55, // 22: quark.devops.v1.PlanRunResponse.plan:type_name -> quark.devops.v1.MutationPlan
+	55, // 23: quark.devops.v1.PlanResponse.plan:type_name -> quark.devops.v1.MutationPlan
+	49, // 24: quark.devops.v1.ApplyResponse.result:type_name -> quark.devops.v1.TaskResult
+	48, // 25: quark.devops.v1.Project.tasks:type_name -> quark.devops.v1.BuildTask
+	0,  // 26: quark.devops.v1.RepoService.Status:input_type -> quark.devops.v1.StatusRequest
+	2,  // 27: quark.devops.v1.RepoService.Diff:input_type -> quark.devops.v1.DiffRequest
+	4,  // 28: quark.devops.v1.RepoService.GetBranch:input_type -> quark.devops.v1.GetBranchRequest
+	6,  // 29: quark.devops.v1.RepoService.ListChangedFiles:input_type -> quark.devops.v1.ListChangedFilesRequest
+	8,  // 30: quark.devops.v1.RepoService.ApplyPatch:input_type -> quark.devops.v1.ApplyPatchRequest
+	10, // 31: quark.devops.v1.RepoService.Commit:input_type -> quark.devops.v1.CommitRequest
+	12, // 32: quark.devops.v1.RepoService.GenerateReleaseNotes:input_type -> quark.devops.v1.GenerateReleaseNotesRequest
+	14, // 33: quark.devops.v1.BuildService.DetectProject:input_type -> quark.devops.v1.DetectProjectRequest
+	16, // 34: quark.devops.v1.BuildService.ResolveTask:input_type -> quark.devops.v1.ResolveTaskRequest
+	18, // 35: quark.devops.v1.BuildService.RunTask:input_type -> quark.devops.v1.RunTaskRequest
+	20, // 36: quark.devops.v1.BuildService.CreateArtifact:input_type -> quark.devops.v1.CreateArtifactRequest
+	22, // 37: quark.devops.v1.BuildService.InitReleaseConfig:input_type -> quark.devops.v1.InitReleaseConfigRequest
+	24, // 38: quark.devops.v1.BuildService.DryRunRelease:input_type -> quark.devops.v1.DryRunReleaseRequest
+	26, // 39: quark.devops.v1.BuildService.RunRelease:input_type -> quark.devops.v1.RunReleaseRequest
+	28, // 40: quark.devops.v1.TestService.DiscoverTests:input_type -> quark.devops.v1.DiscoverTestsRequest
+	30, // 41: quark.devops.v1.TestService.RunTests:input_type -> quark.devops.v1.RunTestsRequest
+	32, // 42: quark.devops.v1.TestService.ExplainFailure:input_type -> quark.devops.v1.ExplainFailureRequest
+	34, // 43: quark.devops.v1.ContainerService.BuildImage:input_type -> quark.devops.v1.BuildImageRequest
+	36, // 44: quark.devops.v1.ContainerService.ListImages:input_type -> quark.devops.v1.ListImagesRequest
+	38, // 45: quark.devops.v1.ContainerService.PlanRun:input_type -> quark.devops.v1.PlanRunRequest
+	40, // 46: quark.devops.v1.DeployService.Plan:input_type -> quark.devops.v1.PlanRequest
+	42, // 47: quark.devops.v1.DeployService.Apply:input_type -> quark.devops.v1.ApplyRequest
+	44, // 48: quark.devops.v1.PolicyService.EvaluateChange:input_type -> quark.devops.v1.EvaluateChangeRequest
+	1,  // 49: quark.devops.v1.RepoService.Status:output_type -> quark.devops.v1.StatusResponse
+	3,  // 50: quark.devops.v1.RepoService.Diff:output_type -> quark.devops.v1.DiffResponse
+	5,  // 51: quark.devops.v1.RepoService.GetBranch:output_type -> quark.devops.v1.GetBranchResponse
+	7,  // 52: quark.devops.v1.RepoService.ListChangedFiles:output_type -> quark.devops.v1.ListChangedFilesResponse
+	9,  // 53: quark.devops.v1.RepoService.ApplyPatch:output_type -> quark.devops.v1.ApplyPatchResponse
+	11, // 54: quark.devops.v1.RepoService.Commit:output_type -> quark.devops.v1.CommitResponse
+	13, // 55: quark.devops.v1.RepoService.GenerateReleaseNotes:output_type -> quark.devops.v1.GenerateReleaseNotesResponse
+	15, // 56: quark.devops.v1.BuildService.DetectProject:output_type -> quark.devops.v1.DetectProjectResponse
+	17, // 57: quark.devops.v1.BuildService.ResolveTask:output_type -> quark.devops.v1.ResolveTaskResponse
+	19, // 58: quark.devops.v1.BuildService.RunTask:output_type -> quark.devops.v1.RunTaskResponse
+	21, // 59: quark.devops.v1.BuildService.CreateArtifact:output_type -> quark.devops.v1.CreateArtifactResponse
+	23, // 60: quark.devops.v1.BuildService.InitReleaseConfig:output_type -> quark.devops.v1.InitReleaseConfigResponse
+	25, // 61: quark.devops.v1.BuildService.DryRunRelease:output_type -> quark.devops.v1.DryRunReleaseResponse
+	27, // 62: quark.devops.v1.BuildService.RunRelease:output_type -> quark.devops.v1.RunReleaseResponse
+	29, // 63: quark.devops.v1.TestService.DiscoverTests:output_type -> quark.devops.v1.DiscoverTestsResponse
+	31, // 64: quark.devops.v1.TestService.RunTests:output_type -> quark.devops.v1.RunTestsResponse
+	33, // 65: quark.devops.v1.TestService.ExplainFailure:output_type -> quark.devops.v1.ExplainFailureResponse
+	35, // 66: quark.devops.v1.ContainerService.BuildImage:output_type -> quark.devops.v1.BuildImageResponse
+	37, // 67: quark.devops.v1.ContainerService.ListImages:output_type -> quark.devops.v1.ListImagesResponse
+	39, // 68: quark.devops.v1.ContainerService.PlanRun:output_type -> quark.devops.v1.PlanRunResponse
+	41, // 69: quark.devops.v1.DeployService.Plan:output_type -> quark.devops.v1.PlanResponse
+	43, // 70: quark.devops.v1.DeployService.Apply:output_type -> quark.devops.v1.ApplyResponse
+	45, // 71: quark.devops.v1.PolicyService.EvaluateChange:output_type -> quark.devops.v1.EvaluateChangeResponse
+	49, // [49:72] is the sub-list for method output_type
+	26, // [26:49] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_quark_devops_v1_devops_proto_init() }
@@ -3173,7 +3766,7 @@ func file_quark_devops_v1_devops_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_quark_devops_v1_devops_proto_rawDesc), len(file_quark_devops_v1_devops_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   49,
+			NumMessages:   56,
 			NumExtensions: 0,
 			NumServices:   6,
 		},

@@ -120,7 +120,7 @@ func TestDetectDevOpsReleaseWorkflowRequiresPolicyAndProjectContext(t *testing.T
 	devops := Detect("Inspect this repository for the Go project and preview the release plan without publishing.", toolSchemas(
 		"repo_Status",
 		"build_DetectProject",
-		"build_release_DryRun",
+		"build_DryRunRelease",
 		"policy_EvaluateChange",
 	))
 	if len(devops) != 1 || devops[0].Kind != KindDevOps {
@@ -136,7 +136,7 @@ func TestDetectDevOpsReleasePreviewDoesNotRequireGenericBuildExecution(t *testin
 		"repo_Status",
 		"build_DetectProject",
 		"build_RunTask",
-		"build_release_DryRun",
+		"build_DryRunRelease",
 		"policy_EvaluateChange",
 	))
 	if len(devops) != 1 || devops[0].Kind != KindDevOps {

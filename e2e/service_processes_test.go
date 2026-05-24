@@ -164,17 +164,6 @@ func e2eGatewayTimeout() string {
 	return "2m"
 }
 
-func startBuildReleaseServiceAt(t *testing.T, binary, addr string, nats utils.NATSEndpoints) {
-	t.Helper()
-	startNATSServiceProcess(t, natsServiceProcessSpec{
-		Label:   "build-release",
-		Binary:  binary,
-		Address: addr,
-		Plugin:  "build-release",
-		NATS:    nats,
-	})
-}
-
 func startDevOpsServiceAt(t *testing.T, binary, addr string, nats utils.NATSEndpoints) {
 	t.Helper()
 	startNATSServiceProcess(t, natsServiceProcessSpec{
@@ -224,19 +213,16 @@ func standardKnowledgeServicesStartOptions(t *testing.T, embedding utils.Embeddi
 func standardDevOpsServicesStartOptions(t *testing.T, workingDir string) utils.StartOptions {
 	t.Helper()
 	devopsAddr := reserveLoopbackAddress(t)
-	buildReleaseAddr := reserveLoopbackAddress(t)
 	ioAddr := reserveLoopbackAddress(t)
 	gatewayAddr := reserveLoopbackAddress(t)
 	return utils.StartOptions{
 		WorkingDir:               workingDir,
 		DisableKnowledgeServices: true,
 		Agents:                   []string{"quark-devops"},
-		ExtraServicePlugins:      []string{"build-release"},
-		AgentServicePermissions:  devOpsAgentServicePermissions(buildReleaseServiceFunctions()...),
-		Services:                 append(localServicePlugins("devops", "build-release", "io"), gatewayServicePlugin()),
+		AgentServicePermissions:  devOpsAgentServicePermissions(devOpsReleaseServiceFunctions()...),
+		Services:                 append(localServicePlugins("devops", "io"), gatewayServicePlugin()),
 		SupervisorEnv: map[string]string{
 			"QUARK_DEVOPS_ADDR":          devopsAddr,
-			"QUARK_BUILD_RELEASE_ADDR":   buildReleaseAddr,
 			"QUARK_IO_ADDR":              ioAddr,
 			"QUARK_GATEWAY_SERVICE_ADDR": gatewayAddr,
 		},
@@ -245,7 +231,6 @@ func standardDevOpsServicesStartOptions(t *testing.T, workingDir string) utils.S
 			startIOServiceAt(t, bins.IO, ioAddr, setup.NATS)
 			startGatewayServiceAt(t, bins.Model, gatewayAddr, setup.NATS.ClientURL)
 			startDevOpsServiceAt(t, bins.DevOps, devopsAddr, setup.NATS)
-			startBuildReleaseServiceAt(t, bins.BuildRelease, buildReleaseAddr, setup.NATS)
 		},
 	}
 }
@@ -258,7 +243,6 @@ func standardDevOpsOnlyServicesStartOptions(t *testing.T, workingDir string) uti
 		WorkingDir:               workingDir,
 		DisableKnowledgeServices: true,
 		Agents:                   []string{"quark-devops"},
-		ExtraServicePlugins:      []string{"build-release"},
 		AgentServicePermissions:  devOpsAgentServicePermissions(),
 		Services:                 append(localServicePlugins("devops"), gatewayServicePlugin()),
 		SupervisorEnv: map[string]string{
@@ -470,11 +454,11 @@ func knowledgeServiceFunctions() []string {
 	}
 }
 
-func buildReleaseServiceFunctions() []string {
+func devOpsReleaseServiceFunctions() []string {
 	return []string{
-		"build_release_DryRun",
-		"build_release_Init",
-		"build_release_Release",
+		"build_DryRunRelease",
+		"build_InitReleaseConfig",
+		"build_RunRelease",
 	}
 }
 

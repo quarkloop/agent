@@ -2,9 +2,11 @@ package devopssvc
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -156,6 +158,65 @@ func TestTestsContainersDeployAndFailureExplanation(t *testing.T) {
 	}
 }
 
+func TestReleaseFunctionsAreOwnedByDevOpsBuildService(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "go.mod"), "module example.com/releasefixture\n\ngo 1.26\n")
+	writeFile(t, filepath.Join(dir, "main.go"), "package main\n\nfunc main() {}\n")
+	writeReleaseConfig(t, dir)
+
+	server := NewServer()
+	dryRun, err := server.DryRunRelease(context.Background(), &devopsv1.DryRunReleaseRequest{
+		Path:    dir,
+		Version: "v1.2.3",
+	})
+	if err != nil {
+		t.Fatalf("dry run release: %v", err)
+	}
+	if dryRun.GetVersion() != "v1.2.3" || len(dryRun.GetPlanned()) != 1 {
+		t.Fatalf("dry run response = %+v", dryRun)
+	}
+	if dryRun.GetPlanned()[0].GetArchiveName() == "" {
+		t.Fatalf("planned artifact missing archive name: %+v", dryRun.GetPlanned()[0])
+	}
+
+	release, err := server.RunRelease(context.Background(), &devopsv1.RunReleaseRequest{
+		Path:      dir,
+		Version:   "v1.2.3",
+		SkipTests: true,
+		Reason:    "verify release service function",
+	})
+	if err != nil {
+		t.Fatalf("run release: %v", err)
+	}
+	if !release.GetSuccess() || release.GetPlan().GetAction() != "build.run_release" {
+		t.Fatalf("release response = %+v", release)
+	}
+	if len(release.GetArtifacts()) != 1 || release.GetArtifacts()[0].GetChecksum() == "" {
+		t.Fatalf("release artifacts = %+v", release.GetArtifacts())
+	}
+}
+
+func TestInitReleaseConfigReportsApprovalPlan(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	server := NewServer()
+	resp, err := server.InitReleaseConfig(context.Background(), &devopsv1.InitReleaseConfigRequest{
+		Path:   dir,
+		Reason: "prepare release config",
+	})
+	if err != nil {
+		t.Fatalf("init release config: %v", err)
+	}
+	if !resp.GetCreated() || resp.GetPlan().GetAction() != "build.init_release_config" {
+		t.Fatalf("init response = %+v", resp)
+	}
+	if _, err := os.Stat(resp.GetConfigPath()); err != nil {
+		t.Fatalf("release config missing: %v", err)
+	}
+}
+
 func initGitRepo(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -166,6 +227,31 @@ func initGitRepo(t *testing.T) string {
 	run(t, dir, "git", "add", "README.md")
 	run(t, dir, "git", "commit", "-m", "initial commit")
 	return dir
+}
+
+func writeReleaseConfig(t *testing.T, dir string) {
+	t.Helper()
+	cfg := map[string]any{
+		"package_name": "releasefixture",
+		"binary_name":  "releasefixture",
+		"release_dir":  "dist",
+		"checksums":    true,
+		"builds": []map[string]any{{
+			"name":        "releasefixture",
+			"source_path": ".",
+			"binary_name": "releasefixture",
+			"source_dir":  ".",
+		}},
+		"targets": []map[string]string{{
+			"os":   runtime.GOOS,
+			"arch": runtime.GOARCH,
+		}},
+	}
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal release config: %v", err)
+	}
+	writeFile(t, filepath.Join(dir, "build_release.json"), string(append(data, '\n')))
 }
 
 func writeFile(t *testing.T, path, content string) {

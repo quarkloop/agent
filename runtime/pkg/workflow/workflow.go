@@ -699,7 +699,7 @@ func knowledgeIndexServiceFunction(name string) bool {
 }
 
 func devopsServiceFunction(name string) bool {
-	for _, prefix := range []string{"repo_", "build_", "test_", "policy_", "build_release_"} {
+	for _, prefix := range []string{"repo_", "build_", "test_", "policy_"} {
 		if strings.HasPrefix(name, prefix) {
 			return true
 		}
@@ -909,7 +909,7 @@ func devopsSteps(text string, available map[string]struct{}) []Step {
 		specs = append(specs, step("build", "build execution", "build_RunTask", "build_CreateArtifact"))
 	}
 	if releaseRequested {
-		specs = append(specs, step("release", "release planning", "build_release_DryRun", "repo_GenerateReleaseNotes"))
+		specs = append(specs, step("release", "release planning", "build_DryRunRelease", "repo_GenerateReleaseNotes"))
 	}
 	if containsAny(text, " release ", " publish ", " deploy ", " apply ", " patch ", " commit ") {
 		specs = append(specs, step("policy", "policy evaluation", "policy_EvaluateChange"))

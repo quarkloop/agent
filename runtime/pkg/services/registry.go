@@ -1,7 +1,6 @@
 package services
 
 import (
-	buildreleasev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/buildrelease/v1"
 	citationv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/citation/v1"
 	corev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/core/v1"
 	devopsv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/devops/v1"
@@ -20,7 +19,6 @@ import (
 var _ = []any{
 	indexerv1.File_quark_indexer_v1_indexer_proto,
 	embeddingv1.File_quark_embedding_v1_embedding_proto,
-	buildreleasev1.File_quark_buildrelease_v1_build_release_proto,
 	devopsv1.File_quark_devops_v1_devops_proto,
 	corev1.File_quark_core_v1_core_proto,
 	documentv1.File_quark_document_v1_document_proto,

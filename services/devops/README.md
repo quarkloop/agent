@@ -5,8 +5,8 @@ repository, build, test, container, deploy, and policy functions. It wraps
 complex ecosystems only through narrow service functions that match Quark
 workflows.
 
-Release automation remains available through `services/build-release` as a
-compatibility service while release-specific DevOps chat workflows are wired.
+Release automation is owned by this service through typed build service
+functions. The legacy standalone release service/tool path has been removed.
 
 ## Service Functions
 
@@ -23,6 +23,9 @@ compatibility service while release-specific DevOps chat workflows are wired.
 | `build_ResolveTask` | `quark.devops.v1.BuildService/ResolveTask` | `ResolveTaskRequest` | `ResolveTaskResponse` | Resolve one named build task. |
 | `build_RunTask` | `quark.devops.v1.BuildService/RunTask` | `RunTaskRequest` | `RunTaskResponse` | Run or plan one approved build task. |
 | `build_CreateArtifact` | `quark.devops.v1.BuildService/CreateArtifact` | `CreateArtifactRequest` | `CreateArtifactResponse` | Create or plan artifacts for an approved task. |
+| `build_InitReleaseConfig` | `quark.devops.v1.BuildService/InitReleaseConfig` | `InitReleaseConfigRequest` | `InitReleaseConfigResponse` | Create a default release configuration in an approved workspace. |
+| `build_DryRunRelease` | `quark.devops.v1.BuildService/DryRunRelease` | `DryRunReleaseRequest` | `DryRunReleaseResponse` | Preview release version and artifact matrix without compiling or publishing. |
+| `build_RunRelease` | `quark.devops.v1.BuildService/RunRelease` | `RunReleaseRequest` | `RunReleaseResponse` | Run an approved release pipeline and return generated artifacts. |
 | `test_DiscoverTests` | `quark.devops.v1.TestService/DiscoverTests` | `DiscoverTestsRequest` | `DiscoverTestsResponse` | Discover project test targets. |
 | `test_RunTests` | `quark.devops.v1.TestService/RunTests` | `RunTestsRequest` | `RunTestsResponse` | Run selected tests or produce a dry-run test plan. |
 | `test_ExplainFailure` | `quark.devops.v1.TestService/ExplainFailure` | `ExplainFailureRequest` | `ExplainFailureResponse` | Summarize structured test failure evidence. |
@@ -40,8 +43,7 @@ compatibility service while release-specific DevOps chat workflows are wired.
   mutation plans.
 - Core/runtime owns approval state, policy gating, audit, and artifact
   persistence.
-- Build-release compatibility service owns the existing release business logic
-  until a release-specific DevOps service function contract replaces it.
+- Release automation belongs to DevOps build service functions.
 
 ## Configuration
 

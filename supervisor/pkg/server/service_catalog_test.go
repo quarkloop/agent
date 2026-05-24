@@ -26,12 +26,12 @@ func TestRuntimePluginCatalogEntryIncludesToolSchemaAndSkill(t *testing.T) {
 	entry, err := runtimePluginCatalogEntryFromInstalled(pluginmanager.InstalledPlugin{
 		Path: dir,
 		Manifest: &plugin.Manifest{
-			Name: "build-release",
+			Name: "repo-tools",
 			Type: plugin.TypeTool,
 			Tool: &plugin.ToolConfig{
 				Schema: plugin.ToolSchema{
-					Name:        "build-release",
-					Description: "build release compatibility",
+					Name:        "repo-inspect",
+					Description: "repository inspection",
 				},
 			},
 		},
@@ -40,10 +40,10 @@ func TestRuntimePluginCatalogEntryIncludesToolSchemaAndSkill(t *testing.T) {
 		t.Fatalf("catalog entry: %v", err)
 	}
 
-	if entry.Name != "build-release" || entry.Type != plugin.TypeTool || entry.Path != dir {
+	if entry.Name != "repo-tools" || entry.Type != plugin.TypeTool || entry.Path != dir {
 		t.Fatalf("unexpected entry identity: %+v", entry)
 	}
-	if entry.Schema == nil || entry.Schema.Name != "build-release" {
+	if entry.Schema == nil || entry.Schema.Name != "repo-inspect" {
 		t.Fatalf("tool schema missing: %+v", entry)
 	}
 	if entry.Skill != "Use the tool carefully." {
@@ -275,10 +275,10 @@ func TestResolveServicePluginCatalogIgnoresUnboundInstalledServicePlugins(t *tes
 	srv := serviceTestServer(t)
 	writeInstalledServicePlugin(t, srv, "test-space")
 	writeInstalledServicePluginNamed(t, srv, "test-space", servicePluginFixture{
-		Name:         "build-release",
-		AddressEnv:   "QUARK_BUILD_RELEASE_ADDR",
-		ProtoService: "quark.buildrelease.v1.BuildReleaseService",
-		FunctionName: "build_release_DryRun",
+		Name:         "citation",
+		AddressEnv:   "QUARK_CITATION_ADDR",
+		ProtoService: "quark.citation.v1.CitationService",
+		FunctionName: "citation_VerifyGrounding",
 	})
 	qf := []byte(`quark: "1.0"
 meta:
@@ -286,7 +286,7 @@ meta:
   version: "0.1.0"
 plugins:
   - ref: quark/service-indexer
-  - ref: quark/service-build-release
+  - ref: quark/service-citation
 services:
   - name: indexer
     ref: quark/service-indexer

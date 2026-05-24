@@ -185,13 +185,6 @@
       "import": "github.com/quarkloop/services/space/pkg/spacesvc",
       "task": "Task 9 / Task 20",
       "reason": "Supervisor embeds the space service directly during bootstrap. This needs a cleaner service lifecycle boundary when supervisor runtime lifecycle and Core services are split."
-    },
-    {
-      "area": "plugins",
-      "file": "plugins/tools/build-release/pkg/buildrelease/tool.go",
-      "import": "github.com/quarkloop/services/build-release/pkg/buildrelease",
-      "task": "Task 13",
-      "reason": "Legacy build-release tool imports service domain code as a compatibility adapter. Task 13 migrates build-release to service functions and removes duplicated tool ownership."
     }
   ]
 }

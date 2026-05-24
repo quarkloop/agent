@@ -23,14 +23,13 @@ OUTPUT = ROOT / "architecture" / "service-implementation-map.json"
 
 AREA_SERVICES = {
     "Knowledge": ["document", "ingestion", "embedding", "embedding-openrouter", "indexer", "citation", "memory"],
-    "DevOps": ["devops", "build-release"],
+    "DevOps": ["devops"],
     "System": ["system"],
     "Core": ["core"],
     "Model": ["model"],
     "Space": ["space"],
     "Indexer": ["indexer"],
     "Embedding": ["embedding", "embedding-openrouter"],
-    "Build Release": ["build-release"],
 }
 
 AGENT_AREA = {

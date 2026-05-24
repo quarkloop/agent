@@ -30,8 +30,8 @@ delegates everything else to the supervisor or the resolved runtime.
 
 | Type | Purpose |
 | --- | --- |
-| `tool` | Executable/lib-mode tools such as `build-release` compatibility tooling. |
-| `service` | gRPC service binaries and plugin descriptors (`io`, `document`, `indexer`, …) with `SKILL.md`, readiness rules, and service function metadata. |
+| `tool` | Executable/lib-mode tools for agent-callable local operations when a service boundary is not the right owner. |
+| `service` | NATS service binaries and plugin descriptors (`io`, `document`, `indexer`, …) with `SKILL.md`, readiness rules, and service function metadata. |
 | `agent` | Agent profile, system prompt, skills, permissions, handoff rules, and eval expectations. |
 | `provider` | Model provider adapters, migrating behind the model service boundary. |
 | `skill` | Guidance-only extension content. |

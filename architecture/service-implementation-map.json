@@ -6,11 +6,11 @@
       "implemented_permissions": [
         "build_CreateArtifact",
         "build_DetectProject",
+        "build_DryRunRelease",
+        "build_InitReleaseConfig",
         "build_ResolveTask",
+        "build_RunRelease",
         "build_RunTask",
-        "build_release_DryRun",
-        "build_release_Init",
-        "build_release_Release",
         "container_BuildImage",
         "container_ListImages",
         "container_PlanRun",
@@ -45,7 +45,9 @@
     },
     "quark-knowledge": {
       "area": "Knowledge",
-      "declared_only_permissions": [],
+      "declared_only_permissions": [
+        "workflow_StreamEvents"
+      ],
       "implemented_permissions": [
         "citation_CreateCitation",
         "citation_RenderReferences",
@@ -100,8 +102,7 @@
         "workflow_Describe",
         "workflow_List",
         "workflow_Query",
-        "workflow_Start",
-        "workflow_StreamEvents"
+        "workflow_Start"
       ],
       "missing_permissions": [],
       "name": "Quark Knowledge",
@@ -136,17 +137,6 @@
     }
   },
   "areas": {
-    "Build Release": {
-      "declared_only_function_count": 0,
-      "implemented_function_count": 3,
-      "profile_count": 0,
-      "proto_mismatch_count": 0,
-      "runnable_service_count": 1,
-      "service_count": 1,
-      "services": [
-        "build-release"
-      ]
-    },
     "Core": {
       "declared_only_function_count": 0,
       "implemented_function_count": 20,
@@ -163,11 +153,10 @@
       "implemented_function_count": 23,
       "profile_count": 1,
       "proto_mismatch_count": 0,
-      "runnable_service_count": 2,
-      "service_count": 2,
+      "runnable_service_count": 1,
+      "service_count": 1,
       "services": [
-        "devops",
-        "build-release"
+        "devops"
       ]
     },
     "Embedding": {
@@ -287,21 +276,21 @@
       {
         "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
-        "path": "e2e/build_release_agent_test.go",
-        "prompt_shortcut_suspects": [
-          "33: TraceOptions:   devOpsServiceTraceOptions(\"build-release dry run through service function\"),"
-        ]
-      },
-      {
-        "direct_service_shortcut_suspects": [],
-        "has_process_flow": false,
-        "path": "e2e/build_release_prompts_test.go",
+        "path": "e2e/chat_flow_test.go",
         "prompt_shortcut_suspects": []
       },
       {
         "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
-        "path": "e2e/chat_flow_test.go",
+        "path": "e2e/devops_release_agent_test.go",
+        "prompt_shortcut_suspects": [
+          "33: TraceOptions:   devOpsServiceTraceOptions(\"devops release dry run through service function\"),"
+        ]
+      },
+      {
+        "direct_service_shortcut_suspects": [],
+        "has_process_flow": false,
+        "path": "e2e/devops_release_prompts_test.go",
         "prompt_shortcut_suspects": []
       },
       {
@@ -423,8 +412,8 @@
         "has_process_flow": false,
         "path": "e2e/service_plugin_inventory_test.go",
         "prompt_shortcut_suspects": [
-          "152: t.Fatalf(\"%s README does not document service function %s\", manifest.Name, function.Name)",
-          "155: t.Fatalf(\"%s SKILL does not document service function %s\", manifest.Name, function.Name)"
+          "148: t.Fatalf(\"%s README does not document service function %s\", manifest.Name, function.Name)",
+          "151: t.Fatalf(\"%s SKILL does not document service function %s\", manifest.Name, function.Name)"
         ]
       },
       {
@@ -432,13 +421,13 @@
         "has_process_flow": true,
         "path": "e2e/service_processes_test.go",
         "prompt_shortcut_suspects": [
-          "448: \"embedding_Embed\",",
-          "454: \"indexer_IndexDocument\",",
-          "456: \"indexer_GetContext\",",
-          "458: \"indexer_DeleteChunk\",",
-          "487: \"embedding_Embed\",",
-          "488: \"indexer_IndexDocument\",",
-          "501: t.Fatalf(\"standard knowledge e2e stack missing required service function %s\", function)"
+          "432: \"embedding_Embed\",",
+          "438: \"indexer_IndexDocument\",",
+          "440: \"indexer_GetContext\",",
+          "442: \"indexer_DeleteChunk\",",
+          "471: \"embedding_Embed\",",
+          "472: \"indexer_IndexDocument\",",
+          "485: t.Fatalf(\"standard knowledge e2e stack missing required service function %s\", function)"
         ]
       },
       {
@@ -504,67 +493,6 @@
     "prompt_shortcut_suspect_count": 43
   },
   "services": {
-    "build-release": {
-      "address_env": "QUARK_BUILD_RELEASE_ADDR",
-      "declared_only_function_count": 0,
-      "function_count": 3,
-      "functions": [
-        {
-          "approval_required": true,
-          "idempotent": false,
-          "method": "Release",
-          "method_implemented": true,
-          "name": "build_release_Release",
-          "proto_rpc_exists": true,
-          "request": "quark.buildrelease.v1.ReleaseRequest",
-          "response": "quark.buildrelease.v1.ReleaseResponse",
-          "risk_level": "admin",
-          "service": "quark.buildrelease.v1.BuildReleaseService",
-          "status": "implemented_end_to_end",
-          "streaming": false
-        },
-        {
-          "approval_required": false,
-          "idempotent": true,
-          "method": "DryRun",
-          "method_implemented": true,
-          "name": "build_release_DryRun",
-          "proto_rpc_exists": true,
-          "request": "quark.buildrelease.v1.DryRunRequest",
-          "response": "quark.buildrelease.v1.DryRunResponse",
-          "risk_level": "read",
-          "service": "quark.buildrelease.v1.BuildReleaseService",
-          "status": "implemented_end_to_end",
-          "streaming": false
-        },
-        {
-          "approval_required": true,
-          "idempotent": false,
-          "method": "Init",
-          "method_implemented": true,
-          "name": "build_release_Init",
-          "proto_rpc_exists": true,
-          "request": "quark.buildrelease.v1.InitRequest",
-          "response": "quark.buildrelease.v1.InitResponse",
-          "risk_level": "write",
-          "service": "quark.buildrelease.v1.BuildReleaseService",
-          "status": "implemented_end_to_end",
-          "streaming": false
-        }
-      ],
-      "health_service": "quark.buildrelease.v1.BuildReleaseService",
-      "implemented_function_count": 3,
-      "manifest_path": "plugins/services/build-release/manifest.yaml",
-      "module_exists": true,
-      "module_path": "services/build-release",
-      "proto_mismatch_count": 0,
-      "proto_services": [
-        "quark.buildrelease.v1.BuildReleaseService"
-      ],
-      "readiness_required": true,
-      "readme_path": "plugins/services/build-release/README.md",
-      "skill_path": "plugins/services/build-release/SKILL.md"
-    },
     "citation": {
       "address_env": "QUARK_CITATION_ADDR",
       "declared_only_function_count": 0,
@@ -956,7 +884,7 @@
     "devops": {
       "address_env": "QUARK_DEVOPS_ADDR",
       "declared_only_function_count": 0,
-      "function_count": 20,
+      "function_count": 23,
       "functions": [
         {
           "approval_required": false,
@@ -1113,6 +1041,48 @@
           "streaming": false
         },
         {
+          "approval_required": true,
+          "idempotent": false,
+          "method": "InitReleaseConfig",
+          "method_implemented": true,
+          "name": "build_InitReleaseConfig",
+          "proto_rpc_exists": true,
+          "request": "quark.devops.v1.InitReleaseConfigRequest",
+          "response": "quark.devops.v1.InitReleaseConfigResponse",
+          "risk_level": "write",
+          "service": "quark.devops.v1.BuildService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "DryRunRelease",
+          "method_implemented": true,
+          "name": "build_DryRunRelease",
+          "proto_rpc_exists": true,
+          "request": "quark.devops.v1.DryRunReleaseRequest",
+          "response": "quark.devops.v1.DryRunReleaseResponse",
+          "risk_level": "read",
+          "service": "quark.devops.v1.BuildService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
+          "approval_required": true,
+          "idempotent": false,
+          "method": "RunRelease",
+          "method_implemented": true,
+          "name": "build_RunRelease",
+          "proto_rpc_exists": true,
+          "request": "quark.devops.v1.RunReleaseRequest",
+          "response": "quark.devops.v1.RunReleaseResponse",
+          "risk_level": "admin",
+          "service": "quark.devops.v1.BuildService",
+          "status": "implemented_end_to_end",
+          "streaming": false
+        },
+        {
           "approval_required": false,
           "idempotent": true,
           "method": "DiscoverTests",
@@ -1240,7 +1210,7 @@
         }
       ],
       "health_service": "quark.devops.v1.RepoService",
-      "implemented_function_count": 20,
+      "implemented_function_count": 23,
       "manifest_path": "plugins/services/devops/manifest.yaml",
       "module_exists": true,
       "module_path": "services/devops",
@@ -2686,7 +2656,7 @@
     },
     "workflow": {
       "address_env": "QUARK_WORKFLOW_ADDR",
-      "declared_only_function_count": 0,
+      "declared_only_function_count": 1,
       "function_count": 7,
       "functions": [
         {
@@ -2777,19 +2747,19 @@
           "approval_required": false,
           "idempotent": true,
           "method": "StreamEvents",
-          "method_implemented": true,
+          "method_implemented": false,
           "name": "workflow_StreamEvents",
           "proto_rpc_exists": true,
           "request": "quark.workflow.v1.StreamWorkflowEventsRequest",
           "response": "quark.workflow.v1.WorkflowEvent",
           "risk_level": "read",
           "service": "quark.workflow.v1.WorkflowService",
-          "status": "implemented_end_to_end",
+          "status": "declared_only",
           "streaming": true
         }
       ],
       "health_service": "quark.workflow.v1.WorkflowService",
-      "implemented_function_count": 7,
+      "implemented_function_count": 6,
       "manifest_path": "plugins/services/workflow/manifest.yaml",
       "module_exists": true,
       "module_path": "services/workflow",
@@ -2804,12 +2774,12 @@
   },
   "summary": {
     "agent_profile_count": 3,
-    "declared_only_or_mismatched_function_count": 4,
+    "declared_only_or_mismatched_function_count": 5,
     "e2e_test_file_count": 33,
-    "implemented_service_function_count": 138,
-    "runnable_service_module_count": 15,
+    "implemented_service_function_count": 137,
+    "runnable_service_module_count": 14,
     "service_function_count": 142,
-    "service_plugin_count": 16
+    "service_plugin_count": 15
   },
   "version": 1
 }

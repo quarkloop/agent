@@ -3,11 +3,11 @@ package servicefunction
 import "testing"
 
 func TestSubjectNormalizesProductNames(t *testing.T) {
-	subject, err := Subject("build-release", "v1", "CreateDraft")
+	subject, err := Subject("devops", "v1", "DryRunRelease")
 	if err != nil {
 		t.Fatalf("subject: %v", err)
 	}
-	if subject != "svc.build_release.v1.create_draft" {
+	if subject != "svc.devops.v1.dry_run_release" {
 		t.Fatalf("subject = %q", subject)
 	}
 }
@@ -22,12 +22,12 @@ func TestSubjectFromFunctionName(t *testing.T) {
 	}
 }
 
-func TestSubjectFromOwnerAndFunctionNameKeepsCompoundOwner(t *testing.T) {
-	subject, err := SubjectFromOwnerAndFunctionName("build-release", "build_release_DryRun")
+func TestSubjectFromOwnerAndFunctionNameUsesDeclaredOwner(t *testing.T) {
+	subject, err := SubjectFromOwnerAndFunctionName("devops", "build_DryRunRelease")
 	if err != nil {
 		t.Fatalf("subject from owner and function: %v", err)
 	}
-	if subject != "svc.build_release.v1.dry_run" {
+	if subject != "svc.devops.v1.build_dry_run_release" {
 		t.Fatalf("subject = %q", subject)
 	}
 }
