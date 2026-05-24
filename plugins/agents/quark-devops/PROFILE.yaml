@@ -1,5 +1,6 @@
 id: quark-devops
 name: Quark DevOps
+role: delegate
 description: Builds, tests, packages, releases, and inspects delivery workflows.
 model:
   provider: ""

@@ -52,7 +52,7 @@ func (s *Server) resolveRuntimePluginCatalog(ctx context.Context, space string) 
 			catalog.Plugins = append(catalog.Plugins, entry)
 		}
 	}
-	plugins, selectedAgent, err := newAgentProfileOverrideResolver(qf).apply(catalog.Plugins)
+	plugins, selectedAgent, err := newAgentProfileOverrideResolver(qf, validationCatalog).apply(catalog.Plugins)
 	if err != nil {
 		return plugin.RuntimeCatalog{}, "", err
 	}

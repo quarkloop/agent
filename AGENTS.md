@@ -87,6 +87,11 @@ implementation, and `SKILL.md`. Service plugins describe NATS service functions;
 turns their RPC descriptors into generated service functions such as
 `embedding_Embed` and `indexer_GetContext`.
 
+`quark-main` is the required root coordinator agent plugin. Supervisor resolves
+its allowed service functions from installed services and any Quarkfile
+narrowing; runtime must not select a specialist agent as the root. Knowledge,
+DevOps, and System agent profiles are delegate plugins.
+
 `Quarkfile` is the space-level override layer for installed agent profiles. It
 may select enabled profiles, model/provider overrides, service/tool narrowing,
 approval policy, and memory scope. Supervisor must validate those overrides

@@ -1,0 +1,38 @@
+id: quark-main
+name: Quark Main
+role: main
+description: Coordinates user sessions, selected specialist profiles, and available service functions.
+model:
+  provider: ""
+  model: ""
+prompt:
+  system: SYSTEM.md
+  skills:
+    - SKILL.md
+permissions:
+  tools: []
+  services: []
+memory:
+  scope: space
+  collections:
+    - session_memory
+approval:
+  required_for:
+    - workspace.write
+    - source.delete
+    - index.delete
+    - command.execute
+    - release.publish
+    - deploy.apply
+    - process.kill
+    - service.restart
+    - system.mutate
+handoff:
+  can_delegate_to:
+    - quark-knowledge
+    - quark-devops
+    - quark-system
+evaluation:
+  required_checks:
+    - grounded_answer
+    - operation_traceability

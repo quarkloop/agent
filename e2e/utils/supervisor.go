@@ -33,6 +33,7 @@ func startSupervisor(t *testing.T, bins BuiltBinaries, extraEnv map[string]strin
 	StartProcess(t, "supervisor", bins.Supervisor, []string{
 		"start",
 		"--port", fmt.Sprint(port),
+		"--bundled-plugins-dir", filepath.Join(QuarkRoot(t), "plugins"),
 		"--nats-state-dir", natsStateDir,
 		"--nats-client-port", fmt.Sprint(natsClientPort),
 		"--nats-websocket-port", fmt.Sprint(natsWebSocketPort),

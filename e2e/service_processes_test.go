@@ -192,7 +192,7 @@ func standardKnowledgeServicesStartOptions(t *testing.T, embedding utils.Embeddi
 	return utils.StartOptions{
 		WorkingDir:              workingDir,
 		Embedding:               embedding,
-		Agents:                  []string{"quark-knowledge"},
+		Agents:                  []string{"quark-main"},
 		AgentServicePermissions: knowledgeAgentServicePermissions(),
 		SupervisorEnv:           addresses.supervisorEnv(),
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
@@ -218,7 +218,7 @@ func standardDevOpsServicesStartOptions(t *testing.T, workingDir string) utils.S
 	return utils.StartOptions{
 		WorkingDir:               workingDir,
 		DisableKnowledgeServices: true,
-		Agents:                   []string{"quark-devops"},
+		Agents:                   []string{"quark-main"},
 		AgentServicePermissions:  devOpsAgentServicePermissions(devOpsReleaseServiceFunctions()...),
 		Services:                 append(localServicePlugins("devops", "io"), gatewayServicePlugin()),
 		SupervisorEnv: map[string]string{
@@ -242,7 +242,7 @@ func standardDevOpsOnlyServicesStartOptions(t *testing.T, workingDir string) uti
 	return utils.StartOptions{
 		WorkingDir:               workingDir,
 		DisableKnowledgeServices: true,
-		Agents:                   []string{"quark-devops"},
+		Agents:                   []string{"quark-main"},
 		AgentServicePermissions:  devOpsAgentServicePermissions(),
 		Services:                 append(localServicePlugins("devops"), gatewayServicePlugin()),
 		SupervisorEnv: map[string]string{
@@ -264,7 +264,8 @@ func standardSystemServicesStartOptions(t *testing.T, workingDir string) utils.S
 	return utils.StartOptions{
 		WorkingDir:               workingDir,
 		DisableKnowledgeServices: true,
-		Agents:                   []string{"quark-system"},
+		Agents:                   []string{"quark-main"},
+		AgentServicePermissions:  systemReadOnlyAgentServicePermissions(),
 		Services:                 append(localServicePlugins("system"), gatewayServicePlugin()),
 		SupervisorEnv: map[string]string{
 			"QUARK_SYSTEM_ADDR":          systemAddr,
@@ -390,13 +391,34 @@ func devOpsAgentServicePermissions(extra ...string) map[string][]string {
 	}
 	allowed = append(allowed, extra...)
 	return map[string][]string{
-		"quark-devops": allowed,
+		"quark-main": allowed,
 	}
 }
 
 func knowledgeAgentServicePermissions() map[string][]string {
 	return map[string][]string{
-		"quark-knowledge": knowledgeServiceFunctions(),
+		"quark-main": knowledgeServiceFunctions(),
+	}
+}
+
+func systemReadOnlyAgentServicePermissions() map[string][]string {
+	return map[string][]string{
+		"quark-main": {
+			"system_Snapshot",
+			"system_GetOSInfo",
+			"system_GetKernelInfo",
+			"system_GetUptime",
+			"system_ListPackages",
+			"system_ListServices",
+			"system_ListUsers",
+			"system_ListMounts",
+			"system_GetDiskUsage",
+			"system_ListProcesses",
+			"system_ListPorts",
+			"system_ListNetworkConnections",
+			"system_ReadLogs",
+			"system_GetMetrics",
+		},
 	}
 }
 
@@ -463,7 +485,7 @@ func devOpsReleaseServiceFunctions() []string {
 }
 
 func TestKnowledgeAgentServicePermissionsMatchStandardE2EStack(t *testing.T) {
-	permissions := knowledgeAgentServicePermissions()["quark-knowledge"]
+	permissions := knowledgeAgentServicePermissions()["quark-main"]
 	required := []string{
 		"io_Read",
 		"document_ExtractText",

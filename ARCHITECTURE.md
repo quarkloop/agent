@@ -19,7 +19,7 @@ metadata, sessions, plugin installation, service discovery, service readiness,
 catalog generation, and runtime lifecycle.
 
 The runtime is launched by the supervisor. It consumes supervisor-resolved
-plugin and service catalogs, executes the selected agent profile, manages
+plugin and service catalogs, executes the required main agent profile, manages
 sessions, assembles prompts, calls the Gateway model path, dispatches
 tools and service functions, and emits activity.
 
@@ -36,7 +36,9 @@ delegates everything else to the supervisor or the resolved runtime.
 | `skill` | Guidance-only extension content. |
 
 Agent prompts and personalities belong to agent plugins, not runtime source
-code. Launch profiles are Quark Knowledge, Quark DevOps, and Quark System.
+code. Quark Main is the required root coordinator profile. Quark Knowledge,
+Quark DevOps, and Quark System are specialist profiles that can be installed
+and delegated to through the resolved catalog.
 
 ## Services
 

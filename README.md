@@ -21,7 +21,7 @@ data-flow rules.
 | Spaces | Local-first workspaces configured by a `Quarkfile`. |
 | Supervisor | Control plane for spaces, sessions, plugin installs, service discovery, readiness, catalogs, and embedded NATS. |
 | Runtime | Agent loop, profile prompts, LLM/model calls, tool execution, service-function dispatch, permissions, activity, and workflow guards. |
-| Agents | Launch profiles for Quark Knowledge, Quark DevOps, and Quark System. |
+| Agents | Required Quark Main coordinator plus installable Knowledge, DevOps, and System specialist profiles. |
 | Services | Typed NATS service functions for gateway/model, core, document, ingestion, indexer, citation, DevOps, System, Space, and embedding compatibility. |
 | Observability | Redacted activity, tool/service timelines, model usage records, diagnostics, and E2E artifacts. |
 

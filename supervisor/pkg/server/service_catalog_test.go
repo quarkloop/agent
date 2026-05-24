@@ -110,6 +110,7 @@ func TestRuntimePluginCatalogUsesVersionedContract(t *testing.T) {
 
 func TestRuntimeCatalogSnapshotReturnsVersionedPayloads(t *testing.T) {
 	srv := serviceTestServer(t)
+	writeInstalledMainAgentPlugin(t, srv, "test-space")
 	writeInstalledServicePlugin(t, srv, "test-space")
 	qf := []byte(`quark: "1.0"
 meta:
@@ -142,6 +143,38 @@ services:
 	}
 	if len(services) != 1 || services[0].GetName() != "indexer" {
 		t.Fatalf("service catalog = %+v", services)
+	}
+}
+
+func writeInstalledMainAgentPlugin(t *testing.T, srv *Server, space string) {
+	t.Helper()
+	mgr, err := srv.store.Plugins(space)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(mgr.PluginsDir(), "agents", "quark-main")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		"manifest.yaml": `name: quark-main
+version: "1.0.0"
+type: agent
+mode: api
+description: Main agent
+agent:
+  profile: PROFILE.yaml
+  system: SYSTEM.md
+  skill: SKILL.md
+`,
+		"PROFILE.yaml": "id: quark-main\nname: Quark Main\nrole: main\n",
+		"SYSTEM.md":    "You are Quark Main.\n",
+		"SKILL.md":     "Coordinate installed services.\n",
+	}
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/quarkloop/pkg/plugin"
 	spacemodel "github.com/quarkloop/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/api"
 	"github.com/quarkloop/supervisor/pkg/natshub"
@@ -37,6 +38,17 @@ func TestCreateSpaceProvisionsNATSAccount(t *testing.T) {
 	if !hasNATSAccount(cfg.Accounts, accountName) {
 		t.Fatalf("account %q was not provisioned in %#v", accountName, cfg.Accounts)
 	}
+	plugins, err := srv.store.Plugins("docs")
+	if err != nil {
+		t.Fatalf("open plugin store: %v", err)
+	}
+	mainAgent, err := plugins.Get("quark-main")
+	if err != nil {
+		t.Fatalf("required main agent plugin was not installed: %v", err)
+	}
+	if mainAgent.Manifest.Type != plugin.TypeAgent {
+		t.Fatalf("required plugin type = %q", mainAgent.Manifest.Type)
+	}
 }
 
 func spaceRouteServer(t *testing.T) *Server {
@@ -47,8 +59,9 @@ func spaceRouteServer(t *testing.T) *Server {
 	cfg.Monitoring.Enabled = false
 	cfg.NoLog = true
 	srv, err := New(Config{
-		SpacesDir: t.TempDir(),
-		NATS:      cfg,
+		SpacesDir:         t.TempDir(),
+		NATS:              cfg,
+		BundledPluginsDir: filepath.Join("..", "..", "..", "plugins"),
 	})
 	if err != nil {
 		t.Fatalf("new server: %v", err)

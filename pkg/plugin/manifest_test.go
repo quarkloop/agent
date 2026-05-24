@@ -343,6 +343,9 @@ func TestQuarkKnowledgeProfileDeclaresConcreteServiceFunctions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse quark knowledge profile: %v", err)
 	}
+	if profile.RoleOrDefault() != AgentProfileRoleDelegate {
+		t.Fatalf("quark knowledge role = %q", profile.RoleOrDefault())
+	}
 	permissions := make(map[string]bool, len(profile.Permissions.Services))
 	for _, name := range profile.Permissions.Services {
 		permissions[name] = true
@@ -423,6 +426,9 @@ func TestQuarkSystemProfileDeclaresConcreteServiceFunctions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse quark system profile: %v", err)
 	}
+	if profile.RoleOrDefault() != AgentProfileRoleDelegate {
+		t.Fatalf("quark system role = %q", profile.RoleOrDefault())
+	}
 	if len(profile.Permissions.Tools) != 0 {
 		t.Fatalf("quark system profile should not grant shell/tool fallback permissions: %+v", profile.Permissions.Tools)
 	}
@@ -471,6 +477,9 @@ func TestQuarkDevOpsProfileDeclaresConcreteServiceFunctions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse quark devops profile: %v", err)
 	}
+	if profile.RoleOrDefault() != AgentProfileRoleDelegate {
+		t.Fatalf("quark devops role = %q", profile.RoleOrDefault())
+	}
 	for _, tool := range profile.Permissions.Tools {
 		if tool == "bash" {
 			t.Fatal("quark devops profile should prefer typed services instead of bash fallback")
@@ -507,6 +516,28 @@ func TestQuarkDevOpsProfileDeclaresConcreteServiceFunctions(t *testing.T) {
 	} {
 		if !permissions[want] {
 			t.Fatalf("quark devops profile missing service function permission %q", want)
+		}
+	}
+}
+
+func TestQuarkMainProfileIsRootCoordinator(t *testing.T) {
+	profile, err := ParseAgentProfile(filepath.Join("..", "..", "plugins", "agents", "quark-main", "PROFILE.yaml"))
+	if err != nil {
+		t.Fatalf("parse quark main profile: %v", err)
+	}
+	if !profile.IsMain() {
+		t.Fatalf("quark main role = %q", profile.RoleOrDefault())
+	}
+	if len(profile.Permissions.Services) != 0 || len(profile.Permissions.Tools) != 0 {
+		t.Fatalf("quark main profile should receive resolved permissions from supervisor, got %+v", profile.Permissions)
+	}
+	targets := map[string]bool{}
+	for _, target := range profile.Handoff.CanDelegateTo {
+		targets[target] = true
+	}
+	for _, want := range []string{"quark-knowledge", "quark-devops", "quark-system"} {
+		if !targets[want] {
+			t.Fatalf("quark main profile missing handoff target %q", want)
 		}
 	}
 }

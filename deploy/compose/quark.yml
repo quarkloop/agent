@@ -22,6 +22,8 @@ services:
       - start
       - --port
       - "7200"
+      - --bundled-plugins-dir
+      - /plugins
       - --nats-state-dir
       - /var/lib/quark/nats
       - --nats-client-port
@@ -36,6 +38,7 @@ services:
       - "8222:8222"
       - "9222:9222"
     volumes:
+      - ../../plugins:/plugins:ro
       - supervisor-state:/var/lib/quark
       - spaces:/var/lib/quark/spaces
     environment:

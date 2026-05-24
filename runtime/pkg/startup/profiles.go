@@ -2,7 +2,6 @@ package startup
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/quarkloop/pkg/plugin"
@@ -50,7 +49,7 @@ func AgentProfile(item pluginmanager.CatalogPlugin) agent.Profile {
 
 func ResolveAgentPlugin(catalog *pluginmanager.Catalog, requested string) (pluginmanager.CatalogPlugin, error) {
 	if catalog == nil || catalog.Empty() {
-		return pluginmanager.CatalogPlugin{}, nil
+		return pluginmanager.CatalogPlugin{}, fmt.Errorf("runtime plugin catalog does not include the required main agent profile")
 	}
 	agents := make([]pluginmanager.CatalogPlugin, 0)
 	for _, item := range catalog.Plugins {
@@ -59,21 +58,34 @@ func ResolveAgentPlugin(catalog *pluginmanager.Catalog, requested string) (plugi
 		}
 	}
 	if len(agents) == 0 {
-		return pluginmanager.CatalogPlugin{}, nil
+		return pluginmanager.CatalogPlugin{}, fmt.Errorf("runtime plugin catalog does not include the required main agent profile")
 	}
 	requested = strings.TrimSpace(requested)
 	if requested != "" {
 		for _, item := range agents {
 			if item.Name == requested || item.AgentProfile.ID == requested {
+				if !item.AgentProfile.IsMain() {
+					return pluginmanager.CatalogPlugin{}, fmt.Errorf("agent profile %q is a delegate profile and cannot run as the root main agent", requested)
+				}
 				return item, nil
 			}
 		}
 		return pluginmanager.CatalogPlugin{}, fmt.Errorf("agent profile %q not found in supervisor-resolved catalog", requested)
 	}
-	sort.Slice(agents, func(i, j int) bool {
-		return agents[i].AgentProfile.ID < agents[j].AgentProfile.ID
-	})
-	return agents[0], nil
+	var mainAgent *pluginmanager.CatalogPlugin
+	for i := range agents {
+		if !agents[i].AgentProfile.IsMain() {
+			continue
+		}
+		if mainAgent != nil {
+			return pluginmanager.CatalogPlugin{}, fmt.Errorf("runtime plugin catalog has multiple main agent profiles")
+		}
+		mainAgent = &agents[i]
+	}
+	if mainAgent == nil {
+		return pluginmanager.CatalogPlugin{}, fmt.Errorf("runtime plugin catalog does not include the required main agent profile")
+	}
+	return *mainAgent, nil
 }
 
 func ResolveModelSelection(profile *plugin.AgentProfile, envProvider, envModel string) (string, string) {

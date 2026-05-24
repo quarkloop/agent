@@ -13,6 +13,9 @@ func TestAgentProfileOverrideResolverAppliesQuarkfileOverrides(t *testing.T) {
 		Model:        spacemodel.Model{Provider: "anthropic", Name: "claude-sonnet-4"},
 		Capabilities: spacemodel.Capabilities{ApprovalPolicy: "auto"},
 		Agents: []spacemodel.AgentRef{{
+			Profile: "quark-main",
+			Enabled: &enabled,
+		}, {
 			Profile:  "quark-knowledge",
 			Enabled:  &enabled,
 			Services: []string{"io_Read", "indexer_QueryContext", "embedding_Embed"},
@@ -24,19 +27,23 @@ func TestAgentProfileOverrideResolverAppliesQuarkfileOverrides(t *testing.T) {
 			Memory: spacemodel.AgentMemoryOverride{Scope: "session", Collections: []string{"project_facts"}},
 		}},
 	}
-	entries := []runtimePluginCatalogEntry{agentEntry("quark-knowledge"), agentEntry("quark-devops")}
+	entries := []runtimePluginCatalogEntry{mainAgentEntry("quark-main"), agentEntry("quark-knowledge"), agentEntry("quark-devops")}
 
-	got, selected, err := newAgentProfileOverrideResolver(qf).apply(entries)
+	got, selected, err := newAgentProfileOverrideResolver(qf, agentValidationCatalog()).apply(entries)
 	if err != nil {
 		t.Fatalf("apply overrides: %v", err)
 	}
-	if selected != "quark-knowledge" {
+	if selected != "quark-main" {
 		t.Fatalf("selected = %q", selected)
 	}
-	if len(got) != 1 {
+	if len(got) != 2 {
 		t.Fatalf("entries = %+v", got)
 	}
-	profile := got[0].AgentProfile
+	mainProfile := findAgentProfile(t, got, "quark-main")
+	if !sameStrings(mainProfile.Handoff.CanDelegateTo, []string{"quark-knowledge"}) {
+		t.Fatalf("main handoff targets = %+v", mainProfile.Handoff.CanDelegateTo)
+	}
+	profile := findAgentProfile(t, got, "quark-knowledge")
 	if profile.Model.Provider != "openrouter" || profile.Model.Model != "openai/gpt-5-mini" {
 		t.Fatalf("model = %+v", profile.Model)
 	}
@@ -53,49 +60,61 @@ func TestAgentProfileOverrideResolverAppliesQuarkfileOverrides(t *testing.T) {
 
 func TestAgentProfileOverrideResolverRejectsPermissionExpansion(t *testing.T) {
 	qf := &spacemodel.Quarkfile{Agents: []spacemodel.AgentRef{{
+		Profile: "quark-main",
+	}, {
 		Profile:  "quark-knowledge",
 		Services: []string{"deploy.*"},
 	}}}
 
-	if _, _, err := newAgentProfileOverrideResolver(qf).apply([]runtimePluginCatalogEntry{agentEntry("quark-knowledge")}); err == nil {
+	if _, _, err := newAgentProfileOverrideResolver(qf, agentValidationCatalog()).apply([]runtimePluginCatalogEntry{mainAgentEntry("quark-main"), agentEntry("quark-knowledge")}); err == nil {
 		t.Fatal("permission expansion unexpectedly succeeded")
 	}
 }
 
 func TestAgentProfileOverrideResolverRejectsUnknownProfile(t *testing.T) {
-	qf := &spacemodel.Quarkfile{Agents: []spacemodel.AgentRef{{Profile: "missing-agent"}}}
+	qf := &spacemodel.Quarkfile{Agents: []spacemodel.AgentRef{{Profile: "quark-main"}, {Profile: "missing-agent"}}}
 
-	if _, _, err := newAgentProfileOverrideResolver(qf).apply([]runtimePluginCatalogEntry{agentEntry("quark-knowledge")}); err == nil {
+	if _, _, err := newAgentProfileOverrideResolver(qf, agentValidationCatalog()).apply([]runtimePluginCatalogEntry{mainAgentEntry("quark-main"), agentEntry("quark-knowledge")}); err == nil {
 		t.Fatal("unknown profile unexpectedly succeeded")
 	}
 }
 
 func TestAgentProfileOverrideResolverAllowsEmptyPermissionNarrowing(t *testing.T) {
 	qf := &spacemodel.Quarkfile{Agents: []spacemodel.AgentRef{{
+		Profile: "quark-main",
+	}, {
 		Profile:  "quark-knowledge",
 		Services: []string{},
 		Tools:    []string{},
 	}}}
 
-	got, _, err := newAgentProfileOverrideResolver(qf).apply([]runtimePluginCatalogEntry{agentEntry("quark-knowledge")})
+	got, _, err := newAgentProfileOverrideResolver(qf, agentValidationCatalog()).apply([]runtimePluginCatalogEntry{mainAgentEntry("quark-main"), agentEntry("quark-knowledge")})
 	if err != nil {
 		t.Fatalf("apply overrides: %v", err)
 	}
-	if len(got[0].AgentProfile.Permissions.Services) != 0 || len(got[0].AgentProfile.Permissions.Tools) != 0 {
-		t.Fatalf("permissions were not narrowed to empty: %+v", got[0].AgentProfile.Permissions)
+	profile := findAgentProfile(t, got, "quark-knowledge")
+	if len(profile.Permissions.Services) != 0 || len(profile.Permissions.Tools) != 0 {
+		t.Fatalf("permissions were not narrowed to empty: %+v", profile.Permissions)
 	}
 }
 
-func TestAgentProfileOverrideResolverSelectsDefaultDeterministically(t *testing.T) {
-	got, selected, err := newAgentProfileOverrideResolver(&spacemodel.Quarkfile{}).apply([]runtimePluginCatalogEntry{
+func TestAgentProfileOverrideResolverSelectsOnlyMainAgentByDefault(t *testing.T) {
+	got, selected, err := newAgentProfileOverrideResolver(&spacemodel.Quarkfile{}, agentValidationCatalog("io_Read", "indexer_QueryContext")).apply([]runtimePluginCatalogEntry{
+		mainAgentEntry("quark-main"),
 		agentEntry("quark-system"),
 		agentEntry("quark-devops"),
 	})
 	if err != nil {
 		t.Fatalf("apply overrides: %v", err)
 	}
-	if len(got) != 2 || selected != "quark-devops" {
+	if len(got) != 1 || selected != "quark-main" {
 		t.Fatalf("entries=%d selected=%q", len(got), selected)
+	}
+	if !sameStrings(got[0].AgentProfile.Permissions.Services, []string{"indexer_QueryContext", "io_Read"}) {
+		t.Fatalf("main permissions = %+v", got[0].AgentProfile.Permissions.Services)
+	}
+	if len(got[0].AgentProfile.Handoff.CanDelegateTo) != 0 {
+		t.Fatalf("disabled delegate handoff targets = %+v", got[0].AgentProfile.Handoff.CanDelegateTo)
 	}
 }
 
@@ -117,6 +136,36 @@ func agentEntry(id string) runtimePluginCatalogEntry {
 			Memory:   plugin.AgentProfileMemory{Scope: "space", Collections: []string{"project_facts"}},
 		},
 	}
+}
+
+func mainAgentEntry(id string) runtimePluginCatalogEntry {
+	entry := agentEntry(id)
+	entry.AgentProfile.Role = plugin.AgentProfileRoleMain
+	entry.AgentProfile.Handoff.CanDelegateTo = []string{"quark-knowledge", "quark-devops", "quark-system"}
+	return entry
+}
+
+func agentValidationCatalog(serviceFunctions ...string) agentPluginValidationCatalog {
+	catalog := agentPluginValidationCatalog{
+		tools:            make(map[string]struct{}),
+		services:         make(map[string]struct{}),
+		serviceFunctions: make(map[string]struct{}),
+	}
+	for _, function := range serviceFunctions {
+		catalog.serviceFunctions[function] = struct{}{}
+	}
+	return catalog
+}
+
+func findAgentProfile(t *testing.T, entries []runtimePluginCatalogEntry, id string) *plugin.AgentProfile {
+	t.Helper()
+	for _, entry := range entries {
+		if entry.AgentProfile != nil && entry.AgentProfile.ID == id {
+			return entry.AgentProfile
+		}
+	}
+	t.Fatalf("agent profile %q not found in %+v", id, entries)
+	return nil
 }
 
 func sameStrings(left, right []string) bool {

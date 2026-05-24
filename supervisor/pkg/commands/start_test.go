@@ -70,6 +70,7 @@ func captureStartNATSFlags() func() {
 	oldWebSocketPort := natsWebSocketPort
 	oldMonitorPort := natsMonitorPort
 	oldArtifactHandoffMaxBytes := natsArtifactHandoffMaxBytes
+	oldBundledPluginsDir := bundledPluginsDir
 	return func() {
 		natsMode = oldMode
 		natsExternalURL = oldURL
@@ -78,5 +79,6 @@ func captureStartNATSFlags() func() {
 		natsWebSocketPort = oldWebSocketPort
 		natsMonitorPort = oldMonitorPort
 		natsArtifactHandoffMaxBytes = oldArtifactHandoffMaxBytes
+		bundledPluginsDir = oldBundledPluginsDir
 	}
 }

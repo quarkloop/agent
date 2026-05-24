@@ -144,9 +144,10 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 	if err := os.MkdirAll(workingDir, 0o755); err != nil {
 		t.Fatalf("mkdir working dir: %v", err)
 	}
+	agents := withDefaultMainAgent(opt.Agents)
 	createSpace(t, natsEndpoints, clientcontract.CreateSpaceRequest{
 		Name:       spaceName,
-		Quarkfile:  quarkfileFor(spaceName, provider, model, embedding, opt.Services, opt.ExtraServicePlugins, opt.Agents, opt.AgentServicePermissions, !opt.DisableKnowledgeServices),
+		Quarkfile:  quarkfileFor(spaceName, provider, model, embedding, opt.Services, opt.ExtraServicePlugins, agents, opt.AgentServicePermissions, !opt.DisableKnowledgeServices),
 		WorkingDir: workingDir,
 	})
 	runtimeCredential := issueRuntimeCredential(t, natsEndpoints, spaceName)
@@ -161,7 +162,7 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 		Model:               model,
 		Embedding:           embedding,
 		Services:            append([]ServicePlugin(nil), opt.Services...),
-		Agents:              append([]string(nil), opt.Agents...),
+		Agents:              append([]string(nil), agents...),
 		ExtraServicePlugins: append([]string(nil), opt.ExtraServicePlugins...),
 
 		ServiceAddresses: serviceAddressesFromOptions(embedding, opt.Services, supervisorEnv),
@@ -218,6 +219,28 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 	DumpNATSCLIDiagnostics(t, env.NATS, "after-runtime")
 	Logf(t, "supervisor at %s, runtime=%s nats=%s (space=%s)", supURL, runtimeID, natsEndpoints.ClientURL, spaceName)
 	return env
+}
+
+func withDefaultMainAgent(agents []string) []string {
+	const mainAgent = "quark-main"
+	out := make([]string, 0, len(agents)+1)
+	seen := make(map[string]struct{}, len(agents)+1)
+	add := func(agent string) {
+		agent = strings.TrimSpace(agent)
+		if agent == "" {
+			return
+		}
+		if _, ok := seen[agent]; ok {
+			return
+		}
+		seen[agent] = struct{}{}
+		out = append(out, agent)
+	}
+	add(mainAgent)
+	for _, agent := range agents {
+		add(agent)
+	}
+	return out
 }
 
 func e2eModelGatewayTimeout() string {

@@ -1,5 +1,6 @@
 id: quark-system
 name: Quark System
+role: delegate
 description: Inspects and explains local system state through typed service functions.
 model:
   provider: ""

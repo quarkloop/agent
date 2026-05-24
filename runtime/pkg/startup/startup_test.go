@@ -172,40 +172,42 @@ func TestResolveAgentPluginSelectsRequestedProfile(t *testing.T) {
 			AgentProfile: &plugin.AgentProfile{
 				ID:   "quark-devops",
 				Name: "Quark DevOps",
+				Role: plugin.AgentProfileRoleDelegate,
 			},
 			SystemPrompt: "devops",
 		},
 		{
-			Name: "quark-knowledge",
+			Name: "quark-main",
 			Type: plugin.TypeAgent,
 			AgentProfile: &plugin.AgentProfile{
-				ID:   "quark-knowledge",
-				Name: "Quark Knowledge",
+				ID:   "quark-main",
+				Name: "Quark Main",
+				Role: plugin.AgentProfileRoleMain,
 			},
-			SystemPrompt: "knowledge",
+			SystemPrompt: "main",
 		},
 	}}
 
-	got, err := ResolveAgentPlugin(catalog, "quark-knowledge")
+	got, err := ResolveAgentPlugin(catalog, "quark-main")
 	if err != nil {
 		t.Fatalf("resolve agent profile: %v", err)
 	}
-	if got.AgentProfile == nil || got.AgentProfile.ID != "quark-knowledge" || got.SystemPrompt != "knowledge" {
+	if got.AgentProfile == nil || got.AgentProfile.ID != "quark-main" || got.SystemPrompt != "main" {
 		t.Fatalf("selected profile = %+v", got)
 	}
 }
 
-func TestResolveAgentPluginDefaultsDeterministically(t *testing.T) {
+func TestResolveAgentPluginDefaultsToMainProfile(t *testing.T) {
 	catalog := &pluginmanager.Catalog{Plugins: []pluginmanager.CatalogPlugin{
 		{
 			Name:         "quark-system",
 			Type:         plugin.TypeAgent,
-			AgentProfile: &plugin.AgentProfile{ID: "quark-system", Name: "Quark System"},
+			AgentProfile: &plugin.AgentProfile{ID: "quark-system", Name: "Quark System", Role: plugin.AgentProfileRoleDelegate},
 		},
 		{
-			Name:         "quark-devops",
+			Name:         "quark-main",
 			Type:         plugin.TypeAgent,
-			AgentProfile: &plugin.AgentProfile{ID: "quark-devops", Name: "Quark DevOps"},
+			AgentProfile: &plugin.AgentProfile{ID: "quark-main", Name: "Quark Main", Role: plugin.AgentProfileRoleMain},
 		},
 	}}
 
@@ -213,7 +215,7 @@ func TestResolveAgentPluginDefaultsDeterministically(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve agent profile: %v", err)
 	}
-	if got.AgentProfile == nil || got.AgentProfile.ID != "quark-devops" {
+	if got.AgentProfile == nil || got.AgentProfile.ID != "quark-main" {
 		t.Fatalf("default profile = %+v", got)
 	}
 }
@@ -222,11 +224,35 @@ func TestResolveAgentPluginRejectsUnknownRequestedProfile(t *testing.T) {
 	catalog := &pluginmanager.Catalog{Plugins: []pluginmanager.CatalogPlugin{{
 		Name:         "quark-system",
 		Type:         plugin.TypeAgent,
-		AgentProfile: &plugin.AgentProfile{ID: "quark-system", Name: "Quark System"},
+		AgentProfile: &plugin.AgentProfile{ID: "quark-system", Name: "Quark System", Role: plugin.AgentProfileRoleDelegate},
 	}}}
 
 	if _, err := ResolveAgentPlugin(catalog, "missing"); err == nil {
 		t.Fatal("resolve agent profile unexpectedly succeeded")
+	}
+}
+
+func TestResolveAgentPluginRejectsDelegateAsRoot(t *testing.T) {
+	catalog := &pluginmanager.Catalog{Plugins: []pluginmanager.CatalogPlugin{{
+		Name:         "quark-devops",
+		Type:         plugin.TypeAgent,
+		AgentProfile: &plugin.AgentProfile{ID: "quark-devops", Name: "Quark DevOps", Role: plugin.AgentProfileRoleDelegate},
+	}}}
+
+	if _, err := ResolveAgentPlugin(catalog, "quark-devops"); err == nil {
+		t.Fatal("delegate profile unexpectedly resolved as root")
+	}
+}
+
+func TestResolveAgentPluginRejectsMissingMainProfile(t *testing.T) {
+	catalog := &pluginmanager.Catalog{Plugins: []pluginmanager.CatalogPlugin{{
+		Name:         "quark-system",
+		Type:         plugin.TypeAgent,
+		AgentProfile: &plugin.AgentProfile{ID: "quark-system", Name: "Quark System", Role: plugin.AgentProfileRoleDelegate},
+	}}}
+
+	if _, err := ResolveAgentPlugin(catalog, ""); err == nil {
+		t.Fatal("missing main profile unexpectedly resolved")
 	}
 }
 

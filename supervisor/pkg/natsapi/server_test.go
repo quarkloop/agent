@@ -195,6 +195,19 @@ func TestInvalidEnvelopeReturnsBoundaryError(t *testing.T) {
 	}
 }
 
+func TestCreateSpaceRunsRequiredPluginBootstrap(t *testing.T) {
+	bootstrapper := &recordingSpaceBootstrapper{}
+	fixture := startFixtureWithOptions(t, WithSpaceBootstrapper(bootstrapper))
+	_ = requestPayload[clientcontract.SpaceInfo](t, fixture.client, clientcontract.SubjectSpaceCreate, clientcontract.CreateSpaceRequest{
+		Name:       "docs",
+		Quarkfile:  spacemodel.DefaultQuarkfile("docs"),
+		WorkingDir: filepath.Join(t.TempDir(), "workspace"),
+	})
+	if len(bootstrapper.spaces) != 1 || bootstrapper.spaces[0] != "docs" {
+		t.Fatalf("bootstrapped spaces = %#v", bootstrapper.spaces)
+	}
+}
+
 type fixture struct {
 	hub    *natshub.Hub
 	client *nats.Conn
@@ -202,6 +215,10 @@ type fixture struct {
 }
 
 func startFixture(t *testing.T) fixture {
+	return startFixtureWithOptions(t)
+}
+
+func startFixtureWithOptions(t *testing.T, opts ...Option) fixture {
 	t.Helper()
 	ctx := context.Background()
 	cfg := natshub.DefaultConfig(filepath.Join(t.TempDir(), "nats"))
@@ -233,11 +250,13 @@ func startFixture(t *testing.T) fixture {
 	if err != nil {
 		t.Fatalf("control credential: %v", err)
 	}
+	defaultOptions := []Option{WithServiceInspector(fakeServiceInspector{}), WithCatalogResolver(fakeCatalogResolver{})}
+	defaultOptions = append(defaultOptions, opts...)
 	apiServer, err := Start(ctx, Config{
 		URL:      hub.Endpoints().ClientURL,
 		Username: controlCredential.Username,
 		Password: controlCredential.Password,
-	}, store, bus, hub, WithServiceInspector(fakeServiceInspector{}), WithCatalogResolver(fakeCatalogResolver{}))
+	}, store, bus, hub, defaultOptions...)
 	if err != nil {
 		t.Fatalf("start nats api: %v", err)
 	}
@@ -255,6 +274,15 @@ func startFixture(t *testing.T) fixture {
 	t.Cleanup(client.Close)
 
 	return fixture{hub: hub, client: client, events: bus}
+}
+
+type recordingSpaceBootstrapper struct {
+	spaces []string
+}
+
+func (b *recordingSpaceBootstrapper) BootstrapSpace(_ context.Context, spaceID string) error {
+	b.spaces = append(b.spaces, spaceID)
+	return nil
 }
 
 type fakeServiceInspector struct{}

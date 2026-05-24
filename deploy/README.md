@@ -41,6 +41,8 @@ sudo systemctl enable --now quark-runtime@default.service
 sudo systemctl enable --now quark-service@io.service
 ```
 
-Runtime and service unit instances read their own environment files. This keeps
-per-space runtime configuration and per-service arguments outside the
-supervisor process.
+Install the bundled plugin directory under `/opt/quark/plugins`; supervisor
+installs the required `quark-main` agent plugin in every newly created space
+from that bundle. Runtime and service unit instances read their own environment
+files. This keeps per-space runtime configuration and per-service arguments
+outside the supervisor process.

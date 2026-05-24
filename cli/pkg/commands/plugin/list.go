@@ -38,6 +38,6 @@ func newListCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&typeFilter, "type", "", "Filter by plugin type (tool, provider, agent, skill)")
+	cmd.Flags().StringVar(&typeFilter, "type", "", "Filter by plugin type (tool, agent, skill, service)")
 	return cmd
 }

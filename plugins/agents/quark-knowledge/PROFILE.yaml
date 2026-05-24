@@ -1,5 +1,6 @@
 id: quark-knowledge
 name: Quark Knowledge
+role: delegate
 description: Reads, structures, indexes, retrieves, and answers from workspace knowledge.
 model:
   provider: ""

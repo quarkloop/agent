@@ -54,9 +54,13 @@ func quarkfileFor(name, provider, model string, embedding EmbeddingOptions, serv
     enabled: true
 `, agent)
 		if allowed, ok := agentServices[agent]; ok {
-			agentBlocks += "    services:\n"
-			for _, service := range allowed {
-				agentBlocks += fmt.Sprintf("      - %s\n", service)
+			if len(allowed) == 0 {
+				agentBlocks += "    services: []\n"
+			} else {
+				agentBlocks += "    services:\n"
+				for _, service := range allowed {
+					agentBlocks += fmt.Sprintf("      - %s\n", service)
+				}
 			}
 		}
 	}

@@ -23,14 +23,16 @@ type agentProfileOverrideResolver struct {
 	order     []string
 	explicit  bool
 	matched   map[string]bool
+	catalog   agentPluginValidationCatalog
 }
 
-func newAgentProfileOverrideResolver(qf *spacemodel.Quarkfile) *agentProfileOverrideResolver {
+func newAgentProfileOverrideResolver(qf *spacemodel.Quarkfile, catalog agentPluginValidationCatalog) *agentProfileOverrideResolver {
 	resolver := &agentProfileOverrideResolver{
 		quarkfile: qf,
 		agents:    make(map[string]spacemodel.AgentRef),
 		order:     make([]string, 0),
 		matched:   make(map[string]bool),
+		catalog:   catalog,
 	}
 	if qf == nil {
 		return resolver
@@ -61,11 +63,37 @@ func (r *agentProfileOverrideResolver) apply(entries []runtimePluginCatalogEntry
 	if err := r.rejectUnknownOverrides(); err != nil {
 		return nil, "", err
 	}
+	resolved = resolveMainHandoffTargets(resolved)
 	selected, err := r.selectedAgentProfile(resolved)
 	if err != nil {
 		return nil, "", err
 	}
 	return resolved, selected, nil
+}
+
+func resolveMainHandoffTargets(entries []runtimePluginCatalogEntry) []runtimePluginCatalogEntry {
+	delegates := make(map[string]struct{})
+	for _, entry := range entries {
+		if entry.AgentProfile != nil && !entry.AgentProfile.IsMain() {
+			delegates[entry.AgentProfile.ID] = struct{}{}
+		}
+	}
+	for i, entry := range entries {
+		if entry.AgentProfile == nil || !entry.AgentProfile.IsMain() {
+			continue
+		}
+		profile := entry.AgentProfile.Clone()
+		targets := make([]string, 0, len(profile.Handoff.CanDelegateTo))
+		for _, target := range profile.Handoff.CanDelegateTo {
+			if _, ok := delegates[target]; ok {
+				targets = append(targets, target)
+			}
+		}
+		profile.Handoff.CanDelegateTo = targets
+		entry.AgentProfile = &profile
+		entries[i] = entry
+	}
+	return entries
 }
 
 func (r *agentProfileOverrideResolver) applyOne(entry runtimePluginCatalogEntry) (runtimePluginCatalogEntry, bool, error) {
@@ -77,7 +105,10 @@ func (r *agentProfileOverrideResolver) applyOne(entry runtimePluginCatalogEntry)
 			return entry, false, nil
 		}
 	}
-	if r.explicit && !hasOverride {
+	if !profile.IsMain() && r.explicit && !hasOverride {
+		return entry, false, nil
+	}
+	if !profile.IsMain() && !r.explicit {
 		return entry, false, nil
 	}
 
@@ -85,7 +116,19 @@ func (r *agentProfileOverrideResolver) applyOne(entry runtimePluginCatalogEntry)
 	if model.Provider != "" || model.Model != "" {
 		profile = profile.WithModel(model.Provider, model.Model)
 	}
-	if hasOverride {
+	if profile.IsMain() {
+		next, err := r.applyMainPermissionResolution(profile, override, hasOverride)
+		if err != nil {
+			return entry, false, err
+		}
+		profile = next
+		if hasOverride {
+			profile = applyAgentApprovalOverride(r.quarkfile, profile, override)
+			profile = applyAgentMemoryOverride(profile, override)
+		} else {
+			profile = applyQuarkfileApprovalPolicy(r.quarkfile, profile)
+		}
+	} else if hasOverride {
 		next, err := applyAgentPermissionOverride(profile, override)
 		if err != nil {
 			return entry, false, err
@@ -98,6 +141,26 @@ func (r *agentProfileOverrideResolver) applyOne(entry runtimePluginCatalogEntry)
 	}
 	entry.AgentProfile = &profile
 	return entry, true, nil
+}
+
+func (r *agentProfileOverrideResolver) applyMainPermissionResolution(profile plugin.AgentProfile, override spacemodel.AgentRef, hasOverride bool) (plugin.AgentProfile, error) {
+	tools := r.catalog.sortedTools()
+	services := r.catalog.sortedServiceFunctions()
+	if hasOverride {
+		if override.Tools != nil {
+			if err := ensurePatternsWithin("tools", profile.ID, tools, override.Tools); err != nil {
+				return plugin.AgentProfile{}, err
+			}
+			tools = override.Tools
+		}
+		if override.Services != nil {
+			if err := ensurePatternsWithin("services", profile.ID, services, override.Services); err != nil {
+				return plugin.AgentProfile{}, err
+			}
+			services = override.Services
+		}
+	}
+	return profile.WithPermissions(tools, services), nil
 }
 
 func resolvedAgentModel(qf *spacemodel.Quarkfile, override spacemodel.AgentRef, hasOverride bool, base plugin.AgentProfileModel) plugin.AgentProfileModel {
@@ -192,29 +255,19 @@ func (r *agentProfileOverrideResolver) rejectUnknownOverrides() error {
 }
 
 func (r *agentProfileOverrideResolver) selectedAgentProfile(entries []runtimePluginCatalogEntry) (string, error) {
-	if r.explicit {
-		for _, profileID := range r.order {
-			override := r.agents[profileID]
-			if override.Enabled != nil && !*override.Enabled {
-				continue
-			}
-			for _, entry := range entries {
-				if entry.AgentProfile != nil && entry.AgentProfile.ID == profileID {
-					return profileID, nil
-				}
-			}
-		}
-		return "", fmt.Errorf("quarkfile enables no installed agent profiles")
-	}
-	ids := make([]string, 0)
+	mainIDs := make([]string, 0, 1)
 	for _, entry := range entries {
-		if entry.AgentProfile != nil {
-			ids = append(ids, entry.AgentProfile.ID)
+		if entry.AgentProfile != nil && entry.AgentProfile.IsMain() {
+			mainIDs = append(mainIDs, entry.AgentProfile.ID)
 		}
 	}
-	if len(ids) == 0 {
-		return "", nil
+	switch len(mainIDs) {
+	case 0:
+		return "", fmt.Errorf("runtime catalog must include exactly one enabled main agent profile")
+	case 1:
+		return mainIDs[0], nil
+	default:
+		sort.Strings(mainIDs)
+		return "", fmt.Errorf("runtime catalog has multiple enabled main agent profiles: %v", mainIDs)
 	}
-	sort.Strings(ids)
-	return ids[0], nil
 }

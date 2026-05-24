@@ -20,6 +20,7 @@ import (
 	"github.com/quarkloop/supervisor/pkg/events"
 	"github.com/quarkloop/supervisor/pkg/natsapi"
 	"github.com/quarkloop/supervisor/pkg/natshub"
+	"github.com/quarkloop/supervisor/pkg/pluginbootstrap"
 	"github.com/quarkloop/supervisor/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/space/fsstore"
 )
@@ -33,6 +34,9 @@ type Config struct {
 	SpacesDir string
 	// NATS configures the supervisor-owned NATS hub.
 	NATS natshub.Config
+	// BundledPluginsDir is the product plugin bundle root. The supervisor
+	// installs required default plugins from this directory for new spaces.
+	BundledPluginsDir string
 }
 
 // Server is the Supervisor HTTP API server.
@@ -44,12 +48,17 @@ type Server struct {
 	events  *events.Bus
 	natsHub *natshub.Hub
 	natsAPI *natsapi.Server
+
+	pluginBootstrap *pluginbootstrap.Installer
 }
 
 // New creates a new Supervisor server.
 func New(cfg Config) (*Server, error) {
 	if cfg.Port == 0 {
 		cfg.Port = 7200
+	}
+	if cfg.BundledPluginsDir == "" {
+		cfg.BundledPluginsDir = "plugins"
 	}
 	if cfg.NATS.Mode == "" && cfg.NATS.StateDir == "" && cfg.NATS.ExternalURL == "" {
 		stateDir, err := natshub.DefaultStateDir()
@@ -74,12 +83,17 @@ func New(cfg Config) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open space store: %w", err)
 	}
+	bootstrap, err := pluginbootstrap.New(cfg.BundledPluginsDir)
+	if err != nil {
+		return nil, fmt.Errorf("configure required plugin bootstrap: %w", err)
+	}
 
 	s := &Server{
-		cfg:     cfg,
-		store:   store,
-		events:  events.NewBus(),
-		natsHub: natsHub,
+		cfg:             cfg,
+		store:           store,
+		events:          events.NewBus(),
+		natsHub:         natsHub,
+		pluginBootstrap: bootstrap,
 	}
 
 	fiberConfig := fiber.Config{
@@ -135,6 +149,7 @@ func (s *Server) Start(ctx context.Context) error {
 		}, s.store, s.events, s.natsHub,
 			natsapi.WithServiceInspector(natsServiceInspector{server: s}),
 			natsapi.WithCatalogResolver(s),
+			natsapi.WithSpaceBootstrapper(s),
 		)
 		if err != nil {
 			return fmt.Errorf("start nats control api: %w", err)
@@ -167,6 +182,14 @@ func (s *Server) Start(ctx context.Context) error {
 	case err := <-errCh:
 		return err
 	}
+}
+
+func (s *Server) BootstrapSpace(ctx context.Context, spaceID string) error {
+	plugins, err := s.store.Plugins(spaceID)
+	if err != nil {
+		return fmt.Errorf("open space plugin store: %w", err)
+	}
+	return s.pluginBootstrap.InstallRequired(ctx, plugins)
 }
 
 // errorHandler is the Fiber custom error handler.

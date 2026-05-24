@@ -19,6 +19,7 @@ var natsClientPort int
 var natsWebSocketPort int
 var natsMonitorPort int
 var natsArtifactHandoffMaxBytes int64
+var bundledPluginsDir string
 
 // StartCmd creates the "supervisor start" command.
 func StartCmd() *cobra.Command {
@@ -40,6 +41,7 @@ Example:
 	cmd.Flags().IntVar(&natsWebSocketPort, "nats-websocket-port", 9222, "Embedded NATS WebSocket listen port")
 	cmd.Flags().IntVar(&natsMonitorPort, "nats-monitor-port", 8222, "Embedded NATS HTTP monitoring listen port")
 	cmd.Flags().Int64Var(&natsArtifactHandoffMaxBytes, "nats-artifact-handoff-max-bytes", 0, "Embedded NATS artifact handoff object-store max bytes; 0 uses the supervisor default")
+	cmd.Flags().StringVar(&bundledPluginsDir, "bundled-plugins-dir", "plugins", "Product plugin bundle root used to install required default plugins in new spaces")
 
 	return cmd
 }
@@ -58,9 +60,10 @@ func runStart(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	cfg := server.Config{
-		Port:      port,
-		SpacesDir: spacesDir,
-		NATS:      natsCfg,
+		Port:              port,
+		SpacesDir:         spacesDir,
+		NATS:              natsCfg,
+		BundledPluginsDir: bundledPluginsDir,
 	}
 	srv, err := server.New(cfg)
 	if err != nil {

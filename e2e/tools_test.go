@@ -17,14 +17,14 @@ func TestIOExecute(t *testing.T) {
 	gatewayAddr := reserveLoopbackAddress(t)
 	env := utils.StartE2E(t, true, utils.StartOptions{
 		DisableKnowledgeServices: true,
-		Agents:                   []string{"quark-devops"},
+		Agents:                   []string{"quark-main"},
 		Services:                 append(localServicePlugins("io"), gatewayServicePlugin()),
 		SupervisorEnv: map[string]string{
 			"QUARK_IO_ADDR":              ioAddr,
 			"QUARK_GATEWAY_SERVICE_ADDR": gatewayAddr,
 		},
 		AgentServicePermissions: map[string][]string{
-			"quark-devops": {"io_Execute"},
+			"quark-main": {"io_Execute"},
 		},
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()

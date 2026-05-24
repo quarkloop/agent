@@ -36,6 +36,10 @@ type CatalogResolver interface {
 	RuntimeCatalogSnapshot(ctx context.Context, spaceID string) (clientcontract.RuntimeCatalogResponse, error)
 }
 
+type SpaceBootstrapper interface {
+	BootstrapSpace(ctx context.Context, spaceID string) error
+}
+
 type Option func(*Server)
 
 func WithServiceInspector(inspector ServiceInspector) Option {
@@ -56,16 +60,23 @@ func WithCredentialIssuer(issuer CredentialIssuer) Option {
 	}
 }
 
+func WithSpaceBootstrapper(bootstrapper SpaceBootstrapper) Option {
+	return func(s *Server) {
+		s.spaceBootstrapper = bootstrapper
+	}
+}
+
 type Server struct {
-	conn             *nats.Conn
-	url              string
-	store            space.Store
-	events           *events.Bus
-	provisioner      SpaceProvisioner
-	credentialIssuer CredentialIssuer
-	serviceInspector ServiceInspector
-	catalogResolver  CatalogResolver
-	subs             []*nats.Subscription
+	conn              *nats.Conn
+	url               string
+	store             space.Store
+	events            *events.Bus
+	provisioner       SpaceProvisioner
+	credentialIssuer  CredentialIssuer
+	serviceInspector  ServiceInspector
+	catalogResolver   CatalogResolver
+	spaceBootstrapper SpaceBootstrapper
+	subs              []*nats.Subscription
 }
 
 type Config struct {

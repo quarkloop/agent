@@ -109,6 +109,15 @@
       "path": "plugins/agents/quark-knowledge/PROFILE.yaml",
       "service_permission_count": 55
     },
+    "quark-main": {
+      "area": "",
+      "declared_only_permissions": [],
+      "implemented_permissions": [],
+      "missing_permissions": [],
+      "name": "Quark Main",
+      "path": "plugins/agents/quark-main/PROFILE.yaml",
+      "service_permission_count": 0
+    },
     "quark-system": {
       "area": "System",
       "declared_only_permissions": [],
@@ -421,13 +430,13 @@
         "has_process_flow": true,
         "path": "e2e/service_processes_test.go",
         "prompt_shortcut_suspects": [
-          "432: \"embedding_Embed\",",
-          "438: \"indexer_IndexDocument\",",
-          "440: \"indexer_GetContext\",",
-          "442: \"indexer_DeleteChunk\",",
-          "471: \"embedding_Embed\",",
-          "472: \"indexer_IndexDocument\",",
-          "485: t.Fatalf(\"standard knowledge e2e stack missing required service function %s\", function)"
+          "454: \"embedding_Embed\",",
+          "460: \"indexer_IndexDocument\",",
+          "462: \"indexer_GetContext\",",
+          "464: \"indexer_DeleteChunk\",",
+          "493: \"embedding_Embed\",",
+          "494: \"indexer_IndexDocument\",",
+          "507: t.Fatalf(\"standard knowledge e2e stack missing required service function %s\", function)"
         ]
       },
       {
@@ -2773,7 +2782,7 @@
     }
   },
   "summary": {
-    "agent_profile_count": 3,
+    "agent_profile_count": 4,
     "declared_only_or_mismatched_function_count": 5,
     "e2e_test_file_count": 33,
     "implemented_service_function_count": 137,

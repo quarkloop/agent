@@ -3,14 +3,21 @@ package plugin
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
+)
+
+const (
+	AgentProfileRoleMain     = "main"
+	AgentProfileRoleDelegate = "delegate"
 )
 
 // AgentProfile is the declarative runtime contract for an agent role.
 type AgentProfile struct {
 	ID          string                 `json:"id" yaml:"id"`
 	Name        string                 `json:"name" yaml:"name"`
+	Role        string                 `json:"role,omitempty" yaml:"role,omitempty"`
 	Description string                 `json:"description,omitempty" yaml:"description,omitempty"`
 	Model       AgentProfileModel      `json:"model,omitempty" yaml:"model,omitempty"`
 	Prompt      AgentProfilePrompt     `json:"prompt,omitempty" yaml:"prompt,omitempty"`
@@ -78,7 +85,26 @@ func (p AgentProfile) Validate() error {
 	if p.Name == "" {
 		return fmt.Errorf("name is required")
 	}
-	return nil
+	switch strings.TrimSpace(p.Role) {
+	case "", AgentProfileRoleMain, AgentProfileRoleDelegate:
+		return nil
+	default:
+		return fmt.Errorf("role must be %q or %q", AgentProfileRoleMain, AgentProfileRoleDelegate)
+	}
+}
+
+// RoleOrDefault returns the normalized role. Profiles without an explicit role
+// are treated as delegates so only an explicit main profile can become root.
+func (p AgentProfile) RoleOrDefault() string {
+	role := strings.TrimSpace(p.Role)
+	if role == "" {
+		return AgentProfileRoleDelegate
+	}
+	return role
+}
+
+func (p AgentProfile) IsMain() bool {
+	return p.RoleOrDefault() == AgentProfileRoleMain
 }
 
 // Clone returns a value copy with independent slices.

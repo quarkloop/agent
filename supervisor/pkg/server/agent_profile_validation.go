@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/quarkloop/pkg/plugin"
@@ -38,6 +39,23 @@ func newAgentPluginValidationCatalog(installed []pluginmanager.InstalledPlugin) 
 		}
 	}
 	return catalog
+}
+
+func (c agentPluginValidationCatalog) sortedTools() []string {
+	return sortedKeys(c.tools)
+}
+
+func (c agentPluginValidationCatalog) sortedServiceFunctions() []string {
+	return sortedKeys(c.serviceFunctions)
+}
+
+func sortedKeys(values map[string]struct{}) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func enabledAgentPluginNames(entries []runtimePluginCatalogEntry) map[string]struct{} {

@@ -1,6 +1,7 @@
 package natsapi
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/quarkloop/pkg/boundary"
@@ -17,6 +18,14 @@ func (s *Server) createSpace(req clientcontract.RequestEnvelope) (any, error) {
 	sp, err := s.store.Create(payload.Name, append([]byte(nil), payload.Quarkfile...), payload.WorkingDir)
 	if err != nil {
 		return nil, err
+	}
+	if s.spaceBootstrapper != nil {
+		if err := s.spaceBootstrapper.BootstrapSpace(context.Background(), payload.Name); err != nil {
+			if rollbackErr := s.store.Delete(payload.Name); rollbackErr != nil {
+				return nil, fmt.Errorf("bootstrap required space plugins: %v; rollback space: %v", err, rollbackErr)
+			}
+			return nil, fmt.Errorf("bootstrap required space plugins: %w", err)
+		}
 	}
 	if s.provisioner != nil {
 		if _, err := s.provisioner.ProvisionSpace(payload.Name); err != nil {
