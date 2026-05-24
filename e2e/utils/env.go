@@ -23,7 +23,7 @@ type E2EEnv struct {
 	Agent               api.RuntimeInfo
 	Provider            string
 	Model               string
-	Embedding           EmbeddingOptions
+	Embedding           GatewayEmbeddingOptions
 	Services            []ServicePlugin
 	Agents              []string
 	ExtraServicePlugins []string
@@ -71,7 +71,7 @@ type StartOptions struct {
 	// instead of adding generated service functions from the runtime service
 	// catalog.
 	DisableServiceDiscovery bool
-	// DisableKnowledgeServices omits the default indexer and embedding service
+	// DisableKnowledgeServices omits the default Knowledge service declarations
 	// declarations for non-Knowledge e2e flows.
 	DisableKnowledgeServices bool
 	// SupervisorEnv is appended to the supervisor process environment.
@@ -79,9 +79,8 @@ type StartOptions struct {
 	// WorkingDir is the space working directory registered with the supervisor.
 	// When empty, StartE2E creates an isolated temp directory.
 	WorkingDir string
-	// Embedding declares the embedding service plugin/profile that the test
-	// space should expose to the runtime catalog.
-	Embedding EmbeddingOptions
+	// Embedding configures the Gateway embedding model for Knowledge tests.
+	Embedding GatewayEmbeddingOptions
 	// Services declares additional service plugins that should be installed in
 	// the e2e space and exposed to runtime via supervisor discovery.
 	Services []ServicePlugin
@@ -147,7 +146,7 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 	agents := withDefaultMainAgent(opt.Agents)
 	createSpace(t, natsEndpoints, clientcontract.CreateSpaceRequest{
 		Name:       spaceName,
-		Quarkfile:  quarkfileFor(spaceName, provider, model, embedding, opt.Services, opt.ExtraServicePlugins, agents, opt.AgentServicePermissions, !opt.DisableKnowledgeServices),
+		Quarkfile:  quarkfileFor(spaceName, provider, model, opt.Services, opt.ExtraServicePlugins, agents, opt.AgentServicePermissions, !opt.DisableKnowledgeServices),
 		WorkingDir: workingDir,
 	})
 	runtimeCredential := issueRuntimeCredential(t, natsEndpoints, spaceName)
@@ -165,7 +164,7 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 		Agents:              append([]string(nil), agents...),
 		ExtraServicePlugins: append([]string(nil), opt.ExtraServicePlugins...),
 
-		ServiceAddresses: serviceAddressesFromOptions(embedding, opt.Services, supervisorEnv),
+		ServiceAddresses: serviceAddressesFromOptions(opt.Services, supervisorEnv),
 	}
 
 	installSpacePlugins(t, env, bins, !opt.DisableKnowledgeServices)
@@ -263,7 +262,7 @@ func e2eModelMaxOutputTokens() string {
 	return "4096"
 }
 
-func serviceAddressesFromOptions(embedding EmbeddingOptions, services []ServicePlugin, supervisorEnv map[string]string) map[string]string {
+func serviceAddressesFromOptions(services []ServicePlugin, supervisorEnv map[string]string) map[string]string {
 	addresses := make(map[string]string)
 	if addr := supervisorEnv["QUARK_INDEXER_ADDR"]; addr != "" {
 		addresses["indexer"] = addr
@@ -273,10 +272,6 @@ func serviceAddressesFromOptions(embedding EmbeddingOptions, services []ServiceP
 	}
 	if addr := supervisorEnv["QUARK_GATEWAY_SERVICE_ADDR"]; addr != "" {
 		addresses["gateway"] = addr
-	}
-	if addr := supervisorEnv["QUARK_EMBEDDING_ADDR"]; addr != "" {
-		addresses["embedding"] = addr
-		addresses[embedding.withDefaults().Plugin] = addr
 	}
 	if addr := supervisorEnv["QUARK_DOCUMENT_ADDR"]; addr != "" {
 		addresses["document"] = addr

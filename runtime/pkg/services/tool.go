@@ -157,7 +157,7 @@ func (e *Executor) Execute(ctx context.Context, functionName, arguments string) 
 	if err != nil {
 		return "", err
 	}
-	if rpc.GetResponse() == "quark.embedding.v1.EmbedResponse" {
+	if rpc.GetResponse() == "quark.gateway.v1.EmbedResponse" {
 		return e.embeddingToolResult(out)
 	}
 	if rpc.GetResponse() == "quark.document.v1.ExtractTextResponse" {

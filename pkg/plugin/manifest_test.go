@@ -61,17 +61,17 @@ service:
 
 func TestServiceManifestDefaultsSkillAndReadme(t *testing.T) {
 	manifest := &Manifest{
-		Name:    "embedding",
+		Name:    "gateway",
 		Version: "1.0.0",
 		Type:    TypeService,
 		Mode:    ModeAPI,
 		Service: &ServiceConfig{
 			Functions: []ServiceFunctionConfig{{
-				Name:        "embedding_Embed",
-				Service:     "quark.embedding.v1.EmbeddingService",
+				Name:        "gateway_Embed",
+				Service:     "quark.gateway.v1.GatewayService",
 				Method:      "Embed",
-				Request:     "quark.embedding.v1.EmbedRequest",
-				Response:    "quark.embedding.v1.EmbedResponse",
+				Request:     "quark.gateway.v1.EmbedRequest",
+				Response:    "quark.gateway.v1.EmbedResponse",
 				Description: "Embed text.",
 				RiskLevel:   "read",
 				Idempotent:  true,
@@ -87,7 +87,7 @@ func TestServiceManifestDefaultsSkillAndReadme(t *testing.T) {
 	if manifest.Service.Readme != "README.md" {
 		t.Fatalf("readme = %q, want README.md", manifest.Service.Readme)
 	}
-	if manifest.Service.Transport != "nats" || manifest.Service.SubjectPrefix != "svc.embedding.v1" || manifest.Service.QueueGroup != "q.service.v1.embedding" {
+	if manifest.Service.Transport != "nats" || manifest.Service.SubjectPrefix != "svc.gateway.v1" || manifest.Service.QueueGroup != "q.service.v1.gateway" {
 		t.Fatalf("service nats defaults = %+v", manifest.Service)
 	}
 	if manifest.Service.Health.Protocol != "nats_service" || manifest.Service.Health.Timeout != "5s" {
@@ -167,7 +167,7 @@ evaluation:
 
 func TestServiceManifestRequiresFunctions(t *testing.T) {
 	manifest := &Manifest{
-		Name:    "embedding",
+		Name:    "gateway",
 		Version: "1.0.0",
 		Type:    TypeService,
 		Mode:    ModeAPI,
@@ -180,11 +180,11 @@ func TestServiceManifestRequiresFunctions(t *testing.T) {
 
 func TestServiceFunctionConfigRejectsUnknownRisk(t *testing.T) {
 	function := ServiceFunctionConfig{
-		Name:        "embedding_Embed",
-		Service:     "quark.embedding.v1.EmbeddingService",
+		Name:        "gateway_Embed",
+		Service:     "quark.gateway.v1.GatewayService",
 		Method:      "Embed",
-		Request:     "quark.embedding.v1.EmbedRequest",
-		Response:    "quark.embedding.v1.EmbedResponse",
+		Request:     "quark.gateway.v1.EmbedRequest",
+		Response:    "quark.gateway.v1.EmbedResponse",
 		Description: "Embed text.",
 		RiskLevel:   "spicy",
 	}
@@ -365,7 +365,7 @@ func TestQuarkKnowledgeProfileDeclaresConcreteServiceFunctions(t *testing.T) {
 		"ingestion_UpdateSourceState",
 		"ingestion_ListIncompleteSources",
 		"ingestion_ListArtifacts",
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_IndexDocument",
 		"indexer_GetContext",
 		"indexer_DeleteChunk",

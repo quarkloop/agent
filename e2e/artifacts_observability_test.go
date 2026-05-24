@@ -24,11 +24,9 @@ func TestAgentRunArtifactsAreRedactedAndStructured(t *testing.T) {
 		},
 		Provider: "openrouter",
 		Model:    "test/model",
-		Embedding: utils.EmbeddingOptions{
-			Plugin:     "embedding",
-			Mode:       "local",
-			Provider:   "local",
-			Model:      "local-hash-v1",
+		Embedding: utils.GatewayEmbeddingOptions{
+			Provider:   "openrouter",
+			Model:      "fixture/embed",
 			Dimensions: 32,
 		},
 	}
@@ -37,11 +35,11 @@ func TestAgentRunArtifactsAreRedactedAndStructured(t *testing.T) {
 		Space:      env.Space,
 		SessionID:  "session-1",
 		RunID:      "run-1",
-		ToolStarts: []string{"embedding_Embed"},
+		ToolStarts: []string{"gateway_Embed"},
 		ToolStartEvents: []utils.ToolEvent{{
 			CallID:        "call-1",
 			ServiceCallID: "call-1",
-			Name:          "embedding_Embed",
+			Name:          "gateway_Embed",
 			Arguments:     `{"authorization":"Bearer ` + secret + `"}`,
 			SessionID:     "session-1",
 			RunID:         "run-1",
@@ -50,7 +48,7 @@ func TestAgentRunArtifactsAreRedactedAndStructured(t *testing.T) {
 		ToolResultEvents: []utils.ToolEvent{{
 			CallID:         "call-1",
 			ServiceCallID:  "call-1",
-			Name:           "embedding_Embed",
+			Name:           "gateway_Embed",
 			Result:         `{"api_key":"` + secret + `"}`,
 			SessionID:      "session-1",
 			RunID:          "run-1",
@@ -99,7 +97,7 @@ func TestAgentRunArtifactsAreRedactedAndStructured(t *testing.T) {
 	if payload.ArtifactID == "" || payload.SessionID != "session-1" || payload.RunID != "run-1" {
 		t.Fatalf("observability identity missing: %+v", payload)
 	}
-	if payload.Model["provider"] != "openrouter" || payload.Embedding["provider"] != "local" {
+	if payload.Model["provider"] != "openrouter" || payload.Embedding["provider"] != "openrouter" {
 		t.Fatalf("unexpected model/embedding snapshot: %+v %+v", payload.Model, payload.Embedding)
 	}
 	if payload.CatalogSnapshot["catalog_ref"] == "" || payload.ProfileSnapshot["model"] != "test/model" {
@@ -117,10 +115,10 @@ func TestAgentRunArtifactsAreRedactedAndStructured(t *testing.T) {
 	if payload.ToolTimeline[0]["service_call_id"] != "call-1" || payload.ToolTimeline[0]["run_id"] != "run-1" {
 		t.Fatalf("tool timeline missing correlation fields: %+v", payload.ToolTimeline)
 	}
-	if len(payload.ServiceTimeline) != 2 || payload.ServiceTimeline[0]["service"] != "embedding" {
+	if len(payload.ServiceTimeline) != 2 || payload.ServiceTimeline[0]["service"] != "gateway" {
 		t.Fatalf("unexpected service timeline: %+v", payload.ServiceTimeline)
 	}
-	if payload.ServiceTimeline[0]["subject"] != "svc.embedding.v1.embed" {
+	if payload.ServiceTimeline[0]["subject"] != "svc.gateway.v1.embed" {
 		t.Fatalf("service timeline missing NATS subject: %+v", payload.ServiceTimeline[0])
 	}
 	if len(payload.Diagnostics) != 0 {
@@ -141,11 +139,9 @@ func TestAgentRunArtifactsIncludeToolFailureDiagnostics(t *testing.T) {
 		},
 		Provider: "openrouter",
 		Model:    "test/model",
-		Embedding: utils.EmbeddingOptions{
-			Plugin:     "embedding",
-			Mode:       "local",
-			Provider:   "local",
-			Model:      "local-hash-v1",
+		Embedding: utils.GatewayEmbeddingOptions{
+			Provider:   "openrouter",
+			Model:      "fixture/embed",
 			Dimensions: 32,
 		},
 	}

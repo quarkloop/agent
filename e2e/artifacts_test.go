@@ -56,8 +56,6 @@ func writeAgentRunArtifacts(t *testing.T, dir, prefix string, env *utils.E2EEnv,
 			"name":     env.Model,
 		},
 		"embedding": map[string]any{
-			"plugin":     env.Embedding.Plugin,
-			"mode":       env.Embedding.Mode,
 			"provider":   env.Embedding.Provider,
 			"model":      env.Embedding.Model,
 			"dimensions": env.Embedding.Dimensions,
@@ -125,9 +123,8 @@ func previewPrompt(prompt string, limit int) string {
 
 func serviceSnapshot(env *utils.E2EEnv) []map[string]any {
 	services := []map[string]any{{
-		"name":       "embedding",
-		"plugin":     env.Embedding.Plugin,
-		"mode":       env.Embedding.Mode,
+		"name":       "gateway",
+		"function":   "gateway_Embed",
 		"provider":   env.Embedding.Provider,
 		"model":      env.Embedding.Model,
 		"dimensions": env.Embedding.Dimensions,
@@ -157,10 +154,10 @@ func catalogSnapshot(env *utils.E2EEnv, trace utils.MessageTrace) map[string]any
 
 func profileSnapshot(env *utils.E2EEnv) map[string]any {
 	return map[string]any{
-		"provider":         env.Provider,
-		"model":            env.Model,
-		"embedding_plugin": env.Embedding.Plugin,
-		"embedding_model":  env.Embedding.Model,
+		"provider":          env.Provider,
+		"model":             env.Model,
+		"embedding_service": "gateway",
+		"embedding_model":   env.Embedding.Model,
 	}
 }
 

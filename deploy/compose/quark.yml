@@ -143,21 +143,6 @@ services:
     volumes:
       - ../../plugins:/plugins:ro
 
-  embedding:
-    <<: *service-defaults
-    profiles: ["services", "knowledge"]
-    build:
-      <<: *go-build
-      args:
-        PACKAGE: ./services/embedding/cmd/embedding
-    command: ["--addr", "0.0.0.0:7304", "--skill-dir", "/plugins/services/embedding"]
-    ports:
-      - "7304:7304"
-    environment:
-      QUARK_EMBEDDING_PROVIDER: ${QUARK_EMBEDDING_PROVIDER:-local}
-      QUARK_EMBEDDING_MODEL: ${QUARK_EMBEDDING_MODEL:-local-hash-v1}
-      QUARK_EMBEDDING_DIMENSIONS: ${QUARK_EMBEDDING_DIMENSIONS:-32}
-
   gateway:
     <<: *service-defaults
     profiles: ["services", "gateway"]
@@ -173,6 +158,9 @@ services:
       - "7309:7309"
     volumes:
       - ../../plugins:/plugins:ro
+    environment:
+      QUARK_GATEWAY_EMBEDDING_PROVIDER: ${QUARK_GATEWAY_EMBEDDING_PROVIDER:-openrouter}
+      OPENROUTER_EMBEDDING_MODEL: ${OPENROUTER_EMBEDDING_MODEL:-}
 
   workflow:
     <<: *service-defaults

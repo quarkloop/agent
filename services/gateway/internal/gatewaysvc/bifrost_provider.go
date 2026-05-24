@@ -14,11 +14,12 @@ import (
 )
 
 type bifrostProvider struct {
-	id       string
-	model    string
-	provider schemas.ModelProvider
-	client   *bifrost.Bifrost
-	account  *bifrostAccount
+	id             string
+	model          string
+	embeddingModel string
+	provider       schemas.ModelProvider
+	client         *bifrost.Bifrost
+	account        *bifrostAccount
 }
 
 type bifrostAccount struct {
@@ -56,11 +57,12 @@ func newBifrostProvider(cfg ProviderConfig) (provider, error) {
 		return nil, fmt.Errorf("initialize bifrost provider %s: %w", cfg.ID, err)
 	}
 	return &bifrostProvider{
-		id:       strings.TrimSpace(cfg.ID),
-		model:    strings.TrimSpace(cfg.Model),
-		provider: providerKey,
-		client:   client,
-		account:  account,
+		id:             strings.TrimSpace(cfg.ID),
+		model:          strings.TrimSpace(cfg.Model),
+		embeddingModel: strings.TrimSpace(cfg.EmbeddingModel),
+		provider:       providerKey,
+		client:         client,
+		account:        account,
 	}, nil
 }
 
@@ -173,6 +175,10 @@ func (p *bifrostProvider) Embed(ctx context.Context, cmd embedCommand) ([]*gatew
 	if p.client == nil {
 		return nil, plugin.NewProviderError(plugin.ProviderErrorTransport, p.id, cmd.Model, 0, fmt.Errorf("bifrost client is not initialized"))
 	}
+	model := firstNonEmpty(cmd.Model, p.embeddingModel)
+	if model == "" {
+		return nil, plugin.NewProviderError(plugin.ProviderErrorInvalidRequest, p.id, "", 0, fmt.Errorf("embedding model is required"))
+	}
 	format := "float"
 	params := &schemas.EmbeddingParameters{EncodingFormat: &format}
 	if cmd.Dimensions > 0 {
@@ -181,12 +187,12 @@ func (p *bifrostProvider) Embed(ctx context.Context, cmd embedCommand) ([]*gatew
 	}
 	resp, bifrostErr := p.client.EmbeddingRequest(bifrostContext(ctx), &schemas.BifrostEmbeddingRequest{
 		Provider: p.provider,
-		Model:    firstNonEmpty(cmd.Model, p.model),
+		Model:    model,
 		Input:    &schemas.EmbeddingInput{Texts: append([]string(nil), cmd.Input...)},
 		Params:   params,
 	})
 	if bifrostErr != nil {
-		return nil, p.providerError(bifrostErr, cmd.Model)
+		return nil, p.providerError(bifrostErr, model)
 	}
 	out := make([]*gatewayv1.Embedding, 0, len(resp.Data))
 	for i, item := range resp.Data {
@@ -204,7 +210,7 @@ func (p *bifrostProvider) Embed(ctx context.Context, cmd embedCommand) ([]*gatew
 		out = append(out, &gatewayv1.Embedding{
 			Vector:      vector,
 			Provider:    p.id,
-			Model:       firstNonEmpty(resp.Model, cmd.Model, p.model),
+			Model:       firstNonEmpty(resp.Model, model),
 			Dimensions:  int32(len(vector)),
 			ContentHash: contentHash(input),
 		})

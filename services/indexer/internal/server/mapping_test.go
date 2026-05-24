@@ -16,7 +16,7 @@ func TestIndexCommandMapsProtoToOwnedDomainCommand(t *testing.T) {
 			"filename": "source.pdf",
 		},
 		Document:          &indexerv1.Document{Id: "doc-1", Name: "source.pdf", SourceUri: "file:///source.pdf", Metadata: map[string]string{"kind": "paper"}},
-		EmbeddingMetadata: &indexerv1.EmbeddingMetadata{Provider: "local", Model: "local-hash-v1", Dimensions: 2, ContentHash: "hash"},
+		EmbeddingMetadata: &indexerv1.EmbeddingMetadata{Provider: "fixture", Model: "fixture/embed", Dimensions: 2, ContentHash: "hash"},
 		Entities:          []*indexerv1.Entity{{Id: "quark", Name: "Quark", Type: "PROJECT"}},
 		Relations:         []*indexerv1.Relation{{FromId: "quark", ToId: "knowledge", Relation: "INDEXES"}},
 		Facts:             []*indexerv1.Fact{{Id: "fact-1", Subject: "Quark", Predicate: "indexes", Object: "knowledge", Metadata: map[string]string{"source": "llm"}}},

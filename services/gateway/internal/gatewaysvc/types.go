@@ -11,18 +11,20 @@ import (
 )
 
 type Config struct {
-	Providers []ProviderConfig
-	Fallbacks map[string][]string
-	Logger    logger
+	Providers         []ProviderConfig
+	Fallbacks         map[string][]string
+	EmbeddingProvider string
+	Logger            logger
 }
 
 type ProviderConfig struct {
-	ID      string
-	Kind    string
-	APIKey  string
-	BaseURL string
-	Model   string
-	Enabled bool
+	ID             string
+	Kind           string
+	APIKey         string
+	BaseURL        string
+	Model          string
+	EmbeddingModel string
+	Enabled        bool
 }
 
 type logger interface {

@@ -21,7 +21,6 @@ type Quarkfile struct {
 	Plugins      []PluginRef    `yaml:"plugins"`
 	Agents       []AgentRef     `yaml:"agents,omitempty"`
 	Services     []ServiceRef   `yaml:"services,omitempty"`
-	Embedding    EmbeddingRef   `yaml:"embedding,omitempty"`
 	Permissions  Permissions    `yaml:"permissions,omitempty"`
 	Capabilities Capabilities   `yaml:"capabilities,omitempty"`
 	Gateway      Gateway        `yaml:"gateway,omitempty"`
@@ -117,27 +116,6 @@ type ServiceRef struct {
 	Address    string         `yaml:"address,omitempty"`
 	AddressEnv string         `yaml:"address_env,omitempty"`
 	Config     map[string]any `yaml:"config,omitempty"`
-}
-
-// EmbeddingRef selects the embedding service/profile for the space.
-type EmbeddingRef struct {
-	Service     string `yaml:"service,omitempty"`
-	Provider    string `yaml:"provider,omitempty"`
-	Model       string `yaml:"model,omitempty"`
-	Dimensions  int    `yaml:"dimensions,omitempty"`
-	Profile     string `yaml:"profile,omitempty"`
-	Endpoint    string `yaml:"endpoint,omitempty"`
-	EndpointEnv string `yaml:"endpoint_env,omitempty"`
-}
-
-func (e EmbeddingRef) IsZero() bool {
-	return e.Service == "" &&
-		e.Provider == "" &&
-		e.Model == "" &&
-		e.Dimensions == 0 &&
-		e.Profile == "" &&
-		e.Endpoint == "" &&
-		e.EndpointEnv == ""
 }
 
 // Permissions defines policy constraints enforced by the agent runtime.

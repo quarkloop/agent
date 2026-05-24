@@ -45,9 +45,9 @@ func TestServiceCallEventDoesNotExposePayloadFields(t *testing.T) {
 	data, err := MarshalServiceCallEvent(ServiceCallEvent{
 		CallID:         "call-1",
 		SpaceID:        "space-1",
-		Service:        "embedding",
+		Service:        "gateway",
 		Function:       "embed",
-		Subject:        "svc.embedding.v1.embed",
+		Subject:        "svc.gateway.v1.embed",
 		Status:         "ok",
 		DurationMillis: 2,
 		TraceParent:    "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01",

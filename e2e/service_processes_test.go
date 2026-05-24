@@ -15,11 +15,10 @@ import (
 )
 
 const (
-	defaultServiceReadyTimeout   = 10 * time.Second
-	embeddingServiceReadyTimeout = 30 * time.Second
-	indexerServiceReadyTimeout   = 60 * time.Second
-	natsServiceBridgeReadyLog    = "nats service bridge ready"
-	gatewayServiceReadyLog       = "gateway service listening"
+	defaultServiceReadyTimeout = 10 * time.Second
+	indexerServiceReadyTimeout = 60 * time.Second
+	natsServiceBridgeReadyLog  = "nats service bridge ready"
+	gatewayServiceReadyLog     = "gateway service listening"
 )
 
 var gatewayProviderEnvKeys = []string{
@@ -27,6 +26,7 @@ var gatewayProviderEnvKeys = []string{
 	"QUARK_OPENROUTER_PROVIDER_KIND",
 	"OPENROUTER_API_KEY",
 	"OPENROUTER_BASE_URL",
+	"OPENROUTER_EMBEDDING_MODEL",
 	"OPENAI_API_KEY",
 	"OPENAI_BASE_URL",
 	"ANTHROPIC_API_KEY",
@@ -57,25 +57,6 @@ func startIndexerServiceAt(t *testing.T, binary, dgraphAddr, addr string, nats u
 		NATS:         nats,
 		Args:         []string{"--dgraph", dgraphAddr},
 		ReadyTimeout: indexerServiceReadyTimeout,
-	})
-}
-
-func startEmbeddingServiceAt(t *testing.T, binary, addr string, embedding utils.EmbeddingOptions, nats utils.NATSEndpoints) {
-	t.Helper()
-	embedding = embedding.WithDefaults()
-	env := utils.ServiceProcessEnv(nil)
-	if embedding.Provider == "openrouter" {
-		env = utils.ServiceProcessEnv(nil, "OPENROUTER_API_KEY", "OPENROUTER_BASE_URL")
-	}
-	startNATSServiceProcess(t, natsServiceProcessSpec{
-		Label:        "embedding",
-		Binary:       binary,
-		Address:      addr,
-		Plugin:       embedding.Plugin,
-		NATS:         nats,
-		Args:         []string{"--provider", embedding.Provider, "--model", embedding.Model, "--dimensions", fmt.Sprint(embedding.Dimensions)},
-		Env:          env,
-		ReadyTimeout: embeddingServiceReadyTimeout,
 	})
 }
 
@@ -136,11 +117,22 @@ func startCoreServiceAt(t *testing.T, binary, addr, root string, nats utils.NATS
 	})
 }
 
-func startGatewayServiceAt(t *testing.T, binary, addr, natsURL string) {
+func startGatewayServiceAt(t *testing.T, binary, addr, natsURL string, embeddingOptions ...utils.GatewayEmbeddingOptions) {
 	t.Helper()
 	args := []string{}
 	if natsURL != "" {
 		args = append(args, "--nats-url", natsURL, "--nats-user", natshub.DefaultControlUser, "--nats-password", natshub.DefaultControlPassword)
+	}
+	var embedding utils.GatewayEmbeddingOptions
+	if len(embeddingOptions) > 0 {
+		embedding = embeddingOptions[0].WithDefaults()
+	}
+	overrides := map[string]string{}
+	if embedding.Model != "" {
+		overrides["QUARK_GATEWAY_EMBEDDING_PROVIDER"] = embedding.Provider
+		if embedding.Provider == "openrouter" {
+			overrides["OPENROUTER_EMBEDDING_MODEL"] = embedding.Model
+		}
 	}
 	args = append(args, "--nats-timeout", e2eGatewayTimeout())
 	startNATSServiceProcess(t, natsServiceProcessSpec{
@@ -149,7 +141,7 @@ func startGatewayServiceAt(t *testing.T, binary, addr, natsURL string) {
 		Address:  addr,
 		Plugin:   "gateway",
 		Args:     args,
-		Env:      utils.ServiceProcessEnv(nil, gatewayProviderEnvKeys...),
+		Env:      utils.ServiceProcessEnv(overrides, gatewayProviderEnvKeys...),
 		ReadyLog: gatewayServiceReadyLog,
 	})
 }
@@ -186,7 +178,7 @@ func startSystemServiceAt(t *testing.T, binary, addr string, nats utils.NATSEndp
 	})
 }
 
-func standardKnowledgeServicesStartOptions(t *testing.T, embedding utils.EmbeddingOptions, workingDir string) utils.StartOptions {
+func standardKnowledgeServicesStartOptions(t *testing.T, embedding utils.GatewayEmbeddingOptions, workingDir string) utils.StartOptions {
 	t.Helper()
 	addresses := reserveKnowledgeServiceAddresses(t)
 	return utils.StartOptions{
@@ -200,12 +192,11 @@ func standardKnowledgeServicesStartOptions(t *testing.T, embedding utils.Embeddi
 			dgraphAddr := utils.StartDgraph(t)
 			startIOServiceAt(t, bins.IO, addresses.IO, setup.NATS)
 			startCoreServiceAt(t, bins.Core, addresses.Core, filepath.Join(setup.SpacesDir, setup.Space, "services", "core"), setup.NATS)
-			startGatewayServiceAt(t, bins.Gateway, addresses.Gateway, setup.NATS.ClientURL)
+			startGatewayServiceAt(t, bins.Gateway, addresses.Gateway, setup.NATS.ClientURL, embedding)
 			startIndexerServiceAt(t, bins.Indexer, dgraphAddr, addresses.Indexer, setup.NATS)
 			startDocumentServiceAt(t, bins.Document, addresses.Document, setup.NATS)
 			startIngestionServiceAt(t, bins.Ingestion, addresses.Ingestion, filepath.Join(setup.SpacesDir, setup.Space, "services", "ingestion"), setup.NATS)
 			startCitationServiceAt(t, bins.Citation, addresses.Citation, setup.NATS)
-			startEmbeddingServiceAt(t, bins.Embedding, addresses.Embedding, embedding, setup.NATS)
 		},
 	}
 }
@@ -229,7 +220,7 @@ func standardDevOpsServicesStartOptions(t *testing.T, workingDir string) utils.S
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
 			startIOServiceAt(t, bins.IO, ioAddr, setup.NATS)
-			startGatewayServiceAt(t, bins.Gateway, gatewayAddr, setup.NATS.ClientURL)
+			startGatewayServiceAt(t, bins.Gateway, gatewayAddr, setup.NATS.ClientURL, utils.GatewayEmbeddingOptions{})
 			startDevOpsServiceAt(t, bins.DevOps, devopsAddr, setup.NATS)
 		},
 	}
@@ -251,7 +242,7 @@ func standardDevOpsOnlyServicesStartOptions(t *testing.T, workingDir string) uti
 		},
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
-			startGatewayServiceAt(t, bins.Gateway, gatewayAddr, setup.NATS.ClientURL)
+			startGatewayServiceAt(t, bins.Gateway, gatewayAddr, setup.NATS.ClientURL, utils.GatewayEmbeddingOptions{})
 			startDevOpsServiceAt(t, bins.DevOps, devopsAddr, setup.NATS)
 		},
 	}
@@ -273,7 +264,7 @@ func standardSystemServicesStartOptions(t *testing.T, workingDir string) utils.S
 		},
 		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
 			t.Helper()
-			startGatewayServiceAt(t, bins.Gateway, gatewayAddr, setup.NATS.ClientURL)
+			startGatewayServiceAt(t, bins.Gateway, gatewayAddr, setup.NATS.ClientURL, utils.GatewayEmbeddingOptions{})
 			startSystemServiceAt(t, bins.System, systemAddr, setup.NATS)
 		},
 	}
@@ -319,7 +310,6 @@ func reserveLoopbackAddress(t *testing.T) string {
 
 type knowledgeServiceAddresses struct {
 	Indexer   string
-	Embedding string
 	Document  string
 	Ingestion string
 	Citation  string
@@ -332,7 +322,6 @@ func reserveKnowledgeServiceAddresses(t *testing.T) knowledgeServiceAddresses {
 	t.Helper()
 	return knowledgeServiceAddresses{
 		Indexer:   reserveLoopbackAddress(t),
-		Embedding: reserveLoopbackAddress(t),
 		Document:  reserveLoopbackAddress(t),
 		Ingestion: reserveLoopbackAddress(t),
 		Citation:  reserveLoopbackAddress(t),
@@ -345,7 +334,6 @@ func reserveKnowledgeServiceAddresses(t *testing.T) knowledgeServiceAddresses {
 func (a knowledgeServiceAddresses) supervisorEnv() map[string]string {
 	return map[string]string{
 		"QUARK_INDEXER_ADDR":         a.Indexer,
-		"QUARK_EMBEDDING_ADDR":       a.Embedding,
 		"QUARK_DOCUMENT_ADDR":        a.Document,
 		"QUARK_INGESTION_ADDR":       a.Ingestion,
 		"QUARK_CITATION_ADDR":        a.Citation,
@@ -451,7 +439,7 @@ func knowledgeServiceFunctions() []string {
 		"ingestion_CancelRun",
 		"ingestion_ListIncompleteSources",
 		"ingestion_ListArtifacts",
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_UpsertChunk",
 		"indexer_UpsertFact",
 		"indexer_UpsertEntity",
@@ -490,7 +478,7 @@ func TestKnowledgeAgentServicePermissionsMatchStandardE2EStack(t *testing.T) {
 		"io_Read",
 		"document_ExtractText",
 		"ingestion_StartRun",
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_IndexDocument",
 		"citation_VerifyGrounding",
 		"core_RecordAuditEvent",

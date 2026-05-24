@@ -22,14 +22,13 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "architecture" / "service-implementation-map.json"
 
 AREA_SERVICES = {
-    "Knowledge": ["document", "ingestion", "embedding", "embedding-openrouter", "indexer", "citation", "memory"],
+    "Knowledge": ["document", "ingestion", "gateway", "indexer", "citation", "memory"],
     "DevOps": ["devops"],
     "System": ["system"],
     "Core": ["core"],
-    "Model": ["model"],
+    "Gateway": ["gateway"],
     "Space": ["space"],
     "Indexer": ["indexer"],
-    "Embedding": ["embedding", "embedding-openrouter"],
 }
 
 AGENT_AREA = {
@@ -40,7 +39,7 @@ AGENT_AREA = {
 
 PROMPT_SHORTCUT_TERMS = {
     "approval_required",
-    "embedding_Embed",
+    "gateway_Embed",
     "indexer_DeleteChunk",
     "indexer_GetContext",
     "indexer_IndexDocument",

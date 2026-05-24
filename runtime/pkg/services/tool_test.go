@@ -13,7 +13,7 @@ import (
 	"github.com/quarkloop/pkg/boundary"
 	citationv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/citation/v1"
 	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
-	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
+	gatewayv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/gateway/v1"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
 	iov1 "github.com/quarkloop/pkg/serviceapi/gen/quark/io/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
@@ -234,12 +234,14 @@ func TestExecutorExpandsRuntimeRefsForCanonicalUpsertChunkRequests(t *testing.T)
 		t.Fatalf("decode content result: %v\n%s", err, contentResult)
 	}
 
-	embeddingResult, err := executor.embeddingToolResult(&embeddingv1.EmbedResponse{
-		Vector:      []float32{0.5, 0.25},
-		Model:       "local-hash-v1",
-		Dimensions:  2,
-		Provider:    "local",
-		ContentHash: "sha256:source",
+	embeddingResult, err := executor.embeddingToolResult(&gatewayv1.EmbedResponse{
+		Embeddings: []*gatewayv1.Embedding{{
+			Vector:      []float32{0.5, 0.25},
+			Model:       "fixture/embed",
+			Dimensions:  2,
+			Provider:    "fixture",
+			ContentHash: "sha256:source",
+		}},
 	})
 	if err != nil {
 		t.Fatalf("capture embedding result: %v", err)
@@ -263,7 +265,7 @@ func TestExecutorExpandsRuntimeRefsForCanonicalUpsertChunkRequests(t *testing.T)
 	if got := req.GetEmbedding(); len(got) != 2 || got[0] != 0.5 || got[1] != 0.25 {
 		t.Fatalf("embedding = %+v", got)
 	}
-	if req.GetEmbeddingMetadata().GetModel() != "local-hash-v1" {
+	if req.GetEmbeddingMetadata().GetModel() != "fixture/embed" {
 		t.Fatalf("embedding metadata was not attached: %+v", req.GetEmbeddingMetadata())
 	}
 }
@@ -330,12 +332,14 @@ func TestExecutorCompletesCanonicalUpsertChunkDefaultsFromRuntimeReferences(t *t
 	if err := json.Unmarshal([]byte(result), &documentPayload); err != nil {
 		t.Fatalf("decode document result: %v\n%s", err, result)
 	}
-	embeddingResult, err := executor.embeddingToolResult(&embeddingv1.EmbedResponse{
-		Vector:      []float32{0.5, 0.25},
-		Model:       "local-hash-v1",
-		Dimensions:  2,
-		Provider:    "local",
-		ContentHash: "sha256:paper",
+	embeddingResult, err := executor.embeddingToolResult(&gatewayv1.EmbedResponse{
+		Embeddings: []*gatewayv1.Embedding{{
+			Vector:      []float32{0.5, 0.25},
+			Model:       "fixture/embed",
+			Dimensions:  2,
+			Provider:    "fixture",
+			ContentHash: "sha256:paper",
+		}},
 	})
 	if err != nil {
 		t.Fatalf("capture embedding result: %v", err)
@@ -398,7 +402,7 @@ func TestExecutorExpandsDocumentContentRefsForEmbeddingRequests(t *testing.T) {
 		t.Fatalf("contentRef missing from document result: %+v", toolPayload)
 	}
 
-	expanded, err := executor.expandRuntimeReferences("quark.embedding.v1.EmbedRequest", `{"contentRef":"`+ref+`"}`)
+	expanded, err := executor.expandRuntimeReferences("quark.gateway.v1.EmbedRequest", `{"contentRef":"`+ref+`"}`)
 	if err != nil {
 		t.Fatalf("expand refs: %v", err)
 	}
@@ -409,15 +413,15 @@ func TestExecutorExpandsDocumentContentRefsForEmbeddingRequests(t *testing.T) {
 	if _, ok := embedPayload["contentRef"]; ok {
 		t.Fatalf("contentRef was not removed: %s", expanded)
 	}
-	if got := embedPayload["input"].(string); got != "Attention Is All You Need\n" {
-		t.Fatalf("input = %q", got)
+	if got := embedPayload["input"].([]any); len(got) != 1 || got[0] != "Attention Is All You Need\n" {
+		t.Fatalf("input = %+v", got)
 	}
 }
 
 func TestExecutorStripsEmbeddingProviderOverrides(t *testing.T) {
 	executor := NewExecutor(nil)
 
-	expanded, err := executor.expandRuntimeReferences("quark.embedding.v1.EmbedRequest", `{"input":"hello","model":"wrong-model","dimensions":384}`)
+	expanded, err := executor.expandRuntimeReferences("quark.gateway.v1.EmbedRequest", `{"input":["hello"],"provider":"wrong-provider","model":"wrong-model","dimensions":384,"options":{"route":"wrong"}}`)
 	if err != nil {
 		t.Fatalf("expand refs: %v", err)
 	}
@@ -431,8 +435,14 @@ func TestExecutorStripsEmbeddingProviderOverrides(t *testing.T) {
 	if _, ok := embedPayload["dimensions"]; ok {
 		t.Fatalf("dimensions override was not removed: %s", expanded)
 	}
-	if got := embedPayload["input"].(string); got != "hello" {
-		t.Fatalf("input = %q", got)
+	if _, ok := embedPayload["provider"]; ok {
+		t.Fatalf("provider override was not removed: %s", expanded)
+	}
+	if _, ok := embedPayload["options"]; ok {
+		t.Fatalf("options override was not removed: %s", expanded)
+	}
+	if got := embedPayload["input"].([]any); len(got) != 1 || got[0] != "hello" {
+		t.Fatalf("input = %+v", got)
 	}
 }
 
@@ -451,7 +461,7 @@ func TestExecutorPromotesContentReferencePassedThroughStringFields(t *testing.T)
 	}
 	ref := toolPayload["contentRef"].(string)
 
-	expanded, err := executor.expandRuntimeReferences("quark.embedding.v1.EmbedRequest", `{"input":["`+ref+`"]}`)
+	expanded, err := executor.expandRuntimeReferences("quark.gateway.v1.EmbedRequest", `{"input":["`+ref+`"]}`)
 	if err != nil {
 		t.Fatalf("expand refs: %v", err)
 	}
@@ -459,27 +469,27 @@ func TestExecutorPromotesContentReferencePassedThroughStringFields(t *testing.T)
 	if err := json.Unmarshal([]byte(expanded), &embedPayload); err != nil {
 		t.Fatalf("expanded payload is not JSON: %v\n%s", err, expanded)
 	}
-	if got := embedPayload["input"].(string); got != "Canonical source text\n" {
-		t.Fatalf("input = %q", got)
+	if got := embedPayload["input"].([]any); len(got) != 1 || got[0] != "Canonical source text\n" {
+		t.Fatalf("input = %+v", got)
 	}
 }
 
-func TestNormalizeStringArgumentsAcceptsStructuredTextShapes(t *testing.T) {
-	normalized, err := normalizeStringMapArguments("quark.embedding.v1.EmbedRequest", `{"input":[{"type":"text","text":"first"},{"content":[{"type":"text","text":"second"}]}]}`)
+func TestNormalizeStringArgumentsPreservesGatewayTextArray(t *testing.T) {
+	normalized, err := normalizeStringMapArguments("quark.gateway.v1.EmbedRequest", `{"input":["first","second"]}`)
 	if err != nil {
 		t.Fatalf("normalize: %v", err)
 	}
-	var req embeddingv1.EmbedRequest
+	var req gatewayv1.EmbedRequest
 	if err := protojson.Unmarshal([]byte(normalized), &req); err != nil {
 		t.Fatalf("protojson accepts normalized payload: %v\n%s", err, normalized)
 	}
-	if req.GetInput() != "first\n\nsecond" {
-		t.Fatalf("input = %q", req.GetInput())
+	if got := req.GetInput(); len(got) != 2 || got[0] != "first" || got[1] != "second" {
+		t.Fatalf("input = %+v", got)
 	}
 }
 
 func TestCanonicalIndexerRequestSchemasExposeRuntimeReferenceFields(t *testing.T) {
-	embedSchema := requestParameters("quark.embedding.v1.EmbedRequest")
+	embedSchema := requestParameters("quark.gateway.v1.EmbedRequest")
 	embedProperties := embedSchema["properties"].(map[string]any)
 	if _, ok := embedProperties["inputRef"]; !ok {
 		t.Fatalf("EmbedRequest schema missing inputRef: %+v", embedSchema)
@@ -726,18 +736,18 @@ func TestExecutorDoesNotCaptureFilesystemPDFExtractionAsContentSource(t *testing
 func TestExecutorRetriesRetryableServiceFunctionFailures(t *testing.T) {
 	ns := startServicesNATSServer(t)
 	fake := &flakyEmbeddingServer{}
-	subscribeEmbeddingService(t, ns.ClientURL(), fake.handle)
+	subscribeGatewayEmbeddingFunction(t, ns.ClientURL(), fake.handle)
 
 	executor := NewExecutorWithCaller([]*servicev1.ServiceDescriptor{{
-		Name:    "embedding",
+		Name:    "gateway",
 		Address: "nats://service-functions",
 		Rpcs: []*servicev1.RpcDescriptor{{
-			Service:       "quark.embedding.v1.EmbeddingService",
+			Service:       "quark.gateway.v1.GatewayService",
 			Method:        "Embed",
-			Request:       "quark.embedding.v1.EmbedRequest",
-			Response:      "quark.embedding.v1.EmbedResponse",
+			Request:       "quark.gateway.v1.EmbedRequest",
+			Response:      "quark.gateway.v1.EmbedResponse",
 			Description:   "Embed text.",
-			FunctionName:  "embedding_Embed",
+			FunctionName:  "gateway_Embed",
 			TimeoutMillis: 5000,
 			RetryPolicy: &servicev1.RetryPolicy{
 				MaxAttempts:    2,
@@ -746,7 +756,7 @@ func TestExecutorRetriesRetryableServiceFunctionFailures(t *testing.T) {
 		}},
 	}}, NewNATSCaller(NATSCallerConfig{URL: ns.ClientURL(), SpaceID: "test-space"}))
 
-	result, err := executor.Execute(context.Background(), "embedding_Embed", `{"input":"hello"}`)
+	result, err := executor.Execute(context.Background(), "gateway_Embed", `{"input":["hello"]}`)
 	if err != nil {
 		t.Fatalf("execute retryable service function: %v", err)
 	}
@@ -773,21 +783,21 @@ func TestExecutorWrapsMissingServiceFunctionAsDiagnosticNotFound(t *testing.T) {
 
 func TestExecutorMapsServiceInvalidArgumentToDiagnostics(t *testing.T) {
 	ns := startServicesNATSServer(t)
-	subscribeEmbeddingService(t, ns.ClientURL(), invalidArgumentEmbeddingServer{}.handle)
+	subscribeGatewayEmbeddingFunction(t, ns.ClientURL(), invalidArgumentEmbeddingServer{}.handle)
 
 	executor := NewExecutorWithCaller([]*servicev1.ServiceDescriptor{{
-		Name:    "embedding",
+		Name:    "gateway",
 		Address: "nats://service-functions",
 		Rpcs: []*servicev1.RpcDescriptor{{
-			Service:      "quark.embedding.v1.EmbeddingService",
+			Service:      "quark.gateway.v1.GatewayService",
 			Method:       "Embed",
-			Request:      "quark.embedding.v1.EmbedRequest",
-			Response:     "quark.embedding.v1.EmbedResponse",
-			FunctionName: "embedding_Embed",
+			Request:      "quark.gateway.v1.EmbedRequest",
+			Response:     "quark.gateway.v1.EmbedResponse",
+			FunctionName: "gateway_Embed",
 		}},
 	}}, NewNATSCaller(NATSCallerConfig{URL: ns.ClientURL(), SpaceID: "test-space"}))
 
-	_, err := executor.Execute(context.Background(), "embedding_Embed", `{"input":"bad"}`)
+	_, err := executor.Execute(context.Background(), "gateway_Embed", `{"input":["bad"]}`)
 	if !boundary.IsCategory(err, boundary.InvalidArgument) {
 		t.Fatalf("expected invalid argument boundary error, got %v", err)
 	}
@@ -799,20 +809,22 @@ type flakyEmbeddingServer struct {
 
 type invalidArgumentEmbeddingServer struct{}
 
-func (invalidArgumentEmbeddingServer) handle(req *embeddingv1.EmbedRequest) (*embeddingv1.EmbedResponse, error) {
-	return nil, boundary.New(boundary.Service, boundary.InvalidArgument, "svc.embedding.v1.embed", "parser rejected input")
+func (invalidArgumentEmbeddingServer) handle(req *gatewayv1.EmbedRequest) (*gatewayv1.EmbedResponse, error) {
+	return nil, boundary.New(boundary.Service, boundary.InvalidArgument, "svc.gateway.v1.embed", "provider rejected input")
 }
 
-func (s *flakyEmbeddingServer) handle(req *embeddingv1.EmbedRequest) (*embeddingv1.EmbedResponse, error) {
+func (s *flakyEmbeddingServer) handle(req *gatewayv1.EmbedRequest) (*gatewayv1.EmbedResponse, error) {
 	if atomic.AddInt32(&s.calls, 1) == 1 {
-		return nil, boundary.New(boundary.Service, boundary.Unavailable, "svc.embedding.v1.embed", "try again")
+		return nil, boundary.New(boundary.Service, boundary.Unavailable, "svc.gateway.v1.embed", "try again")
 	}
-	return &embeddingv1.EmbedResponse{
-		Vector:      []float32{0.1, 0.2},
-		Model:       "test",
-		Dimensions:  2,
-		Provider:    "test",
-		ContentHash: "abc123",
+	return &gatewayv1.EmbedResponse{
+		Embeddings: []*gatewayv1.Embedding{{
+			Vector:      []float32{0.1, 0.2},
+			Model:       "fixture/embed",
+			Dimensions:  2,
+			Provider:    "fixture",
+			ContentHash: "abc123",
+		}},
 	}, nil
 }
 
@@ -831,24 +843,24 @@ func startServicesNATSServer(t *testing.T) *natsserver.Server {
 	return ns
 }
 
-func subscribeEmbeddingService(t *testing.T, url string, handler func(*embeddingv1.EmbedRequest) (*embeddingv1.EmbedResponse, error)) {
+func subscribeGatewayEmbeddingFunction(t *testing.T, url string, handler func(*gatewayv1.EmbedRequest) (*gatewayv1.EmbedResponse, error)) {
 	t.Helper()
 	conn, err := natsgo.Connect(url)
 	if err != nil {
 		t.Fatalf("connect nats service: %v", err)
 	}
 	t.Cleanup(conn.Close)
-	subject, err := servicefunction.Subject("embedding", "v1", "embed")
+	subject, err := servicefunction.Subject("gateway", "v1", "embed")
 	if err != nil {
 		t.Fatalf("subject: %v", err)
 	}
-	sub, err := conn.QueueSubscribe(subject, "q.embedding.test", func(msg *natsgo.Msg) {
+	sub, err := conn.QueueSubscribe(subject, "q.gateway.test", func(msg *natsgo.Msg) {
 		var envelope servicefunction.RequestEnvelope
 		if err := json.Unmarshal(msg.Data, &envelope); err != nil {
 			respondServiceFunction(t, msg, servicefunction.ErrorResponse("", err, boundary.Service, subject))
 			return
 		}
-		var req embeddingv1.EmbedRequest
+		var req gatewayv1.EmbedRequest
 		if err := protojson.Unmarshal(envelope.Payload, &req); err != nil {
 			respondServiceFunction(t, msg, servicefunction.ErrorResponse(envelope.CallID, err, boundary.Service, subject))
 			return

@@ -413,7 +413,7 @@ func TestInferAppendsToolResultContinuationInstruction(t *testing.T) {
 							ID:    "call-1",
 							Type:  "function",
 							Function: plugin.ToolCallFunction{
-								Name:      "embedding_Embed",
+								Name:      "gateway_Embed",
 								Arguments: `{}`,
 							},
 						}},
@@ -440,7 +440,7 @@ func TestInferAppendsToolResultContinuationInstruction(t *testing.T) {
 	result, err := client.InferWithToolCallPolicyAndContinuation(
 		context.Background(),
 		[]plugin.Message{{Role: "user", Content: "index documents"}},
-		[]plugin.ToolSchema{{Name: "embedding_Embed"}},
+		[]plugin.ToolSchema{{Name: "gateway_Embed"}},
 		func(context.Context, string, string) (string, error) {
 			return `{"success":true}`, nil
 		},

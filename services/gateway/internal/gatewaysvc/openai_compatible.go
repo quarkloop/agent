@@ -15,21 +15,23 @@ import (
 )
 
 type openAICompatibleProvider struct {
-	id      string
-	baseURL string
-	apiKey  string
-	model   string
-	client  *http.Client
+	id             string
+	baseURL        string
+	apiKey         string
+	model          string
+	embeddingModel string
+	client         *http.Client
 }
 
 func newOpenAICompatibleProvider(cfg ProviderConfig) provider {
 	baseURL := strings.TrimRight(strings.TrimSpace(cfg.BaseURL), "/")
 	return &openAICompatibleProvider{
-		id:      strings.TrimSpace(cfg.ID),
-		baseURL: normalizeOpenAICompatibleBaseURL(cfg.ID, baseURL),
-		apiKey:  strings.TrimSpace(cfg.APIKey),
-		model:   strings.TrimSpace(cfg.Model),
-		client:  http.DefaultClient,
+		id:             strings.TrimSpace(cfg.ID),
+		baseURL:        normalizeOpenAICompatibleBaseURL(cfg.ID, baseURL),
+		apiKey:         strings.TrimSpace(cfg.APIKey),
+		model:          strings.TrimSpace(cfg.Model),
+		embeddingModel: strings.TrimSpace(cfg.EmbeddingModel),
+		client:         http.DefaultClient,
 	}
 }
 
@@ -91,8 +93,12 @@ func (p *openAICompatibleProvider) Embed(ctx context.Context, cmd embedCommand) 
 	if p.apiKey == "" {
 		return nil, plugin.NewProviderError(plugin.ProviderErrorAuth, p.id, cmd.Model, 0, fmt.Errorf("api key is required"))
 	}
+	model := firstNonEmpty(cmd.Model, p.embeddingModel)
+	if model == "" {
+		return nil, plugin.NewProviderError(plugin.ProviderErrorInvalidRequest, p.id, "", 0, fmt.Errorf("embedding model is required"))
+	}
 	body, err := json.Marshal(map[string]any{
-		"model":           firstNonEmpty(cmd.Model, p.model),
+		"model":           model,
 		"input":           append([]string(nil), cmd.Input...),
 		"encoding_format": "float",
 	})
@@ -126,7 +132,7 @@ func (p *openAICompatibleProvider) Embed(ctx context.Context, cmd embedCommand) 
 		out = append(out, &gatewayv1.Embedding{
 			Vector:      append([]float32(nil), item.Embedding...),
 			Provider:    p.id,
-			Model:       firstNonEmpty(cmd.Model, p.model),
+			Model:       model,
 			Dimensions:  int32(len(item.Embedding)),
 			ContentHash: contentHash(input),
 		})

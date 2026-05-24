@@ -38,10 +38,6 @@ func ValidateQuarkfile(qf *Quarkfile) error {
 	if err := validateServices(qf.Services); err != nil {
 		return err
 	}
-	if err := validateEmbedding(qf.Embedding); err != nil {
-		return err
-	}
-
 	if err := validateModel(qf.Model); err != nil {
 		return err
 	}
@@ -191,21 +187,6 @@ func validateServices(services []ServiceRef) error {
 			if err := validateEnvVarName(service.AddressEnv, true); err != nil {
 				return fmt.Errorf("services[%d].address_env: %w", i, err)
 			}
-		}
-	}
-	return nil
-}
-
-func validateEmbedding(embedding EmbeddingRef) error {
-	if embedding.IsZero() {
-		return nil
-	}
-	if embedding.Dimensions < 0 {
-		return fmt.Errorf("embedding.dimensions must be >= 0, got %d", embedding.Dimensions)
-	}
-	if embedding.EndpointEnv != "" {
-		if err := validateEnvVarName(embedding.EndpointEnv, true); err != nil {
-			return fmt.Errorf("embedding.endpoint_env: %w", err)
 		}
 	}
 	return nil

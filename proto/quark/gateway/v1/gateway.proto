@@ -127,6 +127,7 @@ message GatewayProviderConfig {
   string base_url = 3;
   string model = 4;
   bool enabled = 5;
+  string embedding_model = 6;
 }
 
 message GatewayFallbackPolicy {

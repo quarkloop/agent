@@ -7,6 +7,9 @@ provider health, fallback, and usage accounting.
 Gateway embeds Bifrost as an implementation detail. Runtime, agents, tools, and
 other services do not call provider APIs directly.
 
+`gateway_Embed` requires a configured embedding provider and embedding model;
+there is no local synthetic embedding fallback.
+
 ## Service Functions
 
 | Function | NATS subject | RPC method | Risk | Approval | Streaming | Purpose |

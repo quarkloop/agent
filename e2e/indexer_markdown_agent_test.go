@@ -4,7 +4,9 @@ package e2e
 
 import (
 	"context"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -41,13 +43,11 @@ func TestAgentIndexesITCompanyMarkdownDocuments(t *testing.T) {
 		},
 	})
 
-	embedding := utils.EmbeddingOptions{
-		Plugin:     "embedding",
-		Mode:       "local",
-		Provider:   "local",
-		Model:      "local-hash-v1",
-		Dimensions: 32,
+	model := strings.TrimSpace(os.Getenv("OPENROUTER_E2E_EMBEDDING_MODEL"))
+	if model == "" {
+		t.Skip("set OPENROUTER_E2E_EMBEDDING_MODEL to run Gateway embedding e2e coverage")
 	}
+	embedding := utils.GatewayEmbeddingOptions{Provider: "openrouter", Model: model}
 	env := utils.StartE2E(t, true, standardKnowledgeServicesStartOptions(t, embedding, workingDir))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
@@ -64,7 +64,7 @@ func TestAgentIndexesITCompanyMarkdownDocuments(t *testing.T) {
 
 	assertToolStarted(t, indexTrace, "ingestion_StartRun")
 	assertToolStarted(t, indexTrace, "io_Read")
-	assertToolStarted(t, indexTrace, "embedding_Embed")
+	assertToolStarted(t, indexTrace, "gateway_Embed")
 	assertToolStarted(t, indexTrace, "indexer_UpsertChunk")
 	assertToolStarted(t, indexTrace, "ingestion_MarkComplete")
 	assertNoToolErrors(t, indexTrace, "indexer_UpsertChunk")
@@ -86,10 +86,10 @@ func TestAgentIndexesITCompanyMarkdownDocuments(t *testing.T) {
 		TraceOptions:   knowledgeQueryTraceOptions("query IT company markdown index"),
 	})
 
-	assertToolStarted(t, queryTrace, "embedding_Embed")
+	assertToolStarted(t, queryTrace, "gateway_Embed")
 	assertToolStarted(t, queryTrace, "indexer_QueryContext")
 	assertToolStartedAny(t, queryTrace, "citation_VerifyGrounding", "citation_RenderReferences")
-	assertNoToolErrors(t, queryTrace, "embedding_Embed", "indexer_QueryContext", "citation_VerifyGrounding", "citation_RenderReferences")
+	assertNoToolErrors(t, queryTrace, "gateway_Embed", "indexer_QueryContext", "citation_VerifyGrounding", "citation_RenderReferences")
 	if contains(queryTrace.ToolStarts, "io_Read") || contains(queryTrace.ToolStarts, "io_List") {
 		t.Fatalf("markdown query re-read source files instead of using the index; starts=%v", queryTrace.ToolStarts)
 	}

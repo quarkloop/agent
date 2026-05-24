@@ -20,7 +20,6 @@ MODULES := \
 		services/core \
 		services/devops \
 		services/document \
-		services/embedding \
 		services/ingestion \
 		services/indexer \
 		services/gateway \
@@ -56,8 +55,6 @@ build-tools:
 build-services:
 		@echo "--- Building service: indexer ---"
 		go build -o $(BINARY_DIR)/indexer-service ./services/indexer/cmd/indexer
-		@echo "--- Building service: embedding ---"
-		go build -o $(BINARY_DIR)/embedding-service ./services/embedding/cmd/embedding
 		@echo "--- Building service: ingestion ---"
 		go build -o $(BINARY_DIR)/ingestion-service ./services/ingestion/cmd/ingestion
 		@echo "--- Building service: citation ---"
@@ -116,9 +113,9 @@ test:
 			(cd $$mod && go test ./...); \
 		done
 
-## Run local deterministic E2E tests that do not require provider credentials
+## Run contract and service E2E tests that do not require model providers
 test-e2e-local:
-		go test -tags e2e -v -timeout 12m -run '^(TestLongE2EPromptsAreOwnedByBuilders|TestPDFPromptBuildersExposeAgentWorkflowContract|TestMarkdownPromptBuildersExposeAgentWorkflowContract|TestDevOpsReleasePromptBuilderUsesServiceFunctionContract|TestSupervisorSessionEventReachesAgent|TestLocalDeterministicSupervisorRuntimeAndServices|TestIndexerServiceWithRealDgraph)$$' ./e2e
+		go test -tags e2e -v -timeout 12m -run '^(TestLongE2EPromptsAreOwnedByBuilders|TestPDFPromptBuildersExposeAgentWorkflowContract|TestMarkdownPromptBuildersExposeAgentWorkflowContract|TestDevOpsReleasePromptBuilderUsesServiceFunctionContract|TestSupervisorSessionEventReachesAgent|TestIndexerServiceWithRealDgraph)$$' ./e2e
 
 E2E_TIMEOUT ?= 20m
 E2E_PDF_TIMEOUT ?= 20m
@@ -126,8 +123,7 @@ E2E_PDF_TIMEOUT ?= 20m
 ## Run E2E tests (requires OPENROUTER_API_KEY or ZHIPU_API_KEY; loads quark/.env when present)
 test-e2e:
 		go test -tags e2e -v -timeout $(E2E_PDF_TIMEOUT) -run '^TestAgentIndexesUploadedPDFDataset$$' ./e2e
-		go test -tags e2e -v -timeout $(E2E_PDF_TIMEOUT) -run '^TestAgentIndexesUploadedPDFDatasetOpenRouterEmbedding$$' ./e2e
-		go test -tags e2e -v -timeout $(E2E_TIMEOUT) -skip '^(TestAgentIndexesUploadedPDFDataset|TestAgentIndexesUploadedPDFDatasetOpenRouterEmbedding)$$' ./e2e
+		go test -tags e2e -v -timeout $(E2E_TIMEOUT) -skip '^TestAgentIndexesUploadedPDFDataset$$' ./e2e
 
 ## Refresh the code-owned service implementation map
 service-inventory:
@@ -155,7 +151,7 @@ dead-code-check:
 
 check: fmt-check vet test arch-check dead-code-check
 
-## Run the release readiness gate, including local deterministic E2E
+## Run the release readiness gate, including provider-free E2E coverage
 release-check:
 		@go version | grep -q 'go1\.26' || { echo "Go 1.26 is required"; go version; exit 1; }
 		$(MAKE) check

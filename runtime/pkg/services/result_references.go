@@ -14,14 +14,44 @@ import (
 
 func (e *Executor) embeddingToolResult(msg protoreflect.ProtoMessage) (string, error) {
 	reflected := msg.ProtoReflect()
+	embeddingsField := reflected.Descriptor().Fields().ByName("embeddings")
+	if embeddingsField == nil || !embeddingsField.IsList() {
+		return "", fmt.Errorf("gateway embedding response descriptor is missing embeddings")
+	}
+
+	embeddings := reflected.Get(embeddingsField).List()
+	if embeddings.Len() == 0 {
+		return "", fmt.Errorf("gateway embedding response did not include embeddings")
+	}
+	results := make([]map[string]any, 0, embeddings.Len())
+	for i := 0; i < embeddings.Len(); i++ {
+		result, err := e.registerEmbeddingResult(embeddings.Get(i).Message())
+		if err != nil {
+			return "", err
+		}
+		results = append(results, result)
+	}
+
+	var payload any = map[string]any{"embeddings": results}
+	if len(results) == 1 {
+		payload = results[0]
+	}
+	data, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("encode embedding result: %w", err)
+	}
+	return string(data), nil
+}
+
+func (e *Executor) registerEmbeddingResult(reflected protoreflect.Message) (map[string]any, error) {
 	fields := reflected.Descriptor().Fields()
 	vectorField := fields.ByName("vector")
 	hashField := fields.ByName("content_hash")
 	modelField := fields.ByName("model")
 	dimensionsField := fields.ByName("dimensions")
 	providerField := fields.ByName("provider")
-	if vectorField == nil || hashField == nil {
-		return "", fmt.Errorf("embedding response descriptor is missing expected fields")
+	if vectorField == nil || hashField == nil || modelField == nil || dimensionsField == nil || providerField == nil {
+		return nil, fmt.Errorf("gateway embedding item descriptor is missing expected fields")
 	}
 
 	list := reflected.Get(vectorField).List()
@@ -31,7 +61,7 @@ func (e *Executor) embeddingToolResult(msg protoreflect.ProtoMessage) (string, e
 	}
 	contentHash := strings.TrimSpace(reflected.Get(hashField).String())
 	if contentHash == "" {
-		return "", fmt.Errorf("embedding response did not include contentHash")
+		return nil, fmt.Errorf("gateway embedding response did not include contentHash")
 	}
 
 	e.mu.Lock()
@@ -53,18 +83,13 @@ func (e *Executor) embeddingToolResult(msg protoreflect.ProtoMessage) (string, e
 	e.pending[ref] = struct{}{}
 	e.mu.Unlock()
 
-	payload := map[string]any{
+	return map[string]any{
 		"embeddingRef": ref,
 		"contentHash":  metadata["contentHash"],
 		"dimensions":   metadata["dimensions"],
 		"model":        metadata["model"],
 		"provider":     metadata["provider"],
-	}
-	data, err := json.MarshalIndent(payload, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("encode embedding result: %w", err)
-	}
-	return string(data), nil
+	}, nil
 }
 
 func (e *Executor) documentExtractTextToolResult(msg protoreflect.ProtoMessage, requestArguments string) (string, error) {

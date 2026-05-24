@@ -30,7 +30,7 @@ func TestComposeDeclaresOperatorManagedProcesses(t *testing.T) {
 	if err := yaml.Unmarshal(data, &compose); err != nil {
 		t.Fatalf("parse compose: %v", err)
 	}
-	for _, name := range []string{"supervisor", "runtime", "io", "space", "indexer", "embedding", "vector", "nats-exporter", "vmagent", "victoria-metrics", "openbao", "temporal"} {
+	for _, name := range []string{"supervisor", "runtime", "io", "space", "indexer", "gateway", "vector", "nats-exporter", "vmagent", "victoria-metrics", "openbao", "temporal"} {
 		if _, ok := compose.Services[name]; !ok {
 			t.Fatalf("compose service %q missing", name)
 		}

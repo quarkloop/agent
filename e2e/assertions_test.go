@@ -187,7 +187,7 @@ func containsStructuredContextPreview(value string) bool {
 func assertEmbeddingToolResult(t *testing.T, trace utils.MessageTrace, provider, model string, dimensions int) {
 	t.Helper()
 	for _, event := range trace.ToolResultEvents {
-		if event.Name != "embedding_Embed" {
+		if event.Name != "gateway_Embed" {
 			continue
 		}
 		var payload map[string]any
@@ -200,14 +200,14 @@ func assertEmbeddingToolResult(t *testing.T, trace utils.MessageTrace, provider,
 		if gotProvider != provider {
 			continue
 		}
-		if gotDimensions != fmt.Sprint(dimensions) {
+		if dimensions > 0 && gotDimensions != fmt.Sprint(dimensions) {
 			continue
 		}
 		if embeddingModelMatches(provider, gotModel, model) {
 			return
 		}
 	}
-	t.Fatalf("embedding_Embed tool results missing provider=%q model=%q dimensions=%d: %+v", provider, model, dimensions, trace.ToolResultEvents)
+	t.Fatalf("gateway_Embed tool results missing provider=%q model=%q dimensions=%d: %+v", provider, model, dimensions, trace.ToolResultEvents)
 }
 
 func embeddingModelMatches(provider, got, want string) bool {
@@ -287,7 +287,7 @@ func assertEmbeddingSuccessCount(t *testing.T, trace utils.MessageTrace, want in
 	t.Helper()
 	count := 0
 	for _, event := range trace.ToolResultEvents {
-		if event.Name != "embedding_Embed" {
+		if event.Name != "gateway_Embed" {
 			continue
 		}
 		if !toolEventSucceeded(event) {
@@ -298,7 +298,7 @@ func assertEmbeddingSuccessCount(t *testing.T, trace utils.MessageTrace, want in
 		}
 	}
 	if count < want {
-		t.Fatalf("embedding_Embed successful results = %d, want at least %d: %+v", count, want, trace.ToolResultEvents)
+		t.Fatalf("gateway_Embed successful results = %d, want at least %d: %+v", count, want, trace.ToolResultEvents)
 	}
 }
 
@@ -333,7 +333,7 @@ func assertAgentStructuredPDFIndexPayloads(t *testing.T, trace utils.MessageTrac
 			t.Fatalf("UpsertChunk payload %d missing textContentRef or textContent: %+v", i, payload)
 		}
 		if !hasNonEmptyString(payload, "embeddingRef") {
-			t.Fatalf("UpsertChunk payload %d missing embeddingRef from embedding_Embed: %+v", i, payload)
+			t.Fatalf("UpsertChunk payload %d missing embeddingRef from gateway_Embed: %+v", i, payload)
 		}
 		if !hasNonEmptyObject(payload, "document") {
 			t.Fatalf("UpsertChunk payload %d missing first-class document metadata: %+v", i, payload)

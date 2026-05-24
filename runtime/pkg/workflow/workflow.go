@@ -732,7 +732,7 @@ func Detect(prompt string, tools []plugin.ToolSchema) []Intent {
 		if steps := requiredSteps(available,
 			step("ingest-start", "ingestion run creation", "ingestion_StartRun"),
 			stepCount("extract", "document content extraction", sourceCount, "document_ExtractText", "document_GetPages"),
-			stepCount("embed", "embedding generation", sourceCount, "embedding_Embed", "gateway_Embed"),
+			stepCount("embed", "embedding generation", sourceCount, "gateway_Embed", "gateway_Embed"),
 			stepCount("index", "canonical indexing", sourceCount, "indexer_UpsertChunk"),
 			step("ingest-complete", "ingestion run completion", "ingestion_MarkComplete"),
 		); len(steps) > 0 {
@@ -741,7 +741,7 @@ func Detect(prompt string, tools []plugin.ToolSchema) []Intent {
 	}
 	if looksLikeKnowledgeQuery(text) {
 		if steps := requiredSteps(available,
-			step("embed-query", "query embedding", "embedding_Embed", "gateway_Embed"),
+			step("embed-query", "query embedding", "gateway_Embed", "gateway_Embed"),
 			step("retrieve", "context retrieval", "indexer_QueryContext", "indexer_GetContext"),
 			step("ground", "grounding or citation verification", "citation_VerifyGrounding", "citation_RenderReferences"),
 		); len(steps) > 0 {
@@ -797,9 +797,9 @@ func workflowPromptBlock(state State) string {
 	}
 	switch state.Kind {
 	case KindKnowledgeIndex:
-		b.WriteString("For document indexing, start the ingestion run with the discovered sources before per-source work, extract every source through document service functions, produce embeddings for canonical chunks, persist each canonical chunk with indexer_UpsertChunk using embeddingRef values returned by embedding_Embed, then close the durable run with ingestion_MarkComplete. Every indexer_UpsertChunk call for source documents must be a complete canonical knowledge record with document, sourceMetadata, provenance, non-empty facts, non-empty entities, relations, citations, and either textContentRef or textContent. For batch work, issue all known calls for the same step in one ordered tool-call batch when possible. Never provide manual embedding arrays to indexer functions. Do not use document-only or legacy indexer calls as a substitute for canonical chunk indexing. ingestion_UpdateSourceState may record per-source progress, but it is not the terminal batch completion step. Do not final-answer that indexing is done until ingestion_MarkComplete succeeds after the source content is indexed. After ingestion_MarkComplete succeeds, answer immediately and concisely; do not call more tools unless the terminal call failed.")
+		b.WriteString("For document indexing, start the ingestion run with the discovered sources before per-source work, extract every source through document service functions, produce embeddings for canonical chunks, persist each canonical chunk with indexer_UpsertChunk using embeddingRef values returned by gateway_Embed, then close the durable run with ingestion_MarkComplete. Every indexer_UpsertChunk call for source documents must be a complete canonical knowledge record with document, sourceMetadata, provenance, non-empty facts, non-empty entities, relations, citations, and either textContentRef or textContent. For batch work, issue all known calls for the same step in one ordered tool-call batch when possible. Never provide manual embedding arrays to indexer functions. Do not use document-only or legacy indexer calls as a substitute for canonical chunk indexing. ingestion_UpdateSourceState may record per-source progress, but it is not the terminal batch completion step. Do not final-answer that indexing is done until ingestion_MarkComplete succeeds after the source content is indexed. After ingestion_MarkComplete succeeds, answer immediately and concisely; do not call more tools unless the terminal call failed.")
 	case KindKnowledgeQuery:
-		b.WriteString("For knowledge questions, retrieve from the index with a queryVectorRef returned by embedding_Embed before answering and use citation or grounding functions when they are available for the workflow. Never provide manual query vectors to indexer functions. Do not reread original files unless retrieval is insufficient and the user asks for repair or reindexing. After citation or grounding succeeds, answer immediately and concisely from the retrieved evidence; do not call more tools unless retrieval or grounding failed.")
+		b.WriteString("For knowledge questions, retrieve from the index with a queryVectorRef returned by gateway_Embed before answering and use citation or grounding functions when they are available for the workflow. Never provide manual query vectors to indexer functions. Do not reread original files unless retrieval is insufficient and the user asks for repair or reindexing. After citation or grounding succeeds, answer immediately and concisely from the retrieved evidence; do not call more tools unless retrieval or grounding failed.")
 	case KindDevOps:
 		b.WriteString("For DevOps work, inspect repository state before running build, test, release, or policy actions. Report only evidence from service results and clearly distinguish dry-run planning from mutations.")
 	case KindSystemInspect, KindSystemMutation:
@@ -858,7 +858,7 @@ func knowledgeIndexContinuationDetail(stepID, runID string) string {
 	case "embed":
 		return "Create embeddings for the remaining extracted canonical chunks. Batch all known remaining embedding calls in one assistant turn when possible."
 	case "index":
-		detail := "Persist each remaining canonical chunk with indexer_UpsertChunk using embeddingRef values returned by embedding_Embed. Each upsert must include document, sourceMetadata, provenance, facts, entities, relations, citations, and either textContentRef or textContent. After the final remaining upsert succeeds, close the durable run with ingestion_MarkComplete before answering."
+		detail := "Persist each remaining canonical chunk with indexer_UpsertChunk using embeddingRef values returned by gateway_Embed. Each upsert must include document, sourceMetadata, provenance, facts, entities, relations, citations, and either textContentRef or textContent. After the final remaining upsert succeeds, close the durable run with ingestion_MarkComplete before answering."
 		if runID != "" {
 			detail += fmt.Sprintf(" Use runId %q when the workflow reaches ingestion_MarkComplete.", runID)
 		}

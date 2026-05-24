@@ -38,7 +38,7 @@ func TestServicePluginInventoryHasE2ECoveragePlan(t *testing.T) {
 		},
 		"core": {
 			Mode:  "supervisor-runtime-owned",
-			Tests: []string{"TestSupervisorSessionEventReachesAgent", "TestAgentRunArtifactsAreRedactedAndStructured", "TestLocalDeterministicSupervisorRuntimeAndServices"},
+			Tests: []string{"TestSupervisorSessionEventReachesAgent", "TestAgentRunArtifactsAreRedactedAndStructured"},
 		},
 		"devops": {
 			Mode:  "runtime-backed",
@@ -48,17 +48,9 @@ func TestServicePluginInventoryHasE2ECoveragePlan(t *testing.T) {
 			Mode:  "runtime-backed",
 			Tests: []string{"TestAgentIndexesUploadedPDFDataset"},
 		},
-		"embedding": {
-			Mode:  "runtime-backed",
-			Tests: []string{"TestLocalDeterministicSupervisorRuntimeAndServices", "TestAgentIndexesUploadedPDFDataset", "TestAgentIndexesITCompanyMarkdownDocuments"},
-		},
-		"embedding-openrouter": {
-			Mode:  "runtime-backed",
-			Tests: []string{"TestAgentIndexesUploadedPDFDatasetOpenRouterEmbedding"},
-		},
 		"gateway": {
 			Mode:  "runtime-backed",
-			Tests: []string{"TestAskMode", "TestAgentIndexesUploadedPDFDataset"},
+			Tests: []string{"TestAskMode", "TestAgentIndexesUploadedPDFDataset", "TestAgentIndexesITCompanyMarkdownDocuments"},
 		},
 		"indexer": {
 			Mode:  "runtime-backed",
@@ -70,11 +62,11 @@ func TestServicePluginInventoryHasE2ECoveragePlan(t *testing.T) {
 		},
 		"io": {
 			Mode:  "runtime-backed",
-			Tests: []string{"TestLocalDeterministicSupervisorRuntimeAndServices", "TestAgentIndexesUploadedPDFDataset", "TestAgentUsesDevOpsReleaseServiceFunction"},
+			Tests: []string{"TestAgentIndexesUploadedPDFDataset", "TestAgentUsesDevOpsReleaseServiceFunction"},
 		},
 		"memory": {
 			Mode:  "contract-only",
-			Tests: []string{"TestLocalDeterministicSupervisorRuntimeAndServices"},
+			Tests: []string{"TestAgentIndexesUploadedPDFDataset"},
 		},
 		"secrets": {
 			Mode:  "runtime-backed",
@@ -82,7 +74,7 @@ func TestServicePluginInventoryHasE2ECoveragePlan(t *testing.T) {
 		},
 		"space": {
 			Mode:  "supervisor-runtime-owned",
-			Tests: []string{"TestSupervisorSessionEventReachesAgent", "TestLocalDeterministicSupervisorRuntimeAndServices"},
+			Tests: []string{"TestSupervisorSessionEventReachesAgent"},
 		},
 		"system": {
 			Mode:  "runtime-backed",

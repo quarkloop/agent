@@ -43,7 +43,7 @@ The workspace modules are listed in `go.work`:
 - `pkg/boundary`, `pkg/event`, `pkg/plugin`, `pkg/serviceapi`, `pkg/space`,
   `pkg/toolkit`
 - `services/citation`, `services/core`, `services/devops`,
-  `services/document`, `services/embedding`, `services/indexer`,
+  `services/document`, `services/indexer`,
   `services/ingestion`, `services/gateway`, `services/space`,
   `services/system`
 - `services/io`
@@ -85,7 +85,7 @@ handoff rules, and evaluation requirements. Everything agent-callable flows
 through the runtime tool-call surface. Tool plugins own their schema,
 implementation, and `SKILL.md`. Service plugins describe NATS service functions; runtime
 turns their RPC descriptors into generated service functions such as
-`embedding_Embed` and `indexer_GetContext`.
+`gateway_Embed` and `indexer_GetContext`.
 
 `quark-main` is the required root coordinator agent plugin. Supervisor resolves
 its allowed service functions from installed services and any Quarkfile
@@ -150,7 +150,7 @@ Common focused commands:
 cd runtime && go test ./pkg/agent ./pkg/llm ./pkg/services ./pkg/extraction ./pkg/workspace
 cd runtime && go test ./pkg/activity ./pkg/modelusage ./pkg/permissions
 cd services/indexer && go test ./...
-cd services/embedding && go test ./...
+cd services/gateway && go test ./...
 cd services/io && go test ./...
 cd cli && go test ./pkg/commands/services
 cd e2e && go test -tags e2e -run '^$' ./...

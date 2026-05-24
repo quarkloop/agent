@@ -10,23 +10,25 @@ import (
 )
 
 type Config struct {
-	Address   string
-	SkillDir  string
-	NATS      gatewaynats.Config
-	Providers []ProviderConfig
-	Fallbacks map[string][]string
-	Logger    *slog.Logger
+	Address           string
+	SkillDir          string
+	NATS              gatewaynats.Config
+	Providers         []ProviderConfig
+	Fallbacks         map[string][]string
+	EmbeddingProvider string
+	Logger            *slog.Logger
 }
 
 type GatewayNATSConfig = gatewaynats.Config
 
 type ProviderConfig struct {
-	ID      string
-	Kind    string
-	APIKey  string
-	BaseURL string
-	Model   string
-	Enabled bool
+	ID             string
+	Kind           string
+	APIKey         string
+	BaseURL        string
+	Model          string
+	EmbeddingModel string
+	Enabled        bool
 }
 
 func Run(ctx context.Context, cfg Config) error {
@@ -37,9 +39,10 @@ func Run(ctx context.Context, cfg Config) error {
 		cfg.Logger = slog.Default()
 	}
 	server, err := gatewaysvc.NewServer(gatewaysvc.Config{
-		Providers: providerConfigs(cfg.Providers),
-		Fallbacks: cfg.Fallbacks,
-		Logger:    cfg.Logger,
+		Providers:         providerConfigs(cfg.Providers),
+		Fallbacks:         cfg.Fallbacks,
+		EmbeddingProvider: cfg.EmbeddingProvider,
+		Logger:            cfg.Logger,
 	})
 	if err != nil {
 		return err
@@ -64,12 +67,13 @@ func providerConfigs(in []ProviderConfig) []gatewaysvc.ProviderConfig {
 	out := make([]gatewaysvc.ProviderConfig, 0, len(in))
 	for _, cfg := range in {
 		out = append(out, gatewaysvc.ProviderConfig{
-			ID:      cfg.ID,
-			Kind:    cfg.Kind,
-			APIKey:  cfg.APIKey,
-			BaseURL: cfg.BaseURL,
-			Model:   cfg.Model,
-			Enabled: cfg.Enabled,
+			ID:             cfg.ID,
+			Kind:           cfg.Kind,
+			APIKey:         cfg.APIKey,
+			BaseURL:        cfg.BaseURL,
+			Model:          cfg.Model,
+			EmbeddingModel: cfg.EmbeddingModel,
+			Enabled:        cfg.Enabled,
 		})
 	}
 	return out

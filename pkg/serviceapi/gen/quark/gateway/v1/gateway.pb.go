@@ -1062,14 +1062,15 @@ func (x *ReloadConfigResponse) GetMessage() string {
 }
 
 type GatewayProviderConfig struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Kind          string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
-	BaseUrl       string                 `protobuf:"bytes,3,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"`
-	Model         string                 `protobuf:"bytes,4,opt,name=model,proto3" json:"model,omitempty"`
-	Enabled       bool                   `protobuf:"varint,5,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Kind           string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	BaseUrl        string                 `protobuf:"bytes,3,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"`
+	Model          string                 `protobuf:"bytes,4,opt,name=model,proto3" json:"model,omitempty"`
+	Enabled        bool                   `protobuf:"varint,5,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	EmbeddingModel string                 `protobuf:"bytes,6,opt,name=embedding_model,json=embeddingModel,proto3" json:"embedding_model,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GatewayProviderConfig) Reset() {
@@ -1135,6 +1136,13 @@ func (x *GatewayProviderConfig) GetEnabled() bool {
 		return x.Enabled
 	}
 	return false
+}
+
+func (x *GatewayProviderConfig) GetEmbeddingModel() string {
+	if x != nil {
+		return x.EmbeddingModel
+	}
+	return ""
 }
 
 type GatewayFallbackPolicy struct {
@@ -1934,13 +1942,14 @@ const file_quark_gateway_v1_gateway_proto_rawDesc = "" +
 	"\x14ReloadConfigResponse\x12\x1a\n" +
 	"\breloaded\x18\x01 \x01(\bR\breloaded\x12\x1c\n" +
 	"\tproviders\x18\x02 \x03(\tR\tproviders\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\"\x86\x01\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\xaf\x01\n" +
 	"\x15GatewayProviderConfig\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x19\n" +
 	"\bbase_url\x18\x03 \x01(\tR\abaseUrl\x12\x14\n" +
 	"\x05model\x18\x04 \x01(\tR\x05model\x12\x18\n" +
-	"\aenabled\x18\x05 \x01(\bR\aenabled\"Q\n" +
+	"\aenabled\x18\x05 \x01(\bR\aenabled\x12'\n" +
+	"\x0fembedding_model\x18\x06 \x01(\tR\x0eembeddingModel\"Q\n" +
 	"\x15GatewayFallbackPolicy\x12\x1a\n" +
 	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x1c\n" +
 	"\tfallbacks\x18\x02 \x03(\tR\tfallbacks\"\x99\x01\n" +

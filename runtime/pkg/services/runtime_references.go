@@ -13,13 +13,13 @@ func (e *Executor) expandRuntimeReferences(typeName, arguments string) (string, 
 		return arguments, nil
 	}
 	switch typeName {
-	case "quark.embedding.v1.EmbedRequest":
+	case "quark.gateway.v1.EmbedRequest":
 		arguments = e.promoteContentReference(arguments, "input", "contentRef")
-		expanded, err := e.expandContentReference(arguments, "inputRef", "input")
+		expanded, err := e.expandContentReferenceList(arguments, "inputRef", "input")
 		if err != nil {
 			return "", err
 		}
-		expanded, err = e.expandContentReference(expanded, "contentRef", "input")
+		expanded, err = e.expandContentReferenceList(expanded, "contentRef", "input")
 		if err != nil {
 			return "", err
 		}
@@ -52,6 +52,8 @@ func stripEmbeddingRequestOverrides(arguments string) string {
 	}
 	delete(payload, "model")
 	delete(payload, "dimensions")
+	delete(payload, "provider")
+	delete(payload, "options")
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return arguments
@@ -82,9 +84,9 @@ func requireReferenceField(typeName, arguments, refField, directField string) er
 		}
 	}
 	if _, ok := payload[directField]; ok {
-		return fmt.Errorf("%s requires %s from embedding_Embed; direct %s values are not accepted in runtime tool calls", typeName, refField, directField)
+		return fmt.Errorf("%s requires %s from gateway_Embed; direct %s values are not accepted in runtime tool calls", typeName, refField, directField)
 	}
-	return fmt.Errorf("%s requires %s from embedding_Embed", typeName, refField)
+	return fmt.Errorf("%s requires %s from gateway_Embed", typeName, refField)
 }
 
 func (e *Executor) promoteContentReference(arguments, sourceField, refField string) string {
@@ -159,6 +161,36 @@ func (e *Executor) expandContentReference(arguments, refField, contentField stri
 	return string(data), nil
 }
 
+func (e *Executor) expandContentReferenceList(arguments, refField, contentField string) (string, error) {
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(arguments), &payload); err != nil {
+		return "", fmt.Errorf("decode service arguments: %w", err)
+	}
+	rawRef, ok := payload[refField]
+	if !ok {
+		return arguments, nil
+	}
+	var ref string
+	if err := json.Unmarshal(rawRef, &ref); err != nil {
+		return "", fmt.Errorf("%s must be a string: %w", refField, err)
+	}
+	content, ok := e.contentByRef(ref)
+	if !ok {
+		return "", fmt.Errorf("%s %q was not produced by an io_Read or document_ExtractText call in this runtime session", refField, ref)
+	}
+	rawContent, err := json.Marshal([]string{content})
+	if err != nil {
+		return "", fmt.Errorf("encode %s: %w", contentField, err)
+	}
+	payload[contentField] = rawContent
+	delete(payload, refField)
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("encode service arguments: %w", err)
+	}
+	return string(data), nil
+}
+
 func (e *Executor) expandVectorReference(arguments, refField, vectorField string) (string, error) {
 	var payload map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(arguments), &payload); err != nil {
@@ -174,7 +206,7 @@ func (e *Executor) expandVectorReference(arguments, refField, vectorField string
 	}
 	vector, ok := e.embeddingByRef(ref)
 	if !ok {
-		return "", fmt.Errorf("%s %q was not produced by embedding_Embed in this runtime session", refField, ref)
+		return "", fmt.Errorf("%s %q was not produced by gateway_Embed in this runtime session", refField, ref)
 	}
 	rawVector, err := json.Marshal(vector)
 	if err != nil {

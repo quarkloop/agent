@@ -352,7 +352,7 @@ func TestRuntimePermissionPolicyCombinesToolAndServiceFunctions(t *testing.T) {
 	got := PermissionPolicy(&plugin.AgentProfile{
 		Permissions: plugin.AgentProfilePermission{
 			Tools:    []string{"io_Read", "io_Read"},
-			Services: []string{"indexer_QueryContext", "embedding_Embed"},
+			Services: []string{"indexer_QueryContext", "gateway_Embed"},
 		},
 	})
 	if got == nil {
@@ -361,7 +361,7 @@ func TestRuntimePermissionPolicyCombinesToolAndServiceFunctions(t *testing.T) {
 	if !got.RestrictTools {
 		t.Fatal("resolved agent profile policy must restrict tools to its allowlist")
 	}
-	want := []string{"io_Read", "indexer_QueryContext", "embedding_Embed"}
+	want := []string{"io_Read", "indexer_QueryContext", "gateway_Embed"}
 	if len(got.AllowedTools) != len(want) {
 		t.Fatalf("allowed tools = %+v, want %+v", got.AllowedTools, want)
 	}

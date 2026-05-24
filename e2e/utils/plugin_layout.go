@@ -50,11 +50,6 @@ func installSpacePlugins(t *testing.T, env *E2EEnv, bins BuiltBinaries, includeK
 		installService("document")
 		installService("ingestion")
 		installService("citation")
-		embeddingPlugin := env.Embedding.Plugin
-		if embeddingPlugin == "" {
-			embeddingPlugin = "embedding"
-		}
-		installService(embeddingPlugin)
 	}
 	for _, service := range env.Services {
 		installService(service.withDefaults().Plugin)

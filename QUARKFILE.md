@@ -7,7 +7,7 @@ checks services, and passes versioned catalogs to runtime.
 The examples below are intentionally small. They show the shape of each launch
 profile without hiding the service/plugin contract in prompts.
 
-## Knowledge With Local Embeddings
+## Knowledge With Gateway Embeddings
 
 ```yaml
 quark: "1.0"
@@ -26,7 +26,6 @@ plugins:
   - ref: quark/service-gateway
   - ref: quark/service-document
   - ref: quark/service-ingestion
-  - ref: quark/service-embedding
   - ref: quark/service-indexer
   - ref: quark/service-citation
 agents:
@@ -53,10 +52,6 @@ services:
     ref: quark/service-ingestion
     mode: local
     address_env: QUARK_INGESTION_ADDR
-  - name: embedding
-    ref: quark/service-embedding
-    mode: local
-    address_env: QUARK_EMBEDDING_ADDR
   - name: indexer
     ref: quark/service-indexer
     mode: local
@@ -65,27 +60,15 @@ services:
     ref: quark/service-citation
     mode: local
     address_env: QUARK_CITATION_ADDR
-embedding:
-  service: embedding
-  provider: local
-  model: local-hash-v1
-  dimensions: 32
 ```
 
-## Knowledge With OpenRouter Embeddings
-
-```yaml
-embedding:
-  service: embedding
-  provider: openrouter
-  model: nvidia/llama-nemotron-embed-vl-1b-v2:free
-  dimensions: 2048
-```
-
-Set the provider credential before supervisor starts:
+Gateway owns both generation and embedding provider configuration. Configure
+the Gateway process, not the space file:
 
 ```bash
 export OPENROUTER_API_KEY=sk-or-v1-...
+export QUARK_GATEWAY_EMBEDDING_PROVIDER=openrouter
+export OPENROUTER_EMBEDDING_MODEL=nvidia/llama-nemotron-embed-vl-1b-v2:free
 ```
 
 ## DevOps

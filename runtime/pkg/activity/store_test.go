@@ -45,7 +45,7 @@ func TestStoreRedactsSecretsAtActivityBoundary(t *testing.T) {
 	store := NewStore(10)
 
 	record := store.Add("s1", "tool_start", map[string]any{
-		"name":      "embedding_Embed",
+		"name":      "gateway_Embed",
 		"arguments": `{"authorization":"Bearer ` + secret + `"}`,
 	})
 

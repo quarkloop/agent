@@ -2,6 +2,9 @@ package gatewaysvc
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -10,16 +13,10 @@ import (
 )
 
 func TestGenerateUsesOrderedFallbackAndReturnsUsage(t *testing.T) {
-	srv, err := NewServer(Config{
-		Providers: []ProviderConfig{{ID: "local", Kind: "local", Model: "local/noop", Enabled: true}},
-		Fallbacks: map[string][]string{"missing": []string{"local"}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	srv := newConfiguredGatewayServer(t, map[string][]string{"missing": {"fixture"}})
 	resp, err := srv.Generate(context.Background(), &gatewayv1.GenerateRequest{
 		Provider: "missing",
-		Model:    "local/noop",
+		Model:    "fixture/chat",
 		Messages: []*gatewayv1.ModelMessage{{Role: "user", Content: "summarize this"}},
 	})
 	if err != nil {
@@ -28,26 +25,18 @@ func TestGenerateUsesOrderedFallbackAndReturnsUsage(t *testing.T) {
 	if !strings.Contains(resp.GetText(), "summarize this") {
 		t.Fatalf("unexpected text: %q", resp.GetText())
 	}
-	if resp.GetUsage().GetProvider() != "local" {
+	if resp.GetUsage().GetProvider() != "fixture" {
 		t.Fatalf("usage provider = %q", resp.GetUsage().GetProvider())
 	}
-	if got := resp.GetUsage().GetFallbackChain(); len(got) != 2 || got[0] != "missing" || got[1] != "local" {
+	if got := resp.GetUsage().GetFallbackChain(); len(got) != 2 || got[0] != "missing" || got[1] != "fixture" {
 		t.Fatalf("fallback chain = %+v", got)
 	}
 }
 
-func TestEmbedReturnsDeterministicVectorsAndUsage(t *testing.T) {
-	srv, err := NewServer(Config{
-		Providers: []ProviderConfig{{ID: "local", Kind: "local", Model: "local/embed", Enabled: true}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestEmbedUsesConfiguredProviderModelAndReturnsUsage(t *testing.T) {
+	srv := newConfiguredGatewayServer(t, nil)
 	resp, err := srv.Embed(context.Background(), &gatewayv1.EmbedRequest{
-		Provider:   "local",
-		Model:      "local/embed",
-		Input:      []string{"alpha", "beta"},
-		Dimensions: 8,
+		Input: []string{"alpha", "beta"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -56,7 +45,7 @@ func TestEmbedReturnsDeterministicVectorsAndUsage(t *testing.T) {
 		t.Fatalf("embeddings = %d, want 2", len(resp.GetEmbeddings()))
 	}
 	for _, embedding := range resp.GetEmbeddings() {
-		if len(embedding.GetVector()) != 8 || embedding.GetProvider() != "local" || embedding.GetContentHash() == "" {
+		if len(embedding.GetVector()) != 3 || embedding.GetProvider() != "fixture" || embedding.GetModel() != "fixture/embed" || embedding.GetContentHash() == "" {
 			t.Fatalf("bad embedding: %#v", embedding)
 		}
 	}
@@ -66,25 +55,17 @@ func TestEmbedReturnsDeterministicVectorsAndUsage(t *testing.T) {
 }
 
 func TestRerankCountTokensAndProviderHealth(t *testing.T) {
-	srv, err := NewServer(Config{
-		Providers: []ProviderConfig{{ID: "local", Kind: "local", Model: "local/noop", Enabled: true}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	rerank, err := srv.Rerank(context.Background(), &gatewayv1.RerankRequest{
-		Provider:  "local",
+	srv := newConfiguredGatewayServer(t, nil)
+	_, err := srv.Rerank(context.Background(), &gatewayv1.RerankRequest{
+		Provider:  "fixture",
 		Query:     "transformer attention",
 		Documents: []string{"receipt total", "attention transformer paper"},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if rerank.GetResults()[0].GetIndex() != 1 {
-		t.Fatalf("rerank results = %+v", rerank.GetResults())
+	if !boundary.IsCategory(err, boundary.Unavailable) {
+		t.Fatalf("rerank error = %v, want unavailable adapter diagnostic", err)
 	}
 	count, err := srv.CountTokens(context.Background(), &gatewayv1.CountTokensRequest{
-		Provider: "local",
+		Provider: "fixture",
 		Messages: []*gatewayv1.ModelMessage{{Role: "user", Content: "hello world"}},
 	})
 	if err != nil {
@@ -93,7 +74,7 @@ func TestRerankCountTokensAndProviderHealth(t *testing.T) {
 	if count.GetTokens() == 0 || count.GetUsage().GetInputTokens() == 0 {
 		t.Fatalf("token count = %#v", count)
 	}
-	health, err := srv.ProviderHealth(context.Background(), &gatewayv1.ProviderHealthRequest{Provider: "local"})
+	health, err := srv.ProviderHealth(context.Background(), &gatewayv1.ProviderHealthRequest{Provider: "fixture"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,15 +84,10 @@ func TestRerankCountTokensAndProviderHealth(t *testing.T) {
 }
 
 func TestUsageSummaryAndReloadConfig(t *testing.T) {
-	srv, err := NewServer(Config{
-		Providers: []ProviderConfig{{ID: "local", Kind: "local", Model: "local/noop", Enabled: true}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	srv := newConfiguredGatewayServer(t, nil)
 	if _, err := srv.CountTokens(context.Background(), &gatewayv1.CountTokensRequest{
-		Provider: "local",
-		Model:    "local/noop",
+		Provider: "fixture",
+		Model:    "fixture/chat",
 		Messages: []*gatewayv1.ModelMessage{{Role: "user", Content: "hello usage"}},
 	}); err != nil {
 		t.Fatal(err)
@@ -120,28 +96,29 @@ func TestUsageSummaryAndReloadConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(summary.GetUsage()) != 1 || summary.GetUsage()[0].GetProvider() != "local" || summary.GetUsage()[0].GetRequests() != 1 {
+	if len(summary.GetUsage()) != 1 || summary.GetUsage()[0].GetProvider() != "fixture" || summary.GetUsage()[0].GetRequests() != 1 {
 		t.Fatalf("usage summary = %+v", summary.GetUsage())
 	}
 	reload, err := srv.ReloadConfig(context.Background(), &gatewayv1.ReloadConfigRequest{
 		Providers: []*gatewayv1.GatewayProviderConfig{{
-			Id:      "local",
-			Kind:    "local",
-			Model:   "local/reloaded",
-			Enabled: true,
+			Id:             "fixture",
+			Kind:           "openai-compatible",
+			Model:          "fixture/reloaded",
+			EmbeddingModel: "fixture/embed",
+			Enabled:        true,
 		}},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reload.GetReloaded() || len(reload.GetProviders()) != 1 || reload.GetProviders()[0] != "local" {
+	if !reload.GetReloaded() || len(reload.GetProviders()) != 1 || reload.GetProviders()[0] != "fixture" {
 		t.Fatalf("reload = %+v", reload)
 	}
-	models, err := srv.ListModels(context.Background(), &gatewayv1.ListModelsRequest{Provider: "local"})
+	models, err := srv.ListModels(context.Background(), &gatewayv1.ListModelsRequest{Provider: "fixture"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(models.GetModels()) != 1 || models.GetModels()[0].GetId() != "local/reloaded" {
+	if len(models.GetModels()) != 1 || models.GetModels()[0].GetId() != "fixture/reloaded" {
 		t.Fatalf("models = %+v", models.GetModels())
 	}
 }
@@ -186,4 +163,40 @@ func TestBifrostProviderInitializesAndClosesWithoutNetworkCall(t *testing.T) {
 	if err := closer.Close(); err != nil {
 		t.Fatalf("close bifrost provider: %v", err)
 	}
+}
+
+func newConfiguredGatewayServer(t *testing.T, fallbacks map[string][]string) *Server {
+	t.Helper()
+	endpoint := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/chat/completions":
+			w.Header().Set("Content-Type", "text/event-stream")
+			fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\"summarize this\"}}]}\n\n")
+			fmt.Fprint(w, "data: [DONE]\n\n")
+		case "/embeddings":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"data":[{"embedding":[0.1,0.2,0.3]},{"embedding":[0.4,0.5,0.6]}]}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(endpoint.Close)
+	srv, err := NewServer(Config{
+		Providers: []ProviderConfig{{
+			ID:             "fixture",
+			Kind:           "openai-compatible",
+			APIKey:         "test-key",
+			BaseURL:        endpoint.URL,
+			Model:          "fixture/chat",
+			EmbeddingModel: "fixture/embed",
+			Enabled:        true,
+		}},
+		Fallbacks:         fallbacks,
+		EmbeddingProvider: "fixture",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = srv.Close() })
+	return srv
 }

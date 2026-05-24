@@ -223,6 +223,12 @@ func normalizeStringMapMessage(desc protoreflect.MessageDescriptor, payload map[
 				return fmt.Errorf("normalize %s: %w", field.JSONName(), err)
 			}
 			payload[field.JSONName()] = normalized
+		case field.IsList() && field.Kind() == protoreflect.StringKind:
+			normalized, err := normalizeStringListField(raw)
+			if err != nil {
+				return fmt.Errorf("normalize %s: %w", field.JSONName(), err)
+			}
+			payload[field.JSONName()] = normalized
 		case field.Kind() == protoreflect.StringKind:
 			normalized, err := normalizeStringField(raw)
 			if err != nil {
@@ -244,6 +250,26 @@ func normalizeStringMapMessage(desc protoreflect.MessageDescriptor, payload map[
 		}
 	}
 	return nil
+}
+
+func normalizeStringListField(raw json.RawMessage) (json.RawMessage, error) {
+	var values []json.RawMessage
+	if err := json.Unmarshal(raw, &values); err != nil {
+		return nil, err
+	}
+	normalized := make([]string, 0, len(values))
+	for _, value := range values {
+		item, err := normalizeStringField(value)
+		if err != nil {
+			return nil, err
+		}
+		var text string
+		if err := json.Unmarshal(item, &text); err != nil {
+			return nil, err
+		}
+		normalized = append(normalized, text)
+	}
+	return json.Marshal(normalized)
 }
 
 func normalizeStringField(raw json.RawMessage) (json.RawMessage, error) {

@@ -137,7 +137,7 @@ when the indexer service is available.
 - `DeleteChunk` removes the chunk and chunk-owned relation nodes. Shared entity
   nodes remain available for other chunks that still reference them.
 - Query text must be embedded by the agent before `GetContext`.
-- Use `embeddingRef` and `queryVectorRef` from `embedding_Embed` instead of
+- Use `embeddingRef` and `queryVectorRef` from `gateway_Embed` instead of
   manually copying vectors through the LLM.
 - Use the same embedding dimensions for document chunks and query text.
 - `embeddingMetadata.dimensions` must match the vector length.

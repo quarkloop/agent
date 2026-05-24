@@ -70,7 +70,7 @@ func TestCatalogExposesServiceFunctions(t *testing.T) {
 func TestServiceFunctionSchemaUsesRuntimeEmbeddingReferences(t *testing.T) {
 	t.Parallel()
 
-	embedParams := requestParameters("quark.embedding.v1.EmbedRequest")
+	embedParams := requestParameters("quark.gateway.v1.EmbedRequest")
 	embedProperties, ok := embedParams["properties"].(map[string]any)
 	if !ok {
 		t.Fatalf("embedding properties missing: %+v", embedParams)
@@ -183,8 +183,8 @@ func TestExecutorExpandsEmbeddingReferences(t *testing.T) {
 	executor := NewExecutor(nil)
 	executor.embeddings["ref-1"] = []float32{0.25, -0.5}
 	executor.embeddingInfo["ref-1"] = map[string]any{
-		"provider":    "local",
-		"model":       "local-hash-v1",
+		"provider":    "fixture",
+		"model":       "fixture/embed",
 		"dimensions":  2,
 		"contentHash": "abc123",
 	}
@@ -205,7 +205,7 @@ func TestExecutorExpandsEmbeddingReferences(t *testing.T) {
 		t.Fatalf("embedding was not expanded: %s", expanded)
 	}
 	metadata, ok := payload["embeddingMetadata"].(map[string]any)
-	if !ok || metadata["provider"] != "local" || metadata["model"] != "local-hash-v1" {
+	if !ok || metadata["provider"] != "fixture" || metadata["model"] != "fixture/embed" {
 		t.Fatalf("embedding metadata was not expanded: %s", expanded)
 	}
 }

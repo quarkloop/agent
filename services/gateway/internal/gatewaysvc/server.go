@@ -16,12 +16,13 @@ import (
 )
 
 type Server struct {
-	mu              sync.RWMutex
-	providers       map[string]provider
-	providerConfigs map[string]ProviderConfig
-	fallbacks       map[string][]string
-	recorder        *usageRecorder
-	logger          logger
+	mu                sync.RWMutex
+	providers         map[string]provider
+	providerConfigs   map[string]ProviderConfig
+	fallbacks         map[string][]string
+	embeddingProvider string
+	recorder          *usageRecorder
+	logger            logger
 }
 
 func NewServer(cfg Config) (*Server, error) {
@@ -33,11 +34,12 @@ func NewServer(cfg Config) (*Server, error) {
 		cfg.Logger = slog.Default()
 	}
 	return &Server{
-		providers:       providers,
-		providerConfigs: providerConfigs,
-		fallbacks:       cloneFallbacks(cfg.Fallbacks),
-		recorder:        newUsageRecorder(),
-		logger:          cfg.Logger,
+		providers:         providers,
+		providerConfigs:   providerConfigs,
+		fallbacks:         cloneFallbacks(cfg.Fallbacks),
+		embeddingProvider: strings.TrimSpace(cfg.EmbeddingProvider),
+		recorder:          newUsageRecorder(),
+		logger:            cfg.Logger,
 	}, nil
 }
 
@@ -54,7 +56,7 @@ func (s *Server) Generate(ctx context.Context, req *gatewayv1.GenerateRequest) (
 	}
 	text, calls, usage, err := s.generate(ctx, req.GetProvider(), cmd)
 	if err != nil {
-		return nil, grpcProviderError(err)
+		return nil, providerServiceError(err)
 	}
 	s.recordUsage(usage)
 	return &gatewayv1.GenerateResponse{Text: text, ToolCalls: toolCallsToProto(calls), Usage: usageToProto(usage)}, nil
@@ -115,18 +117,25 @@ func (s *Server) Embed(ctx context.Context, req *gatewayv1.EmbedRequest) (*gatew
 	if len(cmd.Input) == 0 {
 		return nil, serviceerrors.InvalidArgument("input is required")
 	}
-	providerID, p, err := s.resolveProvider(req.GetProvider())
+	provider := strings.TrimSpace(req.GetProvider())
+	if provider == "" {
+		provider = s.embeddingProvider
+	}
+	if provider == "" {
+		return nil, serviceerrors.InvalidArgument("embedding provider is required")
+	}
+	providerID, p, err := s.resolveProvider(provider)
 	if err != nil {
-		return nil, grpcProviderError(err)
+		return nil, providerServiceError(err)
 	}
 	started := time.Now()
 	embeddings, err := p.Embed(ctx, cmd)
 	if err != nil {
-		return nil, grpcProviderError(err)
+		return nil, providerServiceError(err)
 	}
 	usage := modelUsage{
 		Provider:        providerID,
-		Model:           firstNonEmpty(cmd.Model, defaultModel(p)),
+		Model:           embeddingUsageModel(cmd, embeddings),
 		EmbeddingTokens: estimateTextTokens(cmd.Input...),
 		LatencyMillis:   elapsedMillis(started, time.Now()),
 		FallbackChain:   []string{providerID},
@@ -137,26 +146,14 @@ func (s *Server) Embed(ctx context.Context, req *gatewayv1.EmbedRequest) (*gatew
 	return &gatewayv1.EmbedResponse{Embeddings: embeddings, Usage: usageToProto(usage)}, nil
 }
 
-func (s *Server) Rerank(ctx context.Context, req *gatewayv1.RerankRequest) (*gatewayv1.RerankResponse, error) {
+func (s *Server) Rerank(_ context.Context, req *gatewayv1.RerankRequest) (*gatewayv1.RerankResponse, error) {
 	if req.GetQuery() == "" {
 		return nil, serviceerrors.InvalidArgument("query is required")
 	}
 	if len(req.GetDocuments()) == 0 {
 		return nil, serviceerrors.InvalidArgument("documents are required")
 	}
-	providerID := firstNonEmpty(req.GetProvider(), "local")
-	started := time.Now()
-	usage := modelUsage{
-		Provider:      providerID,
-		Model:         firstNonEmpty(req.GetModel(), "local/rerank"),
-		InputTokens:   estimateTextTokens(append([]string{req.GetQuery()}, req.GetDocuments()...)...),
-		LatencyMillis: elapsedMillis(started, time.Now()),
-		FallbackChain: []string{providerID},
-		RequestID:     requestID("rerank"),
-		FinishReason:  "stop",
-	}
-	s.recordUsage(usage)
-	return &gatewayv1.RerankResponse{Results: rerankLocal(req.GetQuery(), req.GetDocuments()), Usage: usageToProto(usage)}, nil
+	return nil, serviceerrors.Unavailable("rerank requires a configured Gateway provider adapter")
 }
 
 func (s *Server) CountTokens(_ context.Context, req *gatewayv1.CountTokensRequest) (*gatewayv1.CountTokensResponse, error) {
@@ -186,11 +183,11 @@ func (s *Server) ListModels(ctx context.Context, req *gatewayv1.ListModelsReques
 	for _, providerID := range providers {
 		p, ok := s.provider(providerID)
 		if !ok {
-			return nil, grpcProviderError(plugin.NewProviderError(plugin.ProviderErrorModelUnavailable, providerID, "", 0, fmt.Errorf("provider unavailable")))
+			return nil, providerServiceError(plugin.NewProviderError(plugin.ProviderErrorModelUnavailable, providerID, "", 0, fmt.Errorf("provider unavailable")))
 		}
 		models, err := p.ListModels(ctx)
 		if err != nil {
-			return nil, grpcProviderError(err)
+			return nil, providerServiceError(err)
 		}
 		out = append(out, models...)
 	}
@@ -200,7 +197,7 @@ func (s *Server) ListModels(ctx context.Context, req *gatewayv1.ListModelsReques
 func (s *Server) ProviderHealth(ctx context.Context, req *gatewayv1.ProviderHealthRequest) (*gatewayv1.ProviderHealthResponse, error) {
 	providerID, p, err := s.resolveProvider(req.GetProvider())
 	if err != nil {
-		return nil, grpcProviderError(err)
+		return nil, providerServiceError(err)
 	}
 	health := p.Health(ctx)
 	return &gatewayv1.ProviderHealthResponse{Provider: providerID, Healthy: health.Healthy, Status: health.Status}, nil
@@ -220,7 +217,7 @@ func (s *Server) ReloadConfig(_ context.Context, req *gatewayv1.ReloadConfigRequ
 	fallbacks := fallbackPoliciesFromProto(req.GetFallbacks())
 	ids, err := s.Reload(providers, fallbacks)
 	if err != nil {
-		return nil, grpcProviderError(err)
+		return nil, providerServiceError(err)
 	}
 	return &gatewayv1.ReloadConfigResponse{
 		Reloaded:  true,
@@ -315,13 +312,9 @@ func (s *Server) resolveProvider(requested string) (string, provider, error) {
 func (s *Server) providerChainLocked(primary string) []string {
 	primary = strings.TrimSpace(primary)
 	if primary == "" {
-		if _, ok := s.providers["local"]; ok {
-			primary = "local"
-		} else {
-			for id := range s.providers {
-				primary = id
-				break
-			}
+		ids := s.providerIDsLocked()
+		if len(ids) > 0 {
+			primary = ids[0]
 		}
 	}
 	chain := []string{primary}
@@ -401,6 +394,9 @@ func (s *Server) Reload(configs []ProviderConfig, fallbacks map[string][]string)
 		if cfg.Model == "" {
 			cfg.Model = existing.Model
 		}
+		if cfg.EmbeddingModel == "" {
+			cfg.EmbeddingModel = existing.EmbeddingModel
+		}
 		merged[cfg.ID] = cfg
 	}
 
@@ -448,8 +444,6 @@ func newProvider(cfg ProviderConfig) (provider, error) {
 		return nil, fmt.Errorf("provider id is required")
 	}
 	switch strings.TrimSpace(cfg.Kind) {
-	case "", "local":
-		return newLocalProvider(cfg), nil
 	case "bifrost":
 		return newBifrostProvider(cfg)
 	case "openai-compatible":
@@ -478,9 +472,7 @@ func buildProviders(configs []ProviderConfig) (map[string]provider, map[string]P
 		providerConfigs[id] = providerCfg
 	}
 	if len(providers) == 0 {
-		cfg := ProviderConfig{ID: "local", Kind: "local", Model: "local/noop", Enabled: true}
-		providers["local"] = newLocalProvider(cfg)
-		providerConfigs["local"] = cfg
+		return nil, nil, fmt.Errorf("at least one configured Gateway provider is required")
 	}
 	return providers, providerConfigs, nil
 }
@@ -560,11 +552,18 @@ func defaultModel(p provider) string {
 	return models[0].GetId()
 }
 
+func embeddingUsageModel(cmd embedCommand, embeddings []*gatewayv1.Embedding) string {
+	if len(embeddings) > 0 && strings.TrimSpace(embeddings[0].GetModel()) != "" {
+		return embeddings[0].GetModel()
+	}
+	return strings.TrimSpace(cmd.Model)
+}
+
 func requestID(prefix string) string {
 	return fmt.Sprintf("%s-%d", prefix, time.Now().UnixNano())
 }
 
-func grpcProviderError(err error) error {
+func providerServiceError(err error) error {
 	if err == nil {
 		return nil
 	}

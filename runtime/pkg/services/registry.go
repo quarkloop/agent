@@ -5,7 +5,6 @@ import (
 	corev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/core/v1"
 	devopsv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/devops/v1"
 	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
-	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
 	gatewayv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/gateway/v1"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
 	ingestionv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/ingestion/v1"
@@ -18,7 +17,6 @@ import (
 
 var _ = []any{
 	indexerv1.File_quark_indexer_v1_indexer_proto,
-	embeddingv1.File_quark_embedding_v1_embedding_proto,
 	devopsv1.File_quark_devops_v1_devops_proto,
 	corev1.File_quark_core_v1_core_proto,
 	documentv1.File_quark_document_v1_document_proto,

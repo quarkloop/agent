@@ -71,6 +71,8 @@ providers directly.
 
 - Gateway owns provider dispatch, Bifrost lifecycle, fallback ordering, model
   response usage accounting, provider diagnostics, and provider error mapping.
+- Embedding requests use the configured Gateway embedding provider and model;
+  do not request local or synthetic vectors.
 - Runtime owns session/run accumulation and persistence through runtime/Core
   activity storage.
 - Provider secrets are resolved by deployment or the future Secrets service and

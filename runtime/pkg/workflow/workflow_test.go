@@ -12,7 +12,7 @@ func TestDetectKnowledgeIndexWorkflowFromUserLanguage(t *testing.T) {
 	intents := Detect("Please index these PDF files so I can ask questions later.", toolSchemas(
 		"ingestion_StartRun",
 		"document_ExtractText",
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_UpsertChunk",
 		"ingestion_MarkComplete",
 	))
@@ -28,7 +28,7 @@ func TestDetectKnowledgeIndexWorkflowTracksExplicitBatchCount(t *testing.T) {
 	intents := Detect("Please index all 4 Markdown documents in this directory.", toolSchemas(
 		"ingestion_StartRun",
 		"document_ExtractText",
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_UpsertChunk",
 		"ingestion_MarkComplete",
 	))
@@ -52,7 +52,7 @@ func TestKnowledgeIndexWorkflowDoesNotTreatMetadataParsingAsContentExtraction(t 
 		"ingestion_StartRun",
 		"document_ParseBytes",
 		"document_ExtractText",
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_UpsertChunk",
 		"ingestion_MarkComplete",
 	), NewStore(), nil)
@@ -88,7 +88,7 @@ func TestDetectKnowledgeQueryDoesNotTreatCatalogAsIndexingVerb(t *testing.T) {
 	intents := Detect("Search the indexed IT company documents and tell me which catalog item has SKU QOP-OBS-START.", toolSchemas(
 		"ingestion_StartRun",
 		"document_ExtractText",
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_GetContext",
 		"citation_RenderReferences",
 	))
@@ -155,7 +155,7 @@ func TestTrackerBlocksFinalizationUntilRequiredServiceResults(t *testing.T) {
 	tracker := NewTracker("session-1", "Index these documents.", toolSchemas(
 		"ingestion_StartRun",
 		"document_ExtractText",
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_UpsertChunk",
 		"ingestion_MarkComplete",
 	), store, func(event Event) {
@@ -173,7 +173,7 @@ func TestTrackerBlocksFinalizationUntilRequiredServiceResults(t *testing.T) {
 	wrapped := tracker.WrapToolHandler(func(context.Context, string, string) (string, error) {
 		return `{"ok": true}`, nil
 	})
-	for _, tool := range []string{"ingestion_StartRun", "document_ExtractText", "embedding_Embed", "indexer_UpsertChunk", "ingestion_MarkComplete"} {
+	for _, tool := range []string{"ingestion_StartRun", "document_ExtractText", "gateway_Embed", "indexer_UpsertChunk", "ingestion_MarkComplete"} {
 		if _, err := wrapped(context.Background(), tool, "{}"); err != nil {
 			t.Fatalf("wrapped tool %s: %v", tool, err)
 		}
@@ -194,7 +194,7 @@ func TestTrackerAcceptsFinalBeforeRedundantCompletedStepToolCalls(t *testing.T) 
 	tracker := NewTracker("session-1", "Index these documents.", toolSchemas(
 		"ingestion_StartRun",
 		"document_ExtractText",
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_UpsertChunk",
 		"ingestion_MarkComplete",
 	), store, nil)
@@ -205,7 +205,7 @@ func TestTrackerAcceptsFinalBeforeRedundantCompletedStepToolCalls(t *testing.T) 
 	wrapped := tracker.WrapToolHandler(func(context.Context, string, string) (string, error) {
 		return `{"ok": true}`, nil
 	})
-	for _, tool := range []string{"ingestion_StartRun", "document_ExtractText", "embedding_Embed", "indexer_UpsertChunk", "ingestion_MarkComplete"} {
+	for _, tool := range []string{"ingestion_StartRun", "document_ExtractText", "gateway_Embed", "indexer_UpsertChunk", "ingestion_MarkComplete"} {
 		if _, err := wrapped(context.Background(), tool, "{}"); err != nil {
 			t.Fatalf("wrapped tool %s: %v", tool, err)
 		}
@@ -228,7 +228,7 @@ func TestTrackerAcceptsFinalAfterTerminalStepToolCallCompletes(t *testing.T) {
 	tracker := NewTracker("session-1", "Index these documents.", toolSchemas(
 		"ingestion_StartRun",
 		"document_ExtractText",
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_UpsertChunk",
 		"ingestion_MarkComplete",
 	), store, nil)
@@ -239,7 +239,7 @@ func TestTrackerAcceptsFinalAfterTerminalStepToolCallCompletes(t *testing.T) {
 	wrapped := tracker.WrapToolHandler(func(context.Context, string, string) (string, error) {
 		return `{"success": true}`, nil
 	})
-	for _, tool := range []string{"ingestion_StartRun", "document_ExtractText", "embedding_Embed", "indexer_UpsertChunk"} {
+	for _, tool := range []string{"ingestion_StartRun", "document_ExtractText", "gateway_Embed", "indexer_UpsertChunk"} {
 		if _, err := wrapped(context.Background(), tool, "{}"); err != nil {
 			t.Fatalf("wrapped tool %s: %v", tool, err)
 		}
@@ -262,7 +262,7 @@ func TestTrackerPromptBlockNamesRequiredKnowledgeIndexOrder(t *testing.T) {
 	tracker := NewTracker("session-1", "Please index these Markdown files.", toolSchemas(
 		"ingestion_StartRun",
 		"document_ExtractText",
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_UpsertChunk",
 		"ingestion_UpdateSourceState",
 		"ingestion_MarkComplete",
@@ -291,7 +291,7 @@ func TestTrackerGuardsFinalContentWithNonAdvancingToolCalls(t *testing.T) {
 	tracker := NewTracker("session-1", "Index these documents.", toolSchemas(
 		"ingestion_StartRun",
 		"document_ExtractText",
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_UpsertChunk",
 		"ingestion_UpdateSourceState",
 		"ingestion_MarkComplete",
@@ -305,7 +305,7 @@ func TestTrackerGuardsFinalContentWithNonAdvancingToolCalls(t *testing.T) {
 	wrapped := tracker.WrapToolHandler(func(context.Context, string, string) (string, error) {
 		return `{"ok": true}`, nil
 	})
-	for _, tool := range []string{"ingestion_StartRun", "document_ExtractText", "embedding_Embed", "indexer_UpsertChunk"} {
+	for _, tool := range []string{"ingestion_StartRun", "document_ExtractText", "gateway_Embed", "indexer_UpsertChunk"} {
 		if _, err := wrapped(context.Background(), tool, "{}"); err != nil {
 			t.Fatalf("wrapped tool %s: %v", tool, err)
 		}
@@ -330,7 +330,7 @@ func TestTrackerGuardsFinalContentWithNonAdvancingToolCalls(t *testing.T) {
 func TestTrackerIgnoresFailedServiceResults(t *testing.T) {
 	store := NewStore()
 	tracker := NewTracker("session-1", "Find information in the indexed PDFs.", toolSchemas(
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_QueryContext",
 	), store, nil)
 	if tracker == nil {
@@ -339,7 +339,7 @@ func TestTrackerIgnoresFailedServiceResults(t *testing.T) {
 	wrapped := tracker.WrapToolHandler(func(context.Context, string, string) (string, error) {
 		return `{"success": false}`, nil
 	})
-	if _, err := wrapped(context.Background(), "embedding_Embed", "{}"); err != nil {
+	if _, err := wrapped(context.Background(), "gateway_Embed", "{}"); err != nil {
 		t.Fatalf("wrapped tool: %v", err)
 	}
 	if guard, retry := tracker.FinalGuard(""); !retry || !strings.Contains(guard, "query embedding") {
@@ -351,7 +351,7 @@ func TestTrackerUsesIngestionRunSourcesForBatchCounts(t *testing.T) {
 	tracker := NewTracker("session-1", "Please index these documents.", toolSchemas(
 		"ingestion_StartRun",
 		"document_ExtractText",
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_UpsertChunk",
 		"ingestion_MarkComplete",
 	), NewStore(), nil)
@@ -373,7 +373,7 @@ func TestTrackerUsesIngestionRunSourcesForBatchCounts(t *testing.T) {
 		}
 	}
 	for i := 0; i < 2; i++ {
-		if _, err := wrapped(context.Background(), "embedding_Embed", "{}"); err != nil {
+		if _, err := wrapped(context.Background(), "gateway_Embed", "{}"); err != nil {
 			t.Fatalf("embed %d: %v", i, err)
 		}
 	}
@@ -387,7 +387,7 @@ func TestTrackerCarriesIngestionRunIDIntoTerminalContinuation(t *testing.T) {
 	tracker := NewTracker("session-1", "Please index all 2 documents.", toolSchemas(
 		"ingestion_StartRun",
 		"document_ExtractText",
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_UpsertChunk",
 		"ingestion_MarkComplete",
 	), NewStore(), nil)
@@ -404,8 +404,8 @@ func TestTrackerCarriesIngestionRunIDIntoTerminalContinuation(t *testing.T) {
 		"ingestion_StartRun",
 		"document_ExtractText",
 		"document_ExtractText",
-		"embedding_Embed",
-		"embedding_Embed",
+		"gateway_Embed",
+		"gateway_Embed",
 		"indexer_UpsertChunk",
 		"indexer_UpsertChunk",
 	} {
@@ -424,7 +424,7 @@ func TestTrackerCarriesIngestionRunIDIntoTerminalContinuation(t *testing.T) {
 
 func TestTrackerBlocksExtraWorkflowCallsAfterCompletion(t *testing.T) {
 	tracker := NewTracker("session-1", "Search the indexed PDFs and answer from the documents.", toolSchemas(
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_QueryContext",
 		"citation_VerifyGrounding",
 		"citation_ResolveSpans",
@@ -435,7 +435,7 @@ func TestTrackerBlocksExtraWorkflowCallsAfterCompletion(t *testing.T) {
 	wrapped := tracker.WrapToolHandler(func(context.Context, string, string) (string, error) {
 		return `{"success": true}`, nil
 	})
-	for _, tool := range []string{"embedding_Embed", "indexer_QueryContext", "citation_VerifyGrounding"} {
+	for _, tool := range []string{"gateway_Embed", "indexer_QueryContext", "citation_VerifyGrounding"} {
 		if _, err := wrapped(context.Background(), tool, "{}"); err != nil {
 			t.Fatalf("wrapped tool %s: %v", tool, err)
 		}
@@ -461,7 +461,7 @@ func TestTrackerContinuationPromptNamesOnlyCurrentStep(t *testing.T) {
 	tracker := NewTracker("session-1", "Please index all 3 documents.", toolSchemas(
 		"ingestion_StartRun",
 		"document_ExtractText",
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_UpsertChunk",
 		"ingestion_MarkComplete",
 	), NewStore(), nil)
@@ -474,7 +474,7 @@ func TestTrackerContinuationPromptNamesOnlyCurrentStep(t *testing.T) {
 		}
 		return `{"success": true}`, nil
 	})
-	for _, tool := range []string{"ingestion_StartRun", "document_ExtractText", "document_ExtractText", "document_ExtractText", "embedding_Embed"} {
+	for _, tool := range []string{"ingestion_StartRun", "document_ExtractText", "document_ExtractText", "document_ExtractText", "gateway_Embed"} {
 		if _, err := wrapped(context.Background(), tool, "{}"); err != nil {
 			t.Fatalf("wrapped tool %s: %v", tool, err)
 		}
@@ -485,7 +485,7 @@ func TestTrackerContinuationPromptNamesOnlyCurrentStep(t *testing.T) {
 		"respond with tool calls only",
 		"embedding generation",
 		"1 of 3 complete; 2 remaining",
-		"embedding_Embed",
+		"gateway_Embed",
 		"Batch all known remaining embedding calls",
 	} {
 		if !strings.Contains(prompt, want) {
@@ -503,7 +503,7 @@ func TestTrackerFinalGuardUsesCurrentContinuationInstruction(t *testing.T) {
 	tracker := NewTracker("session-1", "Please index these documents.", toolSchemas(
 		"ingestion_StartRun",
 		"document_ExtractText",
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_UpsertChunk",
 		"ingestion_MarkComplete",
 	), NewStore(), nil)
@@ -528,7 +528,7 @@ func TestTrackerBlocksNonAdvancingCallsWhenBatchIndexIsCurrentStep(t *testing.T)
 	tracker := NewTracker("session-1", "Please index all 2 documents.", toolSchemas(
 		"ingestion_StartRun",
 		"document_ExtractText",
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_UpsertDocument",
 		"indexer_UpsertChunk",
 		"ingestion_MarkComplete",
@@ -541,7 +541,7 @@ func TestTrackerBlocksNonAdvancingCallsWhenBatchIndexIsCurrentStep(t *testing.T)
 	wrapped := tracker.WrapToolHandler(func(context.Context, string, string) (string, error) {
 		return `{"success": true}`, nil
 	})
-	for _, tool := range []string{"ingestion_StartRun", "document_ExtractText", "document_ExtractText", "embedding_Embed", "embedding_Embed"} {
+	for _, tool := range []string{"ingestion_StartRun", "document_ExtractText", "document_ExtractText", "gateway_Embed", "gateway_Embed"} {
 		if _, err := wrapped(context.Background(), tool, "{}"); err != nil {
 			t.Fatalf("wrapped tool %s: %v", tool, err)
 		}
@@ -570,7 +570,7 @@ func TestTrackerBlocksIncompleteCanonicalKnowledgeUpserts(t *testing.T) {
 	tracker := NewTracker("session-1", "Please index all 1 document.", toolSchemas(
 		"ingestion_StartRun",
 		"document_ExtractText",
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_UpsertChunk",
 		"ingestion_MarkComplete",
 	), NewStore(), nil)
@@ -586,7 +586,7 @@ func TestTrackerBlocksIncompleteCanonicalKnowledgeUpserts(t *testing.T) {
 	}{
 		{"ingestion_StartRun", `{"run":{"sources":[{"id":"s1"}]}}`},
 		{"document_ExtractText", `{}`},
-		{"embedding_Embed", `{}`},
+		{"gateway_Embed", `{}`},
 	} {
 		if _, err := wrapped(context.Background(), step.name, step.args); err != nil {
 			t.Fatalf("wrapped tool %s: %v", step.name, err)
@@ -619,7 +619,7 @@ func TestTrackerBlocksFutureKnowledgeIndexCallsBeforeCurrentStep(t *testing.T) {
 	tracker := NewTracker("session-1", "Please index all 2 documents.", toolSchemas(
 		"ingestion_StartRun",
 		"document_ExtractText",
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_UpsertChunk",
 		"ingestion_MarkComplete",
 	), NewStore(), nil)
@@ -634,7 +634,7 @@ func TestTrackerBlocksFutureKnowledgeIndexCallsBeforeCurrentStep(t *testing.T) {
 	}
 
 	instruction, retry := tracker.GuardToolCalls("", []plugin.ToolCall{{
-		Function: plugin.ToolCallFunction{Name: "embedding_Embed"},
+		Function: plugin.ToolCallFunction{Name: "gateway_Embed"},
 	}})
 	if !retry || !strings.Contains(instruction, "document content extraction") {
 		t.Fatalf("guard instruction = %q retry=%t", instruction, retry)
@@ -651,7 +651,7 @@ func TestTrackerAllowsOrderedBatchAcrossKnowledgeIndexSteps(t *testing.T) {
 	tracker := NewTracker("session-1", "Please index all 2 documents.", toolSchemas(
 		"ingestion_StartRun",
 		"document_ExtractText",
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_UpsertChunk",
 		"ingestion_MarkComplete",
 	), NewStore(), nil)
@@ -663,8 +663,8 @@ func TestTrackerAllowsOrderedBatchAcrossKnowledgeIndexSteps(t *testing.T) {
 		{Function: plugin.ToolCallFunction{Name: "ingestion_StartRun", Arguments: `{"sources":[{"filename":"a.md"},{"filename":"b.md"}]}`}},
 		{Function: plugin.ToolCallFunction{Name: "document_ExtractText"}},
 		{Function: plugin.ToolCallFunction{Name: "document_ExtractText"}},
-		{Function: plugin.ToolCallFunction{Name: "embedding_Embed"}},
-		{Function: plugin.ToolCallFunction{Name: "embedding_Embed"}},
+		{Function: plugin.ToolCallFunction{Name: "gateway_Embed"}},
+		{Function: plugin.ToolCallFunction{Name: "gateway_Embed"}},
 		{Function: plugin.ToolCallFunction{Name: "indexer_UpsertChunk"}},
 		{Function: plugin.ToolCallFunction{Name: "indexer_UpsertChunk"}},
 		{Function: plugin.ToolCallFunction{Name: "ingestion_MarkComplete"}},
@@ -678,7 +678,7 @@ func TestTrackerBlocksUnorderedBatchAcrossKnowledgeIndexSteps(t *testing.T) {
 	tracker := NewTracker("session-1", "Please index all 2 documents.", toolSchemas(
 		"ingestion_StartRun",
 		"document_ExtractText",
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_UpsertChunk",
 		"ingestion_MarkComplete",
 	), NewStore(), nil)
@@ -688,7 +688,7 @@ func TestTrackerBlocksUnorderedBatchAcrossKnowledgeIndexSteps(t *testing.T) {
 
 	instruction, retry := tracker.GuardToolCalls("", []plugin.ToolCall{
 		{Function: plugin.ToolCallFunction{Name: "ingestion_StartRun", Arguments: `{"sources":[{"filename":"a.md"},{"filename":"b.md"}]}`}},
-		{Function: plugin.ToolCallFunction{Name: "embedding_Embed"}},
+		{Function: plugin.ToolCallFunction{Name: "gateway_Embed"}},
 	})
 	if !retry || !strings.Contains(instruction, "document content extraction") {
 		t.Fatalf("guard instruction = %q retry=%t", instruction, retry)
@@ -699,7 +699,7 @@ func TestTrackerBlocksStartRunWithoutSources(t *testing.T) {
 	tracker := NewTracker("session-1", "Please index all 2 documents.", toolSchemas(
 		"ingestion_StartRun",
 		"document_ExtractText",
-		"embedding_Embed",
+		"gateway_Embed",
 		"indexer_UpsertChunk",
 		"ingestion_MarkComplete",
 	), NewStore(), nil)

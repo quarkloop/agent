@@ -3,6 +3,9 @@ package gatewaynats
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -17,12 +20,7 @@ import (
 
 func TestGatewayNATSGenerateAndUsageSummary(t *testing.T) {
 	ns := startTestNATS(t)
-	srv, err := gatewaysvc.NewServer(gatewaysvc.Config{
-		Providers: []gatewaysvc.ProviderConfig{{ID: "local", Kind: "local", Model: "local/noop", Enabled: true}},
-	})
-	if err != nil {
-		t.Fatalf("new model server: %v", err)
-	}
+	srv := newConfiguredGatewayServer(t)
 	gateway := New(Config{
 		URL:      ns.ClientURL(),
 		Username: "quark-control",
@@ -41,29 +39,24 @@ func TestGatewayNATSGenerateAndUsageSummary(t *testing.T) {
 
 	var generated gatewayv1.GenerateResponse
 	callGateway(t, conn, "generate", &gatewayv1.GenerateRequest{
-		Provider: "local",
-		Model:    "local/noop",
+		Provider: "fixture",
+		Model:    "fixture/chat",
 		Messages: []*gatewayv1.ModelMessage{{Role: "user", Content: "say hello"}},
 	}, &generated)
-	if generated.GetText() == "" || generated.GetUsage().GetProvider() != "local" {
+	if generated.GetText() == "" || generated.GetUsage().GetProvider() != "fixture" {
 		t.Fatalf("generate response = %+v", &generated)
 	}
 
 	var summary gatewayv1.UsageSummaryResponse
 	callGateway(t, conn, "usage_summary", &gatewayv1.UsageSummaryRequest{}, &summary)
-	if len(summary.GetUsage()) != 1 || summary.GetUsage()[0].GetProvider() != "local" || summary.GetUsage()[0].GetRequests() == 0 {
+	if len(summary.GetUsage()) != 1 || summary.GetUsage()[0].GetProvider() != "fixture" || summary.GetUsage()[0].GetRequests() == 0 {
 		t.Fatalf("usage summary = %+v", summary.GetUsage())
 	}
 }
 
 func TestGatewayNATSReloadConfig(t *testing.T) {
 	ns := startTestNATS(t)
-	srv, err := gatewaysvc.NewServer(gatewaysvc.Config{
-		Providers: []gatewaysvc.ProviderConfig{{ID: "local", Kind: "local", Model: "local/noop", Enabled: true}},
-	})
-	if err != nil {
-		t.Fatalf("new model server: %v", err)
-	}
+	srv := newConfiguredGatewayServer(t)
 	gateway := New(Config{URL: ns.ClientURL(), Username: "quark-control", Password: "secret", Queue: "q.gateway.test"}, srv)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -77,31 +70,27 @@ func TestGatewayNATSReloadConfig(t *testing.T) {
 	var reloaded gatewayv1.ReloadConfigResponse
 	callGateway(t, conn, "reload_config", &gatewayv1.ReloadConfigRequest{
 		Providers: []*gatewayv1.GatewayProviderConfig{{
-			Id:      "local",
-			Kind:    "local",
-			Model:   "local/reloaded",
-			Enabled: true,
+			Id:             "fixture",
+			Kind:           "openai-compatible",
+			Model:          "fixture/reloaded",
+			EmbeddingModel: "fixture/embed",
+			Enabled:        true,
 		}},
 	}, &reloaded)
-	if !reloaded.GetReloaded() || len(reloaded.GetProviders()) != 1 || reloaded.GetProviders()[0] != "local" {
+	if !reloaded.GetReloaded() || len(reloaded.GetProviders()) != 1 || reloaded.GetProviders()[0] != "fixture" {
 		t.Fatalf("reload response = %+v", &reloaded)
 	}
 
 	var models gatewayv1.ListModelsResponse
-	callGateway(t, conn, "list_models", &gatewayv1.ListModelsRequest{Provider: "local"}, &models)
-	if len(models.GetModels()) != 1 || models.GetModels()[0].GetId() != "local/reloaded" {
+	callGateway(t, conn, "list_models", &gatewayv1.ListModelsRequest{Provider: "fixture"}, &models)
+	if len(models.GetModels()) != 1 || models.GetModels()[0].GetId() != "fixture/reloaded" {
 		t.Fatalf("models after reload = %+v", models.GetModels())
 	}
 }
 
 func TestGatewayNATSStreamGenerate(t *testing.T) {
 	ns := startTestNATS(t)
-	srv, err := gatewaysvc.NewServer(gatewaysvc.Config{
-		Providers: []gatewaysvc.ProviderConfig{{ID: "local", Kind: "local", Model: "local/noop", Enabled: true}},
-	})
-	if err != nil {
-		t.Fatalf("new model server: %v", err)
-	}
+	srv := newConfiguredGatewayServer(t)
 	gateway := New(Config{URL: ns.ClientURL(), Username: "quark-control", Password: "secret", Queue: "q.gateway.test"}, srv)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -120,8 +109,8 @@ func TestGatewayNATSStreamGenerate(t *testing.T) {
 	}
 	defer sub.Unsubscribe()
 	payload, err := protojson.Marshal(&gatewayv1.StreamGenerateRequest{
-		Provider: "local",
-		Model:    "local/noop",
+		Provider: "fixture",
+		Model:    "fixture/chat",
 		Messages: []*gatewayv1.ModelMessage{{Role: "user", Content: "stream this"}},
 	})
 	if err != nil {
@@ -150,7 +139,7 @@ func TestGatewayNATSStreamGenerate(t *testing.T) {
 			t.Fatalf("decode chunk: %v", err)
 		}
 		if chunk.GetDone() {
-			if chunk.GetUsage().GetProvider() != "local" {
+			if chunk.GetUsage().GetProvider() != "fixture" {
 				t.Fatalf("done usage = %+v", chunk.GetUsage())
 			}
 			sawDone = true
@@ -160,6 +149,37 @@ func TestGatewayNATSStreamGenerate(t *testing.T) {
 	if !sawDone {
 		t.Fatal("stream did not finish")
 	}
+}
+
+func newConfiguredGatewayServer(t *testing.T) *gatewaysvc.Server {
+	t.Helper()
+	endpoint := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/chat/completions" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\"hello\"}}]}\n\n")
+		fmt.Fprint(w, "data: [DONE]\n\n")
+	}))
+	t.Cleanup(endpoint.Close)
+	srv, err := gatewaysvc.NewServer(gatewaysvc.Config{
+		Providers: []gatewaysvc.ProviderConfig{{
+			ID:             "fixture",
+			Kind:           "openai-compatible",
+			APIKey:         "test-key",
+			BaseURL:        endpoint.URL,
+			Model:          "fixture/chat",
+			EmbeddingModel: "fixture/embed",
+			Enabled:        true,
+		}},
+		EmbeddingProvider: "fixture",
+	})
+	if err != nil {
+		t.Fatalf("new gateway server: %v", err)
+	}
+	t.Cleanup(func() { _ = srv.Close() })
+	return srv
 }
 
 func startTestNATS(t *testing.T) *natsserver.Server {

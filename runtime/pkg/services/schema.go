@@ -32,12 +32,14 @@ func applyRuntimeReferenceFields(typeName string, schema map[string]any) {
 		return
 	}
 	switch typeName {
-	case "quark.embedding.v1.EmbedRequest":
+	case "quark.gateway.v1.EmbedRequest":
 		if description, ok := schema["description"].(string); ok {
-			schema["description"] = description + " For input, prefer inputRef or contentRef returned from io_Read or document_ExtractText results when embedding source files; otherwise provide explicit input. Provider, model, and dimensions are controlled by the resolved embedding service configuration."
+			schema["description"] = description + " For input, prefer inputRef or contentRef returned from io_Read or document_ExtractText results when embedding source files; otherwise provide explicit input as a string array. Provider, model, dimensions, and options are controlled by Gateway configuration."
 		}
+		delete(properties, "provider")
 		delete(properties, "model")
 		delete(properties, "dimensions")
+		delete(properties, "options")
 		properties["inputRef"] = map[string]any{
 			"type":        "string",
 			"description": "Reference returned by io_Read or document_ExtractText. Prefer this over copying source text into input.",
@@ -48,12 +50,12 @@ func applyRuntimeReferenceFields(typeName string, schema map[string]any) {
 		}
 	case "quark.indexer.v1.IndexRequest":
 		if description, ok := schema["description"].(string); ok {
-			schema["description"] = description + " Runtime tool calls must use embeddingRef returned from embedding_Embed; direct embedding vectors are not accepted. For textContent, prefer textContentRef returned from io_Read or document_ExtractText results when indexing source files; otherwise provide explicit textContent."
+			schema["description"] = description + " Runtime tool calls must use embeddingRef returned from gateway_Embed; direct embedding vectors are not accepted. For textContent, prefer textContentRef returned from io_Read or document_ExtractText results when indexing source files; otherwise provide explicit textContent."
 		}
 		delete(properties, "embedding")
 		properties["embeddingRef"] = map[string]any{
 			"type":        "string",
-			"description": "Required reference returned by embedding_Embed. Do not copy embedding vectors manually.",
+			"description": "Required reference returned by gateway_Embed. Do not copy embedding vectors manually.",
 		}
 		properties["textContentRef"] = map[string]any{
 			"type":        "string",
@@ -61,13 +63,13 @@ func applyRuntimeReferenceFields(typeName string, schema map[string]any) {
 		}
 	case "quark.indexer.v1.UpsertChunkRequest":
 		if description, ok := schema["description"].(string); ok {
-			schema["description"] = description + " Runtime tool calls must use embeddingRef returned from embedding_Embed; direct embedding vectors are not accepted. For textContent, prefer textContentRef returned from io_Read or document_ExtractText results when indexing source files; otherwise provide explicit textContent. For document indexing, provide a complete canonical knowledge record: document, sourceMetadata, provenance, facts, entities, relations, and citations. Use an empty relations array only when no supported relation exists."
+			schema["description"] = description + " Runtime tool calls must use embeddingRef returned from gateway_Embed; direct embedding vectors are not accepted. For textContent, prefer textContentRef returned from io_Read or document_ExtractText results when indexing source files; otherwise provide explicit textContent. For document indexing, provide a complete canonical knowledge record: document, sourceMetadata, provenance, facts, entities, relations, and citations. Use an empty relations array only when no supported relation exists."
 		}
 		delete(properties, "embedding")
 		applyCanonicalUpsertChunkPropertyDescriptions(properties)
 		properties["embeddingRef"] = map[string]any{
 			"type":        "string",
-			"description": "Required reference returned by embedding_Embed. Do not copy embedding vectors manually.",
+			"description": "Required reference returned by gateway_Embed. Do not copy embedding vectors manually.",
 		}
 		properties["textContentRef"] = map[string]any{
 			"type":        "string",
@@ -77,7 +79,7 @@ func applyRuntimeReferenceFields(typeName string, schema map[string]any) {
 		delete(properties, "queryVector")
 		properties["queryVectorRef"] = map[string]any{
 			"type":        "string",
-			"description": "Required reference returned by embedding_Embed for the user's query. Do not copy query vectors manually.",
+			"description": "Required reference returned by gateway_Embed for the user's query. Do not copy query vectors manually.",
 		}
 	case "quark.citation.v1.ResolveSpansRequest":
 		if description, ok := schema["description"].(string); ok {
@@ -102,7 +104,7 @@ func applyCanonicalUpsertChunkPropertyDescriptions(properties map[string]any) {
 	describeArrayProperty(properties, "entities", "Required normalized people, organizations, documents, products, topics, dates, or other entities useful for retrieval and graph traversal.", 1)
 	describeArrayProperty(properties, "relations", "Required relation array. Include supported relations between normalized entity IDs, or an empty array when no relation is supported by the source.", 0)
 	describeArrayProperty(properties, "citations", "Required source evidence spans for the chunk or extracted facts, with sourceUri, textSpan, offsets when known, and confidence.", 1)
-	describeObjectProperty(properties, "embeddingMetadata", "Embedding metadata returned by or derived from embedding_Embed, including provider, model, dimensions, and contentHash when known.")
+	describeObjectProperty(properties, "embeddingMetadata", "Embedding metadata returned by or derived from gateway_Embed, including provider, model, dimensions, and contentHash when known.")
 }
 
 func describeObjectProperty(properties map[string]any, name, description string, extras ...any) {
@@ -197,7 +199,7 @@ func scalarJSONSchema(field protoreflect.FieldDescriptor, depth int) map[string]
 
 func requiredJSONFields(typeName string) []string {
 	switch typeName {
-	case "quark.embedding.v1.EmbedRequest":
+	case "quark.gateway.v1.EmbedRequest":
 		return nil
 	case "quark.indexer.v1.IndexRequest":
 		return []string{"chunkId", "embeddingRef"}

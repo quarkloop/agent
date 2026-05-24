@@ -247,7 +247,7 @@ func TestVectorSearchPayloadRestoresCanonicalRecord(t *testing.T) {
 		MetadataJSON: `{"path":"fixture.pdf"}`,
 		CanonicalJSON: `{
 			"document":{"id":"doc-1","source_uri":"fixture.pdf"},
-			"embedding_metadata":{"provider":"local","model":"local-hash-v1","dimensions":2},
+			"embedding_metadata":{"provider":"fixture","model":"fixture/embed","dimensions":2},
 			"citations":[{"source_uri":"fixture.pdf","chunk_id":"chunk-1"}],
 			"provenance":{"source_uri":"fixture.pdf","trace_id":"trace-1"}
 		}`,
@@ -260,7 +260,7 @@ func TestVectorSearchPayloadRestoresCanonicalRecord(t *testing.T) {
 		t.Fatalf("chunks = %d, want 1", len(chunks))
 	}
 	chunk := chunks[0]
-	if chunk.Document.ID != "doc-1" || chunk.EmbeddingMetadata.Provider != "local" {
+	if chunk.Document.ID != "doc-1" || chunk.EmbeddingMetadata.Provider != "fixture" {
 		t.Fatalf("canonical record was not restored: %+v", chunk)
 	}
 	if len(chunk.Citations) != 1 || chunk.Provenance.TraceID != "trace-1" {

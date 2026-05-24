@@ -15,7 +15,7 @@ func TestGetContextReturnsOwnedCopies(t *testing.T) {
 			Text:              "hello",
 			Vector:            []float32{0.1, 0.2},
 			Metadata:          map[string]string{"source": "fixture.pdf"},
-			EmbeddingMetadata: indexer.EmbeddingMetadata{Provider: "local", Model: "local-hash-v1", Dimensions: 2},
+			EmbeddingMetadata: indexer.EmbeddingMetadata{Provider: "fixture", Model: "fixture/embed", Dimensions: 2},
 			Facts:             []indexer.Fact{{ID: "fact-1", Subject: "Quark", Predicate: "stores", Object: "context", Confidence: 0.8}},
 			Citations:         []indexer.Citation{{SourceURI: "fixture.pdf", ChunkID: "chunk-1"}},
 			Provenance:        indexer.Provenance{SourceURI: "fixture.pdf", Metadata: map[string]string{"trace": "t1"}},
@@ -90,8 +90,8 @@ func TestIndexDocumentNormalizesCanonicalRecord(t *testing.T) {
 			"path":                   "/tmp/source.pdf",
 			"filename":               "source.pdf",
 			"document_type":          "paper",
-			"embedding_provider":     "local",
-			"embedding_model":        "local-hash-v1",
+			"embedding_provider":     "fixture",
+			"embedding_model":        "fixture/embed",
 			"embedding_dimensions":   "3",
 			"embedding_content_hash": "abc123",
 			"trace_id":               "trace-1",
@@ -112,7 +112,7 @@ func TestIndexDocumentNormalizesCanonicalRecord(t *testing.T) {
 	if chunk.Document.SourceURI != "/tmp/source.pdf" || chunk.Document.Name != "source.pdf" || chunk.Document.Type != "paper" {
 		t.Fatalf("document normalization failed: %+v", chunk.Document)
 	}
-	if chunk.EmbeddingMetadata.Provider != "local" || chunk.EmbeddingMetadata.Model != "local-hash-v1" || chunk.EmbeddingMetadata.Dimensions != 3 || chunk.EmbeddingMetadata.ContentHash != "abc123" {
+	if chunk.EmbeddingMetadata.Provider != "fixture" || chunk.EmbeddingMetadata.Model != "fixture/embed" || chunk.EmbeddingMetadata.Dimensions != 3 || chunk.EmbeddingMetadata.ContentHash != "abc123" {
 		t.Fatalf("embedding metadata normalization failed: %+v", chunk.EmbeddingMetadata)
 	}
 	if chunk.Provenance.SourceURI != "/tmp/source.pdf" || chunk.Provenance.TraceID != "trace-1" {
@@ -205,7 +205,7 @@ func TestIndexDocumentRejectsMixedEmbeddingDimensions(t *testing.T) {
 		ChunkID:           "chunk-1",
 		Text:              "hello",
 		Vector:            []float32{0.1, 0.2},
-		EmbeddingMetadata: indexer.EmbeddingMetadata{Provider: "local", Model: "local-hash-v1", Dimensions: 2},
+		EmbeddingMetadata: indexer.EmbeddingMetadata{Provider: "fixture", Model: "fixture/embed", Dimensions: 2},
 	}); err != nil {
 		t.Fatalf("first index document: %v", err)
 	}
@@ -214,7 +214,7 @@ func TestIndexDocumentRejectsMixedEmbeddingDimensions(t *testing.T) {
 		ChunkID:           "chunk-2",
 		Text:              "goodbye",
 		Vector:            []float32{0.1, 0.2, 0.3},
-		EmbeddingMetadata: indexer.EmbeddingMetadata{Provider: "local", Model: "local-hash-v1", Dimensions: 3},
+		EmbeddingMetadata: indexer.EmbeddingMetadata{Provider: "fixture", Model: "fixture/embed", Dimensions: 3},
 	})
 	if err == nil || !strings.Contains(err.Error(), "2-dimensional embeddings") {
 		t.Fatalf("expected mixed-dimension validation error, got %v", err)
@@ -230,7 +230,7 @@ func TestGetContextRejectsQueryDimensionMismatch(t *testing.T) {
 		ChunkID:           "chunk-1",
 		Text:              "hello",
 		Vector:            []float32{0.1, 0.2},
-		EmbeddingMetadata: indexer.EmbeddingMetadata{Provider: "local", Model: "local-hash-v1", Dimensions: 2},
+		EmbeddingMetadata: indexer.EmbeddingMetadata{Provider: "fixture", Model: "fixture/embed", Dimensions: 2},
 	}); err != nil {
 		t.Fatalf("index document: %v", err)
 	}

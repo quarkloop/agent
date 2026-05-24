@@ -47,7 +47,7 @@ func DumpNATSCLIDiagnostics(t testing.TB, endpoints NATSEndpoints, label string)
 		{Label: "accounts", Identity: system, Args: []string{"server", "report", "accounts", "--json"}},
 		{Label: "svc-io-subscriptions", Identity: system, Args: []string{"server", "request", "subscriptions", "--filter-subject", "svc.io.v1.read", "--detail", "1"}},
 		{Label: "svc-gateway-subscriptions", Identity: system, Args: []string{"server", "request", "subscriptions", "--filter-subject", "svc.gateway.v1.stream_generate", "--detail", "1"}},
-		{Label: "svc-embedding-subscriptions", Identity: system, Args: []string{"server", "request", "subscriptions", "--filter-subject", "svc.embedding.v1.embed", "--detail", "1"}},
+		{Label: "svc-gateway-embedding-subscriptions", Identity: system, Args: []string{"server", "request", "subscriptions", "--filter-subject", "svc.gateway.v1.embed", "--detail", "1"}},
 		{Label: "svc-indexer-subscriptions", Identity: system, Args: []string{"server", "request", "subscriptions", "--filter-subject", "svc.indexer.v1.query_context", "--detail", "1"}},
 		{Label: "session-subscriptions", Identity: system, Args: []string{"server", "request", "subscriptions", "--filter-subject", "session.e2e.input", "--detail", "1"}},
 	}

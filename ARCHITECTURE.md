@@ -73,10 +73,10 @@ The agent-owned ingestion flow is:
 2. track batch/source state with ingestion service functions,
 3. use LLM reasoning through the model boundary to classify and structure
    facts, entities, relations, and citations,
-4. call `embedding_Embed`,
+4. call `gateway_Embed`,
 5. call canonical indexer upsert functions for documents, chunks, facts,
    entities, relations, and citations,
-6. query with `embedding_Embed` and `indexer_QueryContext` or
+6. query with `gateway_Embed` and `indexer_QueryContext` or
    `indexer_GetContext`,
 7. verify grounding with citation functions,
 8. answer from returned context and citations.

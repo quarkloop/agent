@@ -13,13 +13,7 @@ import (
 // NATS path: creating a session through supervisor-owned subjects should cause
 // the runtime process to mirror it into its in-memory registry.
 func TestSupervisorSessionEventReachesAgent(t *testing.T) {
-	env := utils.StartE2E(t, false, standardKnowledgeServicesStartOptions(t, utils.EmbeddingOptions{
-		Plugin:     "embedding",
-		Mode:       "local",
-		Provider:   "local",
-		Model:      "local-hash-v1",
-		Dimensions: 32,
-	}, ""))
+	env := utils.StartE2E(t, false, utils.StartOptions{DisableKnowledgeServices: true})
 
 	before := utils.AgentSessionsCount(t, env)
 

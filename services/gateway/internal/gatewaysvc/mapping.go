@@ -126,11 +126,12 @@ func providerConfigsFromProto(in []*gatewayv1.GatewayProviderConfig) []ProviderC
 			continue
 		}
 		out = append(out, ProviderConfig{
-			ID:      cfg.GetId(),
-			Kind:    cfg.GetKind(),
-			BaseURL: cfg.GetBaseUrl(),
-			Model:   cfg.GetModel(),
-			Enabled: cfg.GetEnabled(),
+			ID:             cfg.GetId(),
+			Kind:           cfg.GetKind(),
+			BaseURL:        cfg.GetBaseUrl(),
+			Model:          cfg.GetModel(),
+			EmbeddingModel: cfg.GetEmbeddingModel(),
+			Enabled:        cfg.GetEnabled(),
 		})
 	}
 	return out

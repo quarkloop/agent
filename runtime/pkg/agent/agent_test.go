@@ -105,10 +105,10 @@ func TestDefaultToolsFiltersDeniedProfileFunctions(t *testing.T) {
 	a := newTestAgentWithConfig(t, Config{
 		ID:               "test-agent",
 		PluginsDir:       t.TempDir(),
-		PermissionPolicy: &permissions.Policy{RestrictTools: true, AllowedTools: []string{"embedding_Embed"}},
+		PermissionPolicy: &permissions.Policy{RestrictTools: true, AllowedTools: []string{"gateway_Embed"}},
 	})
 	a.Plugins.RegisterRuntimeTool(pluginmanager.RuntimeTool{
-		Schema: plugin.ToolSchema{Name: "embedding_Embed", Description: "embed"},
+		Schema: plugin.ToolSchema{Name: "gateway_Embed", Description: "embed"},
 		Handler: func(context.Context, string) (string, error) {
 			return "ok", nil
 		},
@@ -121,7 +121,7 @@ func TestDefaultToolsFiltersDeniedProfileFunctions(t *testing.T) {
 	})
 
 	tools := a.defaultTools()
-	if len(tools) != 1 || tools[0].Name != "embedding_Embed" {
+	if len(tools) != 1 || tools[0].Name != "gateway_Embed" {
 		t.Fatalf("filtered tools = %+v", tools)
 	}
 }

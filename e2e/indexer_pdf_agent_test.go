@@ -15,30 +15,17 @@ import (
 )
 
 func TestAgentIndexesUploadedPDFDataset(t *testing.T) {
-	runAgentIndexesUploadedPDFDataset(t, utils.EmbeddingOptions{
-		Plugin:     "embedding",
-		Mode:       "local",
-		Provider:   "local",
-		Model:      "local-hash-v1",
-		Dimensions: 32,
-	})
-}
-
-func TestAgentIndexesUploadedPDFDatasetOpenRouterEmbedding(t *testing.T) {
 	model := strings.TrimSpace(os.Getenv("OPENROUTER_E2E_EMBEDDING_MODEL"))
 	if model == "" {
 		t.Skip("set OPENROUTER_E2E_EMBEDDING_MODEL to run OpenRouter embedding e2e coverage")
 	}
-	runAgentIndexesUploadedPDFDataset(t, utils.EmbeddingOptions{
-		Plugin:     "embedding-openrouter",
-		Mode:       "online",
-		Provider:   "openrouter",
-		Model:      model,
-		Dimensions: 2048,
+	runAgentIndexesUploadedPDFDataset(t, utils.GatewayEmbeddingOptions{
+		Provider: "openrouter",
+		Model:    model,
 	})
 }
 
-func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOptions) {
+func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.GatewayEmbeddingOptions) {
 	t.Helper()
 	if _, err := exec.LookPath("pdftotext"); err != nil {
 		t.Skip("pdftotext is required by the document service PDF backend")
@@ -65,12 +52,9 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOp
 	})
 
 	env := utils.StartE2E(t, true, standardKnowledgeServicesStartOptions(t, embedding, workingDir))
-	writeJSONArtifact(t, workingDir, "embedding-profile.json", map[string]any{
-		"plugin":     env.Embedding.Plugin,
-		"mode":       env.Embedding.Mode,
-		"provider":   env.Embedding.Provider,
-		"model":      env.Embedding.Model,
-		"dimensions": env.Embedding.Dimensions,
+	writeJSONArtifact(t, workingDir, "gateway-embedding-config.json", map[string]any{
+		"provider": env.Embedding.Provider,
+		"model":    env.Embedding.Model,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
@@ -87,7 +71,7 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOp
 
 	assertToolStarted(t, indexTrace, "ingestion_StartRun")
 	assertToolStarted(t, indexTrace, "document_ExtractText")
-	assertToolStarted(t, indexTrace, "embedding_Embed")
+	assertToolStarted(t, indexTrace, "gateway_Embed")
 	assertToolStarted(t, indexTrace, "indexer_UpsertChunk")
 	assertToolStarted(t, indexTrace, "ingestion_MarkComplete")
 	assertNoToolErrors(t, indexTrace, "document_ExtractText")
@@ -128,10 +112,10 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.EmbeddingOp
 			TraceOptions:   knowledgeQueryTraceOptions("query indexed PDF dataset: " + queryCase.Title),
 		})
 
-		assertToolStarted(t, queryTrace, "embedding_Embed")
+		assertToolStarted(t, queryTrace, "gateway_Embed")
 		assertToolStarted(t, queryTrace, "indexer_QueryContext")
 		assertToolStartedAny(t, queryTrace, "citation_VerifyGrounding", "citation_RenderReferences")
-		assertNoToolErrors(t, queryTrace, "embedding_Embed", "indexer_QueryContext", "citation_VerifyGrounding", "citation_RenderReferences")
+		assertNoToolErrors(t, queryTrace, "gateway_Embed", "indexer_QueryContext", "citation_VerifyGrounding", "citation_RenderReferences")
 		if contains(queryTrace.ToolStarts, "io_Read") || contains(queryTrace.ToolStarts, "io_ExtractPdf") {
 			t.Fatalf("%s query re-read source files instead of using the index; starts=%v", queryCase.Title, queryTrace.ToolStarts)
 		}

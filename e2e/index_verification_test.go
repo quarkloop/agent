@@ -8,7 +8,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/quarkloop/e2e/utils"
-	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
+	gatewayv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/gateway/v1"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
 	"github.com/quarkloop/supervisor/pkg/natshub"
 )
@@ -20,13 +20,17 @@ func verifyPersistedPDFIndexState(t *testing.T, ctx context.Context, artifactDir
 
 	report := make([]map[string]any, 0, len(documents))
 	for _, document := range documents {
-		var embedding embeddingv1.EmbedResponse
-		requestServiceFunction(t, ctx, conn, env.Space, "svc.embedding.v1.embed", "embedding", "embed", &embeddingv1.EmbedRequest{
-			Input: document.Name + " " + document.Filename,
+		var embedding gatewayv1.EmbedResponse
+		requestServiceFunction(t, ctx, conn, env.Space, "svc.gateway.v1.embed", "gateway", "embed", &gatewayv1.EmbedRequest{
+			Input: []string{document.Name + " " + document.Filename},
 		}, &embedding)
+		if len(embedding.GetEmbeddings()) != 1 {
+			t.Fatalf("gateway embedding result count for %s = %d, want 1", document.Filename, len(embedding.GetEmbeddings()))
+		}
+		vector := embedding.GetEmbeddings()[0]
 		var resp indexerv1.ContextResponse
 		requestServiceFunction(t, ctx, conn, env.Space, "svc.indexer.v1.get_context", "indexer", "get_context", &indexerv1.QueryRequest{
-			QueryVector: embedding.GetVector(),
+			QueryVector: vector.GetVector(),
 			Limit:       1,
 			Depth:       1,
 			Filters:     map[string]string{"filename": document.Filename},
@@ -38,8 +42,8 @@ func verifyPersistedPDFIndexState(t *testing.T, ctx context.Context, artifactDir
 		if got := chunk.GetMetadata()["filename"]; got != document.Filename {
 			t.Fatalf("persisted chunk filename = %q, want %q: %+v", got, document.Filename, chunk.GetMetadata())
 		}
-		if chunk.GetEmbeddingMetadata().GetDimensions() != embedding.GetDimensions() {
-			t.Fatalf("persisted embedding dimensions for %s = %d, want %d", document.Filename, chunk.GetEmbeddingMetadata().GetDimensions(), embedding.GetDimensions())
+		if chunk.GetEmbeddingMetadata().GetDimensions() != vector.GetDimensions() {
+			t.Fatalf("persisted embedding dimensions for %s = %d, want %d", document.Filename, chunk.GetEmbeddingMetadata().GetDimensions(), vector.GetDimensions())
 		}
 		report = append(report, map[string]any{
 			"filename":           document.Filename,
@@ -62,13 +66,17 @@ func verifyPersistedMarkdownIndexState(t *testing.T, ctx context.Context, artifa
 
 	report := make([]map[string]any, 0, len(documents))
 	for _, document := range documents {
-		var embedding embeddingv1.EmbedResponse
-		requestServiceFunction(t, ctx, conn, env.Space, "svc.embedding.v1.embed", "embedding", "embed", &embeddingv1.EmbedRequest{
-			Input: document.Query,
+		var embedding gatewayv1.EmbedResponse
+		requestServiceFunction(t, ctx, conn, env.Space, "svc.gateway.v1.embed", "gateway", "embed", &gatewayv1.EmbedRequest{
+			Input: []string{document.Query},
 		}, &embedding)
+		if len(embedding.GetEmbeddings()) != 1 {
+			t.Fatalf("gateway embedding result count for %s = %d, want 1", document.Filename, len(embedding.GetEmbeddings()))
+		}
+		vector := embedding.GetEmbeddings()[0]
 		var resp indexerv1.ContextResponse
 		requestServiceFunction(t, ctx, conn, env.Space, "svc.indexer.v1.get_context", "indexer", "get_context", &indexerv1.QueryRequest{
-			QueryVector: embedding.GetVector(),
+			QueryVector: vector.GetVector(),
 			Limit:       1,
 			Depth:       1,
 			Filters:     map[string]string{"filename": document.Filename},
@@ -80,8 +88,8 @@ func verifyPersistedMarkdownIndexState(t *testing.T, ctx context.Context, artifa
 		if got := chunk.GetMetadata()["filename"]; got != document.Filename {
 			t.Fatalf("persisted markdown chunk filename = %q, want %q: %+v", got, document.Filename, chunk.GetMetadata())
 		}
-		if chunk.GetEmbeddingMetadata().GetDimensions() != embedding.GetDimensions() {
-			t.Fatalf("persisted markdown embedding dimensions for %s = %d, want %d", document.Filename, chunk.GetEmbeddingMetadata().GetDimensions(), embedding.GetDimensions())
+		if chunk.GetEmbeddingMetadata().GetDimensions() != vector.GetDimensions() {
+			t.Fatalf("persisted markdown embedding dimensions for %s = %d, want %d", document.Filename, chunk.GetEmbeddingMetadata().GetDimensions(), vector.GetDimensions())
 		}
 		for _, want := range document.Want {
 			if !containsText(chunk.GetText(), want) && !containsText(resp.GetReasoningContext(), want) {

@@ -38,7 +38,7 @@ permissions:
     - ingestion_CancelRun
     - ingestion_ListIncompleteSources
     - ingestion_ListArtifacts
-    - embedding_Embed
+    - gateway_Embed
     - indexer_UpsertChunk
     - indexer_UpsertFact
     - indexer_UpsertEntity

@@ -19,7 +19,6 @@ type BuiltBinaries struct {
 	Agent      string
 	IO         string
 	Indexer    string
-	Embedding  string
 	Citation   string
 	Core       string
 	Gateway    string
@@ -81,7 +80,6 @@ func BuildAllOnce(t *testing.T) BuiltBinaries {
 		buildRes.Agent = build("./runtime/cmd/runtime", "runtime")
 		buildRes.IO = build("./services/io/cmd/io", "io")
 		buildRes.Indexer = build("./services/indexer/cmd/indexer", "indexer")
-		buildRes.Embedding = build("./services/embedding/cmd/embedding", "embedding")
 		buildRes.Citation = build("./services/citation/cmd/citation", "citation")
 		buildRes.Core = build("./services/core/cmd/core", "core")
 		buildRes.Gateway = build("./services/gateway/cmd/gateway", "gateway")

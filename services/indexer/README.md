@@ -25,7 +25,7 @@ create embeddings, or call other services.
 
 - The agent owns document reading, semantic extraction, schema inference, and
   deciding what knowledge should be indexed.
-- The embedding service owns embedding generation.
+- Gateway owns embedding generation and provider policy.
 - The indexer owns canonical storage, vector search, graph linking, filtering,
   context package construction, and storage-level validation.
 - The service API layer maps protobuf DTOs into indexer domain commands before

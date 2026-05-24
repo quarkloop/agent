@@ -9,6 +9,11 @@ Runtime and agents must not call provider adapters directly. They call Gateway
 through NATS service-function subjects, and Gateway performs provider-specific
 work internally.
 
+Embedding calls require an explicitly configured real provider and embedding
+model. For OpenRouter, configure `QUARK_GATEWAY_EMBEDDING_PROVIDER=openrouter`
+and `OPENROUTER_EMBEDDING_MODEL` alongside its API credential. Gateway has no
+local synthetic embedding fallback and does not silently reuse a chat model.
+
 ## Service Functions
 
 | Function | NATS subject | RPC method | Purpose |

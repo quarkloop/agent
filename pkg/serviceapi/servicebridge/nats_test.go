@@ -8,7 +8,7 @@ import (
 
 	natsserver "github.com/nats-io/nats-server/v2/server"
 	natsgo "github.com/nats-io/nats.go"
-	embeddingv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/embedding/v1"
+	gatewayv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/gateway/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	"github.com/quarkloop/pkg/serviceapi/observability"
 	"github.com/quarkloop/pkg/serviceapi/servicefunction"
@@ -17,23 +17,23 @@ import (
 
 func TestNATSServiceDispatchesUnaryServiceFunction(t *testing.T) {
 	ns := startBridgeNATS(t)
-	server := NewNATSService(NATSConfig{URL: ns.ClientURL(), Queue: "q.embedding.test", Name: "embedding-test"})
+	server := NewNATSService(NATSConfig{URL: ns.ClientURL(), Queue: "q.gateway.test", Name: "gateway-test"})
 	impl := embeddingBridgeServer{}
 	desc := &servicev1.ServiceDescriptor{
-		Name:    "embedding",
+		Name:    "gateway",
 		Version: "1.0.0",
 		Rpcs: []*servicev1.RpcDescriptor{{
-			Service:      "quark.embedding.v1.EmbeddingService",
+			Service:      "quark.gateway.v1.GatewayService",
 			Method:       "Embed",
-			Request:      "quark.embedding.v1.EmbedRequest",
-			Response:     "quark.embedding.v1.EmbedResponse",
-			FunctionName: "embedding_Embed",
+			Request:      "quark.gateway.v1.EmbedRequest",
+			Response:     "quark.gateway.v1.EmbedResponse",
+			FunctionName: "gateway_Embed",
 		}},
 	}
 	if err := server.Start(context.Background(), Binding{
 		Descriptor: desc,
 		Services: []RPCService{{
-			Service:        "quark.embedding.v1.EmbeddingService",
+			Service:        "quark.gateway.v1.GatewayService",
 			Implementation: impl,
 		}},
 	}); err != nil {
@@ -47,7 +47,7 @@ func TestNATSServiceDispatchesUnaryServiceFunction(t *testing.T) {
 	}
 	defer conn.Close()
 
-	payload, err := protojson.Marshal(&embeddingv1.EmbedRequest{Input: "hello"})
+	payload, err := protojson.Marshal(&gatewayv1.EmbedRequest{Input: []string{"hello"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,9 +56,9 @@ func TestNATSServiceDispatchesUnaryServiceFunction(t *testing.T) {
 		CallID:   "call-1",
 		SpaceID:  "space-1",
 		Actor:    servicefunction.ActorRuntime,
-		Service:  "embedding",
+		Service:  "gateway",
 		Function: "embed",
-		Subject:  "svc.embedding.v1.embed",
+		Subject:  "svc.gateway.v1.embed",
 		Payload:  payload,
 	}
 	data, err := json.Marshal(request)
@@ -76,11 +76,11 @@ func TestNATSServiceDispatchesUnaryServiceFunction(t *testing.T) {
 	if response.Status != servicefunction.StatusOK {
 		t.Fatalf("response = %+v", response)
 	}
-	var embed embeddingv1.EmbedResponse
+	var embed gatewayv1.EmbedResponse
 	if err := protojson.Unmarshal(response.Payload, &embed); err != nil {
 		t.Fatalf("decode payload: %v", err)
 	}
-	if embed.GetModel() != "bridge-test" || len(embed.GetVector()) != 2 {
+	if len(embed.GetEmbeddings()) != 1 || embed.GetEmbeddings()[0].GetModel() != "bridge-test" || len(embed.GetEmbeddings()[0].GetVector()) != 2 {
 		t.Fatalf("embed = %+v", &embed)
 	}
 }
@@ -89,27 +89,27 @@ func TestNATSServicePublishesRedactedAuditAndTelemetryEvents(t *testing.T) {
 	ns := startBridgeNATS(t)
 	server := NewNATSService(NATSConfig{
 		URL:             ns.ClientURL(),
-		Queue:           "q.embedding.events.test",
-		Name:            "embedding-events-test",
+		Queue:           "q.gateway.events.test",
+		Name:            "gateway-events-test",
 		AuditPrefix:     "audit",
 		TelemetryPrefix: "telemetry",
 	})
 	impl := embeddingBridgeServer{}
 	desc := &servicev1.ServiceDescriptor{
-		Name:    "embedding",
+		Name:    "gateway",
 		Version: "1.0.0",
 		Rpcs: []*servicev1.RpcDescriptor{{
-			Service:      "quark.embedding.v1.EmbeddingService",
+			Service:      "quark.gateway.v1.GatewayService",
 			Method:       "Embed",
-			Request:      "quark.embedding.v1.EmbedRequest",
-			Response:     "quark.embedding.v1.EmbedResponse",
-			FunctionName: "embedding_Embed",
+			Request:      "quark.gateway.v1.EmbedRequest",
+			Response:     "quark.gateway.v1.EmbedResponse",
+			FunctionName: "gateway_Embed",
 		}},
 	}
 	if err := server.Start(context.Background(), Binding{
 		Descriptor: desc,
 		Services: []RPCService{{
-			Service:        "quark.embedding.v1.EmbeddingService",
+			Service:        "quark.gateway.v1.GatewayService",
 			Implementation: impl,
 		}},
 	}); err != nil {
@@ -134,7 +134,7 @@ func TestNATSServicePublishesRedactedAuditAndTelemetryEvents(t *testing.T) {
 		t.Fatalf("flush subscriptions: %v", err)
 	}
 
-	payload, err := protojson.Marshal(&embeddingv1.EmbedRequest{Input: "secret text"})
+	payload, err := protojson.Marshal(&gatewayv1.EmbedRequest{Input: []string{"secret text"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,9 +145,9 @@ func TestNATSServicePublishesRedactedAuditAndTelemetryEvents(t *testing.T) {
 		SessionID:   "session-1",
 		RunID:       "run-1",
 		Actor:       servicefunction.ActorRuntime,
-		Service:     "embedding",
+		Service:     "gateway",
 		Function:    "embed",
-		Subject:     "svc.embedding.v1.embed",
+		Subject:     "svc.gateway.v1.embed",
 		Payload:     payload,
 		TraceParent: "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01",
 		TraceState:  "vendor=value",
@@ -166,13 +166,15 @@ func TestNATSServicePublishesRedactedAuditAndTelemetryEvents(t *testing.T) {
 type embeddingBridgeServer struct {
 }
 
-func (embeddingBridgeServer) Embed(context.Context, *embeddingv1.EmbedRequest) (*embeddingv1.EmbedResponse, error) {
-	return &embeddingv1.EmbedResponse{
-		Vector:      []float32{0.1, 0.2},
-		Model:       "bridge-test",
-		Dimensions:  2,
-		Provider:    "test",
-		ContentHash: "hash",
+func (embeddingBridgeServer) Embed(context.Context, *gatewayv1.EmbedRequest) (*gatewayv1.EmbedResponse, error) {
+	return &gatewayv1.EmbedResponse{
+		Embeddings: []*gatewayv1.Embedding{{
+			Vector:      []float32{0.1, 0.2},
+			Model:       "bridge-test",
+			Dimensions:  2,
+			Provider:    "fixture",
+			ContentHash: "hash",
+		}},
 	}, nil
 }
 
@@ -201,7 +203,7 @@ func assertServiceCallEvent(t *testing.T, sub *natsgo.Subscription, callID strin
 	if err := json.Unmarshal(msg.Data, &event); err != nil {
 		t.Fatalf("decode event: %v", err)
 	}
-	if event.CallID != callID || event.Service != "embedding" || event.Function != "embed" || event.Subject != "svc.embedding.v1.embed" {
+	if event.CallID != callID || event.Service != "gateway" || event.Function != "embed" || event.Subject != "svc.gateway.v1.embed" {
 		t.Fatalf("event = %+v", event)
 	}
 	if event.Status != string(servicefunction.StatusOK) {
