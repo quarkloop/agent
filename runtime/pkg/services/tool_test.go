@@ -121,7 +121,7 @@ func TestServiceRequestUnmarshalDiscardsUnknownGeneratedFields(t *testing.T) {
 func TestInjectRuntimeContextArgumentsAddsSpaceForSpaceScopedRequests(t *testing.T) {
 	ctx := modelservice.WithSpaceID(context.Background(), "space-1")
 
-	normalized, err := injectRuntimeContextArguments(ctx, "quark.ingestion.v1.StartRunRequest", `{"title":"Import"}`)
+	normalized, err := injectRuntimeContextArguments(ctx, "quark.runstate.v1.StartRunRequest", `{"title":"Import"}`)
 	if err != nil {
 		t.Fatalf("inject runtime context: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestInjectRuntimeContextArgumentsAddsSpaceForSpaceScopedRequests(t *testing
 func TestInjectRuntimeContextArgumentsDoesNotOverrideExplicitSpace(t *testing.T) {
 	ctx := modelservice.WithSpaceID(context.Background(), "runtime-space")
 
-	normalized, err := injectRuntimeContextArguments(ctx, "quark.ingestion.v1.StartRunRequest", `{"space":"explicit-space","title":"Import"}`)
+	normalized, err := injectRuntimeContextArguments(ctx, "quark.runstate.v1.StartRunRequest", `{"space":"explicit-space","title":"Import"}`)
 	if err != nil {
 		t.Fatalf("inject runtime context: %v", err)
 	}

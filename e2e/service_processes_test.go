@@ -82,13 +82,13 @@ func startDocumentServiceAt(t *testing.T, binary, addr string, nats utils.NATSEn
 	})
 }
 
-func startIngestionServiceAt(t *testing.T, binary, addr, root string, nats utils.NATSEndpoints) {
+func startRunStateServiceAt(t *testing.T, binary, addr, root string, nats utils.NATSEndpoints) {
 	t.Helper()
 	startNATSServiceProcess(t, natsServiceProcessSpec{
-		Label:   "ingestion",
+		Label:   "runstate",
 		Binary:  binary,
 		Address: addr,
-		Plugin:  "ingestion",
+		Plugin:  "runstate",
 		NATS:    nats,
 		Args:    []string{"--root", root},
 	})
@@ -195,7 +195,7 @@ func standardKnowledgeServicesStartOptions(t *testing.T, embedding utils.Gateway
 			startGatewayServiceAt(t, bins.Gateway, addresses.Gateway, setup.NATS.ClientURL, embedding)
 			startIndexerServiceAt(t, bins.Indexer, dgraphAddr, addresses.Indexer, setup.NATS)
 			startDocumentServiceAt(t, bins.Document, addresses.Document, setup.NATS)
-			startIngestionServiceAt(t, bins.Ingestion, addresses.Ingestion, filepath.Join(setup.SpacesDir, setup.Space, "services", "ingestion"), setup.NATS)
+			startRunStateServiceAt(t, bins.RunState, addresses.RunState, filepath.Join(setup.SpacesDir, setup.Space, "services", "runstate"), setup.NATS)
 			startCitationServiceAt(t, bins.Citation, addresses.Citation, setup.NATS)
 		},
 	}
@@ -309,25 +309,25 @@ func reserveLoopbackAddress(t *testing.T) string {
 }
 
 type knowledgeServiceAddresses struct {
-	Indexer   string
-	Document  string
-	Ingestion string
-	Citation  string
-	Core      string
-	Gateway   string
-	IO        string
+	Indexer  string
+	Document string
+	RunState string
+	Citation string
+	Core     string
+	Gateway  string
+	IO       string
 }
 
 func reserveKnowledgeServiceAddresses(t *testing.T) knowledgeServiceAddresses {
 	t.Helper()
 	return knowledgeServiceAddresses{
-		Indexer:   reserveLoopbackAddress(t),
-		Document:  reserveLoopbackAddress(t),
-		Ingestion: reserveLoopbackAddress(t),
-		Citation:  reserveLoopbackAddress(t),
-		Core:      reserveLoopbackAddress(t),
-		Gateway:   reserveLoopbackAddress(t),
-		IO:        reserveLoopbackAddress(t),
+		Indexer:  reserveLoopbackAddress(t),
+		Document: reserveLoopbackAddress(t),
+		RunState: reserveLoopbackAddress(t),
+		Citation: reserveLoopbackAddress(t),
+		Core:     reserveLoopbackAddress(t),
+		Gateway:  reserveLoopbackAddress(t),
+		IO:       reserveLoopbackAddress(t),
 	}
 }
 
@@ -335,7 +335,7 @@ func (a knowledgeServiceAddresses) supervisorEnv() map[string]string {
 	return map[string]string{
 		"QUARK_INDEXER_ADDR":         a.Indexer,
 		"QUARK_DOCUMENT_ADDR":        a.Document,
-		"QUARK_INGESTION_ADDR":       a.Ingestion,
+		"QUARK_RUNSTATE_ADDR":        a.RunState,
 		"QUARK_CITATION_ADDR":        a.Citation,
 		"QUARK_CORE_ADDR":            a.Core,
 		"QUARK_GATEWAY_SERVICE_ADDR": a.Gateway,
@@ -428,17 +428,18 @@ func knowledgeServiceFunctions() []string {
 		"document_ExtractTables",
 		"document_ExtractImages",
 		"document_RunOCR",
-		"ingestion_StartRun",
-		"ingestion_GetRun",
-		"ingestion_ListRuns",
-		"ingestion_ResumeRun",
-		"ingestion_UpdateSourceState",
-		"ingestion_AppendArtifact",
-		"ingestion_MarkFailed",
-		"ingestion_MarkComplete",
-		"ingestion_CancelRun",
-		"ingestion_ListIncompleteSources",
-		"ingestion_ListArtifacts",
+		"runstate_StartRun",
+		"runstate_GetRun",
+		"runstate_ListRuns",
+		"runstate_ResumeRun",
+		"runstate_UpdateItemState",
+		"runstate_AppendArtifact",
+		"runstate_AppendReference",
+		"runstate_MarkFailed",
+		"runstate_MarkComplete",
+		"runstate_CancelRun",
+		"runstate_ListIncompleteItems",
+		"runstate_ListArtifacts",
 		"gateway_Embed",
 		"indexer_UpsertChunk",
 		"indexer_UpsertFact",
@@ -477,7 +478,7 @@ func TestKnowledgeAgentServicePermissionsMatchStandardE2EStack(t *testing.T) {
 	required := []string{
 		"io_Read",
 		"document_ExtractText",
-		"ingestion_StartRun",
+		"runstate_StartRun",
 		"gateway_Embed",
 		"indexer_IndexDocument",
 		"citation_VerifyGrounding",

@@ -1,0 +1,172 @@
+name: runstate
+version: "1.0.0"
+type: service
+mode: api
+description: "Durable workflow-neutral run state and active lease coordination over NATS"
+author: quarkloop
+license: Apache-2.0
+
+service:
+  address_env: QUARK_RUNSTATE_ADDR
+  health:
+    protocol: nats_service
+    service: quark.runstate.v1.RunStateService
+    timeout: 5s
+  readiness:
+    required: true
+    min_version: "1.0.0"
+  skill: SKILL.md
+  readme: README.md
+  proto_services:
+    - quark.runstate.v1.RunStateService
+  functions:
+    - name: runstate_StartRun
+      service: quark.runstate.v1.RunStateService
+      method: StartRun
+      request: quark.runstate.v1.StartRunRequest
+      response: quark.runstate.v1.StartRunResponse
+      description: "Create a durable execution run with generic items."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: runstate_GetRun
+      service: quark.runstate.v1.RunStateService
+      method: GetRun
+      request: quark.runstate.v1.GetRunRequest
+      response: quark.runstate.v1.GetRunResponse
+      description: "Return an execution run and item progress."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: runstate_ListRuns
+      service: quark.runstate.v1.RunStateService
+      method: ListRuns
+      request: quark.runstate.v1.ListRunsRequest
+      response: quark.runstate.v1.ListRunsResponse
+      description: "List execution runs by scope, kind and status."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: runstate_ResumeRun
+      service: quark.runstate.v1.RunStateService
+      method: ResumeRun
+      request: quark.runstate.v1.ResumeRunRequest
+      response: quark.runstate.v1.ResumeRunResponse
+      description: "Mark incomplete run items resumable."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: runstate_UpdateItemState
+      service: quark.runstate.v1.RunStateService
+      method: UpdateItemState
+      request: quark.runstate.v1.UpdateItemStateRequest
+      response: quark.runstate.v1.UpdateItemStateResponse
+      description: "Record an item phase, status and service references."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: runstate_AppendArtifact
+      service: quark.runstate.v1.RunStateService
+      method: AppendArtifact
+      request: quark.runstate.v1.AppendArtifactRequest
+      response: quark.runstate.v1.AppendArtifactResponse
+      description: "Attach an artifact reference to a run item."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: runstate_AppendReference
+      service: quark.runstate.v1.RunStateService
+      method: AppendReference
+      request: quark.runstate.v1.AppendReferenceRequest
+      response: quark.runstate.v1.AppendReferenceResponse
+      description: "Attach an auditable reference to a run."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: runstate_MarkFailed
+      service: quark.runstate.v1.RunStateService
+      method: MarkFailed
+      request: quark.runstate.v1.MarkFailedRequest
+      response: quark.runstate.v1.MarkFailedResponse
+      description: "Mark an execution run or item failed."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: runstate_MarkComplete
+      service: quark.runstate.v1.RunStateService
+      method: MarkComplete
+      request: quark.runstate.v1.MarkCompleteRequest
+      response: quark.runstate.v1.MarkCompleteResponse
+      description: "Mark an execution run or item complete."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: runstate_CancelRun
+      service: quark.runstate.v1.RunStateService
+      method: CancelRun
+      request: quark.runstate.v1.CancelRunRequest
+      response: quark.runstate.v1.CancelRunResponse
+      description: "Cancel an execution run without deleting records."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: runstate_ListIncompleteItems
+      service: quark.runstate.v1.RunStateService
+      method: ListIncompleteItems
+      request: quark.runstate.v1.ListIncompleteItemsRequest
+      response: quark.runstate.v1.ListIncompleteItemsResponse
+      description: "List incomplete run items for coordinated resume."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: runstate_ListArtifacts
+      service: quark.runstate.v1.RunStateService
+      method: ListArtifacts
+      request: quark.runstate.v1.ListArtifactsRequest
+      response: quark.runstate.v1.ListArtifactsResponse
+      description: "List attached run artifact references."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: runstate_AcquireLease
+      service: quark.runstate.v1.RunStateService
+      method: AcquireLease
+      request: quark.runstate.v1.AcquireLeaseRequest
+      response: quark.runstate.v1.AcquireLeaseResponse
+      description: "Acquire active coordination ownership for a run or item."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: runstate_RenewLease
+      service: quark.runstate.v1.RunStateService
+      method: RenewLease
+      request: quark.runstate.v1.RenewLeaseRequest
+      response: quark.runstate.v1.RenewLeaseResponse
+      description: "Renew active coordination ownership."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: runstate_ReleaseLease
+      service: quark.runstate.v1.RunStateService
+      method: ReleaseLease
+      request: quark.runstate.v1.ReleaseLeaseRequest
+      response: quark.runstate.v1.ReleaseLeaseResponse
+      description: "Release active coordination ownership."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false

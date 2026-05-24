@@ -62,11 +62,11 @@ func TestAgentIndexesITCompanyMarkdownDocuments(t *testing.T) {
 		TraceOptions:   knowledgeIndexTraceOptions("index IT company markdown documents", len(documents)),
 	})
 
-	assertToolStarted(t, indexTrace, "ingestion_StartRun")
+	assertToolStarted(t, indexTrace, "runstate_StartRun")
 	assertToolStarted(t, indexTrace, "io_Read")
 	assertToolStarted(t, indexTrace, "gateway_Embed")
 	assertToolStarted(t, indexTrace, "indexer_UpsertChunk")
-	assertToolStarted(t, indexTrace, "ingestion_MarkComplete")
+	assertToolStarted(t, indexTrace, "runstate_MarkComplete")
 	assertNoToolErrors(t, indexTrace, "indexer_UpsertChunk")
 	assertEmbeddingSuccessCount(t, indexTrace, len(documents))
 	assertToolSuccessCount(t, indexTrace, "indexer_UpsertChunk", len(documents))

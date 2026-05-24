@@ -1,0 +1,163 @@
+package runstatesvc
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"sync"
+)
+
+// recordStore persists durable, user-visible run history. Ephemeral ownership
+// and scheduling leases intentionally live behind leaseStore instead.
+type recordStore struct {
+	mu         sync.Mutex
+	path       string
+	legacyPath string
+}
+
+type persistedState struct {
+	Runs []runRecord `json:"runs"`
+}
+
+func newRecordStore(root string) (*recordStore, error) {
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		return nil, fmt.Errorf("create run state root: %w", err)
+	}
+	store := &recordStore{
+		path:       filepath.Join(root, "runstate-records.json"),
+		legacyPath: filepath.Join(root, "ingestion-state.json"),
+	}
+	if _, err := os.Stat(store.path); errors.Is(err, os.ErrNotExist) {
+		state, migrationErr := loadLegacyState(store.legacyPath)
+		if migrationErr != nil {
+			return nil, migrationErr
+		}
+		if err := store.saveLocked(state); err != nil {
+			return nil, err
+		}
+	}
+	return store, nil
+}
+
+func (s *recordStore) createRun(run runRecord) (runRecord, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	state, err := s.loadLocked()
+	if err != nil {
+		return runRecord{}, err
+	}
+	state.Runs = append(state.Runs, cloneRun(run))
+	if err := s.saveLocked(state); err != nil {
+		return runRecord{}, err
+	}
+	return cloneRun(run), nil
+}
+
+func (s *recordStore) getRun(id string) (runRecord, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	state, err := s.loadLocked()
+	if err != nil {
+		return runRecord{}, err
+	}
+	for _, run := range state.Runs {
+		if run.ID == id {
+			return cloneRun(run), nil
+		}
+	}
+	return runRecord{}, errNotFound
+}
+
+func (s *recordStore) listRuns(space string, status runStatus, kind string, limit int) ([]runRecord, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	state, err := s.loadLocked()
+	if err != nil {
+		return nil, err
+	}
+	runs := make([]runRecord, 0, len(state.Runs))
+	for _, run := range state.Runs {
+		if space != "" && run.Space != space {
+			continue
+		}
+		if status != "" && run.Status != status {
+			continue
+		}
+		if kind != "" && run.Kind != kind {
+			continue
+		}
+		runs = append(runs, cloneRun(run))
+	}
+	sort.SliceStable(runs, func(i, j int) bool { return runs[i].CreatedAt > runs[j].CreatedAt })
+	if limit > 0 && len(runs) > limit {
+		runs = runs[:limit]
+	}
+	return runs, nil
+}
+
+func (s *recordStore) updateRun(id string, mutate func(*runRecord) error) (runRecord, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	state, err := s.loadLocked()
+	if err != nil {
+		return runRecord{}, err
+	}
+	for i := range state.Runs {
+		if state.Runs[i].ID != id {
+			continue
+		}
+		run := cloneRun(state.Runs[i])
+		if err := mutate(&run); err != nil {
+			return runRecord{}, err
+		}
+		state.Runs[i] = cloneRun(run)
+		if err := s.saveLocked(state); err != nil {
+			return runRecord{}, err
+		}
+		return cloneRun(run), nil
+	}
+	return runRecord{}, errNotFound
+}
+
+func (s *recordStore) loadLocked() (persistedState, error) {
+	data, err := os.ReadFile(s.path)
+	if errors.Is(err, os.ErrNotExist) {
+		state := persistedState{}
+		if saveErr := s.saveLocked(state); saveErr != nil {
+			return persistedState{}, saveErr
+		}
+		return state, nil
+	}
+	if err != nil {
+		return persistedState{}, fmt.Errorf("read run state: %w", err)
+	}
+	if len(data) == 0 {
+		return persistedState{}, nil
+	}
+	var state persistedState
+	if err := json.Unmarshal(data, &state); err != nil {
+		return persistedState{}, fmt.Errorf("decode run state: %w", err)
+	}
+	return state, nil
+}
+
+func (s *recordStore) saveLocked(state persistedState) error {
+	tmp := s.path + ".tmp"
+	data, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode run state: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+		return fmt.Errorf("create run state root: %w", err)
+	}
+	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+		return fmt.Errorf("write run state: %w", err)
+	}
+	if err := os.Rename(tmp, s.path); err != nil {
+		return fmt.Errorf("commit run state: %w", err)
+	}
+	return nil
+}

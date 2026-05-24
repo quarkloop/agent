@@ -54,5 +54,5 @@ headers, or provider credentials.
 - Gateway owns provider dispatch, Bifrost lifecycle, fallback chain recording,
   usage accounting, provider health, and provider diagnostics.
 - Runtime owns session/run accumulation and persistence.
-- Services such as indexer, document, ingestion, and citation do not call
+- Services such as indexer, document, Run State, and citation do not call
   Gateway. The agent is the coordinator.

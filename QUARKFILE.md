@@ -25,7 +25,7 @@ plugins:
   - ref: quark/service-core
   - ref: quark/service-gateway
   - ref: quark/service-document
-  - ref: quark/service-ingestion
+  - ref: quark/service-runstate
   - ref: quark/service-indexer
   - ref: quark/service-citation
 agents:
@@ -48,10 +48,10 @@ services:
     ref: quark/service-document
     mode: local
     address_env: QUARK_DOCUMENT_ADDR
-  - name: ingestion
-    ref: quark/service-ingestion
+  - name: runstate
+    ref: quark/service-runstate
     mode: local
-    address_env: QUARK_INGESTION_ADDR
+    address_env: QUARK_RUNSTATE_ADDR
   - name: indexer
     ref: quark/service-indexer
     mode: local

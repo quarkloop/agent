@@ -113,19 +113,19 @@ services:
     volumes:
       - ../../plugins:/plugins:ro
 
-  ingestion:
+  runstate:
     <<: *service-defaults
     profiles: ["services"]
     build:
       <<: *go-build
       args:
-        PACKAGE: ./services/ingestion/cmd/ingestion
-    command: ["--addr", "0.0.0.0:7306", "--root", "/var/lib/quark/ingestion", "--skill-dir", "/plugins/services/ingestion"]
+        PACKAGE: ./services/runstate/cmd/runstate
+    command: ["--addr", "0.0.0.0:7306", "--root", "/var/lib/quark/runstate", "--skill-dir", "/plugins/services/runstate", "--nats-url", "nats://supervisor:4222", "--nats-user", "quark-control", "--nats-password", "quark-control-dev"]
     ports:
       - "7306:7306"
     volumes:
       - ../../plugins:/plugins:ro
-      - ingestion-state:/var/lib/quark/ingestion
+      - runstate-records:/var/lib/quark/runstate
 
   indexer:
     <<: *service-defaults
@@ -360,7 +360,7 @@ networks:
 volumes:
   supervisor-state:
   spaces:
-  ingestion-state:
+  runstate-records:
   core-state:
   dgraph-data:
   victoria-metrics-data:

@@ -20,6 +20,7 @@ const (
 
 	KVRuntimeSpaceLeases = "runtime_space_leases"
 	KVServiceLeases      = "service_leases"
+	KVRunStateLeases     = "runstate_leases"
 	KVAccountMetadata    = "account_metadata"
 	KVCatalogCursors     = "catalog_cursors"
 
@@ -145,6 +146,11 @@ func coordinationBuckets() []kvSpec {
 		{
 			Bucket:      KVServiceLeases,
 			Description: "Ephemeral service readiness and ownership leases.",
+			TTL:         10 * time.Minute,
+		},
+		{
+			Bucket:      KVRunStateLeases,
+			Description: "Active run and work-item ownership leases.",
 			TTL:         10 * time.Minute,
 		},
 		{

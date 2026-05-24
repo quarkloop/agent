@@ -22,7 +22,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "architecture" / "service-implementation-map.json"
 
 AREA_SERVICES = {
-    "Knowledge": ["document", "ingestion", "gateway", "indexer", "citation", "memory"],
+    "Knowledge": ["document", "runstate", "gateway", "indexer", "citation", "memory"],
     "DevOps": ["devops"],
     "System": ["system"],
     "Core": ["core"],

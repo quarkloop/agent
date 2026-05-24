@@ -1,6 +1,6 @@
 # Quark Knowledge
 
-Use this profile for document understanding, ingestion, indexing, retrieval,
+Use this profile for document understanding, indexing, retrieval,
 grounded answers, and citation-focused workflows.
 
 Keep the agent as coordinator:
@@ -13,8 +13,9 @@ Keep the agent as coordinator:
 - use the runtime/model LLM path for document classification, schema inference,
   field normalization, chunk decisions, fact extraction, entity extraction,
   relation extraction, and citation selection,
-- call ingestion service functions to track batch/run progress when available,
-- call embedding and indexer service functions with agent-produced chunks,
+- call Run State service functions to track generic batch/run progress and
+  auditable references when available,
+- call Gateway and indexer service functions with agent-produced chunks,
   facts, entities, relations, citations, embeddings, and provenance,
 - call citation service functions to resolve spans or verify grounding when
   evidence needs mechanical verification, coverage scoring, or rendered source
@@ -24,6 +25,6 @@ Keep the agent as coordinator:
   reorganize or write into their directory,
 - answer only from retrieved context when the user asks about indexed sources.
 
-Do not move semantic extraction into document, ingestion, citation, core, or
+Do not move semantic extraction into document, Run State, citation, core, or
 indexer services. Do not let one service call another service. The agent is the
 coordinator.

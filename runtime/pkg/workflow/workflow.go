@@ -202,8 +202,8 @@ func (t *Tracker) RecordToolResult(name, result string) {
 	if t == nil || t.store == nil {
 		return
 	}
-	if name == "ingestion_StartRun" {
-		t.applyObservedIngestionRun(observedSourceCount(result), observedIngestionRunID(result))
+	if name == "runstate_StartRun" {
+		t.applyObservedRunStateRun(observedItemCount(result), observedRunStateRunID(result))
 	}
 	for i := range t.states {
 		state := t.states[i]
@@ -443,7 +443,7 @@ func (t *Tracker) emit(event Event) {
 	}
 }
 
-func (t *Tracker) applyObservedIngestionRun(count int, runID string) {
+func (t *Tracker) applyObservedRunStateRun(count int, runID string) {
 	if t == nil || (count <= 1 && strings.TrimSpace(runID) == "") {
 		return
 	}
@@ -505,11 +505,11 @@ func (t *Tracker) guardInvalidKnowledgeCalls(toolCalls []plugin.ToolCall) (strin
 		switch current.ID {
 		case "ingest-start":
 			for _, call := range toolCalls {
-				if call.Function.Name != "ingestion_StartRun" || startRunHasSources(call.Function.Arguments) {
+				if call.Function.Name != "runstate_StartRun" || startRunHasItems(call.Function.Arguments) {
 					continue
 				}
 				t.emit(Event{Type: "blocked_tool_calls", WorkflowID: state.ID, SessionID: state.SessionID, Kind: state.Kind})
-				return "Runtime workflow validation blocked ingestion_StartRun because it did not include any source files. List or inspect the directory if needed, then start the ingestion run with every discovered source before continuing.", true
+				return "Runtime workflow validation blocked runstate_StartRun because it did not include any document items. List or inspect the directory if needed, then start the durable run with every discovered document item before continuing.", true
 			}
 		case "index":
 			for _, call := range toolCalls {
@@ -682,7 +682,7 @@ func workflowSupportToolAllowed(kind Kind, currentStepID, tool string) bool {
 				return true
 			}
 		}
-		if strings.HasPrefix(tool, "ingestion_") && tool != "ingestion_StartRun" && tool != "ingestion_MarkComplete" {
+		if strings.HasPrefix(tool, "runstate_") && tool != "runstate_StartRun" && tool != "runstate_MarkComplete" {
 			return true
 		}
 	}
@@ -690,7 +690,7 @@ func workflowSupportToolAllowed(kind Kind, currentStepID, tool string) bool {
 }
 
 func knowledgeIndexServiceFunction(name string) bool {
-	for _, prefix := range []string{"citation_", "core_", "document_", "embedding_", "indexer_", "ingestion_", "gateway_"} {
+	for _, prefix := range []string{"citation_", "core_", "document_", "embedding_", "indexer_", "runstate_", "gateway_"} {
 		if strings.HasPrefix(name, prefix) {
 			return true
 		}
@@ -707,20 +707,20 @@ func devopsServiceFunction(name string) bool {
 	return false
 }
 
-func startRunHasSources(arguments string) bool {
+func startRunHasItems(arguments string) bool {
 	var payload map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(strings.TrimSpace(arguments)), &payload); err != nil {
 		return true
 	}
-	raw, ok := payload["sources"]
+	raw, ok := payload["items"]
 	if !ok {
 		return false
 	}
-	var sources []json.RawMessage
-	if err := json.Unmarshal(raw, &sources); err != nil {
+	var items []json.RawMessage
+	if err := json.Unmarshal(raw, &items); err != nil {
 		return false
 	}
-	return len(sources) > 0
+	return len(items) > 0
 }
 
 func Detect(prompt string, tools []plugin.ToolSchema) []Intent {
@@ -730,11 +730,11 @@ func Detect(prompt string, tools []plugin.ToolSchema) []Intent {
 	if looksLikeKnowledgeIndex(text) {
 		sourceCount := expectedKnowledgeSourceCount(text)
 		if steps := requiredSteps(available,
-			step("ingest-start", "ingestion run creation", "ingestion_StartRun"),
+			step("ingest-start", "durable run creation", "runstate_StartRun"),
 			stepCount("extract", "document content extraction", sourceCount, "document_ExtractText", "document_GetPages"),
 			stepCount("embed", "embedding generation", sourceCount, "gateway_Embed", "gateway_Embed"),
 			stepCount("index", "canonical indexing", sourceCount, "indexer_UpsertChunk"),
-			step("ingest-complete", "ingestion run completion", "ingestion_MarkComplete"),
+			step("ingest-complete", "durable run completion", "runstate_MarkComplete"),
 		); len(steps) > 0 {
 			intents = append(intents, Intent{Kind: KindKnowledgeIndex, Steps: steps})
 		}
@@ -797,7 +797,7 @@ func workflowPromptBlock(state State) string {
 	}
 	switch state.Kind {
 	case KindKnowledgeIndex:
-		b.WriteString("For document indexing, start the ingestion run with the discovered sources before per-source work, extract every source through document service functions, produce embeddings for canonical chunks, persist each canonical chunk with indexer_UpsertChunk using embeddingRef values returned by gateway_Embed, then close the durable run with ingestion_MarkComplete. Every indexer_UpsertChunk call for source documents must be a complete canonical knowledge record with document, sourceMetadata, provenance, non-empty facts, non-empty entities, relations, citations, and either textContentRef or textContent. For batch work, issue all known calls for the same step in one ordered tool-call batch when possible. Never provide manual embedding arrays to indexer functions. Do not use document-only or legacy indexer calls as a substitute for canonical chunk indexing. ingestion_UpdateSourceState may record per-source progress, but it is not the terminal batch completion step. Do not final-answer that indexing is done until ingestion_MarkComplete succeeds after the source content is indexed. After ingestion_MarkComplete succeeds, answer immediately and concisely; do not call more tools unless the terminal call failed.")
+		b.WriteString("For document indexing, start a durable run with one document item per discovered source before per-source work, extract every source through document service functions, produce embeddings for canonical chunks, persist each canonical chunk with indexer_UpsertChunk using embeddingRef values returned by gateway_Embed, then close the durable run with runstate_MarkComplete. Every indexer_UpsertChunk call for source documents must be a complete canonical knowledge record with document, sourceMetadata, provenance, non-empty facts, non-empty entities, relations, citations, and either textContentRef or textContent. For batch work, issue all known calls for the same step in one ordered tool-call batch when possible. Never provide manual embedding arrays to indexer functions. Do not use document-only or legacy indexer calls as a substitute for canonical chunk indexing. runstate_UpdateItemState may record per-item progress, but it is not the terminal batch completion step. Do not final-answer that indexing is done until runstate_MarkComplete succeeds after the source content is indexed. After runstate_MarkComplete succeeds, answer immediately and concisely; do not call more tools unless the terminal call failed.")
 	case KindKnowledgeQuery:
 		b.WriteString("For knowledge questions, retrieve from the index with a queryVectorRef returned by gateway_Embed before answering and use citation or grounding functions when they are available for the workflow. Never provide manual query vectors to indexer functions. Do not reread original files unless retrieval is insufficient and the user asks for repair or reindexing. After citation or grounding succeeds, answer immediately and concisely from the retrieved evidence; do not call more tools unless retrieval or grounding failed.")
 	case KindDevOps:
@@ -852,22 +852,22 @@ func continuationDetail(state State, stepID string) string {
 func knowledgeIndexContinuationDetail(stepID, runID string) string {
 	switch stepID {
 	case "ingest-start":
-		return "If the source list is not known, inspect the user-provided location with io_List or io_Stat, then call ingestion_StartRun once with every discovered source."
+		return "If the document list is not known, inspect the user-provided location with io_List or io_Stat, then call runstate_StartRun once with one item for every discovered source."
 	case "extract":
 		return "Extract every remaining source with text/page extraction so source text is available for semantic structuring, embedding, and indexing. Metadata-only parsing does not satisfy this step. Do not use io_Read or io_ExtractPdf as a substitute for extraction and do not embed or index before extraction is complete."
 	case "embed":
 		return "Create embeddings for the remaining extracted canonical chunks. Batch all known remaining embedding calls in one assistant turn when possible."
 	case "index":
-		detail := "Persist each remaining canonical chunk with indexer_UpsertChunk using embeddingRef values returned by gateway_Embed. Each upsert must include document, sourceMetadata, provenance, facts, entities, relations, citations, and either textContentRef or textContent. After the final remaining upsert succeeds, close the durable run with ingestion_MarkComplete before answering."
+		detail := "Persist each remaining canonical chunk with indexer_UpsertChunk using embeddingRef values returned by gateway_Embed. Each upsert must include document, sourceMetadata, provenance, facts, entities, relations, citations, and either textContentRef or textContent. After the final remaining upsert succeeds, close the durable run with runstate_MarkComplete before answering."
 		if runID != "" {
-			detail += fmt.Sprintf(" Use runId %q when the workflow reaches ingestion_MarkComplete.", runID)
+			detail += fmt.Sprintf(" Use runId %q when the workflow reaches runstate_MarkComplete.", runID)
 		}
 		return detail
 	case "ingest-complete":
 		if runID != "" {
-			return fmt.Sprintf("Call ingestion_MarkComplete now with runId %q. After it succeeds, answer briefly with what was indexed.", runID)
+			return fmt.Sprintf("Call runstate_MarkComplete now with runId %q. After it succeeds, answer briefly with what was indexed.", runID)
 		}
-		return "Call ingestion_MarkComplete now with the runId returned by ingestion_StartRun. After it succeeds, answer briefly with what was indexed."
+		return "Call runstate_MarkComplete now with the runId returned by runstate_StartRun. After it succeeds, answer briefly with what was indexed."
 	default:
 		return ""
 	}
@@ -1033,23 +1033,23 @@ func expectedKnowledgeSourceCount(text string) int {
 	return 1
 }
 
-func observedSourceCount(result string) int {
+func observedItemCount(result string) int {
 	var payload any
 	if err := json.Unmarshal([]byte(strings.TrimSpace(result)), &payload); err != nil {
 		return 0
 	}
-	return maxSourceArrayLen(payload)
+	return maxItemArrayLen(payload)
 }
 
-func observedIngestionRunID(result string) string {
+func observedRunStateRunID(result string) string {
 	var payload any
 	if err := json.Unmarshal([]byte(strings.TrimSpace(result)), &payload); err != nil {
 		return ""
 	}
-	return findIngestionRunID(payload)
+	return findRunStateRunID(payload)
 }
 
-func findIngestionRunID(value any) string {
+func findRunStateRunID(value any) string {
 	switch typed := value.(type) {
 	case map[string]any:
 		if run, ok := typed["run"]; ok {
@@ -1058,13 +1058,13 @@ func findIngestionRunID(value any) string {
 			}
 		}
 		for _, child := range typed {
-			if id := findIngestionRunID(child); id != "" {
+			if id := findRunStateRunID(child); id != "" {
 				return id
 			}
 		}
 	case []any:
 		for _, child := range typed {
-			if id := findIngestionRunID(child); id != "" {
+			if id := findRunStateRunID(child); id != "" {
 				return id
 			}
 		}
@@ -1083,15 +1083,15 @@ func runObjectID(value any) string {
 	return ""
 }
 
-func maxSourceArrayLen(value any) int {
+func maxItemArrayLen(value any) int {
 	switch typed := value.(type) {
 	case map[string]any:
 		maxCount := 0
 		for key, child := range typed {
-			count := maxSourceArrayLen(child)
-			if strings.EqualFold(key, "sources") {
-				if sources, ok := child.([]any); ok && len(sources) > count {
-					count = len(sources)
+			count := maxItemArrayLen(child)
+			if strings.EqualFold(key, "items") {
+				if items, ok := child.([]any); ok && len(items) > count {
+					count = len(items)
 				}
 			}
 			if count > maxCount {
@@ -1102,7 +1102,7 @@ func maxSourceArrayLen(value any) int {
 	case []any:
 		maxCount := 0
 		for _, child := range typed {
-			if count := maxSourceArrayLen(child); count > maxCount {
+			if count := maxItemArrayLen(child); count > maxCount {
 				maxCount = count
 			}
 		}

@@ -71,7 +71,7 @@ func quarkfileFor(name, provider, model string, services []ServicePlugin, extraS
 		addService(ServicePlugin{Name: "gateway", Plugin: "gateway", Mode: "local", AddressEnv: "QUARK_GATEWAY_SERVICE_ADDR"})
 		addService(ServicePlugin{Name: "indexer", Plugin: "indexer", Mode: "local", AddressEnv: "QUARK_INDEXER_ADDR"})
 		addService(ServicePlugin{Name: "document", Plugin: "document", Mode: "local", AddressEnv: "QUARK_DOCUMENT_ADDR"})
-		addService(ServicePlugin{Name: "ingestion", Plugin: "ingestion", Mode: "local", AddressEnv: "QUARK_INGESTION_ADDR"})
+		addService(ServicePlugin{Name: "runstate", Plugin: "runstate", Mode: "local", AddressEnv: "QUARK_RUNSTATE_ADDR"})
 		addService(ServicePlugin{Name: "citation", Plugin: "citation", Mode: "local", AddressEnv: "QUARK_CITATION_ADDR"})
 	}
 	for _, service := range services {

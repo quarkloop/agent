@@ -20,7 +20,7 @@ MODULES := \
 		services/core \
 		services/devops \
 		services/document \
-		services/ingestion \
+		services/runstate \
 		services/indexer \
 		services/gateway \
 		services/secrets \
@@ -55,8 +55,8 @@ build-tools:
 build-services:
 		@echo "--- Building service: indexer ---"
 		go build -o $(BINARY_DIR)/indexer-service ./services/indexer/cmd/indexer
-		@echo "--- Building service: ingestion ---"
-		go build -o $(BINARY_DIR)/ingestion-service ./services/ingestion/cmd/ingestion
+		@echo "--- Building service: runstate ---"
+		go build -o $(BINARY_DIR)/runstate-service ./services/runstate/cmd/runstate
 		@echo "--- Building service: citation ---"
 		go build -o $(BINARY_DIR)/citation-service ./services/citation/cmd/citation
 		@echo "--- Building service: core ---"

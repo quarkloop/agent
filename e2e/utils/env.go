@@ -276,8 +276,8 @@ func serviceAddressesFromOptions(services []ServicePlugin, supervisorEnv map[str
 	if addr := supervisorEnv["QUARK_DOCUMENT_ADDR"]; addr != "" {
 		addresses["document"] = addr
 	}
-	if addr := supervisorEnv["QUARK_INGESTION_ADDR"]; addr != "" {
-		addresses["ingestion"] = addr
+	if addr := supervisorEnv["QUARK_RUNSTATE_ADDR"]; addr != "" {
+		addresses["runstate"] = addr
 	}
 	if addr := supervisorEnv["QUARK_CITATION_ADDR"]; addr != "" {
 		addresses["citation"] = addr

@@ -231,7 +231,7 @@ func TestInferWithToolCallGateAcceptsCompletedWorkflowContent(t *testing.T) {
 						ID:    "call-1",
 						Type:  "function",
 						Function: plugin.ToolCallFunction{
-							Name:      "ingestion_MarkComplete",
+							Name:      "runstate_MarkComplete",
 							Arguments: `{"runId":"run-1"}`,
 						},
 					}},
@@ -246,7 +246,7 @@ func TestInferWithToolCallGateAcceptsCompletedWorkflowContent(t *testing.T) {
 	result, err := client.InferWithToolCallGate(
 		context.Background(),
 		[]plugin.Message{{Role: "user", Content: "index documents"}},
-		[]plugin.ToolSchema{{Name: "ingestion_MarkComplete"}},
+		[]plugin.ToolSchema{{Name: "runstate_MarkComplete"}},
 		func(context.Context, string, string) (string, error) {
 			toolCalled = true
 			return `{}`, nil
@@ -254,7 +254,7 @@ func TestInferWithToolCallGateAcceptsCompletedWorkflowContent(t *testing.T) {
 		nil,
 		nil,
 		func(content string, toolCalls []plugin.ToolCall) bool {
-			return strings.Contains(content, "complete") && len(toolCalls) == 1 && toolCalls[0].Function.Name == "ingestion_MarkComplete"
+			return strings.Contains(content, "complete") && len(toolCalls) == 1 && toolCalls[0].Function.Name == "runstate_MarkComplete"
 		},
 	)
 	if err != nil {
@@ -284,7 +284,7 @@ func TestInferWithToolCallGuardRetriesBeforeExecutingNonAdvancingCalls(t *testin
 							ID:    "call-1",
 							Type:  "function",
 							Function: plugin.ToolCallFunction{
-								Name:      "ingestion_UpdateSourceState",
+								Name:      "runstate_UpdateItemState",
 								Arguments: `{}`,
 							},
 						}},
@@ -296,9 +296,9 @@ func TestInferWithToolCallGuardRetriesBeforeExecutingNonAdvancingCalls(t *testin
 					return nil, errors.New("retry request has no messages")
 				}
 				last := req.Messages[len(req.Messages)-1]
-				guardPromptSeen = last.Role == "system" && strings.Contains(last.Content, "ingestion_MarkComplete")
+				guardPromptSeen = last.Role == "system" && strings.Contains(last.Content, "runstate_MarkComplete")
 				return streamEvents(
-					plugin.StreamEvent{Delta: "The ingestion run is now complete."},
+					plugin.StreamEvent{Delta: "The durable run is now complete."},
 					plugin.StreamEvent{Done: true},
 				), nil
 			default:
@@ -311,7 +311,7 @@ func TestInferWithToolCallGuardRetriesBeforeExecutingNonAdvancingCalls(t *testin
 	result, err := client.InferWithToolCallPolicy(
 		context.Background(),
 		[]plugin.Message{{Role: "user", Content: "index documents"}},
-		[]plugin.ToolSchema{{Name: "ingestion_UpdateSourceState", Description: "progress"}},
+		[]plugin.ToolSchema{{Name: "runstate_UpdateItemState", Description: "progress"}},
 		func(context.Context, string, string) (string, error) {
 			t.Fatal("non-advancing tool call should not execute after guard retry")
 			return "", nil
@@ -323,7 +323,7 @@ func TestInferWithToolCallGuardRetriesBeforeExecutingNonAdvancingCalls(t *testin
 			if !strings.Contains(content, "indexed") || len(toolCalls) != 1 {
 				return "", false
 			}
-			return "Call ingestion_MarkComplete before finalizing.", true
+			return "Call runstate_MarkComplete before finalizing.", true
 		},
 		nil,
 	)
@@ -333,7 +333,7 @@ func TestInferWithToolCallGuardRetriesBeforeExecutingNonAdvancingCalls(t *testin
 	if !guardPromptSeen {
 		t.Fatal("tool-call guard retry instruction was not sent")
 	}
-	if result != "The ingestion run is now complete." {
+	if result != "The durable run is now complete." {
 		t.Fatalf("result = %q", result)
 	}
 }
@@ -354,7 +354,7 @@ func TestInferWithToolResultGateAcceptsTerminalWorkflowContentAfterToolExecution
 						ID:    "call-1",
 						Type:  "function",
 						Function: plugin.ToolCallFunction{
-							Name:      "ingestion_MarkComplete",
+							Name:      "runstate_MarkComplete",
 							Arguments: `{"runId":"run-1"}`,
 						},
 					}},
@@ -369,7 +369,7 @@ func TestInferWithToolResultGateAcceptsTerminalWorkflowContentAfterToolExecution
 	result, err := client.InferWithToolCallPolicy(
 		context.Background(),
 		[]plugin.Message{{Role: "user", Content: "index documents"}},
-		[]plugin.ToolSchema{{Name: "ingestion_MarkComplete"}},
+		[]plugin.ToolSchema{{Name: "runstate_MarkComplete"}},
 		func(context.Context, string, string) (string, error) {
 			toolCalled = true
 			return `{"success":true}`, nil
@@ -381,7 +381,7 @@ func TestInferWithToolResultGateAcceptsTerminalWorkflowContentAfterToolExecution
 		func(content string, toolCalls []plugin.ToolCall) bool {
 			return strings.Contains(content, "ready for questions") &&
 				len(toolCalls) == 1 &&
-				toolCalls[0].Function.Name == "ingestion_MarkComplete"
+				toolCalls[0].Function.Name == "runstate_MarkComplete"
 		},
 	)
 	if err != nil {

@@ -69,11 +69,11 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.GatewayEmbe
 		TraceOptions:   knowledgeIndexTraceOptions("index uploaded PDF dataset", len(documents)),
 	})
 
-	assertToolStarted(t, indexTrace, "ingestion_StartRun")
+	assertToolStarted(t, indexTrace, "runstate_StartRun")
 	assertToolStarted(t, indexTrace, "document_ExtractText")
 	assertToolStarted(t, indexTrace, "gateway_Embed")
 	assertToolStarted(t, indexTrace, "indexer_UpsertChunk")
-	assertToolStarted(t, indexTrace, "ingestion_MarkComplete")
+	assertToolStarted(t, indexTrace, "runstate_MarkComplete")
 	assertNoToolErrors(t, indexTrace, "document_ExtractText")
 	assertToolSuccessCount(t, indexTrace, "document_ExtractText", len(documents))
 	assertNoToolErrors(t, indexTrace, "indexer_UpsertChunk")

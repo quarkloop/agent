@@ -26,7 +26,7 @@ unrelated scopes.
 - `pkg/plugin`, `pkg/space`, `pkg/toolkit`, and `pkg/event` are shared support
   packages.
 
-The agent is the coordinator. For document ingestion it reads files, uses LLM
+The agent is the coordinator. For document indexing it reads files, uses LLM
 reasoning for semantic structure, calls service functions for mechanical work,
 sends canonical records to the indexer, and verifies retrieval. The indexer
 stores/query canonical knowledge records only; it does not parse files, call
@@ -44,7 +44,7 @@ The workspace modules are listed in `go.work`:
   `pkg/toolkit`
 - `services/citation`, `services/core`, `services/devops`,
   `services/document`, `services/indexer`,
-  `services/ingestion`, `services/gateway`, `services/space`,
+  `services/runstate`, `services/gateway`, `services/space`,
   `services/system`
 - `services/io`
 - `plugins/agents/quark-knowledge`, `plugins/agents/quark-devops`,

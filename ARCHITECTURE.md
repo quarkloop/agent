@@ -51,7 +51,7 @@ agent coordinates multi-step flows.
 
 Initial service stacks:
 
-- Quark Knowledge: document extraction, ingestion state, embedding, indexer,
+- Quark Knowledge: document extraction, durable Run State, Gateway embeddings, indexer,
   citation, Core artifacts/audit, and model-mediated semantic extraction.
 - Quark DevOps: repo, build, test, container, release, deploy, and policy
   functions.
@@ -67,10 +67,10 @@ Initial service stacks:
 The indexer stores canonical knowledge records only. It does not parse files,
 call LLMs, generate embeddings, choose schemas, or answer the user.
 
-The agent-owned ingestion flow is:
+The agent-owned document indexing flow is:
 
 1. read or extract source content with tools/services,
-2. track batch/source state with ingestion service functions,
+2. track generic run/item state with Run State service functions,
 3. use LLM reasoning through the model boundary to classify and structure
    facts, entities, relations, and citations,
 4. call `gateway_Embed`,

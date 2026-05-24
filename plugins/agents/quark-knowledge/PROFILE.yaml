@@ -28,17 +28,18 @@ permissions:
     - document_ExtractTables
     - document_ExtractImages
     - document_RunOCR
-    - ingestion_StartRun
-    - ingestion_GetRun
-    - ingestion_ListRuns
-    - ingestion_ResumeRun
-    - ingestion_UpdateSourceState
-    - ingestion_AppendArtifact
-    - ingestion_MarkFailed
-    - ingestion_MarkComplete
-    - ingestion_CancelRun
-    - ingestion_ListIncompleteSources
-    - ingestion_ListArtifacts
+    - runstate_StartRun
+    - runstate_GetRun
+    - runstate_ListRuns
+    - runstate_ResumeRun
+    - runstate_UpdateItemState
+    - runstate_AppendArtifact
+    - runstate_AppendReference
+    - runstate_MarkFailed
+    - runstate_MarkComplete
+    - runstate_CancelRun
+    - runstate_ListIncompleteItems
+    - runstate_ListArtifacts
     - gateway_Embed
     - indexer_UpsertChunk
     - indexer_UpsertFact

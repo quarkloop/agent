@@ -88,7 +88,7 @@ func TestHubProvisionsControlStreamsAndCoordinationBuckets(t *testing.T) {
 			t.Fatalf("stream %s config incomplete: %+v", stream, info.Config)
 		}
 	}
-	for _, bucket := range []string{KVRuntimeSpaceLeases, KVServiceLeases, KVAccountMetadata, KVCatalogCursors} {
+	for _, bucket := range []string{KVRuntimeSpaceLeases, KVServiceLeases, KVRunStateLeases, KVAccountMetadata, KVCatalogCursors} {
 		kv, err := js.KeyValue(bucket)
 		if err != nil {
 			t.Fatalf("kv bucket %s missing: %v", bucket, err)

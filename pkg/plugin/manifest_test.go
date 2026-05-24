@@ -359,12 +359,13 @@ func TestQuarkKnowledgeProfileDeclaresConcreteServiceFunctions(t *testing.T) {
 		"document_ExtractTables",
 		"document_ExtractImages",
 		"document_RunOCR",
-		"ingestion_StartRun",
-		"ingestion_GetRun",
-		"ingestion_ResumeRun",
-		"ingestion_UpdateSourceState",
-		"ingestion_ListIncompleteSources",
-		"ingestion_ListArtifacts",
+		"runstate_StartRun",
+		"runstate_GetRun",
+		"runstate_ResumeRun",
+		"runstate_UpdateItemState",
+		"runstate_AppendReference",
+		"runstate_ListIncompleteItems",
+		"runstate_ListArtifacts",
 		"gateway_Embed",
 		"indexer_IndexDocument",
 		"indexer_GetContext",
@@ -384,39 +385,38 @@ func TestQuarkKnowledgeProfileDeclaresConcreteServiceFunctions(t *testing.T) {
 	}
 }
 
-func TestIngestionServiceContractTracksResumableSourceState(t *testing.T) {
-	manifest, err := ParseManifest(filepath.Join("..", "..", "plugins", "services", "ingestion", "manifest.yaml"))
+func TestRunStateServiceContractTracksGenericResumableItems(t *testing.T) {
+	manifest, err := ParseManifest(filepath.Join("..", "..", "plugins", "services", "runstate", "manifest.yaml"))
 	if err != nil {
-		t.Fatalf("parse ingestion manifest: %v", err)
+		t.Fatalf("parse runstate manifest: %v", err)
 	}
 	found := false
 	for _, function := range manifest.Service.Functions {
-		if function.Name == "ingestion_ListIncompleteSources" {
+		if function.Name == "runstate_ListIncompleteItems" {
 			found = true
 			if function.RiskLevel != "read" || !function.Idempotent {
-				t.Fatalf("ingestion_ListIncompleteSources contract = %+v", function)
+				t.Fatalf("runstate_ListIncompleteItems contract = %+v", function)
 			}
 		}
 	}
 	if !found {
-		t.Fatal("ingestion service missing ingestion_ListIncompleteSources")
+		t.Fatal("runstate service missing runstate_ListIncompleteItems")
 	}
-	protoData, err := os.ReadFile(filepath.Join("..", "..", "proto", "quark", "ingestion", "v1", "ingestion.proto"))
+	protoData, err := os.ReadFile(filepath.Join("..", "..", "proto", "quark", "runstate", "v1", "runstate.proto"))
 	if err != nil {
-		t.Fatalf("read ingestion proto: %v", err)
+		t.Fatalf("read runstate proto: %v", err)
 	}
 	protoText := string(protoData)
 	for _, want := range []string{
-		"string file_path",
-		"SourceStepState extraction",
-		"SourceStepState structuring",
-		"SourceStepState embedding",
-		"SourceStepState indexing",
-		"SourceStepState citation",
+		"repeated ItemState items",
+		"repeated PhaseState phases",
+		"repeated Reference references",
+		"repeated string service_call_refs",
+		"rpc AcquireLease",
 		"string last_error",
 	} {
 		if !strings.Contains(protoText, want) {
-			t.Fatalf("ingestion proto missing resumable state field %q", want)
+			t.Fatalf("runstate proto missing generic state field %q", want)
 		}
 	}
 }

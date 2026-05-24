@@ -56,7 +56,7 @@ func TestServicePluginInventoryHasE2ECoveragePlan(t *testing.T) {
 			Mode:  "runtime-backed",
 			Tests: []string{"TestIndexerServiceWithRealDgraph", "TestAgentIndexesUploadedPDFDataset", "TestAgentIndexesITCompanyMarkdownDocuments"},
 		},
-		"ingestion": {
+		"runstate": {
 			Mode:  "runtime-backed",
 			Tests: []string{"TestAgentIndexesUploadedPDFDataset", "TestAgentIndexesITCompanyMarkdownDocuments"},
 		},

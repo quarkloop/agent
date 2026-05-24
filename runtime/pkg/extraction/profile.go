@@ -196,7 +196,7 @@ func (r Registry) PromptBlock() string {
 	var b strings.Builder
 	b.WriteString("## Runtime Extraction Profiles\n\n")
 	b.WriteString("When indexing documents, choose an extraction profile in the agent's runtime/model LLM path before mapping extracted content into the indexer canonical schema. Parser output is raw source evidence; semantic extraction output is separate and must be validated before indexing.\n")
-	b.WriteString("The LLM-owned work is document classification, schema inference, field normalization, chunk decisions, fact extraction, entity extraction, relation extraction, and citation selection. Do not move this work into document, ingestion, citation, memory, embedding, or indexer services.\n")
+	b.WriteString("The LLM-owned work is document classification, schema inference, field normalization, chunk decisions, fact extraction, entity extraction, relation extraction, and citation selection. Do not move this work into document, runstate, citation, gateway, memory, or indexer services.\n")
 	b.WriteString("If no concrete profile fits confidently, use `generic-open` and preserve uncertainty instead of forcing a schema.\n")
 	b.WriteString("The open extraction structure supports document_type_guess, summary, key_facts, entities, relations, dates, amounts, tables, sections, citations, raw_text_references, and uncertainties. Keep raw text references separate from semantic facts.\n")
 

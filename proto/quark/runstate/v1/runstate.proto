@@ -1,0 +1,230 @@
+syntax = "proto3";
+
+package quark.runstate.v1;
+
+option go_package = "github.com/quarkloop/pkg/serviceapi/gen/quark/runstate/v1;runstatev1";
+
+// RunStateService stores durable, workflow-neutral execution state.
+//
+// It records progress, references and artifacts. It does not execute work,
+// parse documents, call models, index content, or call another service.
+service RunStateService {
+  rpc StartRun(StartRunRequest) returns (StartRunResponse);
+  rpc GetRun(GetRunRequest) returns (GetRunResponse);
+  rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
+  rpc ResumeRun(ResumeRunRequest) returns (ResumeRunResponse);
+  rpc UpdateItemState(UpdateItemStateRequest) returns (UpdateItemStateResponse);
+  rpc AppendArtifact(AppendArtifactRequest) returns (AppendArtifactResponse);
+  rpc AppendReference(AppendReferenceRequest) returns (AppendReferenceResponse);
+  rpc MarkFailed(MarkFailedRequest) returns (MarkFailedResponse);
+  rpc MarkComplete(MarkCompleteRequest) returns (MarkCompleteResponse);
+  rpc CancelRun(CancelRunRequest) returns (CancelRunResponse);
+  rpc ListIncompleteItems(ListIncompleteItemsRequest) returns (ListIncompleteItemsResponse);
+  rpc ListArtifacts(ListArtifactsRequest) returns (ListArtifactsResponse);
+  rpc AcquireLease(AcquireLeaseRequest) returns (AcquireLeaseResponse);
+  rpc RenewLease(RenewLeaseRequest) returns (RenewLeaseResponse);
+  rpc ReleaseLease(ReleaseLeaseRequest) returns (ReleaseLeaseResponse);
+}
+
+message StartRunRequest {
+  string space = 1;
+  string title = 2;
+  repeated ItemInput items = 3;
+  map<string, string> metadata = 4;
+  string kind = 5;
+  string actor_ref = 6;
+  int32 retention_days = 7;
+}
+
+message ItemInput {
+  string id = 1;
+  string kind = 2;
+  string resource_uri = 3;
+  string name = 4;
+  string content_hash = 5;
+  map<string, string> metadata = 6;
+}
+
+message GetRunRequest { string run_id = 1; }
+
+message ListRunsRequest {
+  string space = 1;
+  RunStatus status = 2;
+  int32 limit = 3;
+  string kind = 4;
+}
+
+message ResumeRunRequest { string run_id = 1; }
+
+message UpdateItemStateRequest {
+  string run_id = 1;
+  string item_id = 2;
+  string phase = 3;
+  RunStatus status = 4;
+  string artifact_ref = 5;
+  string error = 6;
+  map<string, string> metadata = 7;
+  repeated string service_call_refs = 8;
+}
+
+message AppendArtifactRequest {
+  string run_id = 1;
+  string item_id = 2;
+  Artifact artifact = 3;
+}
+
+message AppendReferenceRequest {
+  string run_id = 1;
+  string item_id = 2;
+  Reference reference = 3;
+}
+
+message MarkFailedRequest {
+  string run_id = 1;
+  string item_id = 2;
+  string phase = 3;
+  string error = 4;
+  map<string, string> metadata = 5;
+  repeated string service_call_refs = 6;
+}
+
+message MarkCompleteRequest {
+  string run_id = 1;
+  string item_id = 2;
+  string phase = 3;
+  string artifact_ref = 4;
+  map<string, string> metadata = 5;
+  repeated string service_call_refs = 6;
+}
+
+message CancelRunRequest {
+  string run_id = 1;
+  string reason = 2;
+}
+
+message ListArtifactsRequest {
+  string run_id = 1;
+  string item_id = 2;
+}
+
+message ListIncompleteItemsRequest {
+  string run_id = 1;
+  bool include_failed = 2;
+  bool include_pending = 3;
+}
+
+message ListIncompleteItemsResponse { repeated ItemState items = 1; }
+message ListArtifactsResponse { repeated Artifact artifacts = 1; }
+message StartRunResponse { Run run = 1; }
+message GetRunResponse { Run run = 1; }
+message ListRunsResponse { repeated Run runs = 1; }
+message ResumeRunResponse { Run run = 1; }
+message UpdateItemStateResponse { ItemState item = 1; }
+message AppendArtifactResponse { Artifact artifact = 1; }
+message AppendReferenceResponse { Reference reference = 1; }
+message MarkFailedResponse { Run run = 1; }
+message MarkCompleteResponse { Run run = 1; }
+message CancelRunResponse { Run run = 1; }
+
+message Run {
+  string id = 1;
+  string space = 2;
+  string title = 3;
+  RunStatus status = 4;
+  repeated ItemState items = 5;
+  string created_at = 6;
+  string updated_at = 7;
+  map<string, string> metadata = 8;
+  string kind = 9;
+  string actor_ref = 10;
+  string retention_expires_at = 11;
+  repeated string service_call_refs = 12;
+  repeated Reference references = 13;
+}
+
+message ItemState {
+  string id = 1;
+  string kind = 2;
+  string resource_uri = 3;
+  string name = 4;
+  string content_hash = 5;
+  string phase = 6;
+  RunStatus status = 7;
+  string last_error = 8;
+  repeated Artifact artifacts = 9;
+  map<string, string> metadata = 10;
+  repeated PhaseState phases = 11;
+  int32 retry_count = 12;
+  repeated string service_call_refs = 13;
+}
+
+message Artifact {
+  string ref = 1;
+  string kind = 2;
+  string item_id = 3;
+  string created_at = 4;
+  map<string, string> metadata = 5;
+}
+
+message Reference {
+  string ref = 1;
+  string kind = 2;
+  string item_id = 3;
+  string created_at = 4;
+  map<string, string> metadata = 5;
+}
+
+message PhaseState {
+  string phase = 1;
+  RunStatus status = 2;
+  string artifact_ref = 3;
+  string error = 4;
+  string updated_at = 5;
+  map<string, string> metadata = 6;
+  repeated string service_call_refs = 7;
+}
+
+message AcquireLeaseRequest {
+  string run_id = 1;
+  string item_id = 2;
+  string owner_id = 3;
+  int32 ttl_seconds = 4;
+}
+
+message AcquireLeaseResponse { Lease lease = 1; }
+
+message RenewLeaseRequest {
+  string key = 1;
+  string owner_id = 2;
+  uint64 revision = 3;
+  int32 ttl_seconds = 4;
+}
+
+message RenewLeaseResponse { Lease lease = 1; }
+
+message ReleaseLeaseRequest {
+  string key = 1;
+  string owner_id = 2;
+  uint64 revision = 3;
+}
+
+message ReleaseLeaseResponse { string key = 1; }
+
+message Lease {
+  string key = 1;
+  string owner_id = 2;
+  string run_id = 3;
+  string item_id = 4;
+  string expires_at = 5;
+  uint64 revision = 6;
+}
+
+enum RunStatus {
+  RUN_STATUS_UNSPECIFIED = 0;
+  RUN_STATUS_PENDING = 1;
+  RUN_STATUS_RUNNING = 2;
+  RUN_STATUS_SUCCEEDED = 3;
+  RUN_STATUS_FAILED = 4;
+  RUN_STATUS_SKIPPED = 5;
+  RUN_STATUS_CANCELLED = 6;
+}

@@ -11,7 +11,7 @@ Use the Compose stack from the repository root:
 ```bash
 docker compose -f deploy/compose/quark.yml up supervisor
 docker compose -f deploy/compose/quark.yml --profile runtime up runtime
-docker compose -f deploy/compose/quark.yml --profile services up io space document ingestion
+docker compose -f deploy/compose/quark.yml --profile services up io space document runstate
 ```
 
 Knowledge services require the `knowledge` profile:

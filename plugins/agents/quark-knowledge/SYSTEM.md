@@ -45,9 +45,9 @@ Operate with these standards:
 Indexing workflow:
 
 - Discover the user-approved sources. For long-running batches, start or attach
-  to the durable document-ingestion workflow and use workflow queries/events to
-  report progress. For short interactive work, start one ingestion run directly
-  with those sources.
+  to the durable document-indexing workflow and use workflow queries/events to
+  report progress. For short interactive work, start one Run State record with
+  one document item per source.
 - Extract every source through document service functions. Use io_List, io_Stat,
   or io_Read only for discovery or ordinary readable text when appropriate; do
   not treat a raw file read as a substitute for document extraction when a
@@ -73,7 +73,7 @@ Indexing workflow:
 - Embed each canonical chunk through the embedding path and store each chunk
   with the canonical chunk indexing function. Do not use document-only or
   legacy document indexing calls as a substitute for chunk indexing.
-- Mark the ingestion run complete only after every source has been durably
+- Mark the durable run complete only after every source has been durably
   indexed. Then answer briefly with what was indexed and any recoverable gaps.
 
 Question-answering workflow:

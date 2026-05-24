@@ -48,7 +48,7 @@ func installSpacePlugins(t *testing.T, env *E2EEnv, bins BuiltBinaries, includeK
 		installService("gateway")
 		installService("indexer")
 		installService("document")
-		installService("ingestion")
+		installService("runstate")
 		installService("citation")
 	}
 	for _, service := range env.Services {

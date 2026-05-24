@@ -24,7 +24,7 @@ type BuiltBinaries struct {
 	Gateway    string
 	DevOps     string
 	Document   string
-	Ingestion  string
+	RunState   string
 	System     string
 	Workflow   string
 	Secrets    string
@@ -85,7 +85,7 @@ func BuildAllOnce(t *testing.T) BuiltBinaries {
 		buildRes.Gateway = build("./services/gateway/cmd/gateway", "gateway")
 		buildRes.DevOps = build("./services/devops/cmd/devops", "devops")
 		buildRes.Document = build("./services/document/cmd/document", "document")
-		buildRes.Ingestion = build("./services/ingestion/cmd/ingestion", "ingestion")
+		buildRes.RunState = build("./services/runstate/cmd/runstate", "runstate")
 		buildRes.System = build("./services/system/cmd/system", "system")
 		buildRes.Workflow = build("./services/workflow/cmd/workflow", "workflow")
 		buildRes.Secrets = build("./services/secrets/cmd/secrets", "secrets")

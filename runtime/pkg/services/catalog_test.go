@@ -129,9 +129,9 @@ func TestServiceFunctionSchemasIncludeKnowledgeContracts(t *testing.T) {
 			fields:   []string{"input", "maxChars"},
 		},
 		{
-			name:     "ingestion start run",
-			typeName: "quark.ingestion.v1.StartRunRequest",
-			fields:   []string{"space", "title", "sources", "metadata"},
+			name:     "runstate start run",
+			typeName: "quark.runstate.v1.StartRunRequest",
+			fields:   []string{"space", "title", "items", "metadata", "kind"},
 		},
 		{
 			name:     "citation verify grounding",

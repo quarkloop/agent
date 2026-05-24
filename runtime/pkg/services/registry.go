@@ -7,9 +7,9 @@ import (
 	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
 	gatewayv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/gateway/v1"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
-	ingestionv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/ingestion/v1"
 	iov1 "github.com/quarkloop/pkg/serviceapi/gen/quark/io/v1"
 	memoryv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/memory/v1"
+	runstatev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/runstate/v1"
 	spacev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/space/v1"
 	systemv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/system/v1"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -21,7 +21,7 @@ var _ = []any{
 	corev1.File_quark_core_v1_core_proto,
 	documentv1.File_quark_document_v1_document_proto,
 	iov1.File_quark_io_v1_io_proto,
-	ingestionv1.File_quark_ingestion_v1_ingestion_proto,
+	runstatev1.File_quark_runstate_v1_runstate_proto,
 	citationv1.File_quark_citation_v1_citation_proto,
 	memoryv1.File_quark_memory_v1_memory_proto,
 	gatewayv1.File_quark_gateway_v1_gateway_proto,
