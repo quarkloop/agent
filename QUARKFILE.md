@@ -1,7 +1,7 @@
 # Quarkfile Examples
 
 `Quarkfile` is the space-level configuration layer. Supervisor validates it,
-resolves installed agent/tool/service/provider plugins, narrows permissions,
+resolves installed agent/tool/service plugins, narrows permissions,
 checks services, and passes versioned catalogs to runtime.
 
 The examples below are intentionally small. They show the shape of each launch

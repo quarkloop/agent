@@ -49,8 +49,6 @@ The workspace modules are listed in `go.work`:
 - `services/io`
 - `plugins/agents/quark-knowledge`, `plugins/agents/quark-devops`,
   `plugins/agents/quark-system`
-- `plugins/providers/anthropic`, `plugins/providers/openai`,
-  `plugins/providers/openrouter`
 
 ## Runtime Packages
 

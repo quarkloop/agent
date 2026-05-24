@@ -42,7 +42,7 @@ E2E tests run with a 10-minute timeout. See `agent/e2e/` for details.
 Quark is a Go workspace (`go.work`) containing 14 independent modules. The dependency graph is strict — no circular imports:
 
 ```
-pkg/plugin → supervisor/pkg/pluginmanager, plugins/tools/*, plugins/providers/*
+pkg/plugin → supervisor/pkg/pluginmanager, plugins/tools/*
 pkg/space → supervisor/pkg/space, cli/pkg/commands/*
 supervisor → cli (via supervisor/pkg/client)
 runtime → cli (via runtime/pkg/client)

@@ -335,7 +335,7 @@ func (s *Store) installedPlugins(name string) (map[string]bool, error) {
 		return nil, err
 	}
 	installed := make(map[string]bool)
-	for _, typ := range []string{"tools", "providers", "agents", "skills", "services"} {
+	for _, typ := range []string{"tools", "agents", "skills", "services"} {
 		root := filepath.Join(paths.PluginsDir, typ)
 		entries, err := os.ReadDir(root)
 		if err != nil {

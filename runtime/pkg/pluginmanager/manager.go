@@ -54,8 +54,8 @@ type Manager struct {
 	// Tool schemas aggregated from all loaded tools
 	tools []plugin.ToolSchema
 
-	// Runtime-registered model providers. These should point to Gateway-backed
-	// adapters, not direct provider plugins.
+	// Runtime-registered model providers. These point to Gateway-backed
+	// adapters.
 	providers map[string]plugin.Provider
 }
 
@@ -96,14 +96,6 @@ func (m *Manager) Initialize(ctx context.Context) error {
 	return nil
 }
 
-// LoadProviders is retained for tests and legacy callers, but runtime no longer
-// loads direct provider plugins. Gateway is the only production provider path.
-func (m *Manager) LoadProviders(ctx context.Context) error {
-	_ = ctx
-	slog.Info("provider plugin loading skipped; Gateway owns provider dispatch")
-	return nil
-}
-
 // LoadPluginFromDir loads a single plugin from the given directory. Intended
 // for use when the supervisor notifies the agent that a new plugin has been
 // installed.
@@ -119,9 +111,6 @@ func (m *Manager) LoadPluginFromDir(ctx context.Context, dir string) error {
 	switch manifest.Type {
 	case plugin.TypeTool:
 		return m.loadToolLocked(ctx, manifest, dir)
-	case plugin.TypeProvider:
-		slog.Info("provider plugin load skipped; Gateway owns provider dispatch", "plugin", manifest.Name)
-		return nil
 	default:
 		return nil
 	}

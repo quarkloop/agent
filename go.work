@@ -9,9 +9,6 @@ use (
 	./pkg/serviceapi
 	./pkg/space
 	./pkg/toolkit
-	./plugins/providers/anthropic
-	./plugins/providers/openai
-	./plugins/providers/openrouter
 	./runtime
 	./services/citation
 	./services/core
@@ -37,9 +34,6 @@ replace (
 	github.com/quarkloop/pkg/serviceapi v0.0.0 => ./pkg/serviceapi
 	github.com/quarkloop/pkg/space v0.0.0 => ./pkg/space
 	github.com/quarkloop/pkg/toolkit v0.0.0 => ./pkg/toolkit
-	github.com/quarkloop/plugins/providers/anthropic v0.0.0 => ./plugins/providers/anthropic
-	github.com/quarkloop/plugins/providers/openai v0.0.0 => ./plugins/providers/openai
-	github.com/quarkloop/plugins/providers/openrouter v0.0.0 => ./plugins/providers/openrouter
 	github.com/quarkloop/runtime v0.0.0 => ./runtime
 	github.com/quarkloop/services/citation v0.0.0 => ./services/citation
 	github.com/quarkloop/services/core v0.0.0 => ./services/core

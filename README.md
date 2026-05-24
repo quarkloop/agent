@@ -75,7 +75,7 @@ runtime     -> agent loop, prompts, tools, service functions, activity
   |
   | tool calls and NATS service functions
   v
-plugins/tools/*     services/*     providers/*     plugins/agents/*
+plugins/tools/*     services/*     plugins/agents/*
 ```
 
 Core rule: agents coordinate, services execute. Services do not call each
@@ -88,7 +88,7 @@ Read the deeper architecture notes in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ```bash
 make build           # cli, supervisor, runtime, tools, services
-make build-plugins   # tool .so files and provider .so files
+make build-plugins   # tool plugin build targets
 make test            # unit tests across workspace modules
 make test-e2e-local  # deterministic E2E subset, no provider key
 make test-e2e        # provider-backed E2E suite

@@ -55,7 +55,6 @@ func (c RuntimeCatalog) Validate() error {
 			if item.Schema.Name == "" {
 				return fmt.Errorf("plugins[%d] %q: tool schema name is required", i, item.Name)
 			}
-		case TypeProvider:
 		case TypeAgent:
 			if item.AgentProfile == nil {
 				return fmt.Errorf("plugins[%d] %q: agent profile is required", i, item.Name)

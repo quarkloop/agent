@@ -49,7 +49,7 @@ func (m *Installer) List() ([]InstalledPlugin, error) {
 
 	var plugins []InstalledPlugin
 	pluginsDir := m.PluginsDir()
-	for _, dir := range []string{"tools", "providers", "agents", "skills", "services"} {
+	for _, dir := range []string{"tools", "agents", "skills", "services"} {
 		plugins = append(plugins, installedInDir(filepath.Join(pluginsDir, dir))...)
 	}
 
@@ -193,8 +193,6 @@ func (m *Installer) destDirForType(pluginType plugin.PluginType, name string) st
 	switch pluginType {
 	case plugin.TypeTool:
 		return filepath.Join(pluginsDir, "tools", name)
-	case plugin.TypeProvider:
-		return filepath.Join(pluginsDir, "providers", name)
 	case plugin.TypeAgent:
 		return filepath.Join(pluginsDir, "agents", name)
 	case plugin.TypeSkill:

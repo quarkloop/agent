@@ -44,7 +44,7 @@ func (s *Server) resolveRuntimePluginCatalog(ctx context.Context, space string) 
 	catalog := plugin.NewRuntimeCatalog(make([]plugin.RuntimeCatalogPlugin, 0, len(installed)))
 	for _, item := range installed {
 		switch item.Manifest.Type {
-		case plugin.TypeTool, plugin.TypeProvider, plugin.TypeAgent:
+		case plugin.TypeTool, plugin.TypeAgent:
 			entry, err := runtimePluginCatalogEntryFromInstalled(item)
 			if err != nil {
 				return plugin.RuntimeCatalog{}, "", fmt.Errorf("build runtime plugin catalog entry %s: %w", item.Manifest.Name, err)

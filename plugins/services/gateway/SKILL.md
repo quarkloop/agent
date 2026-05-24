@@ -8,7 +8,7 @@ providers directly.
 ## Agent Rules
 
 1. Use normal runtime reasoning for conversational responses. Do not call
-   provider plugins directly and do not expose provider-specific HTTP payloads.
+   provider adapters directly and do not expose provider-specific HTTP payloads.
 2. Use Gateway service functions only when a workflow explicitly needs model,
    embedding, rerank, token, health, or model-list data as a service result.
 3. Treat usage as structured accounting data. Never store prompts, raw response

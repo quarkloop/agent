@@ -25,11 +25,10 @@ type Manifest struct {
 	Build *BuildConfig `yaml:"build,omitempty"`
 
 	// Type-specific nested configs (only one should be set based on Type)
-	Tool     *ToolConfig             `yaml:"tool,omitempty"`
-	Provider *ProviderManifestConfig `yaml:"provider,omitempty"`
-	Agent    *AgentConfig            `yaml:"agent,omitempty"`
-	Skill    *SkillConfig            `yaml:"skill,omitempty"`
-	Service  *ServiceConfig          `yaml:"service,omitempty"`
+	Tool    *ToolConfig    `yaml:"tool,omitempty"`
+	Agent   *AgentConfig   `yaml:"agent,omitempty"`
+	Skill   *SkillConfig   `yaml:"skill,omitempty"`
+	Service *ServiceConfig `yaml:"service,omitempty"`
 }
 
 // BuildConfig holds build-related configuration.
@@ -187,10 +186,10 @@ func (m *Manifest) Validate() error {
 
 	// Validate type
 	switch m.Type {
-	case TypeTool, TypeProvider, TypeAgent, TypeSkill, TypeService:
+	case TypeTool, TypeAgent, TypeSkill, TypeService:
 		// valid
 	default:
-		return fmt.Errorf("invalid type: %s (must be tool, provider, agent, skill, or service)", m.Type)
+		return fmt.Errorf("invalid type: %s (must be tool, agent, skill, or service)", m.Type)
 	}
 
 	// Validate mode
@@ -212,16 +211,6 @@ func (m *Manifest) Validate() error {
 		}
 		if m.Tool.Schema.Name == "" {
 			return fmt.Errorf("tool.schema.name is required")
-		}
-	case TypeProvider:
-		if m.Provider == nil {
-			return fmt.Errorf("provider config is required for provider plugins")
-		}
-		if m.Provider.APIBase == "" {
-			return fmt.Errorf("provider.api_base is required")
-		}
-		if m.Provider.AuthEnv == "" {
-			return fmt.Errorf("provider.auth_env is required")
 		}
 	case TypeAgent:
 		if m.Agent == nil {

@@ -32,8 +32,7 @@
         "github.com/quarkloop/cli",
         "github.com/quarkloop/e2e",
         "github.com/quarkloop/services/",
-        "github.com/quarkloop/plugins/tools/",
-        "github.com/quarkloop/plugins/providers/"
+        "github.com/quarkloop/plugins/tools/"
       ]
     },
     {
@@ -54,8 +53,7 @@
         "github.com/quarkloop/cli",
         "github.com/quarkloop/e2e",
         "github.com/quarkloop/services/",
-        "github.com/quarkloop/plugins/tools/",
-        "github.com/quarkloop/plugins/providers/"
+        "github.com/quarkloop/plugins/tools/"
       ]
     },
     {
@@ -129,7 +127,7 @@
       "path": "plugins",
       "module": "github.com/quarkloop/plugins",
       "owns": [
-        "installable tool/provider/service/agent definitions",
+        "installable tool/service/agent definitions",
         "plugin-local implementations",
         "SKILL.md guidance"
       ],

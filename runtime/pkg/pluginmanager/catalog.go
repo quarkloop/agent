@@ -3,7 +3,6 @@ package pluginmanager
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"path/filepath"
 
 	"github.com/quarkloop/pkg/plugin"
@@ -39,8 +38,6 @@ func (m *Manager) loadCatalogLocked(ctx context.Context, catalog Catalog) error 
 			if err := m.loadToolLocked(ctx, manifest, item.Path); err != nil {
 				return fmt.Errorf("load tool %s: %w", manifest.Name, err)
 			}
-		case plugin.TypeProvider:
-			slog.Info("skipping provider plugin in runtime; Gateway owns provider dispatch", "plugin", manifest.Name)
 		}
 	}
 	return nil

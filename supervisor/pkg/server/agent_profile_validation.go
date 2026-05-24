@@ -10,7 +10,6 @@ import (
 
 type agentPluginValidationCatalog struct {
 	tools            map[string]struct{}
-	providers        map[string]struct{}
 	services         map[string]struct{}
 	serviceFunctions map[string]struct{}
 }
@@ -18,7 +17,6 @@ type agentPluginValidationCatalog struct {
 func newAgentPluginValidationCatalog(installed []pluginmanager.InstalledPlugin) agentPluginValidationCatalog {
 	catalog := agentPluginValidationCatalog{
 		tools:            make(map[string]struct{}),
-		providers:        make(map[string]struct{}),
 		services:         make(map[string]struct{}),
 		serviceFunctions: make(map[string]struct{}),
 	}
@@ -29,8 +27,6 @@ func newAgentPluginValidationCatalog(installed []pluginmanager.InstalledPlugin) 
 		switch item.Manifest.Type {
 		case plugin.TypeTool:
 			catalog.tools[item.Manifest.Name] = struct{}{}
-		case plugin.TypeProvider:
-			catalog.providers[item.Manifest.Name] = struct{}{}
 		case plugin.TypeService:
 			catalog.services[item.Manifest.Name] = struct{}{}
 			if item.Manifest.Service == nil {
@@ -103,10 +99,8 @@ func validateProviderRef(owner, provider string, catalog agentPluginValidationCa
 	if provider == "" || provider == "noop" {
 		return nil
 	}
-	if _, ok := catalog.providers[provider]; !ok {
-		if _, hasGateway := catalog.services["gateway"]; !hasGateway {
-			return fmt.Errorf("%s model provider %q is not installed and gateway service is unavailable", owner, provider)
-		}
+	if _, hasGateway := catalog.services["gateway"]; !hasGateway {
+		return fmt.Errorf("%s model provider %q requires the gateway service", owner, provider)
 	}
 	return nil
 }

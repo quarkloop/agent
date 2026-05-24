@@ -5,7 +5,7 @@ agent-facing model boundary. It owns Bifrost lifecycle, provider routing,
 fallback policy, embeddings, reranking, token counting, provider health, and
 redacted usage accounting.
 
-Runtime and agents must not call provider plugins directly. They call Gateway
+Runtime and agents must not call provider adapters directly. They call Gateway
 through NATS service-function subjects, and Gateway performs provider-specific
 work internally.
 

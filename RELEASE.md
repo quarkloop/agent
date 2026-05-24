@@ -14,7 +14,7 @@ The gate verifies:
 - Go 1.26 is active,
 - formatting, vet, unit tests, architecture boundaries, and dead-code checks,
 - generated protobuf/service API output is current,
-- CLI, supervisor, runtime, tool plugins, provider plugins, and services build,
+- CLI, supervisor, runtime, tool plugins, and services build,
 - the local deterministic E2E subset passes.
 
 ## Provider-Backed Gate

@@ -6,7 +6,7 @@
 //   - cli mode: plugins invoked as CLI subprocess per call
 //
 // All plugins implement the base Plugin interface. Type-specific interfaces
-// (ToolPlugin, ProviderPlugin) extend this for specialized functionality.
+// such as ToolPlugin extend this for specialized functionality.
 package plugin
 
 import "context"
@@ -15,11 +15,10 @@ import "context"
 type PluginType string
 
 const (
-	TypeTool     PluginType = "tool"
-	TypeProvider PluginType = "provider"
-	TypeAgent    PluginType = "agent"
-	TypeSkill    PluginType = "skill"
-	TypeService  PluginType = "service"
+	TypeTool    PluginType = "tool"
+	TypeAgent   PluginType = "agent"
+	TypeSkill   PluginType = "skill"
+	TypeService PluginType = "service"
 )
 
 // PluginMode indicates how the plugin is loaded.
@@ -40,7 +39,7 @@ type Plugin interface {
 	// Version returns the semantic version string.
 	Version() string
 
-	// Type returns the plugin type (tool, provider, agent, skill, service).
+	// Type returns the plugin type (tool, agent, skill, service).
 	Type() PluginType
 
 	// Initialize is called after loading to set up the plugin.

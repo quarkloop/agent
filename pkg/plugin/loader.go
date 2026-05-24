@@ -43,7 +43,7 @@ func NewLoader(pluginsDir string) *Loader {
 // Discover scans the plugins directory and returns all valid manifests.
 func (l *Loader) Discover() ([]*Manifest, error) {
 	var manifests []*Manifest
-	for _, dir := range []string{"tools", "providers", "agents", "skills", "services"} {
+	for _, dir := range []string{"tools", "agents", "skills", "services"} {
 		manifests = append(manifests, l.discoverDir(filepath.Join(l.pluginsDir, dir))...)
 	}
 
@@ -75,8 +75,6 @@ func (l *Loader) PluginDir(manifest *Manifest) string {
 	switch manifest.Type {
 	case TypeTool:
 		return filepath.Join(l.pluginsDir, "tools", manifest.Name)
-	case TypeProvider:
-		return filepath.Join(l.pluginsDir, "providers", manifest.Name)
 	case TypeAgent:
 		return filepath.Join(l.pluginsDir, "agents", manifest.Name)
 	case TypeSkill:

@@ -10,7 +10,7 @@ import (
 
 func TestAgentPluginValidationAcceptsConcreteInstalledContracts(t *testing.T) {
 	installed := validationInstalledPlugins(
-		validationProvider("openrouter"),
+		validationService("gateway", "gateway_StreamGenerate"),
 		validationService("io", "io_Read"),
 		validationService("indexer", "indexer_QueryContext"),
 		validationAgent("quark-knowledge", nil, []string{"io_Read", "indexer_QueryContext"}),
@@ -107,7 +107,7 @@ func TestAgentPluginValidationRejectsMissingServiceFunction(t *testing.T) {
 	}
 }
 
-func TestAgentPluginValidationRejectsMissingServiceAndProvider(t *testing.T) {
+func TestAgentPluginValidationRejectsMissingServiceAndGateway(t *testing.T) {
 	installed := validationInstalledPlugins(validationService("indexer", "indexer_QueryContext"))
 	catalog := newAgentPluginValidationCatalog(installed)
 	entries := []runtimePluginCatalogEntry{{
@@ -125,10 +125,10 @@ func TestAgentPluginValidationRejectsMissingServiceAndProvider(t *testing.T) {
 
 	err := validateRuntimeAgentProfiles(entries, catalog)
 	if err == nil || !strings.Contains(err.Error(), "openrouter") {
-		t.Fatalf("expected missing provider error first, got: %v", err)
+		t.Fatalf("expected missing gateway error first, got: %v", err)
 	}
 
-	installed = append(installed, validationProvider("openrouter"))
+	installed = append(installed, validationService("gateway", "gateway_StreamGenerate"))
 	catalog = newAgentPluginValidationCatalog(installed)
 	err = validateRuntimeAgentProfiles(entries, catalog)
 	if err == nil || !strings.Contains(err.Error(), "io_Read") {
@@ -171,10 +171,6 @@ func TestAgentPluginValidationRejectsWildcardServicePermissions(t *testing.T) {
 
 func validationInstalledPlugins(items ...pluginmanager.InstalledPlugin) []pluginmanager.InstalledPlugin {
 	return items
-}
-
-func validationProvider(name string) pluginmanager.InstalledPlugin {
-	return pluginmanager.InstalledPlugin{Manifest: &plugin.Manifest{Name: name, Type: plugin.TypeProvider}}
 }
 
 func validationService(name string, functions ...string) pluginmanager.InstalledPlugin {

@@ -5,9 +5,9 @@ import "context"
 // ToolHandler executes a tool call and returns the result string.
 type ToolHandler func(ctx context.Context, name, arguments string) (string, error)
 
-// Provider is the minimal interface for LLM API providers.
-// It is a reduced subset of ProviderPlugin that excludes lifecycle
-// methods (Configure, Shutdown) and metadata (ProviderID, ListModels).
+// Provider is the minimal runtime-facing interface for model adapters. Product
+// provider access is owned by Gateway; runtime uses this interface for the
+// Gateway client adapter.
 type Provider interface {
 	// ChatCompletionStream sends a streaming chat completion request.
 	ChatCompletionStream(ctx context.Context, req *ChatRequest) (<-chan StreamEvent, error)
@@ -88,44 +88,4 @@ type ModelInfo struct {
 	Name          string `json:"name" yaml:"name"`
 	ContextWindow int    `json:"context_window" yaml:"context_window"`
 	Default       bool   `json:"default,omitempty" yaml:"default,omitempty"`
-}
-
-// ProviderConfig holds configuration for a provider plugin.
-type ProviderConfig struct {
-	APIKey    string            `json:"api_key"`
-	BaseURL   string            `json:"base_url,omitempty"`
-	ExtraOpts map[string]string `json:"extra_opts,omitempty"`
-}
-
-// ProviderPlugin extends Plugin for LLM API providers.
-// Providers handle communication with LLM services like OpenAI, Anthropic, OpenRouter.
-type ProviderPlugin interface {
-	Plugin
-
-	// ProviderID returns the unique provider identifier (e.g., "openrouter", "openai").
-	ProviderID() string
-
-	// Configure sets provider-specific configuration (API keys, base URLs).
-	Configure(config ProviderConfig) error
-
-	// ListModels returns available models from this provider.
-	ListModels(ctx context.Context) ([]ModelInfo, error)
-
-	// ChatCompletionStream sends a streaming chat completion request.
-	ChatCompletionStream(ctx context.Context, req *ChatRequest) (<-chan StreamEvent, error)
-
-	// ParseToolCalls extracts tool calls from content (for non-native tool calling).
-	// Returns the extracted tool calls and the remaining content.
-	ParseToolCalls(content string) ([]ToolCall, string)
-}
-
-// ProviderManifestConfig holds provider-specific configuration from the manifest.
-type ProviderManifestConfig struct {
-	APIBase             string      `yaml:"api_base"`
-	AuthEnv             string      `yaml:"auth_env"` // Environment variable for API key
-	ModelsEndpoint      string      `yaml:"models_endpoint,omitempty"`
-	SupportsNativeTools bool        `yaml:"supports_native_tools"`
-	SupportsStreaming   bool        `yaml:"supports_streaming"`
-	DefaultModel        string      `yaml:"default_model,omitempty"`
-	Models              []ModelInfo `yaml:"models,omitempty"` // Static model list
 }

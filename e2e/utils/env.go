@@ -57,19 +57,19 @@ type RuntimeSetup struct {
 }
 
 // installSpacePlugins populates the space's plugins directory with the
-// plugin manifests and their pre-built artifacts (tool binaries and provider
-// .so files). The agent's api-mode loader detects the co-located binary
-// and runs it directly; there is no runtime `go build`.
+// plugin manifests and their pre-built artifacts. The agent's api-mode loader
+// detects a co-located binary for tool plugins and runs it directly; there is
+// no runtime `go build`.
 //
-// Pre-built artifacts come from BuildAllOnce (tool binaries) and the
+// Pre-built artifacts come from BuildAllOnce.
 type StartOptions struct {
 	// ForceBinaryTools, when true, omits the tool plugin.so files from the
 	// installed space so the agent's pluginmanager must fall back to
 	// api-mode loading. Used to test binary fallback end-to-end.
 	ForceBinaryTools bool
-	// DisableServiceDiscovery keeps legacy provider/tool E2Es focused on plugin
-	// behavior instead of adding generated service functions from the runtime
-	// service catalog.
+	// DisableServiceDiscovery keeps legacy tool E2Es focused on plugin behavior
+	// instead of adding generated service functions from the runtime service
+	// catalog.
 	DisableServiceDiscovery bool
 	// DisableKnowledgeServices omits the default indexer and embedding service
 	// declarations for non-Knowledge e2e flows.
@@ -90,7 +90,7 @@ type StartOptions struct {
 	ExtraServicePlugins []string
 	// Agents declares agent profile plugins that should be installed and
 	// enabled through the Quarkfile. When empty, tests use the runtime fallback
-	// profile so legacy tool/provider E2Es stay focused.
+	// profile so legacy tool E2Es stay focused.
 	Agents []string
 	// AgentServicePermissions narrows an installed agent profile to the named
 	// service functions through the Quarkfile override layer.

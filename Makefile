@@ -6,9 +6,6 @@ LDFLAGS := -X github.com/quarkloop/cli/pkg/buildinfo.Version=$(VERSION)
 # Tool plugins
 TOOLS :=
 
-# Provider plugins
-PROVIDERS := openrouter openai anthropic
-
 # All modules for testing/vetting; e2e is tested separately.
 MODULES := \
 		supervisor \
@@ -31,22 +28,19 @@ MODULES := \
 		services/space \
 		services/system \
 		services/workflow \
-		services/io \
-		plugins/providers/openrouter \
-		plugins/providers/openai \
-		plugins/providers/anthropic
+		services/io
 
 .PHONY: all build clean test test-e2e test-e2e-local vet fmt fmt-check tidy proto arch-check boundary-check service-inventory service-inventory-check dead-code-check check release-check \
 		build-supervisor build-runtime build-cli \
-		build-plugins build-tools build-tools-lib build-providers build-services
+		build-plugins build-tools build-tools-lib build-services
 
 all: build
 
 ## Build all binaries
 build: build-supervisor build-runtime build-cli build-tools build-services
 
-## Build all plugins (tools as binary + lib, providers as lib)
-build-plugins: build-tools build-tools-lib build-providers
+## Build all plugins
+build-plugins: build-tools build-tools-lib
 
 ## Build tool plugins as binaries
 build-tools:
@@ -102,15 +96,6 @@ build-tools-lib:
 			fi; \
 		done
 
-## Build provider plugins as .so files (requires CGO)
-build-providers:
-		@for provider in $(PROVIDERS); do \
-			echo "--- Building provider: $$provider ---"; \
-			CGO_ENABLED=1 go build -buildmode=plugin -tags plugin \
-				-o $(PLUGIN_DIR)/providers/$$provider/plugin.so \
-				./$(PLUGIN_DIR)/providers/$$provider; \
-		done
-
 build-supervisor:
 		go build -o $(BINARY_DIR)/supervisor ./supervisor/cmd/supervisor
 
@@ -124,15 +109,11 @@ build-cli:
 proto:
 		buf generate
 
-## Run tests across all modules (providers are tested under the `plugin` build
-## tag since all their sources are gated on it)
+## Run tests across all modules.
 test:
 		@set -e; for mod in $(MODULES); do \
 			echo "--- Testing $$mod ---"; \
-			case $$mod in \
-				plugins/providers/*) (cd $$mod && go test -tags plugin ./...);; \
-				*) (cd $$mod && go test ./...);; \
-			esac; \
+			(cd $$mod && go test ./...); \
 		done
 
 ## Run local deterministic E2E tests that do not require provider credentials
@@ -167,10 +148,7 @@ dead-code-check:
 		@command -v staticcheck >/dev/null || { echo "staticcheck is required for dead-code-check"; exit 1; }
 		@set -e; for mod in $(MODULES); do \
 			echo "--- Dead-code check $$mod ---"; \
-			case $$mod in \
-				plugins/providers/*) (cd $$mod && staticcheck -tags plugin -checks=U1000 ./...);; \
-				*) (cd $$mod && staticcheck -checks=U1000 ./...);; \
-			esac; \
+			(cd $$mod && staticcheck -checks=U1000 ./...); \
 		done
 		@echo "--- Dead-code check e2e ---"
 		@(cd e2e && staticcheck -tags e2e -checks=U1000 ./...)
@@ -188,15 +166,11 @@ release-check:
 		$(MAKE) test-e2e-local
 		@echo "release-check complete. Run provider-backed make test-e2e before release candidates when credentials/quota are available."
 
-## Run vet across all modules (providers are vetted under the `plugin` build
-## tag since all their sources are gated on it)
+## Run vet across all modules.
 vet:
 		@set -e; for mod in $(MODULES); do \
 			echo "--- Vetting $$mod ---"; \
-			case $$mod in \
-				plugins/providers/*) (cd $$mod && go vet -tags plugin ./...);; \
-				*) (cd $$mod && go vet ./...);; \
-			esac; \
+			(cd $$mod && go vet ./...); \
 		done
 
 ## Run gofmt across all modules
@@ -220,14 +194,11 @@ tidy:
 			(cd $$mod && go mod tidy); \
 		done
 
-## Run staticcheck across all modules (providers linted under the `plugin` tag)
+## Run staticcheck across all modules.
 lint:
 		@issues=0; for mod in $(MODULES); do \
 			echo "--- Linting $$mod ---"; \
-			case $$mod in \
-				plugins/providers/*) out=$$(cd $$mod && staticcheck -tags plugin ./... 2>&1 | grep -v "^-");; \
-				*) out=$$(cd $$mod && staticcheck ./... 2>&1 | grep -v "^-");; \
-			esac; \
+			out=$$(cd $$mod && staticcheck ./... 2>&1 | grep -v "^-"); \
 			if [ -n "$$out" ]; then echo "$$out"; issues=1; fi; \
 		done; exit $$issues
 

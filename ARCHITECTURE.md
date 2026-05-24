@@ -20,7 +20,7 @@ catalog generation, and runtime lifecycle.
 
 The runtime is launched by the supervisor. It consumes supervisor-resolved
 plugin and service catalogs, executes the selected agent profile, manages
-sessions, assembles prompts, calls the model service/provider path, dispatches
+sessions, assembles prompts, calls the Gateway model path, dispatches
 tools and service functions, and emits activity.
 
 The CLI is a thin HTTP client. It reads or writes only the local `Quarkfile` and
@@ -33,7 +33,6 @@ delegates everything else to the supervisor or the resolved runtime.
 | `tool` | Executable/lib-mode tools for agent-callable local operations when a service boundary is not the right owner. |
 | `service` | NATS service binaries and plugin descriptors (`io`, `document`, `indexer`, …) with `SKILL.md`, readiness rules, and service function metadata. |
 | `agent` | Agent profile, system prompt, skills, permissions, handoff rules, and eval expectations. |
-| `provider` | Model provider adapters, migrating behind the model service boundary. |
 | `skill` | Guidance-only extension content. |
 
 Agent prompts and personalities belong to agent plugins, not runtime source

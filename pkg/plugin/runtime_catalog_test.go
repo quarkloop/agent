@@ -18,11 +18,6 @@ func TestRuntimeCatalogValidate(t *testing.T) {
 			},
 		},
 		{
-			Name: "openrouter",
-			Type: plugin.TypeProvider,
-			Path: "/tmp/openrouter",
-		},
-		{
 			Name: "quark-knowledge",
 			Type: plugin.TypeAgent,
 			Path: "/tmp/quark-knowledge",
