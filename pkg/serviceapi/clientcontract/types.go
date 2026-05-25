@@ -260,6 +260,52 @@ type ServiceDoctorResponse struct {
 	Issues   []string      `json:"issues,omitempty"`
 }
 
+type AuditGetRequest struct {
+	SpaceID     string `json:"space_id"`
+	ReferenceID string `json:"reference_id"`
+}
+
+type AuditListRequest struct {
+	SpaceID   string `json:"space_id"`
+	SessionID string `json:"session_id,omitempty"`
+	RunID     string `json:"run_id,omitempty"`
+	Service   string `json:"service,omitempty"`
+	Function  string `json:"function,omitempty"`
+	Limit     int    `json:"limit,omitempty"`
+	Cursor    uint64 `json:"cursor,omitempty"`
+}
+
+type AuditRecord struct {
+	Sequence           uint64 `json:"sequence"`
+	ServiceCallID      string `json:"service_call_id"`
+	ReferenceID        string `json:"reference_id"`
+	AuditRef           string `json:"audit_ref"`
+	SpaceID            string `json:"space_id,omitempty"`
+	SessionID          string `json:"session_id,omitempty"`
+	RunID              string `json:"run_id,omitempty"`
+	WorkflowID         string `json:"workflow_id,omitempty"`
+	AgentID            string `json:"agent_id,omitempty"`
+	Service            string `json:"service"`
+	Function           string `json:"function"`
+	Subject            string `json:"subject"`
+	Status             string `json:"status"`
+	ErrorCategory      string `json:"error_category,omitempty"`
+	DurationMillis     int64  `json:"duration_millis"`
+	TraceID            string `json:"trace_id,omitempty"`
+	RetentionExpiresAt string `json:"retention_expires_at"`
+	RecordedAt         string `json:"recorded_at"`
+}
+
+type AuditListResponse struct {
+	Records    []AuditRecord `json:"records"`
+	NextCursor uint64        `json:"next_cursor,omitempty"`
+}
+
+type AuditRetentionResponse struct {
+	MaxAgeSeconds int64 `json:"max_age_seconds"`
+	MaxMessages   int64 `json:"max_messages"`
+}
+
 type PluginInfo struct {
 	Name        string `json:"name"`
 	Version     string `json:"version"`

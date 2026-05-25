@@ -40,6 +40,12 @@ type SpaceBootstrapper interface {
 	BootstrapSpace(ctx context.Context, spaceID string) error
 }
 
+type AuditReader interface {
+	GetAuditRecord(ctx context.Context, spaceID, referenceID string) (natshub.StoredAuditRecord, error)
+	ListAuditRecords(ctx context.Context, filter natshub.AuditFilter) (natshub.AuditPage, error)
+	AuditRetention() natshub.AuditRetention
+}
+
 type Option func(*Server)
 
 func WithServiceInspector(inspector ServiceInspector) Option {
@@ -66,6 +72,12 @@ func WithSpaceBootstrapper(bootstrapper SpaceBootstrapper) Option {
 	}
 }
 
+func WithAuditReader(reader AuditReader) Option {
+	return func(s *Server) {
+		s.auditReader = reader
+	}
+}
+
 type Server struct {
 	client            *natskit.Client
 	url               string
@@ -76,6 +88,7 @@ type Server struct {
 	serviceInspector  ServiceInspector
 	catalogResolver   CatalogResolver
 	spaceBootstrapper SpaceBootstrapper
+	auditReader       AuditReader
 	subs              []*natskit.Subscription
 }
 
@@ -107,6 +120,7 @@ func Start(ctx context.Context, cfg Config, store space.Store, bus *events.Bus, 
 		events:           bus,
 		provisioner:      provisioner,
 		credentialIssuer: credentialIssuerFromProvisioner(provisioner),
+		auditReader:      auditReaderFromProvisioner(provisioner),
 	}
 	for _, opt := range opts {
 		opt(server)
@@ -121,6 +135,11 @@ func Start(ctx context.Context, cfg Config, store space.Store, bus *events.Bus, 
 func credentialIssuerFromProvisioner(provisioner SpaceProvisioner) CredentialIssuer {
 	issuer, _ := provisioner.(CredentialIssuer)
 	return issuer
+}
+
+func auditReaderFromProvisioner(provisioner SpaceProvisioner) AuditReader {
+	reader, _ := provisioner.(AuditReader)
+	return reader
 }
 
 func (s *Server) Close() {
@@ -165,6 +184,9 @@ func (s *Server) subscribe() error {
 		clientcontract.SubjectServiceInspect:    s.inspectService,
 		clientcontract.SubjectServiceDoctor:     s.serviceDoctor,
 		clientcontract.SubjectCatalogRuntimeGet: s.runtimeCatalog,
+		clientcontract.SubjectAuditGet:          s.getAuditRecord,
+		clientcontract.SubjectAuditList:         s.listAuditRecords,
+		clientcontract.SubjectAuditRetention:    s.auditRetention,
 	}
 	for subject, handler := range handlers {
 		subject := subject
@@ -201,7 +223,7 @@ func (s *Server) handle(msg natskit.Message, handler func(clientcontract.Request
 
 func errorCategory(operation string, err error) boundary.Category {
 	switch {
-	case spacestore.IsNotFound(err), errors.Is(err, sessions.ErrNotFound):
+	case spacestore.IsNotFound(err), errors.Is(err, sessions.ErrNotFound), errors.Is(err, natshub.ErrAuditRecordNotFound):
 		return boundary.NotFound
 	case errors.Is(err, spacestore.ErrAlreadyExists):
 		return boundary.Conflict

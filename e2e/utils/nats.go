@@ -88,6 +88,18 @@ func createSpace(t *testing.T, endpoints NATSEndpoints, req clientcontract.Creat
 	return requestNATSPayload[clientcontract.SpaceInfo](t, control, clientcontract.SubjectSpaceCreate, req.Name, req)
 }
 
+// GetAuditRecord reads redacted service-call metadata through the supervisor
+// control operation. Tests must not inspect the audit JetStream directly.
+func GetAuditRecord(t *testing.T, env *E2EEnv, referenceID string) clientcontract.AuditRecord {
+	t.Helper()
+	control := connectControlNATS(t, env.NATS)
+	defer control.Close()
+	return requestNATSPayload[clientcontract.AuditRecord](t, control, clientcontract.SubjectAuditGet, env.Space, clientcontract.AuditGetRequest{
+		SpaceID:     env.Space,
+		ReferenceID: referenceID,
+	})
+}
+
 func CreateSession(t *testing.T, env *E2EEnv, sessionType clientcontract.SessionType, title string) clientcontract.SessionInfo {
 	t.Helper()
 	control := connectControlNATS(t, env.NATS)

@@ -62,7 +62,7 @@ func TestIndexerServiceWithRealDgraph(t *testing.T) {
 	}
 
 	var contextResp indexerv1.ContextResponse
-	requestServiceFunction(t, ctx, conn, env.Space, "indexer", "get_context", &indexerv1.QueryRequest{
+	queryCall := requestServiceFunction(t, ctx, conn, env.Space, "indexer", "get_context", &indexerv1.QueryRequest{
 		QueryVector: []float32{1, 0, 0},
 		Limit:       5,
 		Depth:       2,
@@ -77,9 +77,13 @@ func TestIndexerServiceWithRealDgraph(t *testing.T) {
 	if !strings.Contains(contextResp.GetReasoningContext(), "USES") {
 		t.Fatalf("context missing graph relation: %q", contextResp.GetReasoningContext())
 	}
+	audit := utils.GetAuditRecord(t, env, queryCall.ReferenceID)
+	if audit.ReferenceID != queryCall.ReferenceID || audit.Service != "indexer" || audit.Function != "get_context" || audit.Status != "ok" {
+		t.Fatalf("query audit record = %+v", audit)
+	}
 }
 
-func requestServiceFunction(t *testing.T, ctx context.Context, conn *natskit.Client, spaceID, service, function string, req proto.Message, resp proto.Message) {
+func requestServiceFunction(t *testing.T, ctx context.Context, conn *natskit.Client, spaceID, service, function string, req proto.Message, resp proto.Message) natskit.ResponseEnvelope {
 	t.Helper()
 	payload, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(req)
 	if err != nil {
@@ -108,4 +112,5 @@ func requestServiceFunction(t *testing.T, ctx context.Context, conn *natskit.Cli
 	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(out.Payload, resp); err != nil {
 		t.Fatalf("decode service payload: %v", err)
 	}
+	return out
 }

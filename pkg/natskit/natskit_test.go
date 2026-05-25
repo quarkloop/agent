@@ -258,6 +258,15 @@ func TestAuditWritesAcknowledgedRecordWithoutContent(t *testing.T) {
 	}
 }
 
+func TestAuditRecordCollectionSubjectPreservesWildcardSemantics(t *testing.T) {
+	if got, want := ServiceCallRecordsSubject("audit", "Space One"), "audit.space_one.service_calls.>"; got != want {
+		t.Fatalf("collection subject = %q, want %q", got, want)
+	}
+	if got, want := ServiceCallRecordSubject("audit", "Space One", "Ref One"), "audit.space_one.service_calls.ref_one"; got != want {
+		t.Fatalf("record subject = %q, want %q", got, want)
+	}
+}
+
 func TestKeyValueWrapsRevisionAndConflictSemantics(t *testing.T) {
 	server := startNATS(t, true)
 	client, err := Connect(context.Background(), Config{URL: server.ClientURL(), Name: "kv-client"})

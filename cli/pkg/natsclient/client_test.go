@@ -90,13 +90,13 @@ func TestClientReportsPermissionDeniedRequest(t *testing.T) {
 	}
 	defer client.Close()
 
-	req, err := clientcontract.NewRequest("req-1", "docs", struct{}{})
+	req, err := clientcontract.NewRequest("req-1", "docs", clientcontract.AuditListRequest{SpaceID: "docs"})
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
-	if _, err := client.Request(ctx, clientcontract.SubjectSpaceList, req); err == nil {
+	if _, err := client.Request(ctx, clientcontract.SubjectAuditList, req); err == nil {
 		t.Fatal("expected denied request error")
 	}
 	select {
@@ -326,6 +326,27 @@ func TestTypedControlMethodsUseNATSContracts(t *testing.T) {
 	if len(serviceDoctor.Services) != 1 {
 		t.Fatalf("service doctor = %#v", serviceDoctor)
 	}
+	auditRecord, err := client.GetAuditRecord(context.Background(), "docs", "ref-1")
+	if err != nil {
+		t.Fatalf("audit get: %v", err)
+	}
+	if auditRecord.ReferenceID != "ref-1" || auditRecord.Service != "indexer" {
+		t.Fatalf("audit record = %#v", auditRecord)
+	}
+	auditPage, err := client.ListAuditRecords(context.Background(), clientcontract.AuditListRequest{SpaceID: "docs", RunID: "run-1", Limit: 10})
+	if err != nil {
+		t.Fatalf("audit list: %v", err)
+	}
+	if len(auditPage.Records) != 1 || auditPage.NextCursor != 7 {
+		t.Fatalf("audit page = %#v", auditPage)
+	}
+	retention, err := client.AuditRetention(context.Background())
+	if err != nil {
+		t.Fatalf("audit retention: %v", err)
+	}
+	if retention.MaxMessages != 1000 {
+		t.Fatalf("audit retention = %#v", retention)
+	}
 }
 
 func startHub(t *testing.T) *natshub.Hub {
@@ -499,6 +520,23 @@ func registerTypedControlResponders(t *testing.T, responder *nats.Conn, hub *nat
 			return clientcontract.ServiceDoctorResponse{Services: []clientcontract.ServiceInfo{{
 				Name: "indexer", Status: clientcontract.ServiceStatusReady, Version: "1.0.0",
 			}}}
+		},
+		clientcontract.SubjectAuditGet: func(req clientcontract.RequestEnvelope) any {
+			var payload clientcontract.AuditGetRequest
+			if err := req.DecodePayload(&payload); err != nil {
+				t.Errorf("decode audit get: %v", err)
+			}
+			return clientcontract.AuditRecord{ReferenceID: payload.ReferenceID, SpaceID: payload.SpaceID, Service: "indexer", Function: "get_context", Status: "ok"}
+		},
+		clientcontract.SubjectAuditList: func(req clientcontract.RequestEnvelope) any {
+			var payload clientcontract.AuditListRequest
+			if err := req.DecodePayload(&payload); err != nil {
+				t.Errorf("decode audit list: %v", err)
+			}
+			return clientcontract.AuditListResponse{Records: []clientcontract.AuditRecord{{Sequence: 7, SpaceID: payload.SpaceID, RunID: payload.RunID, ReferenceID: "ref-1"}}, NextCursor: 7}
+		},
+		clientcontract.SubjectAuditRetention: func(clientcontract.RequestEnvelope) any {
+			return clientcontract.AuditRetentionResponse{MaxAgeSeconds: 3600, MaxMessages: 1000}
 		},
 	}
 	for subject, buildPayload := range responders {

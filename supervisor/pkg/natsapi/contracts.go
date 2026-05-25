@@ -56,3 +56,37 @@ func toContractCredential(url string, credential natshub.Credential) clientcontr
 		AgentID:   credential.AgentID,
 	}
 }
+
+func toContractAuditRecord(record natshub.StoredAuditRecord) clientcontract.AuditRecord {
+	return clientcontract.AuditRecord{
+		Sequence:           record.Sequence,
+		ServiceCallID:      record.ServiceCallID,
+		ReferenceID:        record.ReferenceID,
+		AuditRef:           record.AuditRef,
+		SpaceID:            record.SpaceID,
+		SessionID:          record.SessionID,
+		RunID:              record.RunID,
+		WorkflowID:         record.WorkflowID,
+		AgentID:            record.AgentID,
+		Service:            record.Service,
+		Function:           record.Function,
+		Subject:            record.Subject,
+		Status:             record.Status,
+		ErrorCategory:      record.ErrorCategory,
+		DurationMillis:     record.DurationMillis,
+		TraceID:            record.TraceID,
+		RetentionExpiresAt: record.RetentionExpiresAt,
+		RecordedAt:         record.RecordedAt,
+	}
+}
+
+func toContractAuditPage(page natshub.AuditPage) clientcontract.AuditListResponse {
+	out := clientcontract.AuditListResponse{
+		Records:    make([]clientcontract.AuditRecord, 0, len(page.Records)),
+		NextCursor: page.NextCursor,
+	}
+	for _, record := range page.Records {
+		out.Records = append(out.Records, toContractAuditRecord(record))
+	}
+	return out
+}

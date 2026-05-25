@@ -148,6 +148,24 @@ func (r *Recorder) Record(req RequestEnvelope, operation Operation, resp Respons
 }
 
 func ServiceCallRecordSubject(prefix, spaceID, referenceID string) string {
+	base := serviceCallRecordPrefix(prefix, spaceID)
+	if base == "" {
+		return ""
+	}
+	return base + "." + stableToken(referenceID)
+}
+
+// ServiceCallRecordsSubject is the durable collection subject for a space's
+// service-call audit events. It is used by storage owners, never by callers.
+func ServiceCallRecordsSubject(prefix, spaceID string) string {
+	base := serviceCallRecordPrefix(prefix, spaceID)
+	if base == "" {
+		return ""
+	}
+	return base + ".>"
+}
+
+func serviceCallRecordPrefix(prefix, spaceID string) string {
 	prefix = strings.Trim(strings.TrimSpace(prefix), ".")
 	if prefix == "" {
 		return ""
@@ -156,8 +174,7 @@ func ServiceCallRecordSubject(prefix, spaceID, referenceID string) string {
 	if space == "" {
 		space = "unknown"
 	}
-	reference := stableToken(referenceID)
-	return prefix + "." + space + ".service_calls." + reference
+	return prefix + "." + space + ".service_calls"
 }
 
 func snapshotMetadata(raw json.RawMessage, maxBytes int) json.RawMessage {

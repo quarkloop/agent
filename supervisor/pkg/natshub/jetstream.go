@@ -27,6 +27,7 @@ type streamSpec struct {
 	Retention   nats.RetentionPolicy
 	MaxAge      time.Duration
 	MaxMsgs     int64
+	AllowDirect bool
 }
 
 type kvSpec struct {
@@ -44,6 +45,7 @@ func controlStreams(cfg JetStreamConfig) []streamSpec {
 			Retention:   nats.LimitsPolicy,
 			MaxAge:      cfg.AuditRetention,
 			MaxMsgs:     cfg.AuditMaxMessages,
+			AllowDirect: true,
 		},
 		{
 			Name:        StreamTelemetry,
@@ -190,6 +192,7 @@ func ensureStream(js nats.JetStreamContext, spec streamSpec) error {
 		MaxAge:      spec.MaxAge,
 		MaxMsgs:     spec.MaxMsgs,
 		Duplicates:  2 * time.Minute,
+		AllowDirect: spec.AllowDirect,
 	}
 	if _, err := js.StreamInfo(spec.Name); err == nil {
 		if _, err := js.UpdateStream(cfg); err != nil {

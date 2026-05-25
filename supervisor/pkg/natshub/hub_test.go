@@ -2,6 +2,8 @@ package natshub
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +12,7 @@ import (
 
 	natsserver "github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
+	"github.com/quarkloop/pkg/natskit"
 )
 
 func TestHubStartsAcceptsConnectionAndStops(t *testing.T) {
@@ -118,6 +121,59 @@ func TestHubProvisionsControlStreamsAndCoordinationBuckets(t *testing.T) {
 	}
 	if info.State.Msgs == 0 {
 		t.Fatal("audit stream did not store published event")
+	}
+	if !info.Config.AllowDirect {
+		t.Fatal("audit stream does not permit indexed direct retrieval")
+	}
+}
+
+func TestHubRetrievesAndFiltersAuditRecords(t *testing.T) {
+	hub := startTestHub(t)
+	control, err := hub.ControlCredential()
+	if err != nil {
+		t.Fatalf("control credential: %v", err)
+	}
+	nc := connectWithCredential(t, hub, control)
+	js, err := nc.JetStream()
+	if err != nil {
+		t.Fatalf("jetstream: %v", err)
+	}
+	for _, event := range []natskit.ServiceCallEvent{
+		{Type: "service_call", ReferenceID: "ref-one", AuditRef: "ref-one", ServiceCallID: "ref-one", SpaceID: "docs", SessionID: "chat-1", RunID: "run-1", Service: "indexer", Function: "get_context", Status: "ok"},
+		{Type: "service_call", ReferenceID: "ref-two", AuditRef: "ref-two", ServiceCallID: "ref-two", SpaceID: "docs", SessionID: "chat-2", RunID: "run-2", Service: "gateway", Function: "generate", Status: "ok"},
+	} {
+		data, err := json.Marshal(event)
+		if err != nil {
+			t.Fatalf("marshal event: %v", err)
+		}
+		if _, err := js.Publish(natskit.ServiceCallRecordSubject("audit", event.SpaceID, event.ReferenceID), data); err != nil {
+			t.Fatalf("publish event: %v", err)
+		}
+	}
+
+	record, err := hub.GetAuditRecord(context.Background(), "docs", "ref-one")
+	if err != nil {
+		t.Fatalf("get audit record: %v", err)
+	}
+	if record.ReferenceID != "ref-one" || record.Service != "indexer" {
+		t.Fatalf("record = %+v", record)
+	}
+	page, err := hub.ListAuditRecords(context.Background(), AuditFilter{SpaceID: "docs", Service: "gateway", Limit: 1})
+	if err != nil {
+		t.Fatalf("list audit records: %v", err)
+	}
+	if len(page.Records) != 1 || page.Records[0].ReferenceID != "ref-two" || page.NextCursor == 0 {
+		t.Fatalf("filtered page = %+v", page)
+	}
+	secondPage, err := hub.ListAuditRecords(context.Background(), AuditFilter{SpaceID: "docs", Cursor: page.NextCursor, Limit: 1})
+	if err != nil {
+		t.Fatalf("list next page: %v", err)
+	}
+	if len(secondPage.Records) != 0 {
+		t.Fatalf("next page = %+v", secondPage)
+	}
+	if _, err := hub.GetAuditRecord(context.Background(), "docs", "missing"); !errors.Is(err, ErrAuditRecordNotFound) {
+		t.Fatalf("missing record error = %v", err)
 	}
 }
 

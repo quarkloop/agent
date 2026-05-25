@@ -6,6 +6,9 @@ func TestClientSubjectsAreStable(t *testing.T) {
 	if SubjectSpaceCreate != "control.space.v1.create" {
 		t.Fatalf("space create subject = %q", SubjectSpaceCreate)
 	}
+	if SubjectAuditGet != "control.audit.v1.get" || SubjectAuditList != "control.audit.v1.list" {
+		t.Fatalf("audit subjects = %q, %q", SubjectAuditGet, SubjectAuditList)
+	}
 	subject, err := SessionInputSubject("Chat-01")
 	if err != nil {
 		t.Fatalf("session input subject: %v", err)

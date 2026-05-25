@@ -10,6 +10,7 @@ import (
 	natsserver "github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	event "github.com/quarkloop/pkg/event"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 	spacemodel "github.com/quarkloop/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/events"
@@ -196,6 +197,43 @@ func TestInvalidEnvelopeReturnsBoundaryError(t *testing.T) {
 	}
 }
 
+func TestAuditContractsUseSupervisorOwnedStore(t *testing.T) {
+	fixture := startFixture(t)
+	js, err := fixture.client.JetStream()
+	if err != nil {
+		t.Fatalf("jetstream: %v", err)
+	}
+	event := natskit.ServiceCallEvent{
+		Type: "service_call", ServiceCallID: "ref-1", ReferenceID: "ref-1", AuditRef: "ref-1",
+		SpaceID: "docs", SessionID: "session-1", RunID: "run-1", Service: "indexer",
+		Function: "get_context", Subject: "svc.indexer.v1.get_context", Status: "ok",
+	}
+	data, err := json.Marshal(event)
+	if err != nil {
+		t.Fatalf("marshal audit event: %v", err)
+	}
+	if _, err := js.Publish(natskit.ServiceCallRecordSubject("audit", "docs", "ref-1"), data); err != nil {
+		t.Fatalf("publish audit record: %v", err)
+	}
+
+	record := requestPayload[clientcontract.AuditRecord](t, fixture.client, clientcontract.SubjectAuditGet, clientcontract.AuditGetRequest{SpaceID: "docs", ReferenceID: "ref-1"})
+	if record.ReferenceID != "ref-1" || record.Service != "indexer" {
+		t.Fatalf("record = %+v", record)
+	}
+	page := requestPayload[clientcontract.AuditListResponse](t, fixture.client, clientcontract.SubjectAuditList, clientcontract.AuditListRequest{SpaceID: "docs", RunID: "run-1", Limit: 10})
+	if len(page.Records) != 1 || page.Records[0].Function != "get_context" {
+		t.Fatalf("page = %+v", page)
+	}
+	retention := requestPayload[clientcontract.AuditRetentionResponse](t, fixture.client, clientcontract.SubjectAuditRetention, struct{}{})
+	if retention.MaxAgeSeconds <= 0 || retention.MaxMessages <= 0 {
+		t.Fatalf("retention = %+v", retention)
+	}
+	resp := requestEnvelope(t, fixture.client, clientcontract.SubjectAuditGet, clientcontract.AuditGetRequest{SpaceID: "docs", ReferenceID: "missing"})
+	if resp.Error == nil || resp.Error.Category != "not_found" {
+		t.Fatalf("missing response = %+v", resp)
+	}
+}
+
 func TestCreateSpaceRunsRequiredPluginBootstrap(t *testing.T) {
 	bootstrapper := &recordingSpaceBootstrapper{}
 	fixture := startFixtureWithOptions(t, WithSpaceBootstrapper(bootstrapper))
@@ -308,6 +346,19 @@ func (fakeCatalogResolver) RuntimeCatalogSnapshot(context.Context, string) (clie
 
 func requestPayload[T any](t *testing.T, client *nats.Conn, subject string, payload any) T {
 	t.Helper()
+	resp := requestEnvelope(t, client, subject, payload)
+	if resp.Status != "ok" {
+		t.Fatalf("response error: %#v", resp.Error)
+	}
+	var out T
+	if err := resp.DecodePayload(&out); err != nil {
+		t.Fatalf("decode response payload: %v", err)
+	}
+	return out
+}
+
+func requestEnvelope(t *testing.T, client *nats.Conn, subject string, payload any) clientcontract.ResponseEnvelope {
+	t.Helper()
 	req, err := clientcontract.NewRequest("req-"+subject, "", payload)
 	if err != nil {
 		t.Fatalf("new request: %v", err)
@@ -327,14 +378,7 @@ func requestPayload[T any](t *testing.T, client *nats.Conn, subject string, payl
 	if err := resp.Validate(); err != nil {
 		t.Fatalf("validate response: %v", err)
 	}
-	if resp.Status != "ok" {
-		t.Fatalf("response error: %#v", resp.Error)
-	}
-	var out T
-	if err := resp.DecodePayload(&out); err != nil {
-		t.Fatalf("decode response payload: %v", err)
-	}
-	return out
+	return resp
 }
 
 func assertEvent(t *testing.T, events <-chan event.Event, want event.Kind) {

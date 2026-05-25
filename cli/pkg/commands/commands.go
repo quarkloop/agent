@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	activitycmd "github.com/quarkloop/cli/pkg/commands/activity"
+	auditcmd "github.com/quarkloop/cli/pkg/commands/audit"
 	chatcmd "github.com/quarkloop/cli/pkg/commands/chat"
 	configcmd "github.com/quarkloop/cli/pkg/commands/config"
 	doctorcmd "github.com/quarkloop/cli/pkg/commands/doctor"
@@ -41,6 +42,7 @@ func RegisterCommands(root *cobra.Command) {
 	addGroup("management", root,
 		plugincmd.NewPluginCommand(),
 		servicescmd.NewServicesCommand(),
+		auditcmd.NewAuditCommand(),
 	)
 }
 

@@ -14,6 +14,8 @@ x-service-defaults: &service-defaults
     QUARK_NATS_URL: nats://supervisor:4222
     QUARK_NATS_USER: quark-control
     QUARK_NATS_PASSWORD: quark-control-dev
+    QUARK_NATS_AUDIT_PREFIX: audit
+    QUARK_NATS_TELEMETRY_PREFIX: telemetry
 
 services:
   supervisor:

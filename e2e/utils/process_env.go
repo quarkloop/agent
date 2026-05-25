@@ -16,7 +16,14 @@ func SupervisorProcessEnv(overrides map[string]string) []string {
 // start helpers must pass provider keys explicitly when that service requires
 // provider access.
 func ServiceProcessEnv(overrides map[string]string, extraAllowed ...string) []string {
-	return constrainedProcessEnv(overrides, extraAllowed...)
+	values := map[string]string{
+		"QUARK_NATS_AUDIT_PREFIX":     "audit",
+		"QUARK_NATS_TELEMETRY_PREFIX": "telemetry",
+	}
+	for key, value := range overrides {
+		values[key] = value
+	}
+	return constrainedProcessEnv(values, extraAllowed...)
 }
 
 // RuntimeProcessEnv returns the constrained environment needed by a runtime
