@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/quarkloop/pkg/boundary"
+	event "github.com/quarkloop/pkg/event"
 	"github.com/quarkloop/pkg/plugin"
+	"github.com/quarkloop/runtime/pkg/channel"
 	"github.com/quarkloop/runtime/pkg/execution"
 	"github.com/quarkloop/runtime/pkg/hierarchy"
 	"github.com/quarkloop/runtime/pkg/message"
@@ -154,6 +156,39 @@ func TestAgentInitializesWorkflowStateStore(t *testing.T) {
 	a := newTestAgent(t)
 	if a.Workflows == nil {
 		t.Fatal("workflow store was not initialized")
+	}
+}
+
+func TestInitializationHandlersOwnModelAndChannelRegistration(t *testing.T) {
+	a := newTestAgent(t)
+	if err := a.handleInitLLM(context.Background(), InitLLMMsg{
+		Fallback:  []plugin.ModelEntry{{ID: "test-model", Provider: "test", Name: "test-model", Default: true}},
+		Providers: map[string]plugin.Provider{"test": staticProvider{reply: "ready"}},
+	}); err != nil {
+		t.Fatalf("initialize model: %v", err)
+	}
+	if a.Models.GetDefault() == nil {
+		t.Fatal("initialization did not register default model")
+	}
+	bus := channel.NewChannelBus()
+	if err := a.handleInitChannel(context.Background(), NewInitChannelMsg(bus)); err != nil {
+		t.Fatalf("initialize channel: %v", err)
+	}
+	if a.Bus != bus {
+		t.Fatal("initialization did not attach channel bus")
+	}
+}
+
+func TestSessionMirrorAppliesCreatedAndDeletedEvents(t *testing.T) {
+	a := newTestAgent(t)
+	a.applyEvent(event.Event{Kind: event.SessionCreated, Payload: []byte(`{"id":"chat-1","type":"chat","title":"Review"}`)})
+	session := a.Sessions.Get("chat-1")
+	if session == nil || session.Title() != "Review" {
+		t.Fatalf("mirrored session = %+v", session)
+	}
+	a.applyEvent(event.Event{Kind: event.SessionDeleted, Payload: []byte(`{"id":"chat-1"}`)})
+	if a.Sessions.Get("chat-1") != nil {
+		t.Fatal("deleted session remained in mirror")
 	}
 }
 
