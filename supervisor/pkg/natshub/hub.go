@@ -124,6 +124,10 @@ func (h *Hub) Start(ctx context.Context) error {
 			h.shutdownStartedServerLocked()
 			return err
 		}
+		if err := h.provisionSpaceRuntimeStreamsLocked(ctx, space); err != nil {
+			h.shutdownStartedServerLocked()
+			return err
+		}
 	}
 	for spaceID, routes := range h.imports {
 		space, ok := h.spaces[spaceID]
@@ -416,6 +420,12 @@ func (h *Hub) provisionSpaceLocked(spaceID string) (SpaceCredentials, error) {
 		if err := h.applyCatalogImportsLocked(accountName); err != nil {
 			return SpaceCredentials{}, err
 		}
+		ctx, cancel := context.WithTimeout(context.Background(), h.cfg.ReadyTimeout)
+		err := h.provisionSpaceRuntimeStreamsLocked(ctx, space)
+		cancel()
+		if err != nil {
+			return SpaceCredentials{}, err
+		}
 	} else {
 		h.cfg.Accounts = upsertAccountUsers(h.cfg.Accounts, AccountConfig{
 			Name: accountName,
@@ -474,6 +484,22 @@ func (h *Hub) registerCredentialLocked(credential Credential) error {
 	}
 	h.cfg.Accounts = appendUserToAccount(h.cfg.Accounts, credential.Account, userConfigFromCredential(credential))
 	return nil
+}
+
+// registerTransientCredentialLocked installs a supervisor-internal credential
+// for one running broker instance without turning it into public space state.
+func (h *Hub) registerTransientCredentialLocked(credential Credential) error {
+	if !h.started {
+		return errors.New("nats hub is not started")
+	}
+	account, err := h.accountLocked(credential.Account)
+	if err != nil {
+		return err
+	}
+	if h.credentials == nil {
+		h.credentials = newCredentialRegistry()
+	}
+	return h.credentials.add(account, credential)
 }
 
 func (h *Hub) applyServiceFunctionImportsLocked(spaceAccountName string, routes []ServiceFunctionRoute) error {

@@ -128,7 +128,8 @@ func PostMessageTraceWithOptions(t *testing.T, ctx context.Context, env *E2EEnv,
 	if err != nil {
 		t.Fatalf("session input subject: %v", err)
 	}
-	req, err := clientcontract.NewRequest("e2e-message-"+sessionID, env.Space, clientcontract.SendMessageRequest{
+	requestID := "e2e-message-" + sessionID
+	req, err := clientcontract.NewRequest(requestID, env.Space, clientcontract.SendMessageRequest{
 		SpaceID:   env.Space,
 		SessionID: sessionID,
 		Content:   content,
@@ -140,7 +141,7 @@ func PostMessageTraceWithOptions(t *testing.T, ctx context.Context, env *E2EEnv,
 		t.Fatalf("post message %s: %v\n%s", opts.Label, err, messageTraceDiagnostics(MessageTrace{}, opts))
 	}
 
-	trace, err := readNATSMessageTrace(reqCtx, events, opts)
+	trace, err := readNATSMessageTrace(reqCtx, events, opts, requestID)
 	if err != nil {
 		var rl rateLimitError
 		if AsRateLimitError(err, &rl) {
@@ -154,7 +155,7 @@ func PostMessageTraceWithOptions(t *testing.T, ctx context.Context, env *E2EEnv,
 	return trace
 }
 
-func readNATSMessageTrace(ctx context.Context, events <-chan clientcontract.SessionEvent, opts MessageTraceOptions) (MessageTrace, error) {
+func readNATSMessageTrace(ctx context.Context, events <-chan clientcontract.SessionEvent, opts MessageTraceOptions, requestID string) (MessageTrace, error) {
 	var trace MessageTrace
 	var full strings.Builder
 	var idleTimer *time.Timer
@@ -181,6 +182,9 @@ func readNATSMessageTrace(ctx context.Context, events <-chan clientcontract.Sess
 		select {
 		case event := <-events:
 			resetIdle()
+			if event.RequestID != requestID || event.SpaceID != opts.Space || event.SessionID != opts.SessionID {
+				return trace, fmt.Errorf("session event correlation mismatch: request=%q space=%q session=%q", event.RequestID, event.SpaceID, event.SessionID)
+			}
 			trace.LastEvent = event.Type
 			if event.Type == "done" {
 				trace.Text = full.String()

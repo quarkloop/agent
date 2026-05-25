@@ -65,6 +65,30 @@ func (c *Client) Publish(ctx context.Context, subject string, data []byte, heade
 	return c.Flush(ctx)
 }
 
+// PublishStored publishes an application event through JetStream and waits
+// for its storage acknowledgement. Durable resources must already have been
+// provisioned by their storage owner.
+func (c *Client) PublishStored(ctx context.Context, subject string, data []byte, headers map[string]string) error {
+	if c == nil || c.conn == nil {
+		return fmt.Errorf("nats client is not connected")
+	}
+	subject, err := Subject(subject)
+	if err != nil {
+		return err
+	}
+	js, err := c.jetStream()
+	if err != nil {
+		return err
+	}
+	msg := natsgo.NewMsg(subject)
+	msg.Data = append([]byte(nil), data...)
+	setHeaders(msg, headers)
+	if _, err := js.PublishMsg(msg, natsgo.Context(ctx)); err != nil {
+		return fmt.Errorf("persist %s: %w", subject, err)
+	}
+	return nil
+}
+
 func (c *Client) Subscribe(subject string, handler func(Message)) (*Subscription, error) {
 	if c == nil || c.conn == nil {
 		return nil, fmt.Errorf("nats client is not connected")

@@ -56,8 +56,21 @@ func controlStreams(cfg JetStreamConfig) []streamSpec {
 			MaxMsgs:     10_000_000,
 		},
 		{
+			Name:        StreamCatalog,
+			Description: "Supervisor-published catalog snapshots and update events.",
+			Subjects:    []string{"catalog.runtime.v1.events", "catalog.snapshots.>"},
+			Retention:   nats.LimitsPolicy,
+			MaxAge:      30 * 24 * time.Hour,
+			MaxMsgs:     1_000_000,
+		},
+	}
+}
+
+func spaceRuntimeStreams() []streamSpec {
+	return []streamSpec{
+		{
 			Name:        StreamSessionEvents,
-			Description: "Session output, status, and client-visible event history.",
+			Description: "Session output, status, and client-visible event history for one space.",
 			Subjects:    []string{"session.*.events", "session.*.status"},
 			Retention:   nats.LimitsPolicy,
 			MaxAge:      30 * 24 * time.Hour,
@@ -65,19 +78,11 @@ func controlStreams(cfg JetStreamConfig) []streamSpec {
 		},
 		{
 			Name:        StreamRuntimeActivity,
-			Description: "Runtime and agent activity stream.",
-			Subjects:    []string{"runtime.activity.v1.>", "agent.*.events"},
+			Description: "Runtime and agent activity history for one space.",
+			Subjects:    []string{"runtime.activity.v1.events", "agent.*.events"},
 			Retention:   nats.LimitsPolicy,
 			MaxAge:      30 * 24 * time.Hour,
 			MaxMsgs:     5_000_000,
-		},
-		{
-			Name:        StreamCatalog,
-			Description: "Supervisor-published catalog snapshots and update events.",
-			Subjects:    []string{"catalog.runtime.v1.events", "catalog.snapshots.>"},
-			Retention:   nats.LimitsPolicy,
-			MaxAge:      30 * 24 * time.Hour,
-			MaxMsgs:     1_000_000,
 		},
 	}
 }
@@ -155,6 +160,46 @@ func (h *Hub) provisionJetStreamLocked(ctx context.Context) error {
 	}
 	for _, spec := range coordinationBuckets() {
 		if err := ensureBucket(js, spec); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (h *Hub) provisionSpaceRuntimeStreamsLocked(ctx context.Context, space SpaceCredentials) error {
+	if h == nil || h.server == nil || !h.cfg.JetStream.Enabled {
+		return nil
+	}
+	credential, err := spaceCredential(space.SpaceID, space.Account, RoleSupervisor, PermissionConfig{
+		PublishAllow:   []string{"$JS.API.>", "_INBOX.>", "_R_.>"},
+		SubscribeAllow: []string{"$JS.API.>", "_INBOX.>", "_R_.>"},
+	})
+	if err != nil {
+		return err
+	}
+	credential.Username = credentialUsername(space.SpaceID, "stream_provisioner")
+	if err := h.registerTransientCredentialLocked(credential); err != nil {
+		return err
+	}
+	nc, err := nats.Connect(
+		h.server.ClientURL(),
+		nats.UserInfo(credential.Username, credential.Password),
+		nats.Name("quark-supervisor-space-stream-provisioner"),
+		nats.Timeout(h.cfg.ReadyTimeout),
+	)
+	if err != nil {
+		return fmt.Errorf("connect space stream provisioner: %w", err)
+	}
+	defer nc.Close()
+	if err := nc.FlushTimeout(h.cfg.ReadyTimeout); err != nil {
+		return fmt.Errorf("verify space stream provisioner: %w", err)
+	}
+	js, err := nc.JetStream(nats.Context(ctx))
+	if err != nil {
+		return fmt.Errorf("open space jetstream context: %w", err)
+	}
+	for _, spec := range spaceRuntimeStreams() {
+		if err := ensureStream(js, spec); err != nil {
 			return err
 		}
 	}

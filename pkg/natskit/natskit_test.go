@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net"
 	"strings"
 	"testing"
 	"time"
@@ -110,6 +111,162 @@ func TestSubscriptionWildcardsAreResponderOnly(t *testing.T) {
 	if err := client.Publish(context.Background(), "session.*.input", []byte(`{}`), nil); err == nil {
 		t.Fatal("publisher accepted wildcard destination")
 	}
+}
+
+func TestApplicationHostRegistersRequestReplyAndPublishesLiveEvent(t *testing.T) {
+	server := startNATS(t, false)
+	host, err := NewApplicationHost(context.Background(), Config{URL: server.ClientURL(), Name: "runtime-host"}, "q.runtime.test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(host.Close)
+	input, err := NewApplicationOperation("session.input", "session.*.input")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := host.Register(input, func(_ context.Context, msg Message) ([]byte, error) {
+		return append([]byte("accepted:"), msg.Data...), nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := host.Ready(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	client, err := Connect(context.Background(), Config{URL: server.ClientURL(), Name: "session-client"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(client.Close)
+	reply, err := client.Request(context.Background(), "session.chat.input", []byte("hello"), nil)
+	if err != nil || string(reply) != "accepted:hello" {
+		t.Fatalf("reply = %q, err = %v", reply, err)
+	}
+
+	received := make(chan Message, 1)
+	sub, err := client.Subscribe("session.chat.events", func(msg Message) { received <- msg })
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = sub.Unsubscribe() })
+	if err := client.Flush(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	event, err := NewApplicationEvent("session.events", "session.chat.events")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := host.Publish(context.Background(), event, []byte("token"), map[string]string{HeaderSessionID: "chat"}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case msg := <-received:
+		if string(msg.Data) != "token" || msg.Headers[HeaderSessionID] != "chat" {
+			t.Fatalf("event = %+v", msg)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for application event")
+	}
+	host.Close()
+	requestCtx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	if reply, err := client.Request(requestCtx, "session.chat.input", []byte("again"), nil); err == nil {
+		t.Fatalf("request was processed after host drain: %q", reply)
+	}
+}
+
+func TestApplicationHostRejectsWildcardEventDestination(t *testing.T) {
+	if _, err := NewApplicationEvent("session.events", "session.*.events"); err == nil {
+		t.Fatal("application event accepted wildcard destination")
+	}
+}
+
+func TestApplicationHostDurableEventWaitsForJetStreamStorage(t *testing.T) {
+	server := startNATS(t, true)
+	conn, err := natsgo.Connect(server.ClientURL())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(conn.Close)
+	js, err := conn.JetStream()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := js.AddStream(&natsgo.StreamConfig{Name: "SESSIONS", Subjects: []string{"session.*.events"}}); err != nil {
+		t.Fatal(err)
+	}
+	host, err := NewApplicationHost(context.Background(), Config{URL: server.ClientURL(), Name: "durable-runtime"}, "q.runtime.test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(host.Close)
+	event, err := NewDurableApplicationEvent("session.events", "session.chat.events")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := host.Publish(context.Background(), event, []byte("stored"), nil); err != nil {
+		t.Fatal(err)
+	}
+	msg, err := js.GetLastMsg("SESSIONS", "session.chat.events")
+	if err != nil || string(msg.Data) != "stored" {
+		t.Fatalf("stored event = %q, err = %v", msg.Data, err)
+	}
+}
+
+func TestApplicationHostRestoresResponderAfterReconnect(t *testing.T) {
+	server := startNATS(t, false)
+	port := server.Addr().(*net.TCPAddr).Port
+	config := Config{
+		URL:           server.ClientURL(),
+		Name:          "reconnect-runtime",
+		ReconnectWait: 10 * time.Millisecond,
+		MaxReconnects: -1,
+		Timeout:       time.Second,
+	}
+	host, err := NewApplicationHost(context.Background(), config, "q.runtime.reconnect")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(host.Close)
+	operation, _ := NewApplicationOperation("runtime.info.get", "runtime.info.v1.get")
+	if err := host.Register(operation, func(_ context.Context, _ Message) ([]byte, error) {
+		return []byte("ready"), nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := host.Ready(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	clientConfig := config
+	clientConfig.Name = "reconnect-client"
+	client, err := Connect(context.Background(), clientConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(client.Close)
+
+	server.Shutdown()
+	server.WaitForShutdown()
+	replacement, err := natsserver.NewServer(&natsserver.Options{Host: "127.0.0.1", Port: port, NoLog: true, NoSigs: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	replacement.Start()
+	if !replacement.ReadyForConnections(time.Second) {
+		t.Fatal("replacement nats server not ready")
+	}
+	t.Cleanup(replacement.Shutdown)
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		reply, requestErr := client.Request(ctx, operation.Subject, []byte("{}"), nil)
+		cancel()
+		if requestErr == nil && string(reply) == "ready" {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("application responder did not recover after reconnect")
 }
 
 func TestHostReturnsStructuredErrorForMalformedRequest(t *testing.T) {

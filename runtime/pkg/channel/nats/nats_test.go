@@ -69,6 +69,9 @@ func TestChannelAcceptsSessionInputAndPublishesEvents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}
+	req.SessionID = "chat"
+	req.TraceParent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+	req.TraceState = "vendor=value"
 	data, err := json.Marshal(req)
 	if err != nil {
 		t.Fatalf("marshal request: %v", err)
@@ -97,8 +100,8 @@ func TestChannelAcceptsSessionInputAndPublishesEvents(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for poster request")
 	}
-	assertSessionEvent(t, events, "token")
-	assertSessionEvent(t, events, "done")
+	assertSessionEvent(t, events, "token", req)
+	assertSessionEvent(t, events, "done", req)
 
 	infoResp := requestPayload[clientcontract.RuntimeInfoResponse](t, client, clientcontract.SubjectRuntimeInfoGet, clientcontract.RuntimeInfoRequest{SpaceID: "docs"})
 	if infoResp.Sessions != 1 {
@@ -143,10 +146,12 @@ func (p *fakePoster) Post(_ context.Context, request message.PostRequest, resp c
 func startServer(t *testing.T) string {
 	t.Helper()
 	server, err := natsserver.NewServer(&natsserver.Options{
-		Host:   "127.0.0.1",
-		Port:   -1,
-		NoSigs: true,
-		NoLog:  true,
+		Host:      "127.0.0.1",
+		Port:      -1,
+		NoSigs:    true,
+		NoLog:     true,
+		JetStream: true,
+		StoreDir:  t.TempDir(),
 	})
 	if err != nil {
 		t.Fatalf("new nats server: %v", err)
@@ -157,6 +162,25 @@ func startServer(t *testing.T) string {
 		server.WaitForShutdown()
 		t.Fatal("nats server did not become ready")
 	}
+	conn, err := natsgo.Connect(server.ClientURL())
+	if err != nil {
+		t.Fatalf("connect stream setup: %v", err)
+	}
+	js, err := conn.JetStream()
+	if err != nil {
+		conn.Close()
+		t.Fatalf("open stream setup: %v", err)
+	}
+	for _, stream := range []*natsgo.StreamConfig{
+		{Name: "SESSION_EVENTS", Subjects: []string{"session.*.events"}},
+		{Name: "RUNTIME_ACTIVITY", Subjects: []string{"runtime.activity.v1.events"}},
+	} {
+		if _, err := js.AddStream(stream); err != nil {
+			conn.Close()
+			t.Fatalf("add stream %s: %v", stream.Name, err)
+		}
+	}
+	conn.Close()
 	t.Cleanup(func() {
 		server.Shutdown()
 		server.WaitForShutdown()
@@ -177,12 +201,16 @@ func connectNATS(t *testing.T, url string) *natsgo.Conn {
 	return conn
 }
 
-func assertSessionEvent(t *testing.T, events <-chan clientcontract.SessionEvent, want string) {
+func assertSessionEvent(t *testing.T, events <-chan clientcontract.SessionEvent, want string, req clientcontract.RequestEnvelope) {
 	t.Helper()
 	select {
 	case got := <-events:
 		if got.Type != want {
 			t.Fatalf("event type = %q, want %q", got.Type, want)
+		}
+		if got.RequestID != req.RequestID || got.SpaceID != req.SpaceID || got.SessionID != req.SessionID ||
+			got.TraceParent != req.TraceParent || got.TraceState != req.TraceState {
+			t.Fatalf("event correlation = %#v", got)
 		}
 	case <-time.After(time.Second):
 		t.Fatalf("timed out waiting for %s event", want)

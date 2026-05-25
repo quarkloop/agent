@@ -9,6 +9,9 @@ func TestClientSubjectsAreStable(t *testing.T) {
 	if SubjectAuditGet != "control.audit.v1.get" || SubjectAuditList != "control.audit.v1.list" {
 		t.Fatalf("audit subjects = %q, %q", SubjectAuditGet, SubjectAuditList)
 	}
+	if SubjectSessionInputWildcard != "session.*.input" {
+		t.Fatalf("session input subscription = %q", SubjectSessionInputWildcard)
+	}
 	subject, err := SessionInputSubject("Chat-01")
 	if err != nil {
 		t.Fatalf("session input subject: %v", err)

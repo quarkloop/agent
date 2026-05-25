@@ -192,10 +192,14 @@ type SendMessageResponse struct {
 }
 
 type SessionEvent struct {
-	Type      string          `json:"type"`
-	SessionID string          `json:"session_id"`
-	RunID     string          `json:"run_id,omitempty"`
-	Payload   json.RawMessage `json:"payload,omitempty"`
+	Type        string          `json:"type"`
+	RequestID   string          `json:"request_id,omitempty"`
+	SpaceID     string          `json:"space_id,omitempty"`
+	SessionID   string          `json:"session_id"`
+	RunID       string          `json:"run_id,omitempty"`
+	TraceParent string          `json:"traceparent,omitempty"`
+	TraceState  string          `json:"tracestate,omitempty"`
+	Payload     json.RawMessage `json:"payload,omitempty"`
 }
 
 type ListServicesRequest struct {

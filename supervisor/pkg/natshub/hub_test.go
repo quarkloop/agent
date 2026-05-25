@@ -82,7 +82,7 @@ func TestHubProvisionsControlStreamsAndCoordinationBuckets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("jetstream: %v", err)
 	}
-	for _, stream := range []string{StreamAudit, StreamTelemetry, StreamSessionEvents, StreamRuntimeActivity, StreamCatalog} {
+	for _, stream := range []string{StreamAudit, StreamTelemetry, StreamCatalog} {
 		info, err := js.StreamInfo(stream)
 		if err != nil {
 			t.Fatalf("stream %s missing: %v", stream, err)
@@ -125,6 +125,55 @@ func TestHubProvisionsControlStreamsAndCoordinationBuckets(t *testing.T) {
 	if !info.Config.AllowDirect {
 		t.Fatal("audit stream does not permit indexed direct retrieval")
 	}
+}
+
+func TestHubProvisionsReplayableRuntimeStreamsInsideSpaceAccount(t *testing.T) {
+	hub := startTestHub(t)
+	space, err := hub.ProvisionSpace("docs")
+	if err != nil {
+		t.Fatalf("provision space: %v", err)
+	}
+	nc := connectWithCredential(t, hub, space.Runtime)
+	js, err := nc.JetStream()
+	if err != nil {
+		t.Fatalf("jetstream: %v", err)
+	}
+	for _, stream := range []string{StreamSessionEvents, StreamRuntimeActivity} {
+		info, err := js.StreamInfo(stream)
+		if err != nil {
+			t.Fatalf("space stream %s missing: %v", stream, err)
+		}
+		if stream == StreamRuntimeActivity && containsSubject(info.Config.Subjects, "runtime.activity.v1.>") {
+			t.Fatal("runtime activity stream captures request/reply operations")
+		}
+	}
+	if _, err := js.Publish("session.chat.events", []byte(`{"type":"token"}`)); err != nil {
+		t.Fatalf("persist session event: %v", err)
+	}
+	stored, err := js.GetLastMsg(StreamSessionEvents, "session.chat.events")
+	if err != nil || len(stored.Data) == 0 {
+		t.Fatalf("stored event = %+v, err = %v", stored, err)
+	}
+	control, err := hub.ControlCredential()
+	if err != nil {
+		t.Fatal(err)
+	}
+	controlJS, err := connectWithCredential(t, hub, control).JetStream()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := controlJS.StreamInfo(StreamSessionEvents); err == nil {
+		t.Fatal("control account unexpectedly owns a space-scoped runtime event stream")
+	}
+}
+
+func containsSubject(subjects []string, want string) bool {
+	for _, subject := range subjects {
+		if subject == want {
+			return true
+		}
+	}
+	return false
 }
 
 func TestHubRetrievesAndFiltersAuditRecords(t *testing.T) {
