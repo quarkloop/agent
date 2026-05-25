@@ -7,6 +7,10 @@ Git, Docker, Kubernetes, Helm, or Terraform command.
 Release automation is part of this DevOps service. There is no separate
 release automation production service or tool plugin path.
 
+Runtime calls these functions through canonical NATS subjects owned by this
+plugin: `svc.devops.v1.<function_name_in_snake_case>`, such as
+`svc.devops.v1.repo_status` and `svc.devops.v1.test_run_tests`.
+
 ## Service Functions
 
 | Function | RPC method | Risk | Approval | Idempotent | Purpose |

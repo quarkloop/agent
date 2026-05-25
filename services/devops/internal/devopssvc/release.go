@@ -11,11 +11,11 @@ import (
 )
 
 func (s *Server) InitReleaseConfig(ctx context.Context, req *devopsv1.InitReleaseConfigRequest) (*devopsv1.InitReleaseConfigResponse, error) {
-	root, err := resolvePath(req.GetPath())
+	root, err := s.workspaces.Root(req.GetPath())
 	if err != nil {
-		return nil, grpcErr(err)
+		return nil, operationError(err)
 	}
-	result, err := s.releaseRunner.Init(ctx, buildrelease.InitRequest{
+	result, err := s.releases.Init(ctx, buildrelease.InitRequest{
 		WorkingDir: root,
 		Overwrite:  req.GetOverwrite(),
 	})
@@ -30,11 +30,11 @@ func (s *Server) InitReleaseConfig(ctx context.Context, req *devopsv1.InitReleas
 }
 
 func (s *Server) DryRunRelease(ctx context.Context, req *devopsv1.DryRunReleaseRequest) (*devopsv1.DryRunReleaseResponse, error) {
-	root, err := resolvePath(req.GetPath())
+	root, err := s.workspaces.Root(req.GetPath())
 	if err != nil {
-		return nil, grpcErr(err)
+		return nil, operationError(err)
 	}
-	result, err := s.releaseRunner.DryRun(ctx, buildrelease.DryRunRequest{
+	result, err := s.releases.DryRun(ctx, buildrelease.DryRunRequest{
 		WorkingDir:  root,
 		ConfigPath:  req.GetConfigPath(),
 		Version:     req.GetVersion(),
@@ -50,11 +50,11 @@ func (s *Server) DryRunRelease(ctx context.Context, req *devopsv1.DryRunReleaseR
 }
 
 func (s *Server) RunRelease(ctx context.Context, req *devopsv1.RunReleaseRequest) (*devopsv1.RunReleaseResponse, error) {
-	root, err := resolvePath(req.GetPath())
+	root, err := s.workspaces.Root(req.GetPath())
 	if err != nil {
-		return nil, grpcErr(err)
+		return nil, operationError(err)
 	}
-	result, err := s.releaseRunner.Release(ctx, buildrelease.ReleaseRequest{
+	result, err := s.releases.Release(ctx, buildrelease.ReleaseRequest{
 		WorkingDir:  root,
 		ConfigPath:  req.GetConfigPath(),
 		Version:     req.GetVersion(),

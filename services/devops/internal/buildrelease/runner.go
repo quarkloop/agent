@@ -129,7 +129,10 @@ func (r *Runner) pipelineContext(ctx context.Context, workingDir, configPath, ve
 	if configPath == "" {
 		configPath = defaultConfigPath
 	}
-	configPath = resolvePath(wd, configPath)
+	configPath, err = containedPath(wd, configPath)
+	if err != nil {
+		return nil, RunContext{}, fmt.Errorf("config path: %w", err)
+	}
 	if parallelism <= 0 {
 		parallelism = defaultParallelism
 	}
@@ -179,8 +182,9 @@ func (LoadConfigStage) Run(ctx *PipelineContext, _ RunContext) error {
 	data, err := os.ReadFile(ctx.ConfigFile)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			ctx.Config = normalizeConfig(ctx.WorkingDir, ctx.Config)
-			return nil
+			var normalizeErr error
+			ctx.Config, normalizeErr = normalizeConfig(ctx.WorkingDir, ctx.Config)
+			return normalizeErr
 		}
 		return fmt.Errorf("read config: %w", err)
 	}
@@ -191,8 +195,8 @@ func (LoadConfigStage) Run(ctx *PipelineContext, _ RunContext) error {
 	if ctx.Config.Version != "" {
 		cfg.Version = ctx.Config.Version
 	}
-	ctx.Config = normalizeConfig(ctx.WorkingDir, cfg)
-	return nil
+	ctx.Config, err = normalizeConfig(ctx.WorkingDir, cfg)
+	return err
 }
 
 type ResolveVersionStage struct{}
@@ -398,7 +402,7 @@ func buildOne(ctx *PipelineContext, runCtx RunContext, build BuildTarget, target
 	}
 
 	for _, include := range build.IncludeFiles {
-		src := resolvePath(build.SourceDir, include)
+		src := filepath.Join(build.SourceDir, include)
 		if _, err := os.Stat(src); err == nil {
 			dst := filepath.Join(tmpDir, filepath.Base(include))
 			if err := copyFile(src, dst); err != nil {
@@ -540,7 +544,7 @@ func (MetadataStage) Run(ctx *PipelineContext, _ RunContext) error {
 	return os.WriteFile(out, append(data, '\n'), 0o644)
 }
 
-func normalizeConfig(workingDir string, cfg ReleaseConfig) ReleaseConfig {
+func normalizeConfig(workingDir string, cfg ReleaseConfig) (ReleaseConfig, error) {
 	if cfg.PackageName == "" {
 		cfg.PackageName = "mytool"
 	}
@@ -550,7 +554,11 @@ func normalizeConfig(workingDir string, cfg ReleaseConfig) ReleaseConfig {
 	if cfg.ReleaseDir == "" {
 		cfg.ReleaseDir = defaultReleaseDir
 	}
-	cfg.ReleaseDir = resolvePath(workingDir, cfg.ReleaseDir)
+	var err error
+	cfg.ReleaseDir, err = containedPath(workingDir, cfg.ReleaseDir)
+	if err != nil {
+		return ReleaseConfig{}, fmt.Errorf("release_dir: %w", err)
+	}
 	for i := range cfg.Builds {
 		if cfg.Builds[i].BinaryName == "" {
 			cfg.Builds[i].BinaryName = cfg.PackageName
@@ -561,9 +569,20 @@ func normalizeConfig(workingDir string, cfg ReleaseConfig) ReleaseConfig {
 		if cfg.Builds[i].SourcePath == "" {
 			cfg.Builds[i].SourcePath = "."
 		}
-		cfg.Builds[i].SourceDir = resolvePath(workingDir, cfg.Builds[i].SourceDir)
+		cfg.Builds[i].SourceDir, err = containedPath(workingDir, cfg.Builds[i].SourceDir)
+		if err != nil {
+			return ReleaseConfig{}, fmt.Errorf("build %q source_dir: %w", cfg.Builds[i].Name, err)
+		}
+		if _, err := containedPath(cfg.Builds[i].SourceDir, cfg.Builds[i].SourcePath); err != nil {
+			return ReleaseConfig{}, fmt.Errorf("build %q source_path: %w", cfg.Builds[i].Name, err)
+		}
+		for _, include := range cfg.Builds[i].IncludeFiles {
+			if _, err := containedPath(cfg.Builds[i].SourceDir, include); err != nil {
+				return ReleaseConfig{}, fmt.Errorf("build %q include_files: %w", cfg.Builds[i].Name, err)
+			}
+		}
 	}
-	return cfg
+	return cfg, nil
 }
 
 func normalizeWorkingDir(dir string) (string, error) {
@@ -577,11 +596,26 @@ func normalizeWorkingDir(dir string) (string, error) {
 	return abs, nil
 }
 
-func resolvePath(base, path string) string {
-	if path == "" || filepath.IsAbs(path) {
-		return path
+func containedPath(base, path string) (string, error) {
+	candidate := path
+	if candidate == "" {
+		return "", fmt.Errorf("path is required")
 	}
-	return filepath.Join(base, path)
+	if !filepath.IsAbs(candidate) {
+		candidate = filepath.Join(base, candidate)
+	}
+	candidate, err := filepath.Abs(candidate)
+	if err != nil {
+		return "", fmt.Errorf("resolve path: %w", err)
+	}
+	relative, err := filepath.Rel(base, candidate)
+	if err != nil {
+		return "", fmt.Errorf("compare path: %w", err)
+	}
+	if relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("path %q escapes workspace", path)
+	}
+	return filepath.Clean(candidate), nil
 }
 
 func commandOutput(ctx context.Context, dir, name string, args ...string) ([]byte, error) {

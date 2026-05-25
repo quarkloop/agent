@@ -8,6 +8,11 @@ workflows.
 Release automation is owned by this service through typed build service
 functions. The legacy standalone release service/tool path has been removed.
 
+All functions are registered through `pkg/natskit` on canonical NATS
+request/reply subjects. The subject for a function is
+`svc.devops.v1.<function_name_in_snake_case>`, for example
+`svc.devops.v1.repo_status` and `svc.devops.v1.build_run_release`.
+
 ## Service Functions
 
 | Function | RPC method | Request | Response | Purpose |
@@ -41,6 +46,11 @@ functions. The legacy standalone release service/tool path has been removed.
 - Quark DevOps agent coordinates user intent and selects service functions.
 - DevOps service wraps selected adapters and returns structured results or
   mutation plans.
+- `internal/devopssvc` keeps repository, build, release, test, container,
+  deployment, policy, workspace, command, and diagnostic adapters separate.
+- Ordinary handlers delegate executable invocation to the command adapter;
+  the release pipeline owns only its bounded build, test, compression, and
+  signing invocations.
 - Core/runtime owns approval state, policy gating, audit, and artifact
   persistence.
 - Release automation belongs to DevOps build service functions.

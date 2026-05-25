@@ -10,7 +10,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/quarkloop/pkg/boundary"
 	devopsv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/devops/v1"
+	"github.com/quarkloop/services/devops/internal/buildrelease"
 )
 
 func TestRepoStatusDiffAndReleaseNotes(t *testing.T) {
@@ -41,6 +43,19 @@ func TestRepoStatusDiffAndReleaseNotes(t *testing.T) {
 	}
 	if !strings.Contains(notes.GetMarkdown(), "initial commit") {
 		t.Fatalf("release notes missing commit: %+v", notes)
+	}
+
+	branch, err := server.GetBranch(context.Background(), &devopsv1.GetBranchRequest{Path: repo})
+	if err != nil || branch.GetCurrent() == "" {
+		t.Fatalf("branch: response=%+v error=%v", branch, err)
+	}
+	changed, err := server.ListChangedFiles(context.Background(), &devopsv1.ListChangedFilesRequest{Path: repo})
+	if err != nil || len(changed.GetChanges()) == 0 {
+		t.Fatalf("changed files: response=%+v error=%v", changed, err)
+	}
+	commit, err := server.Commit(context.Background(), &devopsv1.CommitRequest{Path: repo, Files: []string{"README.md"}, Message: "update", Reason: "prepare"})
+	if err != nil || commit.GetPlan().GetAction() != "repo.commit" {
+		t.Fatalf("commit plan: response=%+v error=%v", commit, err)
 	}
 }
 
@@ -96,6 +111,11 @@ func TestProjectTasksPolicyAndPlans(t *testing.T) {
 	}
 	if !patch.GetPlan().GetApprovalRequired() || len(patch.GetExpectedChanges()) != 1 {
 		t.Fatalf("patch plan = %+v", patch)
+	}
+
+	artifact, err := server.CreateArtifact(context.Background(), &devopsv1.CreateArtifactRequest{Path: dir, Task: "build", Reason: "produce"})
+	if err != nil || len(artifact.GetArtifacts()) != 1 || !strings.HasSuffix(artifact.GetArtifacts()[0].GetUri(), "dist") {
+		t.Fatalf("artifact plan: response=%+v error=%v", artifact, err)
 	}
 }
 
@@ -156,6 +176,10 @@ func TestTestsContainersDeployAndFailureExplanation(t *testing.T) {
 	if _, err := server.Apply(context.Background(), &devopsv1.ApplyRequest{PlanId: "plan"}); err == nil {
 		t.Fatal("expected approval error for deployment apply")
 	}
+	applied, err := server.Apply(context.Background(), &devopsv1.ApplyRequest{PlanId: "plan", ApprovalId: "approved"})
+	if err != nil || applied.GetResult().GetStatus() != taskStatusPlanned {
+		t.Fatalf("approved deployment response=%+v error=%v", applied, err)
+	}
 }
 
 func TestReleaseFunctionsAreOwnedByDevOpsBuildService(t *testing.T) {
@@ -214,6 +238,95 @@ func TestInitReleaseConfigReportsApprovalPlan(t *testing.T) {
 	}
 	if _, err := os.Stat(resp.GetConfigPath()); err != nil {
 		t.Fatalf("release config missing: %v", err)
+	}
+}
+
+func TestDescriptorPublishesCanonicalDevOpsSubjects(t *testing.T) {
+	t.Parallel()
+	descriptor := Descriptor("", nil)
+	if len(descriptor.GetRpcs()) == 0 {
+		t.Fatal("descriptor has no service functions")
+	}
+	for _, rpc := range descriptor.GetRpcs() {
+		if rpc.GetOwner() != "devops" || !strings.HasPrefix(rpc.GetSubject(), "svc.devops.v1.") {
+			t.Fatalf("rpc does not expose canonical devops route: %+v", rpc)
+		}
+	}
+}
+
+func TestWorkspaceInputsCannotEscapeServiceScope(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "go.mod"), "module example.com/app\n\ngo 1.26\n")
+	server := NewServer()
+
+	_, err := server.CreateArtifact(context.Background(), &devopsv1.CreateArtifactRequest{Path: dir, OutputDir: "../outside"})
+	assertCategory(t, err, boundary.InvalidArgument)
+	_, err = server.Diff(context.Background(), &devopsv1.DiffRequest{Path: dir, Files: []string{"../outside"}})
+	assertCategory(t, err, boundary.InvalidArgument)
+	_, err = server.BuildImage(context.Background(), &devopsv1.BuildImageRequest{Path: dir, Dockerfile: "../Dockerfile", DryRun: true})
+	assertCategory(t, err, boundary.InvalidArgument)
+	_, err = server.ApplyPatch(context.Background(), &devopsv1.ApplyPatchRequest{Path: dir, Patch: "--- a/../outside\n+++ b/../outside\n"})
+	assertCategory(t, err, boundary.InvalidArgument)
+}
+
+func TestCommandCancellationAndDeadlineRemainDiagnosticCategories(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "go.mod"), "module example.com/app\n\ngo 1.26\n")
+
+	canceled := newServer(localWorkspace{}, stubCommands{gitErr: context.Canceled}, buildrelease.NewRunner())
+	_, err := canceled.Status(context.Background(), &devopsv1.StatusRequest{Path: dir})
+	assertCategory(t, err, boundary.Canceled)
+
+	timedOut := newServer(localWorkspace{}, stubCommands{runErr: context.DeadlineExceeded}, buildrelease.NewRunner())
+	_, err = timedOut.RunTask(context.Background(), &devopsv1.RunTaskRequest{Path: dir, Task: "test"})
+	assertCategory(t, err, boundary.Deadline)
+}
+
+func TestContainerInventoryUsesCommandAdapterOutput(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	commands := stubCommands{result: &devopsv1.TaskResult{
+		Status: taskStatusPassed,
+		Logs:   []string{"abc123\texample\tlatest\tsha256:one", "def456\tother\tdev\tsha256:two"},
+	}}
+	server := newServer(localWorkspace{}, commands, buildrelease.NewRunner())
+	image, err := server.BuildImage(context.Background(), &devopsv1.BuildImageRequest{Path: dir, Tag: "example:latest"})
+	if err != nil || image.GetImage().GetUri() != "example:latest" {
+		t.Fatalf("image build: response=%+v error=%v", image, err)
+	}
+	resp, err := server.ListImages(context.Background(), &devopsv1.ListImagesRequest{Filter: "example"})
+	if err != nil || len(resp.GetImages()) != 1 || resp.GetImages()[0].GetId() != "abc123" {
+		t.Fatalf("images: response=%+v error=%v", resp, err)
+	}
+}
+
+type stubCommands struct {
+	gitErr error
+	runErr error
+	result *devopsv1.TaskResult
+}
+
+func (s stubCommands) Git(_ context.Context, _ string, _ ...string) (string, error) {
+	return "", s.gitErr
+}
+
+func (s stubCommands) GitPatchCheck(_ context.Context, _, _ string) error {
+	return s.gitErr
+}
+
+func (s stubCommands) Run(_ context.Context, _ string, _ string, _ ...string) (*devopsv1.TaskResult, error) {
+	if s.result != nil {
+		return s.result, nil
+	}
+	return nil, s.runErr
+}
+
+func assertCategory(t *testing.T, err error, category boundary.Category) {
+	t.Helper()
+	if !boundary.IsCategory(err, category) {
+		t.Fatalf("error category = %v, want %s", err, category)
 	}
 }
 

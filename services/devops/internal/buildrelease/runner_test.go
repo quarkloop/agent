@@ -125,6 +125,40 @@ func TestRunnerReleaseBuildsArchiveAndChecksums(t *testing.T) {
 	}
 }
 
+func TestRunnerRejectsReleasePathsOutsideWorkspace(t *testing.T) {
+	t.Parallel()
+
+	wd := t.TempDir()
+	writeConfig(t, wd, ReleaseConfig{
+		PackageName: "quark-test",
+		ReleaseDir:  "../outside",
+		Builds:      []BuildTarget{{Name: "quark-test", SourcePath: ".", BinaryName: "quark-test", SourceDir: "."}},
+		Targets:     []Target{{OS: "linux", Arch: "amd64"}},
+	})
+	runner := NewRunner()
+	if _, err := runner.DryRun(context.Background(), DryRunRequest{WorkingDir: wd, Version: "v1.0.0"}); err == nil {
+		t.Fatal("expected release_dir outside workspace to be rejected")
+	}
+	if _, err := runner.DryRun(context.Background(), DryRunRequest{WorkingDir: wd, ConfigPath: "../outside.json", Version: "v1.0.0"}); err == nil {
+		t.Fatal("expected config path outside workspace to be rejected")
+	}
+}
+
+func TestRunnerRejectsBuildSourceOutsideWorkspace(t *testing.T) {
+	t.Parallel()
+
+	wd := t.TempDir()
+	writeConfig(t, wd, ReleaseConfig{
+		PackageName: "quark-test",
+		ReleaseDir:  "dist",
+		Builds:      []BuildTarget{{Name: "quark-test", SourcePath: ".", BinaryName: "quark-test", SourceDir: "../outside"}},
+		Targets:     []Target{{OS: "linux", Arch: "amd64"}},
+	})
+	if _, err := NewRunner().DryRun(context.Background(), DryRunRequest{WorkingDir: wd, Version: "v1.0.0"}); err == nil {
+		t.Fatal("expected source_dir outside workspace to be rejected")
+	}
+}
+
 func writeConfig(t *testing.T, wd string, cfg ReleaseConfig) {
 	t.Helper()
 	data, err := json.MarshalIndent(cfg, "", "  ")
