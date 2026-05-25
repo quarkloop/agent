@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -717,6 +718,79 @@ func TestTrackerBlocksStartRunWithoutItems(t *testing.T) {
 		Function: plugin.ToolCallFunction{Name: "runstate_StartRun", Arguments: `{"items":[{"name":"a.md"}]}`},
 	}}); retry {
 		t.Fatal("valid runstate start should not be blocked")
+	}
+}
+
+func TestStoreReturnsIndependentStateCopies(t *testing.T) {
+	store := NewStore()
+	states := store.Begin("session-1", "inspect system metrics", []Intent{{
+		Kind:  KindSystemInspect,
+		Steps: []Step{{ID: "metrics", Label: "metrics", AnyOf: []string{"system_GetMetrics"}}},
+	}})
+	if len(states) != 1 {
+		t.Fatalf("states = %+v", states)
+	}
+	states[0].Steps[0].AnyOf[0] = "mutated"
+	states[0].Steps[0].CompletedCount = 99
+
+	persisted := store.List("session-1")
+	if got := persisted[0].Steps[0].AnyOf[0]; got != "system_GetMetrics" {
+		t.Fatalf("stored tool name = %q", got)
+	}
+	if got := persisted[0].Steps[0].CompletedCount; got != 0 {
+		t.Fatalf("stored completion count = %d", got)
+	}
+}
+
+func TestTrackerEmitsCorrelatedTransitionEvents(t *testing.T) {
+	var events []Event
+	tracker := NewTracker("session-1", "Search the indexed PDFs for evidence.", toolSchemas(
+		"gateway_Embed",
+		"indexer_GetContext",
+	), NewStore(), func(event Event) {
+		events = append(events, event)
+	})
+	if tracker == nil {
+		t.Fatal("expected tracker")
+	}
+	wrapped := tracker.WrapToolHandler(func(context.Context, string, string) (string, error) {
+		return `{"success":true}`, nil
+	})
+	if _, err := wrapped(context.Background(), "gateway_Embed", `{}`); err != nil {
+		t.Fatalf("embed: %v", err)
+	}
+	if len(events) != 2 {
+		t.Fatalf("events = %+v", events)
+	}
+	if events[0].Type != "detected" || events[1].Type != "step_completed" {
+		t.Fatalf("event types = %+v", events)
+	}
+	if events[0].WorkflowID == "" || events[1].WorkflowID != events[0].WorkflowID ||
+		events[1].SessionID != "session-1" || events[1].Tool != "gateway_Embed" {
+		t.Fatalf("correlation fields = %+v", events)
+	}
+}
+
+func TestTrackerCancellationDoesNotAdvanceState(t *testing.T) {
+	store := NewStore()
+	tracker := NewTracker("session-1", "Search the indexed PDFs for evidence.", toolSchemas(
+		"gateway_Embed",
+		"indexer_GetContext",
+	), store, nil)
+	if tracker == nil {
+		t.Fatal("expected tracker")
+	}
+	wrapped := tracker.WrapToolHandler(func(ctx context.Context, _, _ string) (string, error) {
+		return "", ctx.Err()
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := wrapped(ctx, "gateway_Embed", `{}`); !errors.Is(err, context.Canceled) {
+		t.Fatalf("error = %v, want context.Canceled", err)
+	}
+	states := store.List("session-1")
+	if got := states[0].Steps[0].CompletedCount; got != 0 {
+		t.Fatalf("completed count = %d, want 0", got)
 	}
 }
 
