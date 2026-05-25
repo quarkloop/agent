@@ -157,7 +157,7 @@ func TestValidateQuarkfileAgentOverrides(t *testing.T) {
 	qf.Agents = []space.AgentRef{{
 		Profile:  "quark-knowledge",
 		Enabled:  &enabled,
-		Services: []string{"indexer.*", "embedding.*"},
+		Services: []string{"indexer.*", "gateway_Embed"},
 		Tools:    []string{"fs"},
 		Model: space.AgentModelOverride{
 			Provider: "openrouter",

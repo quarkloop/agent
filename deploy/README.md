@@ -17,7 +17,7 @@ docker compose -f deploy/compose/quark.yml --profile services up io space docume
 Knowledge services require the `knowledge` profile:
 
 ```bash
-docker compose -f deploy/compose/quark.yml --profile knowledge up dgraph indexer embedding
+docker compose -f deploy/compose/quark.yml --profile knowledge up dgraph gateway indexer
 ```
 
 Observability and infrastructure profiles are split so local development can

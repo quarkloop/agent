@@ -30,7 +30,7 @@ MODULES := \
 		services/workflow \
 		services/io
 
-.PHONY: all build clean test test-e2e test-e2e-local vet fmt fmt-check tidy proto arch-check boundary-check service-inventory service-inventory-check dead-code-check check release-check \
+.PHONY: all build clean test test-e2e test-e2e-local vet fmt fmt-check tidy proto arch-check boundary-check service-inventory service-inventory-check legacy-embedding-check dead-code-check check release-check \
 		build-supervisor build-runtime build-cli \
 		build-plugins build-tools build-tools-lib build-services
 
@@ -107,8 +107,12 @@ build-cli:
 proto:
 		buf generate
 
+## Reject standalone embedding/model boundary regressions outside Gateway.
+legacy-embedding-check:
+		python3 scripts/check-legacy-embedding.py
+
 ## Run tests across all modules.
-test:
+test: legacy-embedding-check
 		@set -e; for mod in $(MODULES); do \
 			echo "--- Testing $$mod ---"; \
 			(cd $$mod && go test ./...); \
