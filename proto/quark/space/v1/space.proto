@@ -74,7 +74,6 @@ message GetSpacePathsRequest {
 message SpacePaths {
   string root_dir = 1;
   string config_path = 2;
-  string kb_dir = 3;
   string plugins_dir = 4;
   string sessions_dir = 5;
 }

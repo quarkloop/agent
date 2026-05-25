@@ -28,6 +28,12 @@ permissions:
     - system_GetMetrics
     - system_KillProcess
     - system_RestartService
+    - harness_GetContextReport
+    - harness_StreamContextReports
+    - harness_PutMemory
+    - harness_GetMemory
+    - harness_SearchMemory
+    - harness_DeleteMemory
 memory:
   scope: space
   collections:

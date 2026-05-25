@@ -1,0 +1,128 @@
+syntax = "proto3";
+
+package quark.harness.v1;
+
+option go_package = "github.com/quarkloop/pkg/serviceapi/gen/quark/harness/v1;harnessv1";
+
+// `HarnessService` owns model-context packaging, context inspection, and
+// explicit agent-authored memory. It never invokes models or other services.
+service HarnessService {
+  rpc ComposeContext(ComposeContextRequest) returns (ComposeContextResponse);
+  rpc GetContextReport(GetContextReportRequest) returns (ContextReport);
+  rpc StreamContextReports(StreamContextReportsRequest) returns (stream ContextReport);
+  rpc PutMemory(PutMemoryRequest) returns (PutMemoryResponse);
+  rpc GetMemory(GetMemoryRequest) returns (GetMemoryResponse);
+  rpc SearchMemory(SearchMemoryRequest) returns (SearchMemoryResponse);
+  rpc DeleteMemory(DeleteMemoryRequest) returns (DeleteMemoryResponse);
+}
+
+// `PromptMaterial` is prompt content already resolved from an installed plugin
+// or an explicit runtime fact. Harness packages it; it does not author it.
+message PromptMaterial {
+  string source_id = 1;
+  string source_kind = 2;
+  string content = 3;
+  bool required = 4;
+}
+
+message ContextMessage {
+  string role = 1;
+  string content = 2;
+  string source_id = 3;
+}
+
+message ComposeContextRequest {
+  string space = 1;
+  string session_id = 2;
+  string run_id = 3;
+  int32 context_window = 4;
+  repeated PromptMaterial system_materials = 5;
+  repeated PromptMaterial runtime_facts = 6;
+  repeated ContextMessage history = 7;
+}
+
+message ComposeContextResponse {
+  repeated ContextMessage messages = 1;
+  ContextReport report = 2;
+}
+
+message ContextReport {
+  string id = 1;
+  string space = 2;
+  string session_id = 3;
+  string run_id = 4;
+  repeated string included_sources = 5;
+  repeated string omitted_sources = 6;
+  int32 message_count = 7;
+  int64 character_count = 8;
+  int64 estimated_input_tokens = 9;
+  string created_at = 10;
+  repeated string included_memory_ids = 11;
+}
+
+message GetContextReportRequest {
+  string space = 1;
+  string id = 2;
+}
+
+message StreamContextReportsRequest {
+  string space = 1;
+  string session_id = 2;
+  int32 limit = 3;
+}
+
+message PutMemoryRequest {
+  string space = 1;
+  string scope = 2;
+  string key = 3;
+  string value = 4;
+  map<string, string> metadata = 5;
+  string provenance = 6;
+}
+
+message MemoryRecord {
+  string id = 1;
+  string space = 2;
+  string scope = 3;
+  string key = 4;
+  string value = 5;
+  map<string, string> metadata = 6;
+  string provenance = 7;
+  string updated_at = 8;
+}
+
+message PutMemoryResponse {
+  MemoryRecord record = 1;
+}
+
+message GetMemoryRequest {
+  string space = 1;
+  string scope = 2;
+  string key = 3;
+}
+
+message GetMemoryResponse {
+  MemoryRecord record = 1;
+}
+
+message SearchMemoryRequest {
+  string space = 1;
+  string scope = 2;
+  string query = 3;
+  int32 limit = 4;
+  map<string, string> filters = 5;
+}
+
+message SearchMemoryResponse {
+  repeated MemoryRecord records = 1;
+}
+
+message DeleteMemoryRequest {
+  string space = 1;
+  string scope = 2;
+  string key = 3;
+}
+
+message DeleteMemoryResponse {
+  bool deleted = 1;
+}

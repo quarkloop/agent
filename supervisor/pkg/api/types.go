@@ -371,23 +371,6 @@ type ServiceDoctorResponse struct {
 	Issues   []string      `json:"issues,omitempty"`
 }
 
-// --- KB types ---
-
-// KBSetRequest is the body for PUT /v1/spaces/{name}/kb/{namespace}/{key}.
-type KBSetRequest struct {
-	Value []byte `json:"value"`
-}
-
-// KBValueResponse is returned by GET /v1/spaces/{name}/kb/{namespace}/{key}.
-type KBValueResponse struct {
-	Value []byte `json:"value"`
-}
-
-// KBListResponse is returned by GET /v1/spaces/{name}/kb/{namespace}.
-type KBListResponse struct {
-	Keys []string `json:"keys"`
-}
-
 // itoa avoids importing strconv at package top-level just for AgentInfo.URL.
 func itoa(n int) string {
 	if n == 0 {

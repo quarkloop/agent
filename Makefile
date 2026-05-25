@@ -2,6 +2,7 @@ BINARY_DIR := bin
 PLUGIN_DIR := plugins
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS := -X github.com/quarkloop/cli/pkg/buildinfo.Version=$(VERSION)
+HARNESS_MANIFEST := services/harness/Cargo.toml
 
 # Tool plugins
 TOOLS :=
@@ -32,7 +33,7 @@ MODULES := \
 
 .PHONY: all build clean test test-e2e test-e2e-local vet fmt fmt-check tidy proto arch-check boundary-check service-inventory service-inventory-check legacy-embedding-check dead-code-check check release-check \
 		build-supervisor build-runtime build-cli \
-		build-plugins build-tools build-tools-lib build-services
+		build-plugins build-tools build-tools-lib build-services build-harness-service
 
 all: build
 
@@ -78,6 +79,12 @@ build-services:
 		go build -o $(BINARY_DIR)/workflow-service ./services/workflow/cmd/workflow
 		@echo "--- Building service: io ---"
 		go build -o $(BINARY_DIR)/io-service ./services/io/cmd/io
+		$(MAKE) build-harness-service
+
+build-harness-service:
+		@echo "--- Building service: harness (Rust) ---"
+		cargo build --release --manifest-path $(HARNESS_MANIFEST)
+		cp services/harness/target/release/quark-harness $(BINARY_DIR)/harness-service
 
 ## Build tool plugins as .so files (lib mode, requires CGO)
 build-tools-lib:
@@ -117,6 +124,8 @@ test: legacy-embedding-check
 			echo "--- Testing $$mod ---"; \
 			(cd $$mod && go test ./...); \
 		done
+		@echo "--- Testing services/harness (Rust) ---"
+		cargo test --manifest-path $(HARNESS_MANIFEST)
 
 ## Run contract and service E2E tests that do not require model providers
 test-e2e-local:
@@ -173,6 +182,8 @@ vet:
 			echo "--- Vetting $$mod ---"; \
 			(cd $$mod && go vet ./...); \
 		done
+		@echo "--- Linting services/harness (Rust) ---"
+		cargo clippy --manifest-path $(HARNESS_MANIFEST) --all-targets -- -D warnings
 
 ## Run gofmt across all modules
 fmt:
@@ -180,6 +191,8 @@ fmt:
 			echo "--- Formatting $$mod ---"; \
 			(cd $$mod && gofmt -w .); \
 		done
+		@echo "--- Formatting services/harness (Rust) ---"
+		cargo fmt --manifest-path $(HARNESS_MANIFEST)
 
 ## Check formatting without modifying files (exits non-zero if any file is unformatted)
 fmt-check:
@@ -187,6 +200,7 @@ fmt-check:
 		if [ -n "$$unformatted" ]; then \
 			echo "Unformatted files:"; echo "$$unformatted"; exit 1; \
 		fi
+		cargo fmt --manifest-path $(HARNESS_MANIFEST) --check
 
 ## Run go mod tidy across all modules
 tidy:
@@ -202,16 +216,18 @@ lint:
 			out=$$(cd $$mod && staticcheck ./... 2>&1 | grep -v "^-"); \
 			if [ -n "$$out" ]; then echo "$$out"; issues=1; fi; \
 		done; exit $$issues
+		cargo clippy --manifest-path $(HARNESS_MANIFEST) --all-targets -- -D warnings
 
 ## Remove built binaries and plugin .so files
 clean:
 		rm -rf $(BINARY_DIR)
 		find $(PLUGIN_DIR) -name "*.so" -delete 2>/dev/null || true
+		cargo clean --manifest-path $(HARNESS_MANIFEST)
 
 $(BINARY_DIR):
 		mkdir -p $(BINARY_DIR)
 
-build-supervisor build-runtime build-cli build-tools build-services: | $(BINARY_DIR)
+build-supervisor build-runtime build-cli build-tools build-services build-harness-service: | $(BINARY_DIR)
 
 ## Show available targets
 help:

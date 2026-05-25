@@ -1,6 +1,7 @@
 package guard
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -48,10 +49,13 @@ func PendingEmbeddingRefs(refs func() []string, maxAttempts int) llm.FinalGuard 
 		if attempts > maxAttempts {
 			return "", false
 		}
-		return fmt.Sprintf(
-			"Runtime validation blocked finalization. The following embeddingRef values are pending and must be consumed before a final answer: %s. Continue using the existing tool context. If this is an indexing task, use the canonical indexer write path for each pending document embedding. If this is a retrieval task, use the canonical indexer query path with the pending query embedding. Do not produce a final answer until no pending embeddingRef remains.",
-			strings.Join(pending, ", "),
-		), true
+		data, _ := json.Marshal(map[string]any{
+			"type":               "runtime.reference.validation",
+			"status":             "blocked",
+			"reason":             "unconsumed_embedding_references",
+			"pending_references": append([]string(nil), pending...),
+		})
+		return string(data), true
 	}
 }
 

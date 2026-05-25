@@ -16,6 +16,12 @@
         "container_PlanRun",
         "deploy_Apply",
         "deploy_Plan",
+        "harness_DeleteMemory",
+        "harness_GetContextReport",
+        "harness_GetMemory",
+        "harness_PutMemory",
+        "harness_SearchMemory",
+        "harness_StreamContextReports",
         "io_Append",
         "io_Execute",
         "io_Fetch",
@@ -41,7 +47,7 @@
       "missing_permissions": [],
       "name": "Quark DevOps",
       "path": "plugins/agents/quark-devops/PROFILE.yaml",
-      "service_permission_count": 33
+      "service_permission_count": 39
     },
     "quark-knowledge": {
       "area": "Knowledge",
@@ -69,6 +75,12 @@
         "document_ParseBytes",
         "document_RunOCR",
         "gateway_Embed",
+        "harness_DeleteMemory",
+        "harness_GetContextReport",
+        "harness_GetMemory",
+        "harness_PutMemory",
+        "harness_SearchMemory",
+        "harness_StreamContextReports",
         "indexer_DeleteChunk",
         "indexer_DeleteDocument",
         "indexer_QueryContext",
@@ -107,21 +119,34 @@
       "missing_permissions": [],
       "name": "Quark Knowledge",
       "path": "plugins/agents/quark-knowledge/PROFILE.yaml",
-      "service_permission_count": 55
+      "service_permission_count": 61
     },
     "quark-main": {
       "area": "",
       "declared_only_permissions": [],
-      "implemented_permissions": [],
+      "implemented_permissions": [
+        "harness_DeleteMemory",
+        "harness_GetContextReport",
+        "harness_GetMemory",
+        "harness_PutMemory",
+        "harness_SearchMemory",
+        "harness_StreamContextReports"
+      ],
       "missing_permissions": [],
       "name": "Quark Main",
       "path": "plugins/agents/quark-main/PROFILE.yaml",
-      "service_permission_count": 0
+      "service_permission_count": 6
     },
     "quark-system": {
       "area": "System",
       "declared_only_permissions": [],
       "implemented_permissions": [
+        "harness_DeleteMemory",
+        "harness_GetContextReport",
+        "harness_GetMemory",
+        "harness_PutMemory",
+        "harness_SearchMemory",
+        "harness_StreamContextReports",
         "system_GetDiskUsage",
         "system_GetKernelInfo",
         "system_GetMetrics",
@@ -142,7 +167,7 @@
       "missing_permissions": [],
       "name": "Quark System",
       "path": "plugins/agents/quark-system/PROFILE.yaml",
-      "service_permission_count": 16
+      "service_permission_count": 22
     }
   },
   "areas": {
@@ -191,11 +216,11 @@
       ]
     },
     "Knowledge": {
-      "declared_only_function_count": 4,
-      "implemented_function_count": 46,
+      "declared_only_function_count": 0,
+      "implemented_function_count": 53,
       "profile_count": 1,
       "proto_mismatch_count": 0,
-      "runnable_service_count": 5,
+      "runnable_service_count": 6,
       "service_count": 6,
       "services": [
         "document",
@@ -203,7 +228,7 @@
         "gateway",
         "indexer",
         "citation",
-        "memory"
+        "harness"
       ]
     },
     "Space": {
@@ -432,15 +457,15 @@
         "has_process_flow": true,
         "path": "e2e/service_processes_test.go",
         "prompt_shortcut_suspects": [
-          "443: \"gateway_Embed\",",
-          "444: \"indexer_UpsertChunk\",",
-          "449: \"indexer_UpsertChunk\",",
-          "450: \"indexer_QueryContext\",",
-          "451: \"indexer_QueryContext\",",
-          "453: \"indexer_DeleteChunk\",",
-          "482: \"gateway_Embed\",",
-          "483: \"indexer_UpsertChunk\",",
-          "496: t.Fatalf(\"standard knowledge e2e stack missing required service function %s\", function)"
+          "459: \"gateway_Embed\",",
+          "460: \"indexer_UpsertChunk\",",
+          "465: \"indexer_UpsertChunk\",",
+          "466: \"indexer_QueryContext\",",
+          "467: \"indexer_QueryContext\",",
+          "469: \"indexer_DeleteChunk\",",
+          "504: \"gateway_Embed\",",
+          "505: \"indexer_UpsertChunk\",",
+          "519: t.Fatalf(\"standard knowledge e2e stack missing required service function %s\", function)"
         ]
       },
       {
@@ -1646,6 +1671,137 @@
       "readme_path": "plugins/services/gateway/README.md",
       "skill_path": "plugins/services/gateway/SKILL.md"
     },
+    "harness": {
+      "address_env": "QUARK_HARNESS_ADDR",
+      "declared_only_function_count": 0,
+      "function_count": 7,
+      "functions": [
+        {
+          "approval_required": false,
+          "idempotent": false,
+          "method": "ComposeContext",
+          "method_implemented": true,
+          "name": "harness_ComposeContext",
+          "owner": "harness",
+          "proto_rpc_exists": true,
+          "request": "quark.harness.v1.ComposeContextRequest",
+          "response": "quark.harness.v1.ComposeContextResponse",
+          "risk_level": "write",
+          "service": "quark.harness.v1.HarnessService",
+          "status": "implemented_end_to_end",
+          "streaming": false,
+          "subject": "svc.harness.v1.compose_context"
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "GetContextReport",
+          "method_implemented": true,
+          "name": "harness_GetContextReport",
+          "owner": "harness",
+          "proto_rpc_exists": true,
+          "request": "quark.harness.v1.GetContextReportRequest",
+          "response": "quark.harness.v1.ContextReport",
+          "risk_level": "read",
+          "service": "quark.harness.v1.HarnessService",
+          "status": "implemented_end_to_end",
+          "streaming": false,
+          "subject": "svc.harness.v1.get_context_report"
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "StreamContextReports",
+          "method_implemented": true,
+          "name": "harness_StreamContextReports",
+          "owner": "harness",
+          "proto_rpc_exists": true,
+          "request": "quark.harness.v1.StreamContextReportsRequest",
+          "response": "quark.harness.v1.ContextReport",
+          "risk_level": "read",
+          "service": "quark.harness.v1.HarnessService",
+          "status": "implemented_end_to_end",
+          "streaming": true,
+          "subject": "svc.harness.v1.stream_context_reports"
+        },
+        {
+          "approval_required": false,
+          "idempotent": false,
+          "method": "PutMemory",
+          "method_implemented": true,
+          "name": "harness_PutMemory",
+          "owner": "harness",
+          "proto_rpc_exists": true,
+          "request": "quark.harness.v1.PutMemoryRequest",
+          "response": "quark.harness.v1.PutMemoryResponse",
+          "risk_level": "write",
+          "service": "quark.harness.v1.HarnessService",
+          "status": "implemented_end_to_end",
+          "streaming": false,
+          "subject": "svc.harness.v1.put_memory"
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "GetMemory",
+          "method_implemented": true,
+          "name": "harness_GetMemory",
+          "owner": "harness",
+          "proto_rpc_exists": true,
+          "request": "quark.harness.v1.GetMemoryRequest",
+          "response": "quark.harness.v1.GetMemoryResponse",
+          "risk_level": "read",
+          "service": "quark.harness.v1.HarnessService",
+          "status": "implemented_end_to_end",
+          "streaming": false,
+          "subject": "svc.harness.v1.get_memory"
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "SearchMemory",
+          "method_implemented": true,
+          "name": "harness_SearchMemory",
+          "owner": "harness",
+          "proto_rpc_exists": true,
+          "request": "quark.harness.v1.SearchMemoryRequest",
+          "response": "quark.harness.v1.SearchMemoryResponse",
+          "risk_level": "read",
+          "service": "quark.harness.v1.HarnessService",
+          "status": "implemented_end_to_end",
+          "streaming": false,
+          "subject": "svc.harness.v1.search_memory"
+        },
+        {
+          "approval_required": false,
+          "idempotent": false,
+          "method": "DeleteMemory",
+          "method_implemented": true,
+          "name": "harness_DeleteMemory",
+          "owner": "harness",
+          "proto_rpc_exists": true,
+          "request": "quark.harness.v1.DeleteMemoryRequest",
+          "response": "quark.harness.v1.DeleteMemoryResponse",
+          "risk_level": "write",
+          "service": "quark.harness.v1.HarnessService",
+          "status": "implemented_end_to_end",
+          "streaming": false,
+          "subject": "svc.harness.v1.delete_memory"
+        }
+      ],
+      "health_service": "quark.harness.v1.HarnessService",
+      "implemented_function_count": 7,
+      "manifest_path": "plugins/services/harness/manifest.yaml",
+      "module_exists": true,
+      "module_path": "services/harness",
+      "proto_mismatch_count": 0,
+      "proto_services": [
+        "quark.harness.v1.HarnessService"
+      ],
+      "readiness_required": true,
+      "readme_path": "plugins/services/harness/README.md",
+      "skill_path": "plugins/services/harness/SKILL.md"
+    },
     "indexer": {
       "address_env": "QUARK_INDEXER_ADDR",
       "declared_only_function_count": 0,
@@ -2019,89 +2175,6 @@
       "readiness_required": true,
       "readme_path": "plugins/services/io/README.md",
       "skill_path": "plugins/services/io/SKILL.md"
-    },
-    "memory": {
-      "address_env": "QUARK_MEMORY_ADDR",
-      "declared_only_function_count": 4,
-      "function_count": 4,
-      "functions": [
-        {
-          "approval_required": false,
-          "idempotent": false,
-          "method": "Put",
-          "method_implemented": false,
-          "name": "memory_Put",
-          "owner": "memory",
-          "proto_rpc_exists": true,
-          "request": "quark.memory.v1.PutRequest",
-          "response": "quark.memory.v1.PutResponse",
-          "risk_level": "write",
-          "service": "quark.memory.v1.MemoryService",
-          "status": "declared_only",
-          "streaming": false,
-          "subject": "svc.memory.v1.put"
-        },
-        {
-          "approval_required": false,
-          "idempotent": true,
-          "method": "Get",
-          "method_implemented": false,
-          "name": "memory_Get",
-          "owner": "memory",
-          "proto_rpc_exists": true,
-          "request": "quark.memory.v1.GetRequest",
-          "response": "quark.memory.v1.GetResponse",
-          "risk_level": "read",
-          "service": "quark.memory.v1.MemoryService",
-          "status": "declared_only",
-          "streaming": false,
-          "subject": "svc.memory.v1.get"
-        },
-        {
-          "approval_required": false,
-          "idempotent": true,
-          "method": "Search",
-          "method_implemented": false,
-          "name": "memory_Search",
-          "owner": "memory",
-          "proto_rpc_exists": true,
-          "request": "quark.memory.v1.SearchRequest",
-          "response": "quark.memory.v1.SearchResponse",
-          "risk_level": "read",
-          "service": "quark.memory.v1.MemoryService",
-          "status": "declared_only",
-          "streaming": false,
-          "subject": "svc.memory.v1.search"
-        },
-        {
-          "approval_required": true,
-          "idempotent": false,
-          "method": "Delete",
-          "method_implemented": false,
-          "name": "memory_Delete",
-          "owner": "memory",
-          "proto_rpc_exists": true,
-          "request": "quark.memory.v1.DeleteRequest",
-          "response": "quark.memory.v1.DeleteResponse",
-          "risk_level": "write",
-          "service": "quark.memory.v1.MemoryService",
-          "status": "declared_only",
-          "streaming": false,
-          "subject": "svc.memory.v1.delete"
-        }
-      ],
-      "health_service": "quark.memory.v1.MemoryService",
-      "implemented_function_count": 0,
-      "manifest_path": "plugins/services/memory/manifest.yaml",
-      "module_exists": false,
-      "module_path": "",
-      "proto_mismatch_count": 0,
-      "proto_services": [
-        "quark.memory.v1.MemoryService"
-      ],
-      "readiness_required": true,
-      "readme_path": "plugins/services/memory/README.md",
-      "skill_path": "plugins/services/memory/SKILL.md"
     },
     "runstate": {
       "address_env": "QUARK_RUNSTATE_ADDR",
@@ -3049,11 +3122,11 @@
   },
   "summary": {
     "agent_profile_count": 4,
-    "declared_only_or_mismatched_function_count": 5,
+    "declared_only_or_mismatched_function_count": 1,
     "e2e_test_file_count": 32,
-    "implemented_service_function_count": 138,
-    "runnable_service_module_count": 12,
-    "service_function_count": 143,
+    "implemented_service_function_count": 145,
+    "runnable_service_module_count": 13,
+    "service_function_count": 146,
     "service_plugin_count": 13
   },
   "version": 1

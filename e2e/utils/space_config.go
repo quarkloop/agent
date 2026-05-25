@@ -63,6 +63,7 @@ func spaceConfigFor(t *testing.T, name, workingDir, provider, model string, serv
 		addService(ServicePlugin{Name: "document", Plugin: "document", Mode: "local", AddressEnv: "QUARK_DOCUMENT_ADDR"})
 		addService(ServicePlugin{Name: "runstate", Plugin: "runstate", Mode: "local", AddressEnv: "QUARK_RUNSTATE_ADDR"})
 		addService(ServicePlugin{Name: "citation", Plugin: "citation", Mode: "local", AddressEnv: "QUARK_CITATION_ADDR"})
+		addService(ServicePlugin{Name: "harness", Plugin: "harness", Mode: "local", AddressEnv: "QUARK_HARNESS_ADDR"})
 	}
 	for _, service := range services {
 		addService(service)

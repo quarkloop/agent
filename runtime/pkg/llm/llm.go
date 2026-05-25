@@ -45,10 +45,14 @@ type ToolCallGuard func(content string, toolCalls []plugin.ToolCall) (instructio
 // user-facing final answer.
 type ToolResultGate func(content string, toolCalls []plugin.ToolCall) bool
 
-// ToolResultInstruction can add a transient system instruction after a tool
-// batch executes and before the next model turn. Workflow policy uses this to
-// keep long-running service workflows on the current required step.
-type ToolResultInstruction func() string
+// ToolResultContext can add a transient structured runtime fact after a tool
+// batch executes and before the next model turn. It must not author guidance
+// that belongs in an agent plugin.
+type ToolResultContext func() string
+
+// ContextPreparer packages the raw session/tool transcript for one model
+// turn. Harness supplies this boundary in production.
+type ContextPreparer func(context.Context, []plugin.Message) ([]plugin.Message, error)
 
 // ToolCallArgumentNormalizer can rewrite tool-call arguments before workflow
 // guards, trace events, and execution. Runtime service adapters use it for
@@ -136,7 +140,17 @@ func (c *Client) InferWithToolCallPolicy(ctx context.Context, messages []plugin.
 
 // InferWithToolCallPolicyAndContinuation runs Infer with workflow-owned
 // pre-tool policies and post-tool continuation instructions.
-func (c *Client) InferWithToolCallPolicyAndContinuation(ctx context.Context, messages []plugin.Message, tools []plugin.ToolSchema, onTool plugin.ToolHandler, onMessage func(msgType string, data any), finalGuard FinalGuard, toolCallGate ToolCallGate, toolCallGuard ToolCallGuard, toolResultGate ToolResultGate, toolResultInstruction ToolResultInstruction) (string, error) {
+func (c *Client) InferWithToolCallPolicyAndContinuation(ctx context.Context, messages []plugin.Message, tools []plugin.ToolSchema, onTool plugin.ToolHandler, onMessage func(msgType string, data any), finalGuard FinalGuard, toolCallGate ToolCallGate, toolCallGuard ToolCallGuard, toolResultGate ToolResultGate, toolResultContext ToolResultContext) (string, error) {
+	return c.inferWithPolicy(ctx, messages, tools, onTool, onMessage, nil, finalGuard, toolCallGate, toolCallGuard, toolResultGate, toolResultContext)
+}
+
+// InferWithPreparedContextAndPolicy runs the bounded model/tool loop while
+// delegating each outgoing context package to Harness.
+func (c *Client) InferWithPreparedContextAndPolicy(ctx context.Context, messages []plugin.Message, tools []plugin.ToolSchema, onTool plugin.ToolHandler, onMessage func(msgType string, data any), prepare ContextPreparer, finalGuard FinalGuard, toolCallGate ToolCallGate, toolCallGuard ToolCallGuard, toolResultGate ToolResultGate, toolResultContext ToolResultContext) (string, error) {
+	return c.inferWithPolicy(ctx, messages, tools, onTool, onMessage, prepare, finalGuard, toolCallGate, toolCallGuard, toolResultGate, toolResultContext)
+}
+
+func (c *Client) inferWithPolicy(ctx context.Context, messages []plugin.Message, tools []plugin.ToolSchema, onTool plugin.ToolHandler, onMessage func(msgType string, data any), prepare ContextPreparer, finalGuard FinalGuard, toolCallGate ToolCallGate, toolCallGuard ToolCallGuard, toolResultGate ToolResultGate, toolResultContext ToolResultContext) (string, error) {
 	turns := 0
 	finalGuardRetries := 0
 	for {
@@ -145,9 +159,17 @@ func (c *Client) InferWithToolCallPolicyAndContinuation(ctx context.Context, mes
 			return "", fmt.Errorf("inference loop exceeded %d model turns for model %q", c.limits.MaxTurns, c.model)
 		}
 
+		turnMessages := messages
+		if prepare != nil {
+			var err error
+			turnMessages, err = prepare(ctx, append([]plugin.Message(nil), messages...))
+			if err != nil {
+				return "", fmt.Errorf("prepare model context: %w", err)
+			}
+		}
 		stream, err := c.provider.ChatCompletionStream(ctx, &plugin.ChatRequest{
 			Model:    c.model,
-			Messages: messages,
+			Messages: turnMessages,
 			Tools:    tools,
 		})
 		if err != nil {
@@ -232,7 +254,7 @@ func (c *Client) InferWithToolCallPolicyAndContinuation(ctx context.Context, mes
 			if droppedToolCalls > 0 {
 				messages = append(messages, plugin.Message{
 					Role:    "system",
-					Content: "The previous assistant response contained malformed tool calls. Retry with exactly one valid tool call using a known function name and one complete valid JSON object for arguments, or answer directly if no tool is needed.",
+					Content: `{"type":"runtime.tool_call.validation","status":"rejected","reason":"malformed_tool_calls"}`,
 				})
 				continue
 			}
@@ -335,9 +357,9 @@ func (c *Client) InferWithToolCallPolicyAndContinuation(ctx context.Context, mes
 			return fullContent, nil
 		}
 
-		if toolResultInstruction != nil {
-			if instruction := strings.TrimSpace(toolResultInstruction()); instruction != "" {
-				messages = append(messages, plugin.Message{Role: "system", Content: instruction})
+		if toolResultContext != nil {
+			if fact := strings.TrimSpace(toolResultContext()); fact != "" {
+				messages = append(messages, plugin.Message{Role: "system", Content: fact})
 			}
 		}
 
@@ -458,14 +480,13 @@ func compactStringForHistory(value string) (string, bool) {
 	if len(runes) <= toolCallHistoryStringMaxRunes {
 		return value, false
 	}
-	return string(runes[:toolCallHistoryStringMaxRunes]) + "\n...[truncated in model history after tool execution; full arguments were used for the tool call]", true
+	return string(runes[:toolCallHistoryStringMaxRunes]), true
 }
 
 func compactFallbackToolArguments(chars int) string {
 	data, _ := json.Marshal(map[string]any{
 		"_argumentsChars":     chars,
 		"_argumentsTruncated": true,
-		"_historyNote":        "Tool arguments were compacted in model history after execution; full arguments were used for the tool call.",
 	})
 	return string(data)
 }

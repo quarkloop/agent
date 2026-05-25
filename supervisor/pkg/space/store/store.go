@@ -1,5 +1,5 @@
 // Package store provides a unified JSONL-backed key-value store used by all
-// subsystems in quark (spaces, KB, snapshots, etc.).
+// subsystems in quark (spaces, snapshots, etc.).
 //
 // # Design
 //

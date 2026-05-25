@@ -60,6 +60,12 @@ permissions:
     - core_EvaluatePolicy
     - core_RecordAuditEvent
     - core_PutArtifact
+    - harness_GetContextReport
+    - harness_StreamContextReports
+    - harness_PutMemory
+    - harness_GetMemory
+    - harness_SearchMemory
+    - harness_DeleteMemory
     - workflow_Start
     - workflow_Query
     - workflow_Describe

@@ -3,6 +3,7 @@ package plan
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -131,7 +132,7 @@ func (p *Plan) GetSteps() []Step {
 	return out
 }
 
-// GetSummary returns a one-line status for injection into session prompts.
+// GetSummary returns a concise runtime status fact for Harness packaging.
 func (p *Plan) GetSummary() string {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
@@ -150,7 +151,7 @@ func (p *Plan) GetSummary() string {
 }
 
 // ExecuteStep runs the current pending step using the provided infer function.
-func (p *Plan) ExecuteStep(ctx context.Context, infer Inferrer, systemPrompt string, tools []plugin.ToolSchema, onTool plugin.ToolHandler) error {
+func (p *Plan) ExecuteStep(ctx context.Context, infer Inferrer, baseMessages []plugin.Message, tools []plugin.ToolSchema, onTool plugin.ToolHandler) error {
 	// Find the current pending step index under the lock.
 	p.mu.Lock()
 	stepIdx := -1
@@ -168,21 +169,15 @@ func (p *Plan) ExecuteStep(ctx context.Context, infer Inferrer, systemPrompt str
 	}
 
 	// Build work context messages
-	var msgs []plugin.Message
-	msgs = append(msgs, plugin.Message{
-		Role:    "system",
-		Content: systemPrompt + "\n\nYou are executing your autonomous work plan. Focus on the current step.",
-	})
+	msgs := append([]plugin.Message(nil), baseMessages...)
 
 	for _, m := range p.workCtx.GetHistory() {
 		msgs = append(msgs, plugin.Message{Role: m.Role, Content: m.Content})
 	}
 
 	p.mu.Lock()
-	msgs = append(msgs, plugin.Message{
-		Role:    "user",
-		Content: fmt.Sprintf("Execute this step: %s", p.steps[stepIdx].description),
-	})
+	stepFact, _ := json.Marshal(map[string]string{"type": "runtime.plan.step", "description": p.steps[stepIdx].description})
+	msgs = append(msgs, plugin.Message{Role: "system", Content: string(stepFact)})
 	p.mu.Unlock()
 
 	// Call LLM (no user stream for work execution)

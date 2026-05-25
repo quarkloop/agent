@@ -10,7 +10,6 @@ import (
 
 const (
 	ConfigFile  = "space.json"
-	KBDir       = "kb"
 	PluginsDir  = "plugins"
 	SessionsDir = "sessions"
 )
@@ -53,11 +52,10 @@ func ValidateName(name string) error {
 }
 
 func (l Layout) ConfigPath() string   { return filepath.Join(l.Root, ConfigFile) }
-func (l Layout) KBPath() string       { return filepath.Join(l.Root, KBDir) }
 func (l Layout) PluginsPath() string  { return filepath.Join(l.Root, PluginsDir) }
 func (l Layout) SessionsPath() string { return filepath.Join(l.Root, SessionsDir) }
 
 // RequiredDirs returns the directories that must exist for a usable space.
 func (l Layout) RequiredDirs() []string {
-	return []string{l.Root, l.KBPath(), l.PluginsPath(), l.SessionsPath()}
+	return []string{l.Root, l.PluginsPath(), l.SessionsPath()}
 }

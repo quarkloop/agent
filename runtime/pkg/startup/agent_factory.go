@@ -72,11 +72,11 @@ func (r AgentRegistrar) NewAgent(ctx context.Context, spaceConfig SpaceConfig) (
 	}
 	slog.Info("using model", "space", spaceConfig.SpaceID, "provider", modelProvider, "model", modelName)
 
-	promptAddenda := ServicePromptAddenda(serviceCatalog)
+	promptMaterials := ServicePromptMaterials(serviceCatalog)
 	coreRecorder := CoreEventRecorder(serviceCatalog)
 	modelProviderAdapter := ModelProviderFromServiceWithConfig(serviceCatalog, modelProvider, GatewayConfig(spaceConfig.Credential))
 	if strings.TrimSpace(agentPlugin.Skill) != "" {
-		promptAddenda = append(promptAddenda, strings.TrimSpace(agentPlugin.Skill))
+		promptMaterials = append(promptMaterials, AgentSkillMaterial(agentPlugin))
 	}
 	agentName := "Main Agent"
 	agentDescription := ""
@@ -100,7 +100,8 @@ func (r AgentRegistrar) NewAgent(ctx context.Context, spaceConfig SpaceConfig) (
 		PluginCatalog:        pluginCatalog,
 		SupervisorURL:        env.SupervisorURL,
 		SpaceID:              spaceConfig.SpaceID,
-		PromptAddenda:        promptAddenda,
+		PromptMaterials:      promptMaterials,
+		ContextComposer:      HarnessComposer(spaceConfig.Credential),
 		PendingRefs:          ServiceFunctionPendingRefs(serviceCatalog),
 		ToolResultRef:        ServiceFunctionToolResultRef(serviceCatalog),
 		ToolCallArguments:    ServiceFunctionToolCallArgumentNormalizer(serviceCatalog),

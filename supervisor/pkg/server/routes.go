@@ -20,12 +20,6 @@ func (s *Server) routes() {
 	// Doctor
 	app.Post("/v1/spaces/:name/doctor", s.handleDoctor)
 
-	// KB
-	app.Get("/v1/spaces/:name/kb/:namespace", s.handleKBList)
-	app.Get("/v1/spaces/:name/kb/:namespace/:key", s.handleKBGet)
-	app.Put("/v1/spaces/:name/kb/:namespace/:key", s.handleKBSet)
-	app.Delete("/v1/spaces/:name/kb/:namespace/:key", s.handleKBDelete)
-
 	// Plugins
 	app.Get("/v1/spaces/:name/plugins", s.handleListPlugins)
 	app.Post("/v1/spaces/:name/plugins", s.handleInstallPlugin)

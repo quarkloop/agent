@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/quarkloop/pkg/plugin"
 	"github.com/quarkloop/runtime/pkg/guard"
 	"github.com/quarkloop/runtime/pkg/llm"
 	"github.com/quarkloop/runtime/pkg/loop"
@@ -64,38 +65,37 @@ func (a *Agent) handleUserMessage(ctx context.Context, msg loop.Message) error {
 	workflowTracker := workflow.NewTracker(userMsg.SessionID, userMsg.Content, tools, a.Workflows, func(event workflow.Event) {
 		a.addActivity(userMsg.SessionID, "workflow."+event.Type, event)
 	})
-	systemPrompt := a.systemPrompt()
 	onTool := a.executeTool
 	var workflowGuard llm.FinalGuard
 	var workflowToolCallGate llm.ToolCallGate
 	var workflowToolCallGuard llm.ToolCallGuard
 	var workflowToolResultGate llm.ToolResultGate
-	var workflowToolResultInstruction llm.ToolResultInstruction
+	var workflowToolResultContext llm.ToolResultContext
 	if workflowTracker != nil {
-		if block := workflowTracker.PromptBlock(); block != "" {
-			systemPrompt += "\n\n" + block
-		}
 		onTool = workflowTracker.WrapToolHandler(onTool)
 		workflowGuard = workflowTracker.FinalGuard
 		workflowToolCallGate = workflowTracker.AcceptFinalBeforeToolCalls
 		workflowToolCallGuard = workflowTracker.GuardToolCalls
 		workflowToolResultGate = workflowTracker.AcceptFinalAfterToolCalls
-		workflowToolResultInstruction = workflowTracker.ContinuationPrompt
+		workflowToolResultContext = workflowTracker.ContinuationStatus
 	}
-	fullResponse, err := message.HandleWithToolCallPolicyAndContinuation(
+	rawMessages := make([]plugin.Message, 0, len(history))
+	for _, item := range history {
+		rawMessages = append(rawMessages, plugin.Message{Role: item.Role, Content: item.Content})
+	}
+	fullResponse, err := message.HandlePrepared(
 		requestCtx,
-		history,
+		rawMessages,
 		client,
-		systemPrompt,
-		a.Plan.GetSummary(),
 		tools,
 		onTool,
 		response,
+		a.contextPreparer(client.ContextWindow, a.Plan.GetSummary()),
 		guard.CombineFinalGuards(a.finalGuard(), workflowGuard),
 		workflowToolCallGate,
 		workflowToolCallGuard,
 		workflowToolResultGate,
-		workflowToolResultInstruction,
+		workflowToolResultContext,
 	)
 	if err != nil {
 		a.emitMessageError(requestCtx, userMsg.SessionID, response, err)

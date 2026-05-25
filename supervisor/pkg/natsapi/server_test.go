@@ -17,7 +17,6 @@ import (
 	spacemodel "github.com/quarkloop/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/api"
 	"github.com/quarkloop/supervisor/pkg/events"
-	"github.com/quarkloop/supervisor/pkg/kb"
 	"github.com/quarkloop/supervisor/pkg/natshub"
 	"github.com/quarkloop/supervisor/pkg/pluginmanager"
 	"github.com/quarkloop/supervisor/pkg/sessions"
@@ -85,33 +84,6 @@ func TestSpaceAndSessionContracts(t *testing.T) {
 	if len(listSpaces.Spaces) != 1 || listSpaces.Spaces[0].Name != "docs" {
 		t.Fatalf("spaces = %#v", listSpaces.Spaces)
 	}
-
-	_ = requestPayload[struct{}](t, fixture.client, clientcontract.SubjectKBSet, clientcontract.KBSetRequest{
-		SpaceID:   "docs",
-		Namespace: "config",
-		Key:       "model",
-		Value:     []byte("openrouter"),
-	})
-	kbValue := requestPayload[clientcontract.KBValueResponse](t, fixture.client, clientcontract.SubjectKBGet, clientcontract.KBRefRequest{
-		SpaceID:   "docs",
-		Namespace: "config",
-		Key:       "model",
-	})
-	if string(kbValue.Value) != "openrouter" {
-		t.Fatalf("kb value = %q", kbValue.Value)
-	}
-	kbKeys := requestPayload[clientcontract.KBListResponse](t, fixture.client, clientcontract.SubjectKBList, clientcontract.KBListRequest{
-		SpaceID:   "docs",
-		Namespace: "config",
-	})
-	if len(kbKeys.Keys) != 1 || kbKeys.Keys[0] != "model" {
-		t.Fatalf("kb keys = %#v", kbKeys.Keys)
-	}
-	_ = requestPayload[struct{}](t, fixture.client, clientcontract.SubjectKBDelete, clientcontract.KBRefRequest{
-		SpaceID:   "docs",
-		Namespace: "config",
-		Key:       "model",
-	})
 
 	plugins := requestPayload[clientcontract.ListPluginsResponse](t, fixture.client, clientcontract.SubjectPluginList, clientcontract.ListPluginsRequest{
 		SpaceID: "docs",
@@ -421,10 +393,6 @@ func (s *fixtureSpaceStore) Config(name string) ([]byte, error) {
 }
 
 func (s *fixtureSpaceStore) AgentEnvironment(string) ([]string, error) { return nil, nil }
-
-func (s *fixtureSpaceStore) KB(name string) (kb.Store, error) {
-	return kb.Open(filepath.Join(s.root, name, "kb"))
-}
 
 func (s *fixtureSpaceStore) Plugins(name string) (*pluginmanager.Installer, error) {
 	return pluginmanager.NewInstaller(filepath.Join(s.root, name, "plugins")), nil

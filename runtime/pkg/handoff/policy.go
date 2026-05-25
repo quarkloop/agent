@@ -65,12 +65,3 @@ func (p Policy) ValidateTarget(targetProfileID string) error {
 	}
 	return fmt.Errorf("agent profile %q cannot hand off to profile %q", p.ownerProfileID, targetProfileID)
 }
-
-// PromptBlock returns a concise prompt block for allowed profile-level handoffs.
-func (p Policy) PromptBlock() string {
-	targets := p.Targets()
-	if len(targets) == 0 {
-		return ""
-	}
-	return "## Agent Handoffs\n\nThis resolved agent profile may delegate scoped work to these agent profiles within the current runtime process: " + strings.Join(targets, ", ") + ". Keep the current agent as coordinator and do not assume separate agent binaries."
-}

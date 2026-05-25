@@ -435,7 +435,7 @@ func TestInferAppendsToolResultContinuationInstruction(t *testing.T) {
 					return nil, errors.New("continuation request has no messages")
 				}
 				last := req.Messages[len(req.Messages)-1]
-				continuationSeen = last.Role == "system" && strings.Contains(last.Content, "current required step")
+				continuationSeen = last.Role == "system" && strings.Contains(last.Content, `"type":"runtime.workflow.status"`)
 				return streamEvents(
 					plugin.StreamEvent{Delta: "continued"},
 					plugin.StreamEvent{Done: true},
@@ -459,7 +459,7 @@ func TestInferAppendsToolResultContinuationInstruction(t *testing.T) {
 		nil,
 		nil,
 		nil,
-		func() string { return "Runtime workflow continuation: current required step." },
+		func() string { return `{"type":"runtime.workflow.status","status":"incomplete"}` },
 	)
 	if err != nil {
 		t.Fatalf("InferWithToolCallPolicyAndContinuation returned error: %v", err)
@@ -657,7 +657,7 @@ func TestInferRetriesAfterOnlyMalformedToolCalls(t *testing.T) {
 					return nil, errors.New("retry request has no messages")
 				}
 				last := req.Messages[len(req.Messages)-1]
-				retryPromptSeen = last.Role == "system" && strings.Contains(last.Content, "malformed tool calls")
+				retryPromptSeen = last.Role == "system" && strings.Contains(last.Content, `"reason":"malformed_tool_calls"`)
 				return streamEvents(
 					plugin.StreamEvent{Delta: "answered without malformed history"},
 					plugin.StreamEvent{Done: true},
@@ -718,7 +718,7 @@ func TestInferRetriesAfterOnlyMalformedToolCallArguments(t *testing.T) {
 					return nil, errors.New("retry request has no messages")
 				}
 				last := req.Messages[len(req.Messages)-1]
-				retryPromptSeen = last.Role == "system" && strings.Contains(last.Content, "complete valid JSON object")
+				retryPromptSeen = last.Role == "system" && strings.Contains(last.Content, `"reason":"malformed_tool_calls"`)
 				return streamEvents(
 					plugin.StreamEvent{Delta: "retried without executing malformed call"},
 					plugin.StreamEvent{Done: true},

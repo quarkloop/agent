@@ -273,36 +273,6 @@ func (e *Executor) expandContentReference(arguments, refField, contentField stri
 	return string(data), nil
 }
 
-func (e *Executor) expandContentReferenceList(arguments, refField, contentField string) (string, error) {
-	var payload map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(arguments), &payload); err != nil {
-		return "", fmt.Errorf("decode service arguments: %w", err)
-	}
-	rawRef, ok := payload[refField]
-	if !ok {
-		return arguments, nil
-	}
-	var ref string
-	if err := json.Unmarshal(rawRef, &ref); err != nil {
-		return "", fmt.Errorf("%s must be a string: %w", refField, err)
-	}
-	content, ok := e.contentByRef(ref)
-	if !ok {
-		return "", fmt.Errorf("%s %q was not produced by an io_Read or document_ExtractText call in this runtime session", refField, ref)
-	}
-	rawContent, err := json.Marshal([]string{content})
-	if err != nil {
-		return "", fmt.Errorf("encode %s: %w", contentField, err)
-	}
-	payload[contentField] = rawContent
-	delete(payload, refField)
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return "", fmt.Errorf("encode service arguments: %w", err)
-	}
-	return string(data), nil
-}
-
 func (e *Executor) expandVectorReference(arguments, refField, vectorField string) (string, error) {
 	var payload map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(arguments), &payload); err != nil {

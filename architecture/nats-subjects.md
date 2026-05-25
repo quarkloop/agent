@@ -77,6 +77,13 @@ select queue groups.
 | `gateway` | `q.service.v1.gateway` | `gateway_ProviderHealth` | `svc.gateway.v1.provider_health` |
 | `gateway` | `q.service.v1.gateway` | `gateway_UsageSummary` | `svc.gateway.v1.usage_summary` |
 | `gateway` | `q.service.v1.gateway` | `gateway_ReloadConfig` | `svc.gateway.v1.reload_config` |
+| `harness` | `q.service.v1.harness` | `harness_ComposeContext` | `svc.harness.v1.compose_context` |
+| `harness` | `q.service.v1.harness` | `harness_GetContextReport` | `svc.harness.v1.get_context_report` |
+| `harness` | `q.service.v1.harness` | `harness_StreamContextReports` | `svc.harness.v1.stream_context_reports` |
+| `harness` | `q.service.v1.harness` | `harness_PutMemory` | `svc.harness.v1.put_memory` |
+| `harness` | `q.service.v1.harness` | `harness_GetMemory` | `svc.harness.v1.get_memory` |
+| `harness` | `q.service.v1.harness` | `harness_SearchMemory` | `svc.harness.v1.search_memory` |
+| `harness` | `q.service.v1.harness` | `harness_DeleteMemory` | `svc.harness.v1.delete_memory` |
 | `indexer` | `q.service.v1.indexer` | `indexer_UpsertDocument` | `svc.indexer.v1.upsert_document` |
 | `indexer` | `q.service.v1.indexer` | `indexer_UpsertChunk` | `svc.indexer.v1.upsert_chunk` |
 | `indexer` | `q.service.v1.indexer` | `indexer_UpsertFact` | `svc.indexer.v1.upsert_fact` |
@@ -98,10 +105,6 @@ select queue groups.
 | `io` | `q.service.v1.io` | `io_Replace` | `svc.io.v1.replace` |
 | `io` | `q.service.v1.io` | `io_Remove` | `svc.io.v1.remove` |
 | `io` | `q.service.v1.io` | `io_Execute` | `svc.io.v1.execute` |
-| `memory` | `q.service.v1.memory` | `memory_Put` | `svc.memory.v1.put` |
-| `memory` | `q.service.v1.memory` | `memory_Get` | `svc.memory.v1.get` |
-| `memory` | `q.service.v1.memory` | `memory_Search` | `svc.memory.v1.search` |
-| `memory` | `q.service.v1.memory` | `memory_Delete` | `svc.memory.v1.delete` |
 | `runstate` | `q.service.v1.runstate` | `runstate_StartRun` | `svc.runstate.v1.start_run` |
 | `runstate` | `q.service.v1.runstate` | `runstate_GetRun` | `svc.runstate.v1.get_run` |
 | `runstate` | `q.service.v1.runstate` | `runstate_ListRuns` | `svc.runstate.v1.list_runs` |

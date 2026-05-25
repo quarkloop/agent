@@ -23,7 +23,7 @@ OUTPUT = ROOT / "architecture" / "service-implementation-map.json"
 SUBJECT_OUTPUT = ROOT / "architecture" / "nats-subjects.md"
 
 AREA_SERVICES = {
-    "Knowledge": ["document", "runstate", "gateway", "indexer", "citation", "memory"],
+    "Knowledge": ["document", "runstate", "gateway", "indexer", "citation", "harness"],
     "DevOps": ["devops"],
     "System": ["system"],
     "Core": ["core"],
@@ -297,26 +297,34 @@ def parse_proto_files() -> dict[str, dict[str, Any]]:
 
 def service_module_for(manifest: dict[str, Any]) -> pathlib.Path | None:
     by_name = ROOT / "services" / manifest["name"]
-    if (by_name / "go.mod").exists():
+    if (by_name / "go.mod").exists() or (by_name / "Cargo.toml").exists():
         return by_name
     for proto_service in manifest["proto_services"]:
         parts = proto_service.split(".")
         if len(parts) >= 2:
             candidate = ROOT / "services" / parts[1]
-            if (candidate / "go.mod").exists():
+            if (candidate / "go.mod").exists() or (candidate / "Cargo.toml").exists():
                 return candidate
     return None
 
 
-def scan_go_method(module: pathlib.Path | None, method: str) -> bool:
+def scan_service_method(module: pathlib.Path | None, method: str) -> bool:
     if module is None:
         return False
-    method_re = re.compile(rf"func\s+\([^)]*\)\s+{re.escape(method)}\s*\(")
-    for path in sorted(module.rglob("*.go")):
-        if path.name.endswith("_test.go"):
-            continue
-        if method_re.search(path.read_text(encoding="utf-8")):
-            return True
+    if (module / "go.mod").exists():
+        method_re = re.compile(rf"func\s+\([^)]*\)\s+{re.escape(method)}\s*\(")
+        for path in sorted(module.rglob("*.go")):
+            if path.name.endswith("_test.go"):
+                continue
+            if method_re.search(path.read_text(encoding="utf-8")):
+                return True
+    if (module / "Cargo.toml").exists():
+        rust_operation = re.compile(rf"Operation::{re.escape(method)}\b")
+        rust_method = re.compile(rf"\bfn\s+{re.escape(nats_token(method))}\s*\(")
+        for path in sorted((module / "src").rglob("*.rs")):
+            text = path.read_text(encoding="utf-8")
+            if rust_operation.search(text) or rust_method.search(text):
+                return True
     return False
 
 
@@ -330,7 +338,7 @@ def build_service_inventory(manifests: list[dict[str, Any]], proto_services: dic
             service_name = str(fn.get("service", ""))
             method = str(fn.get("method", ""))
             proto_rpc = proto_services.get(service_name, {}).get("rpcs", {}).get(method)
-            method_implemented = scan_go_method(module, method)
+            method_implemented = scan_service_method(module, method)
             status = "implemented_end_to_end" if module and proto_rpc and method_implemented else "declared_only"
             if not proto_rpc:
                 status = "proto_mismatch"

@@ -1,9 +1,6 @@
 package handoff
 
-import (
-	"strings"
-	"testing"
-)
+import "testing"
 
 func TestPolicyCopiesAndSortsTargets(t *testing.T) {
 	targets := []string{" quark-system ", "", "quark-devops"}
@@ -23,13 +20,5 @@ func TestPolicyValidatesAllowedTarget(t *testing.T) {
 	}
 	if err := policy.ValidateTarget("quark-system"); err == nil {
 		t.Fatal("expected disallowed target error")
-	}
-}
-
-func TestPolicyPromptBlockNamesTargets(t *testing.T) {
-	policy := NewPolicy("quark-knowledge", []string{"quark-devops"})
-	got := policy.PromptBlock()
-	if !strings.Contains(got, "quark-devops") || !strings.Contains(got, "current runtime process") {
-		t.Fatalf("prompt block = %q", got)
 	}
 }

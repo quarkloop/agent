@@ -119,7 +119,6 @@ func (s *Server) GetSpacePaths(ctx context.Context, req *spacev1.GetSpacePathsRe
 	return &spacev1.SpacePaths{
 		RootDir:     paths.RootDir,
 		ConfigPath:  paths.ConfigPath,
-		KbDir:       paths.KBDir,
 		PluginsDir:  paths.PluginsDir,
 		SessionsDir: paths.SessionsDir,
 	}, nil

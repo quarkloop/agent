@@ -75,6 +75,9 @@ providers directly.
   response usage accounting, provider diagnostics, and provider error mapping.
 - Embedding requests use the configured Gateway embedding provider and model;
   do not request local or synthetic vectors.
+- For extracted content or media, pass runtime-issued `inputRef`, `contentRef`,
+  `pageRef`, or `imageRef` values instead of copying source text or media
+  bytes into a service call.
 - The OpenRouter-compatible adapter supports mixed text/image embedding
   content. Adapters that cannot represent media inputs reject them explicitly.
 - Runtime owns session/run accumulation and persistence through runtime/Core

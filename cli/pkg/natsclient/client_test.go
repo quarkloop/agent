@@ -262,27 +262,6 @@ func TestTypedControlMethodsUseNATSContracts(t *testing.T) {
 		t.Fatalf("delete session: %v", err)
 	}
 
-	if err := client.KBSet(context.Background(), "docs", "config", "model", []byte("openrouter")); err != nil {
-		t.Fatalf("kb set: %v", err)
-	}
-	value, err := client.KBGet(context.Background(), "docs", "config", "model")
-	if err != nil {
-		t.Fatalf("kb get: %v", err)
-	}
-	if string(value) != "openrouter" {
-		t.Fatalf("kb value = %q", value)
-	}
-	keys, err := client.KBList(context.Background(), "docs", "config")
-	if err != nil {
-		t.Fatalf("kb list: %v", err)
-	}
-	if len(keys) != 1 || keys[0] != "model" {
-		t.Fatalf("kb keys = %#v", keys)
-	}
-	if err := client.KBDelete(context.Background(), "docs", "config", "model"); err != nil {
-		t.Fatalf("kb delete: %v", err)
-	}
-
 	doctor, err := client.Doctor(context.Background(), "docs")
 	if err != nil {
 		t.Fatalf("doctor: %v", err)
@@ -441,26 +420,6 @@ func registerTypedControlResponders(t *testing.T, responder *nats.Conn, hub *nat
 				SpaceID:   credential.SpaceID,
 				SessionID: credential.SessionID,
 			}}
-		},
-		clientcontract.SubjectKBSet: func(req clientcontract.RequestEnvelope) any {
-			var payload clientcontract.KBSetRequest
-			if err := req.DecodePayload(&payload); err != nil {
-				t.Errorf("decode kb set: %v", err)
-			}
-			return struct{}{}
-		},
-		clientcontract.SubjectKBGet: func(req clientcontract.RequestEnvelope) any {
-			var payload clientcontract.KBRefRequest
-			if err := req.DecodePayload(&payload); err != nil {
-				t.Errorf("decode kb get: %v", err)
-			}
-			return clientcontract.KBValueResponse{Value: []byte("openrouter")}
-		},
-		clientcontract.SubjectKBList: func(clientcontract.RequestEnvelope) any {
-			return clientcontract.KBListResponse{Keys: []string{"model"}}
-		},
-		clientcontract.SubjectKBDelete: func(clientcontract.RequestEnvelope) any {
-			return struct{}{}
 		},
 		clientcontract.SubjectSpaceDoctor: func(clientcontract.RequestEnvelope) any {
 			return clientcontract.DoctorResponse{OK: true}

@@ -13,7 +13,6 @@ import (
 	"github.com/quarkloop/pkg/natskit"
 	spacev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/space/v1"
 	"github.com/quarkloop/supervisor/pkg/api"
-	"github.com/quarkloop/supervisor/pkg/kb"
 	"github.com/quarkloop/supervisor/pkg/pluginmanager"
 	"github.com/quarkloop/supervisor/pkg/sessions"
 	"github.com/quarkloop/supervisor/pkg/space"
@@ -27,7 +26,7 @@ const requestTimeout = 5 * time.Second
 
 // Store delegates authoritative config operations to Space service. The
 // remaining path-scoped stores are transitional control-plane consumers and
-// are removed with their owning migrations (KB/Harness and supervisor state).
+// are removed with their owning supervisor-state migration.
 type Store struct {
 	client *natskit.Client
 }
@@ -100,14 +99,6 @@ func (s *Store) AgentEnvironment(name string) ([]string, error) {
 		return nil, err
 	}
 	return append([]string(nil), response.GetEntries()...), nil
-}
-
-func (s *Store) KB(name string) (kb.Store, error) {
-	paths, err := s.paths(name)
-	if err != nil {
-		return nil, err
-	}
-	return kb.Open(paths.GetKbDir())
 }
 
 func (s *Store) Plugins(name string) (*pluginmanager.Installer, error) {

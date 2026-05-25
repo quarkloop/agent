@@ -36,8 +36,6 @@ const (
 	routeSpace           = "/v1/spaces/%s"
 	routeSpaceConfig     = "/v1/spaces/%s/config"
 	routeSpaceDoctor     = "/v1/spaces/%s/doctor"
-	routeSpaceKBList     = "/v1/spaces/%s/kb/%s"
-	routeSpaceKBItem     = "/v1/spaces/%s/kb/%s/%s"
 	routeSpacePlugins    = "/v1/spaces/%s/plugins"
 	routeSpacePlugin     = "/v1/spaces/%s/plugins/%s"
 	routeSpacePluginSrch = "/v1/spaces/%s/plugins/search"
@@ -60,14 +58,10 @@ func Route() RouteBuilder { return RouteBuilder{} }
 // same builder can be reused concurrently.
 type RouteBuilder struct{}
 
-func (RouteBuilder) Spaces() string                  { return routeSpaces }
-func (RouteBuilder) Space(name string) string        { return fmt.Sprintf(routeSpace, name) }
-func (RouteBuilder) SpaceConfig(n string) string     { return fmt.Sprintf(routeSpaceConfig, n) }
-func (RouteBuilder) SpaceDoctor(n string) string     { return fmt.Sprintf(routeSpaceDoctor, n) }
-func (RouteBuilder) SpaceKBList(n, ns string) string { return fmt.Sprintf(routeSpaceKBList, n, ns) }
-func (RouteBuilder) SpaceKBItem(n, ns, k string) string {
-	return fmt.Sprintf(routeSpaceKBItem, n, ns, k)
-}
+func (RouteBuilder) Spaces() string                    { return routeSpaces }
+func (RouteBuilder) Space(name string) string          { return fmt.Sprintf(routeSpace, name) }
+func (RouteBuilder) SpaceConfig(n string) string       { return fmt.Sprintf(routeSpaceConfig, n) }
+func (RouteBuilder) SpaceDoctor(n string) string       { return fmt.Sprintf(routeSpaceDoctor, n) }
 func (RouteBuilder) SpacePlugins(n string) string      { return fmt.Sprintf(routeSpacePlugins, n) }
 func (RouteBuilder) SpacePlugin(n, name string) string { return fmt.Sprintf(routeSpacePlugin, n, name) }
 func (RouteBuilder) SpacePluginSearch(n string) string { return fmt.Sprintf(routeSpacePluginSrch, n) }

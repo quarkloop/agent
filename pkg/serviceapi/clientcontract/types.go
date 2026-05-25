@@ -151,32 +151,6 @@ type ListSessionsResponse struct {
 	Sessions []SessionInfo `json:"sessions"`
 }
 
-type KBRefRequest struct {
-	SpaceID   string `json:"space_id"`
-	Namespace string `json:"namespace"`
-	Key       string `json:"key"`
-}
-
-type KBSetRequest struct {
-	SpaceID   string `json:"space_id"`
-	Namespace string `json:"namespace"`
-	Key       string `json:"key"`
-	Value     []byte `json:"value"`
-}
-
-type KBListRequest struct {
-	SpaceID   string `json:"space_id"`
-	Namespace string `json:"namespace"`
-}
-
-type KBValueResponse struct {
-	Value []byte `json:"value"`
-}
-
-type KBListResponse struct {
-	Keys []string `json:"keys"`
-}
-
 type SendMessageRequest struct {
 	SpaceID   string `json:"space_id"`
 	SessionID string `json:"session_id"`

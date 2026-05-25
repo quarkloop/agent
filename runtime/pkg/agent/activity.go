@@ -3,14 +3,11 @@ package agent
 import (
 	"context"
 	"fmt"
-	"log/slog"
-	"time"
 
 	"github.com/quarkloop/pkg/boundary"
 	"github.com/quarkloop/runtime/pkg/activity"
 	"github.com/quarkloop/runtime/pkg/message"
 	"github.com/quarkloop/runtime/pkg/modelservice"
-	"github.com/quarkloop/runtime/pkg/modelusage"
 )
 
 func (a *Agent) instrumentResponse(ctx context.Context, sessionID string, downstream chan message.StreamMessage) (chan message.StreamMessage, func()) {
@@ -69,7 +66,6 @@ func (a *Agent) recordModelUsage(ctx context.Context, usage modelservice.Usage) 
 	if a.Activity != nil {
 		a.addActivity(sessionID, "model.usage", usage)
 	}
-	a.persistModelUsage(usage)
 }
 
 func (a *Agent) addActivity(sessionID, typ string, data any) activity.Record {
@@ -81,18 +77,4 @@ func (a *Agent) addActivity(sessionID, typ string, data any) activity.Record {
 		a.core.Record(record)
 	}
 	return record
-}
-
-func (a *Agent) persistModelUsage(usage modelservice.Usage) {
-	if a.supervisorClient == nil || a.Space == "" {
-		return
-	}
-	usage.FallbackChain = append([]string(nil), usage.FallbackChain...)
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		if err := modelusage.Persist(ctx, a.supervisorClient, a.Space, usage, time.Now().UTC()); err != nil {
-			slog.Warn("persist model usage failed", "error", err)
-		}
-	}()
 }

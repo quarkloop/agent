@@ -2,42 +2,10 @@ package services
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 )
-
-func TestPromptBlockIncludesServiceSkillsAndRPCs(t *testing.T) {
-	t.Parallel()
-
-	block := PromptBlock([]*servicev1.ServiceDescriptor{{
-		Name:    "indexer",
-		Type:    "indexer",
-		Version: "1.0.0",
-		Address: "127.0.0.1:7301",
-		Rpcs: []*servicev1.RpcDescriptor{{
-			Service:       "quark.indexer.v1.IndexerService",
-			Method:        "QueryContext",
-			Request:       "quark.indexer.v1.QueryRequest",
-			Response:      "quark.indexer.v1.ContextResponse",
-			FunctionName:  "indexer_QueryContext",
-			Subject:       "svc.indexer.v1.query_context",
-			RiskLevel:     "read",
-			TimeoutMillis: 30000,
-		}},
-		Skills: []*servicev1.SkillDescriptor{{
-			Name:     "service-indexer",
-			Markdown: "# service-indexer\n\nUse query vectors.",
-		}},
-	}})
-
-	for _, want := range []string{"Available Service Plugins", "indexer_QueryContext", "indexer", "service-indexer", "Use query vectors."} {
-		if !strings.Contains(block, want) {
-			t.Fatalf("prompt block missing %q:\n%s", want, block)
-		}
-	}
-}
 
 func TestCatalogExposesServiceFunctions(t *testing.T) {
 	t.Parallel()
@@ -57,9 +25,6 @@ func TestCatalogExposesServiceFunctions(t *testing.T) {
 	tools := catalog.ToolSchemas()
 	if len(tools) != 1 || tools[0].Name != "indexer_QueryContext" {
 		t.Fatalf("tools = %+v", tools)
-	}
-	if catalog.Prompt() == "" {
-		t.Fatal("catalog prompt is empty")
 	}
 	if len(catalog.Descriptors()) != 1 {
 		t.Fatalf("descriptors = %d, want 1", len(catalog.Descriptors()))
@@ -165,9 +130,9 @@ func TestServiceFunctionSchemasIncludeKnowledgeContracts(t *testing.T) {
 			fields:   []string{"claims"},
 		},
 		{
-			name:     "memory put",
-			typeName: "quark.memory.v1.PutRequest",
-			fields:   []string{"space", "collection", "key", "value", "metadata", "provenance"},
+			name:     "harness memory put",
+			typeName: "quark.harness.v1.PutMemoryRequest",
+			fields:   []string{"space", "scope", "key", "value", "metadata", "provenance"},
 		},
 	}
 	for _, tt := range tests {

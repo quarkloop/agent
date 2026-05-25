@@ -8,6 +8,9 @@ vendor/
 *.test
 *.prof
 
+# Rust
+target/
+
 # Editors
 .idea/
 .vscode/

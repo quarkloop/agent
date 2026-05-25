@@ -79,9 +79,9 @@ func TestKnowledgeIndexWorkflowDoesNotTreatMetadataParsingAsContentExtraction(t 
 		t.Fatal("text extraction should satisfy the current extraction step")
 	}
 
-	prompt := tracker.ContinuationPrompt()
-	if strings.Contains(prompt, "document_ParseBytes") {
-		t.Fatalf("content extraction continuation should not advertise metadata-only parsing:\n%s", prompt)
+	status := tracker.ContinuationStatus()
+	if strings.Contains(status, "document_ParseBytes") {
+		t.Fatalf("content extraction status should not advertise metadata-only parsing:\n%s", status)
 	}
 }
 
@@ -259,34 +259,6 @@ func TestTrackerAcceptsFinalAfterTerminalStepToolCallCompletes(t *testing.T) {
 	}
 }
 
-func TestTrackerPromptBlockNamesRequiredKnowledgeIndexOrder(t *testing.T) {
-	tracker := NewTracker("session-1", "Please index these Markdown files.", toolSchemas(
-		"runstate_StartRun",
-		"document_ExtractText",
-		"gateway_Embed",
-		"indexer_UpsertChunk",
-		"runstate_UpdateItemState",
-		"runstate_MarkComplete",
-	), NewStore(), nil)
-	if tracker == nil {
-		t.Fatal("expected tracker")
-	}
-
-	block := tracker.PromptBlock()
-	for _, want := range []string{
-		"Active Runtime Workflow",
-		"durable run creation",
-		"document content extraction",
-		"canonical indexing",
-		"runstate_MarkComplete",
-		"not the terminal batch completion step",
-	} {
-		if !strings.Contains(block, want) {
-			t.Fatalf("prompt block missing %q:\n%s", want, block)
-		}
-	}
-}
-
 func TestTrackerGuardsFinalContentWithNonAdvancingToolCalls(t *testing.T) {
 	var events []Event
 	tracker := NewTracker("session-1", "Index these documents.", toolSchemas(
@@ -379,7 +351,8 @@ func TestTrackerUsesRunStateItemsForBatchCounts(t *testing.T) {
 		}
 	}
 	guard, retry := tracker.FinalGuard("")
-	if !retry || !strings.Contains(guard, "embedding generation (2 of 3 complete; 1 remaining)") {
+	if !retry || !strings.Contains(guard, `"current_step":"embedding generation"`) ||
+		!strings.Contains(guard, `"completed_count":2`) || !strings.Contains(guard, `"required_count":3`) {
 		t.Fatalf("guard = %q retry=%t", guard, retry)
 	}
 }
@@ -415,10 +388,10 @@ func TestTrackerCarriesRunStateRunIDIntoTerminalContinuation(t *testing.T) {
 		}
 	}
 
-	prompt := tracker.ContinuationPrompt()
-	for _, want := range []string{"durable run completion", "runstate_MarkComplete", `runId "run-123"`} {
-		if !strings.Contains(prompt, want) {
-			t.Fatalf("continuation prompt missing %q:\n%s", want, prompt)
+	status := tracker.ContinuationStatus()
+	for _, want := range []string{`"current_step":"durable run completion"`, "runstate_MarkComplete", `"run_id":"run-123"`} {
+		if !strings.Contains(status, want) {
+			t.Fatalf("continuation status missing %q:\n%s", want, status)
 		}
 	}
 }
@@ -442,13 +415,13 @@ func TestTrackerBlocksExtraWorkflowCallsAfterCompletion(t *testing.T) {
 		}
 	}
 
-	if prompt := tracker.ContinuationPrompt(); !strings.Contains(prompt, "workflow steps are complete") || !strings.Contains(prompt, "Produce the final user-facing answer") {
-		t.Fatalf("completion prompt did not tell the model to answer:\n%s", prompt)
+	if status := tracker.ContinuationStatus(); !strings.Contains(status, `"status":"complete"`) {
+		t.Fatalf("completion status was not reported:\n%s", status)
 	}
 	instruction, retry := tracker.GuardToolCalls("", []plugin.ToolCall{{
 		Function: plugin.ToolCallFunction{Name: "citation_ResolveSpans"},
 	}})
-	if !retry || !strings.Contains(instruction, "workflow is already complete") {
+	if !retry || !strings.Contains(instruction, `"reason":"tool_call_after_completion"`) {
 		t.Fatalf("extra workflow call was not blocked: %q retry=%t", instruction, retry)
 	}
 	if instruction, retry := tracker.GuardToolCalls("The answer is ready.", []plugin.ToolCall{{
@@ -458,7 +431,7 @@ func TestTrackerBlocksExtraWorkflowCallsAfterCompletion(t *testing.T) {
 	}
 }
 
-func TestTrackerContinuationPromptNamesOnlyCurrentStep(t *testing.T) {
+func TestTrackerContinuationStatusNamesOnlyCurrentStep(t *testing.T) {
 	tracker := NewTracker("session-1", "Please index all 3 documents.", toolSchemas(
 		"runstate_StartRun",
 		"document_ExtractText",
@@ -481,21 +454,21 @@ func TestTrackerContinuationPromptNamesOnlyCurrentStep(t *testing.T) {
 		}
 	}
 
-	prompt := tracker.ContinuationPrompt()
+	status := tracker.ContinuationStatus()
 	for _, want := range []string{
-		"respond with tool calls only",
-		"embedding generation",
-		"1 of 3 complete; 2 remaining",
+		`"status":"incomplete"`,
+		`"current_step":"embedding generation"`,
+		`"completed_count":1`,
+		`"required_count":3`,
 		"gateway_Embed",
-		"Batch all known remaining embedding calls",
 	} {
-		if !strings.Contains(prompt, want) {
-			t.Fatalf("continuation prompt missing %q:\n%s", want, prompt)
+		if !strings.Contains(status, want) {
+			t.Fatalf("continuation status missing %q:\n%s", want, status)
 		}
 	}
 	for _, notWant := range []string{"canonical indexing", "indexer_UpsertChunk"} {
-		if strings.Contains(prompt, notWant) {
-			t.Fatalf("continuation prompt should not name future step %q:\n%s", notWant, prompt)
+		if strings.Contains(status, notWant) {
+			t.Fatalf("continuation status should not name future step %q:\n%s", notWant, status)
 		}
 	}
 }
@@ -516,7 +489,7 @@ func TestTrackerFinalGuardUsesCurrentContinuationInstruction(t *testing.T) {
 	if !retry {
 		t.Fatal("expected final guard retry")
 	}
-	if !strings.Contains(guard, "current required step: durable run creation") {
+	if !strings.Contains(guard, `"current_step":"durable run creation"`) {
 		t.Fatalf("guard did not focus on current step:\n%s", guard)
 	}
 	if strings.Contains(guard, "canonical indexing") {
@@ -711,7 +684,7 @@ func TestTrackerBlocksStartRunWithoutItems(t *testing.T) {
 	instruction, retry := tracker.GuardToolCalls("", []plugin.ToolCall{{
 		Function: plugin.ToolCallFunction{Name: "runstate_StartRun", Arguments: `{"title":"missing items"}`},
 	}})
-	if !retry || !strings.Contains(instruction, "document items") {
+	if !retry || !strings.Contains(instruction, `"reason":"missing_run_items"`) {
 		t.Fatalf("guard instruction = %q retry=%t", instruction, retry)
 	}
 	if _, retry := tracker.GuardToolCalls("", []plugin.ToolCall{{

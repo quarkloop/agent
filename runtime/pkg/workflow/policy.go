@@ -2,7 +2,6 @@ package workflow
 
 import (
 	"encoding/json"
-	"fmt"
 	"sort"
 	"strings"
 
@@ -13,17 +12,13 @@ func (t *Tracker) FinalGuard(string) (string, bool) {
 	if t == nil {
 		return "", false
 	}
-	missing := t.missing()
-	if len(missing) == 0 {
+	if !t.hasMissingSteps() {
 		return "", false
 	}
 	for _, state := range t.states {
 		t.emit(Event{Type: "blocked_final", WorkflowID: state.ID, SessionID: state.SessionID, Kind: state.Kind})
 	}
-	if instruction := t.ContinuationPrompt(); instruction != "" {
-		return "Runtime workflow validation blocked finalization.\n\n" + instruction, true
-	}
-	return "Runtime workflow validation blocked finalization. " + strings.Join(missing, " ") + " Continue using the existing service results and complete the missing service-backed workflow steps before producing the final answer. When multiple sources or remaining workflow steps are known, issue the remaining service calls as an ordered multi-call batch in one assistant turn.", true
+	return t.blockedStatus("finalization_incomplete", nil), true
 }
 
 func (t *Tracker) AcceptFinalBeforeToolCalls(content string, toolCalls []plugin.ToolCall) bool {
@@ -38,7 +33,7 @@ func (t *Tracker) GuardToolCalls(content string, toolCalls []plugin.ToolCall) (s
 	if t == nil || len(toolCalls) == 0 {
 		return "", false
 	}
-	if len(t.missing()) == 0 {
+	if !t.hasMissingSteps() {
 		return t.guardCallsAfterWorkflowCompletion(content, toolCalls)
 	}
 	if instruction, retry := t.guardInvalidKnowledgeCalls(toolCalls); retry {
@@ -58,7 +53,7 @@ func (t *Tracker) GuardToolCalls(content string, toolCalls []plugin.ToolCall) (s
 	for _, state := range t.states {
 		t.emit(Event{Type: "blocked_tool_calls", WorkflowID: state.ID, SessionID: state.SessionID, Kind: state.Kind})
 	}
-	return "Runtime workflow validation blocked the proposed tool calls because the assistant was already drafting a final answer while required service-backed workflow steps are still incomplete. Continue from the existing service results and call one of the missing workflow service functions next: " + strings.Join(t.missingToolNames(), ", ") + ".", true
+	return t.blockedStatus("non_advancing_tool_calls", map[string]any{"allowed_functions": t.missingToolNames()}), true
 }
 
 func (t *Tracker) completedStepTool(name string) bool {
@@ -77,7 +72,7 @@ func (t *Tracker) completedStepTool(name string) bool {
 }
 
 func (t *Tracker) acceptFinalWithCompletedStepCalls(content string, toolCalls []plugin.ToolCall) bool {
-	if t == nil || strings.TrimSpace(content) == "" || len(toolCalls) == 0 || len(t.missing()) > 0 {
+	if t == nil || strings.TrimSpace(content) == "" || len(toolCalls) == 0 || t.hasMissingSteps() {
 		return false
 	}
 	for _, call := range toolCalls {
@@ -103,22 +98,15 @@ func (t *Tracker) missingStepTool(name string) bool {
 	return false
 }
 
-func (t *Tracker) missing() []string {
-	missing := make([]string, 0)
+func (t *Tracker) hasMissingSteps() bool {
 	for _, state := range t.states {
 		for _, step := range state.Steps {
-			if stepComplete(step) {
-				continue
+			if !stepComplete(step) {
+				return true
 			}
-			count := ""
-			if requiredCount(step) > 1 {
-				count = fmt.Sprintf(" (%d of %d complete)", step.CompletedCount, requiredCount(step))
-			}
-			missing = append(missing, fmt.Sprintf("%s workflow still needs %s%s using one of: %s.", state.Kind, step.Label, count, strings.Join(step.AnyOf, ", ")))
 		}
 	}
-	sort.Strings(missing)
-	return missing
+	return false
 }
 
 func (t *Tracker) missingToolNames() []string {
@@ -149,14 +137,14 @@ func (t *Tracker) guardCallsAfterWorkflowCompletion(content string, toolCalls []
 	if strings.TrimSpace(content) != "" {
 		for _, call := range toolCalls {
 			if t.workflowRelatedTool(call.Function.Name) && !t.completedStepTool(call.Function.Name) {
-				return "Runtime workflow validation blocked extra service calls because the required workflow is already complete. Answer now from the existing service evidence instead of starting additional workflow service functions.", true
+				return t.blockedStatus("tool_call_after_completion", map[string]any{"function": call.Function.Name}), true
 			}
 		}
 		return "", false
 	}
 	for _, call := range toolCalls {
 		if t.workflowRelatedTool(call.Function.Name) {
-			return "Runtime workflow validation blocked extra service calls because the required workflow is already complete. Answer now from the existing service evidence instead of starting additional workflow service functions.", true
+			return t.blockedStatus("tool_call_after_completion", map[string]any{"function": call.Function.Name}), true
 		}
 	}
 	return "", false
@@ -220,7 +208,7 @@ func (t *Tracker) guardInvalidKnowledgeCalls(toolCalls []plugin.ToolCall) (strin
 					continue
 				}
 				t.emit(Event{Type: "blocked_tool_calls", WorkflowID: state.ID, SessionID: state.SessionID, Kind: state.Kind})
-				return "Runtime workflow validation blocked runstate_StartRun because it did not include any document items. List or inspect the directory if needed, then start the durable run with every discovered document item before continuing.", true
+				return t.blockedStatus("missing_run_items", map[string]any{"function": call.Function.Name}), true
 			}
 		case "index":
 			for _, call := range toolCalls {
@@ -229,7 +217,7 @@ func (t *Tracker) guardInvalidKnowledgeCalls(toolCalls []plugin.ToolCall) (strin
 				}
 				if missing := canonicalUpsertChunkMissingFields(call.Function.Arguments); len(missing) > 0 {
 					t.emit(Event{Type: "blocked_tool_calls", WorkflowID: state.ID, SessionID: state.SessionID, Kind: state.Kind})
-					return "Runtime workflow validation blocked indexer_UpsertChunk because the canonical knowledge record is incomplete. Retry the upsert with these fields populated from the extracted source evidence: " + strings.Join(missing, ", ") + ".", true
+					return t.blockedStatus("incomplete_canonical_record", map[string]any{"function": call.Function.Name, "missing_fields": missing}), true
 				}
 			}
 		}
@@ -317,7 +305,7 @@ func (t *Tracker) guardOutOfOrderCalls(toolCalls []plugin.ToolCall) (string, boo
 		if stateComplete(state) {
 			continue
 		}
-		if instruction, blocked := orderedBatchGuardInstruction(state, toolCalls); blocked {
+		if instruction, blocked := t.orderedBatchGuardInstruction(state, toolCalls); blocked {
 			t.emit(Event{Type: "blocked_tool_calls", WorkflowID: state.ID, SessionID: state.SessionID, Kind: state.Kind})
 			return instruction, true
 		}
@@ -325,7 +313,7 @@ func (t *Tracker) guardOutOfOrderCalls(toolCalls []plugin.ToolCall) (string, boo
 	return "", false
 }
 
-func orderedBatchGuardInstruction(state State, toolCalls []plugin.ToolCall) (string, bool) {
+func (t *Tracker) orderedBatchGuardInstruction(state State, toolCalls []plugin.ToolCall) (string, bool) {
 	simulated := cloneState(state)
 	for _, call := range toolCalls {
 		name := strings.TrimSpace(call.Function.Name)
@@ -349,10 +337,16 @@ func orderedBatchGuardInstruction(state State, toolCalls []plugin.ToolCall) (str
 			continue
 		}
 		if step := futureMissingStepSatisfiedBy(simulated, name); step.ID != "" {
-			return fmt.Sprintf("Runtime workflow validation blocked %s because the %s workflow must finish %s before %s. Continue with an ordered service-call batch beginning with one of the current required service functions: %s.", name, simulated.Kind, current.Label, step.Label, strings.Join(current.AnyOf, ", ")), true
+			return t.blockedStatus("out_of_order_tool_call", map[string]any{
+				"function": name, "current_step": current.Label, "future_step": step.Label,
+				"allowed_functions": append([]string(nil), current.AnyOf...),
+			}), true
 		}
 		if simulated.Kind == KindKnowledgeIndex && (current.ID != "ingest-start" || knowledgeIndexServiceFunction(name)) {
-			return fmt.Sprintf("Runtime workflow validation blocked %s because it is not part of the current canonical Knowledge indexing step. Finish %s using one of: %s.", name, current.Label, strings.Join(current.AnyOf, ", ")), true
+			return t.blockedStatus("tool_call_not_in_current_step", map[string]any{
+				"function": name, "current_step": current.Label,
+				"allowed_functions": append([]string(nil), current.AnyOf...),
+			}), true
 		}
 	}
 	return "", false
@@ -432,4 +426,26 @@ func startRunHasItems(arguments string) bool {
 		return false
 	}
 	return len(items) > 0
+}
+
+func (t *Tracker) blockedStatus(reason string, details map[string]any) string {
+	fact := map[string]any{
+		"type":   "runtime.workflow.validation",
+		"status": "blocked",
+		"reason": reason,
+	}
+	if status := t.ContinuationStatus(); status != "" {
+		var workflow any
+		if json.Unmarshal([]byte(status), &workflow) == nil {
+			fact["workflow"] = workflow
+		}
+	}
+	for key, value := range details {
+		fact[key] = value
+	}
+	data, err := json.Marshal(fact)
+	if err != nil {
+		return `{"type":"runtime.workflow.validation","status":"blocked"}`
+	}
+	return string(data)
 }

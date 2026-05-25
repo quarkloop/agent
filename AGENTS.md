@@ -9,9 +9,9 @@ unrelated scopes.
 
 - `supervisor` owns high-level space/session orchestration, plugin installs,
   embedded NATS, account setup, runtime leases, and discovery catalogs.
-- `runtime` owns the agent loop, sessions, prompts, tool execution, extraction
-  profiles, workspace sidecar policy, and consumption of supervisor-resolved
-  catalogs.
+- `runtime` owns the agent loop, sessions, tool execution, workspace sidecar
+  policy, and consumption of supervisor-resolved catalogs. Harness owns
+  model-context packaging from plugin prompt material and runtime facts.
 - `cli` is a NATS client. It selects a space through `--space` or
   `QUARK_SPACE` and delegates state operations to supervisor or the resolved
   runtime.
@@ -63,13 +63,11 @@ Important runtime packages:
   service-backed tool executor.
 - `supervisor/pkg/runtime/launchenv`: process environment builder for runtime
   launch specifications.
-- `runtime/pkg/extraction`: runtime-owned extraction profiles and open-schema
-  validation.
 - `runtime/pkg/workspace`: approval-gated sidecar and directory mutation policy.
 - `runtime/pkg/pluginmanager`: runtime loading of supervisor-provided plugin
   catalog entries.
-- `runtime/pkg/modelusage`: redacted model usage persistence into
-  supervisor-owned space storage.
+- `runtime/pkg/harnessclient`: runtime boundary for Rust Harness context
+  composition, context reports, and explicit memory operations.
 - `runtime/pkg/message`, `runtime/pkg/api`, `runtime/pkg/channel/*`: request,
   stream, and channel boundaries.
 - `pkg/boundary`: boundary error categories, diagnostics, and shared redaction
@@ -151,8 +149,8 @@ make test-e2e-local
 Common focused commands:
 
 ```bash
-cd runtime && go test ./pkg/agent ./pkg/llm ./pkg/services ./pkg/extraction ./pkg/workspace
-cd runtime && go test ./pkg/activity ./pkg/modelusage ./pkg/permissions
+cd runtime && go test ./pkg/agent ./pkg/llm ./pkg/services ./pkg/harnessclient ./pkg/workspace
+cd runtime && go test ./pkg/activity ./pkg/harnessclient ./pkg/permissions
 cd services/indexer && go test ./...
 cd services/gateway && go test ./...
 cd services/io && go test ./...

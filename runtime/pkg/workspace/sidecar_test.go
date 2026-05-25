@@ -1,9 +1,6 @@
 package workspace
 
-import (
-	"strings"
-	"testing"
-)
+import "testing"
 
 func TestPlanSidecarsDisabledDoesNothing(t *testing.T) {
 	t.Parallel()
@@ -59,16 +56,5 @@ func TestPlanSidecarsUsesDeterministicNames(t *testing.T) {
 	}
 	if change.Metadata.SourceHash != "abc123" || len(change.Metadata.IndexIDs) != 1 {
 		t.Fatalf("metadata = %+v", change.Metadata)
-	}
-}
-
-func TestPromptBlockStatesApprovalAndNonDependency(t *testing.T) {
-	t.Parallel()
-
-	block := PromptBlock()
-	for _, want := range []string{"explicit approval", "must not depend", "Deleted or missing sidecars"} {
-		if !strings.Contains(block, want) {
-			t.Fatalf("prompt block missing %q:\n%s", want, block)
-		}
 	}
 }

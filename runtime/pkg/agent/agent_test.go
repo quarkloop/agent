@@ -12,6 +12,7 @@ import (
 	"github.com/quarkloop/pkg/plugin"
 	"github.com/quarkloop/runtime/pkg/channel"
 	"github.com/quarkloop/runtime/pkg/execution"
+	"github.com/quarkloop/runtime/pkg/harnessclient"
 	"github.com/quarkloop/runtime/pkg/hierarchy"
 	"github.com/quarkloop/runtime/pkg/message"
 	"github.com/quarkloop/runtime/pkg/modelservice"
@@ -19,17 +20,17 @@ import (
 	"github.com/quarkloop/runtime/pkg/pluginmanager"
 )
 
-func TestSystemPromptIncludesConfiguredAddenda(t *testing.T) {
+func TestPromptMaterialsIncludeConfiguredPluginMaterial(t *testing.T) {
 	a := newTestAgent(t)
-	a.config.PromptAddenda = []string{"", "Use service functions for indexing."}
+	a.config.PromptMaterials = []harnessclient.Material{{SourceID: "plugin.service.indexer.skill", Content: "Use service functions for indexing."}}
 
-	got := a.systemPrompt()
-	if !strings.Contains(got, "Use service functions for indexing.") {
-		t.Fatalf("system prompt missing addendum:\n%s", got)
+	got := a.promptMaterials()
+	if len(got) != 1 || got[0].Content != "Use service functions for indexing." {
+		t.Fatalf("prompt materials = %+v", got)
 	}
 }
 
-func TestSystemPromptUsesResolvedAgentProfilePrompt(t *testing.T) {
+func TestPromptMaterialsUseResolvedAgentProfilePrompt(t *testing.T) {
 	a := newTestAgentWithConfig(t, Config{
 		ID:         "test-agent",
 		PluginsDir: t.TempDir(),
@@ -40,51 +41,12 @@ func TestSystemPromptUsesResolvedAgentProfilePrompt(t *testing.T) {
 		},
 	})
 
-	got := a.systemPrompt()
-	if !strings.Contains(got, "You are Quark Knowledge.") {
-		t.Fatalf("system prompt missing profile prompt:\n%s", got)
+	got := a.promptMaterials()
+	if len(got) != 1 || got[0].Content != "You are Quark Knowledge." {
+		t.Fatalf("prompt materials missing profile prompt: %+v", got)
 	}
-	if strings.Contains(got, "Main Agent") {
-		t.Fatalf("system prompt appears to use hardcoded main identity:\n%s", got)
-	}
-}
-
-func TestSystemPromptIncludesResolvedHandoffPolicy(t *testing.T) {
-	a := newTestAgentWithConfig(t, Config{
-		ID:         "test-agent",
-		PluginsDir: t.TempDir(),
-		Profile: Profile{
-			ID:             "quark-knowledge",
-			SystemPrompt:   "You are Quark Knowledge.",
-			HandoffTargets: []string{"quark-devops"},
-		},
-	})
-
-	got := a.systemPrompt()
-	if !strings.Contains(got, "Agent Handoffs") || !strings.Contains(got, "quark-devops") {
-		t.Fatalf("system prompt missing handoff policy:\n%s", got)
-	}
-}
-
-func TestSystemPromptIncludesRuntimeExtractionProfiles(t *testing.T) {
-	a := newTestAgent(t)
-
-	got := a.systemPrompt()
-	for _, want := range []string{"Runtime Extraction Profiles", "`generic-open`", "UpsertChunkRequest.facts"} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("system prompt missing extraction profile content %q:\n%s", want, got)
-		}
-	}
-}
-
-func TestSystemPromptIncludesWorkspaceSidecarPolicy(t *testing.T) {
-	a := newTestAgent(t)
-
-	got := a.systemPrompt()
-	for _, want := range []string{"Workspace Sidecars", "explicit approval", "must not depend"} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("system prompt missing workspace policy %q:\n%s", want, got)
-		}
+	if got[0].SourceID != "plugin.agent.quark-knowledge.system" {
+		t.Fatalf("prompt material provenance = %+v", got[0])
 	}
 }
 
@@ -488,11 +450,27 @@ func newTestAgent(t *testing.T) *Agent {
 
 func newTestAgentWithConfig(t *testing.T, cfg Config) *Agent {
 	t.Helper()
+	if cfg.ContextComposer == nil {
+		cfg.ContextComposer = testComposer{}
+	}
 	a, err := NewAgent(cfg)
 	if err != nil {
 		t.Fatalf("new agent: %v", err)
 	}
 	return a
+}
+
+type testComposer struct{}
+
+func (testComposer) Compose(_ context.Context, input harnessclient.Input) ([]plugin.Message, error) {
+	var out []plugin.Message
+	for _, material := range input.Materials {
+		if material.Content != "" {
+			out = append(out, plugin.Message{Role: "system", Content: material.Content})
+		}
+	}
+	out = append(out, input.History...)
+	return out, nil
 }
 
 type staticProvider struct {

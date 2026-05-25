@@ -55,7 +55,7 @@ func TestSpaceServiceLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("paths: %v", err)
 	}
-	if paths.GetPluginsDir() == "" || paths.GetKbDir() == "" || paths.GetSessionsDir() == "" {
+	if paths.GetPluginsDir() == "" || paths.GetSessionsDir() == "" {
 		t.Fatalf("incomplete paths: %+v", paths)
 	}
 

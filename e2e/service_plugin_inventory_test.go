@@ -64,7 +64,7 @@ func TestServicePluginInventoryHasE2ECoveragePlan(t *testing.T) {
 			Mode:  "runtime-backed",
 			Tests: []string{"TestAgentIndexesUploadedPDFDataset", "TestAgentUsesDevOpsReleaseServiceFunction"},
 		},
-		"memory": {
+		"harness": {
 			Mode:  "contract-only",
 			Tests: []string{"TestAgentIndexesUploadedPDFDataset"},
 		},

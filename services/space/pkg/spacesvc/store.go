@@ -24,7 +24,6 @@ type Store struct {
 type Paths struct {
 	RootDir     string
 	ConfigPath  string
-	KBDir       string
 	PluginsDir  string
 	SessionsDir string
 }
@@ -255,7 +254,6 @@ func (s *Store) Paths(name string) (Paths, error) {
 	return Paths{
 		RootDir:     layout.Root,
 		ConfigPath:  layout.ConfigPath(),
-		KBDir:       layout.KBPath(),
 		PluginsDir:  layout.PluginsPath(),
 		SessionsDir: layout.SessionsPath(),
 	}, nil

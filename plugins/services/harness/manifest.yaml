@@ -1,0 +1,92 @@
+name: harness
+version: "1.0.0"
+type: service
+mode: api
+description: "Context packaging, prompt provenance reporting, and explicit agent memory over NATS"
+author: quarkloop
+license: Apache-2.0
+
+service:
+  address_env: QUARK_HARNESS_ADDR
+  health:
+    protocol: nats_service
+    service: quark.harness.v1.HarnessService
+    timeout: 5s
+  readiness:
+    required: true
+    min_version: "1.0.0"
+  skill: SKILL.md
+  readme: README.md
+  proto_services:
+    - quark.harness.v1.HarnessService
+  functions:
+    - name: harness_ComposeContext
+      service: quark.harness.v1.HarnessService
+      method: ComposeContext
+      request: quark.harness.v1.ComposeContextRequest
+      response: quark.harness.v1.ComposeContextResponse
+      description: "Package plugin-owned material and runtime facts into bounded model context."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: harness_GetContextReport
+      service: quark.harness.v1.HarnessService
+      method: GetContextReport
+      request: quark.harness.v1.GetContextReportRequest
+      response: quark.harness.v1.ContextReport
+      description: "Retrieve a persisted context composition report."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: harness_StreamContextReports
+      service: quark.harness.v1.HarnessService
+      method: StreamContextReports
+      request: quark.harness.v1.StreamContextReportsRequest
+      response: quark.harness.v1.ContextReport
+      description: "Stream recent context reports for inspection."
+      risk_level: read
+      approval_required: false
+      streaming: true
+      idempotent: true
+    - name: harness_PutMemory
+      service: quark.harness.v1.HarnessService
+      method: PutMemory
+      request: quark.harness.v1.PutMemoryRequest
+      response: quark.harness.v1.PutMemoryResponse
+      description: "Write one explicit agent-authored memory record."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false
+    - name: harness_GetMemory
+      service: quark.harness.v1.HarnessService
+      method: GetMemory
+      request: quark.harness.v1.GetMemoryRequest
+      response: quark.harness.v1.GetMemoryResponse
+      description: "Retrieve one explicit memory record."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: harness_SearchMemory
+      service: quark.harness.v1.HarnessService
+      method: SearchMemory
+      request: quark.harness.v1.SearchMemoryRequest
+      response: quark.harness.v1.SearchMemoryResponse
+      description: "Search explicit memory records within one space and scope."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: harness_DeleteMemory
+      service: quark.harness.v1.HarnessService
+      method: DeleteMemory
+      request: quark.harness.v1.DeleteMemoryRequest
+      response: quark.harness.v1.DeleteMemoryResponse
+      description: "Delete one explicit memory record."
+      risk_level: write
+      approval_required: false
+      streaming: false
+      idempotent: false

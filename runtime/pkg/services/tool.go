@@ -93,9 +93,6 @@ func (e *Executor) ToolSchemas() []ServiceFunctionSchema {
 			}
 			name := FunctionNameFor(desc.GetName(), rpc)
 			description := strings.TrimSpace(rpc.GetDescription())
-			if description == "" {
-				description = fmt.Sprintf("Call %s/%s.", rpc.GetService(), rpc.GetMethod())
-			}
 			schemas = append(schemas, ServiceFunctionSchema{
 				Name:        name,
 				Description: description,

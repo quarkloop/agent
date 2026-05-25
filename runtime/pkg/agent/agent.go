@@ -12,6 +12,7 @@ import (
 	"github.com/quarkloop/runtime/pkg/coreevents"
 	"github.com/quarkloop/runtime/pkg/execution"
 	"github.com/quarkloop/runtime/pkg/handoff"
+	"github.com/quarkloop/runtime/pkg/harnessclient"
 	"github.com/quarkloop/runtime/pkg/hierarchy"
 	"github.com/quarkloop/runtime/pkg/llm"
 	"github.com/quarkloop/runtime/pkg/loop"
@@ -36,7 +37,8 @@ type Config struct {
 	SystemPrompt         string
 	PluginsDir           string
 	PluginCatalog        *pluginmanager.Catalog
-	PromptAddenda        []string
+	PromptMaterials      []harnessclient.Material
+	ContextComposer      harnessclient.Composer
 	PendingRefs          func() []string
 	ToolResultRef        func(name, arguments, result string) (string, error)
 	ToolCallArguments    llm.ToolCallArgumentNormalizer

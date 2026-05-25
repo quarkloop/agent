@@ -105,6 +105,18 @@ func startCitationServiceAt(t *testing.T, binary, addr string, nats utils.NATSEn
 	})
 }
 
+func startHarnessService(t *testing.T, binary, root string, nats utils.NATSEndpoints) {
+	t.Helper()
+	args := []string{
+		"--root", root,
+		"--nats-url", nats.ClientURL,
+		"--nats-user", natshub.DefaultControlUser,
+		"--nats-password", natshub.DefaultControlPassword,
+	}
+	process := utils.StartProcess(t, "harness", binary, args, utils.ServiceProcessEnv(nil))
+	process.WaitForLog(t, "harness service ready", defaultServiceReadyTimeout)
+}
+
 func startCoreServiceAt(t *testing.T, binary, addr, root string, nats utils.NATSEndpoints) {
 	t.Helper()
 	startNATSServiceProcess(t, natsServiceProcessSpec{
@@ -197,6 +209,7 @@ func standardKnowledgeServicesStartOptions(t *testing.T, embedding utils.Gateway
 			startDocumentServiceAt(t, bins.Document, addresses.Document, setup.NATS)
 			startRunStateServiceAt(t, bins.RunState, addresses.RunState, filepath.Join(setup.SpacesDir, setup.Space, "services", "runstate"), setup.NATS)
 			startCitationServiceAt(t, bins.Citation, addresses.Citation, setup.NATS)
+			startHarnessService(t, bins.Harness, filepath.Join(setup.SpacesDir, setup.Space, "services", "harness"), setup.NATS)
 		},
 	}
 }
@@ -316,6 +329,7 @@ type knowledgeServiceAddresses struct {
 	Core     string
 	Gateway  string
 	IO       string
+	Harness  string
 }
 
 func reserveKnowledgeServiceAddresses(t *testing.T) knowledgeServiceAddresses {
@@ -328,6 +342,7 @@ func reserveKnowledgeServiceAddresses(t *testing.T) knowledgeServiceAddresses {
 		Core:     reserveLoopbackAddress(t),
 		Gateway:  reserveLoopbackAddress(t),
 		IO:       reserveLoopbackAddress(t),
+		Harness:  reserveLoopbackAddress(t),
 	}
 }
 
@@ -340,6 +355,7 @@ func (a knowledgeServiceAddresses) supervisorEnv() map[string]string {
 		"QUARK_CORE_ADDR":            a.Core,
 		"QUARK_GATEWAY_SERVICE_ADDR": a.Gateway,
 		"QUARK_IO_ADDR":              a.IO,
+		"QUARK_HARNESS_ADDR":         a.Harness,
 	}
 }
 
@@ -462,6 +478,12 @@ func knowledgeServiceFunctions() []string {
 		"core_EvaluatePolicy",
 		"core_RecordAuditEvent",
 		"core_PutArtifact",
+		"harness_GetContextReport",
+		"harness_StreamContextReports",
+		"harness_PutMemory",
+		"harness_GetMemory",
+		"harness_SearchMemory",
+		"harness_DeleteMemory",
 	}
 }
 
@@ -483,6 +505,7 @@ func TestKnowledgeAgentServicePermissionsMatchStandardE2EStack(t *testing.T) {
 		"indexer_UpsertChunk",
 		"citation_VerifyGrounding",
 		"core_RecordAuditEvent",
+		"harness_GetContextReport",
 	}
 	seen := make(map[string]struct{}, len(permissions))
 	for _, function := range permissions {

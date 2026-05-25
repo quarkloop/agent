@@ -12,7 +12,6 @@ import (
 type Catalog struct {
 	descriptors []*servicev1.ServiceDescriptor
 	executor    *Executor
-	prompt      string
 }
 
 func NewCatalog(descriptors []*servicev1.ServiceDescriptor) *Catalog {
@@ -30,7 +29,6 @@ func NewCatalogWithCaller(descriptors []*servicev1.ServiceDescriptor, caller ser
 	return &Catalog{
 		descriptors: copied,
 		executor:    NewExecutorWithCaller(copied, caller),
-		prompt:      PromptBlock(copied),
 	}
 }
 
@@ -47,13 +45,6 @@ func (c *Catalog) Descriptors() []*servicev1.ServiceDescriptor {
 		out = append(out, servicekit.CloneDescriptor(desc))
 	}
 	return out
-}
-
-func (c *Catalog) Prompt() string {
-	if c == nil {
-		return ""
-	}
-	return c.prompt
 }
 
 func (c *Catalog) ToolSchemas() []ServiceFunctionSchema {

@@ -11,7 +11,13 @@ prompt:
     - SKILL.md
 permissions:
   tools: []
-  services: []
+  services:
+    - harness_GetContextReport
+    - harness_StreamContextReports
+    - harness_PutMemory
+    - harness_GetMemory
+    - harness_SearchMemory
+    - harness_DeleteMemory
 memory:
   scope: space
   collections:

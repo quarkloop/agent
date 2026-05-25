@@ -50,6 +50,7 @@ func installSpacePlugins(t *testing.T, env *E2EEnv, bins BuiltBinaries, includeK
 		installService("document")
 		installService("runstate")
 		installService("citation")
+		installService("harness")
 	}
 	for _, service := range env.Services {
 		installService(service.withDefaults().Plugin)

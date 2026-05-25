@@ -33,9 +33,9 @@ func (a *Agent) handleWorkStep(ctx context.Context, _ loop.Message) error {
 		return nil
 	}
 	infer := func(ctx context.Context, messages []plugin.Message, tools []plugin.ToolSchema, onTool plugin.ToolHandler, onMessage func(string, any)) (string, error) {
-		return client.Infer(ctx, messages, tools, onTool, onMessage, a.finalGuard())
+		return client.InferWithPreparedContextAndPolicy(ctx, messages, tools, onTool, onMessage, a.contextPreparer(client.ContextWindow, ""), a.finalGuard(), nil, nil, nil, nil)
 	}
-	if err := a.Plan.ExecuteStep(ctx, infer, a.systemPrompt(), a.defaultTools(), a.executeTool); err != nil {
+	if err := a.Plan.ExecuteStep(ctx, infer, nil, a.defaultTools(), a.executeTool); err != nil {
 		slog.Error("work step error", "error", err)
 		return err
 	}
@@ -47,9 +47,6 @@ func (a *Agent) processWork(ctx context.Context, _ string, task string) (string,
 	if client == nil {
 		return "", fmt.Errorf("no LLM client configured")
 	}
-	messages := []plugin.Message{
-		{Role: "system", Content: a.systemPrompt()},
-		{Role: "user", Content: task},
-	}
-	return client.Infer(ctx, messages, a.defaultTools(), a.executeTool, nil, nil)
+	messages := []plugin.Message{{Role: "user", Content: task}}
+	return client.InferWithPreparedContextAndPolicy(ctx, messages, a.defaultTools(), a.executeTool, nil, a.contextPreparer(client.ContextWindow, ""), nil, nil, nil, nil, nil)
 }

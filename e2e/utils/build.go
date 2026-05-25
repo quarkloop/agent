@@ -28,6 +28,7 @@ type BuiltBinaries struct {
 	System     string
 	Workflow   string
 	Secrets    string
+	Harness    string
 }
 
 var (
@@ -75,6 +76,21 @@ func BuildAllOnce(t *testing.T) BuiltBinaries {
 			}
 			return out
 		}
+		buildRustHarness := func() string {
+			if buildErr != nil {
+				return ""
+			}
+			targetDir := filepath.Join(binDir, "cargo-target")
+			cmd := exec.Command("cargo", "build", "--quiet", "--release",
+				"--manifest-path", filepath.Join(root, "services", "harness", "Cargo.toml"),
+				"--target-dir", targetDir)
+			cmd.Dir = root
+			if output, err := cmd.CombinedOutput(); err != nil {
+				buildErr = fmt.Errorf("build services/harness: %w\n%s", err, string(output))
+				return ""
+			}
+			return filepath.Join(targetDir, "release", "quark-harness")
+		}
 
 		buildRes.Supervisor = build("./supervisor/cmd/supervisor", "supervisor")
 		buildRes.Agent = build("./runtime/cmd/runtime", "runtime")
@@ -89,6 +105,7 @@ func BuildAllOnce(t *testing.T) BuiltBinaries {
 		buildRes.System = build("./services/system/cmd/system", "system")
 		buildRes.Workflow = build("./services/workflow/cmd/workflow", "workflow")
 		buildRes.Secrets = build("./services/secrets/cmd/secrets", "secrets")
+		buildRes.Harness = buildRustHarness()
 	})
 	if buildErr != nil {
 		t.Fatal(buildErr)

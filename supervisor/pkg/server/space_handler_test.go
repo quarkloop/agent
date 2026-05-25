@@ -10,7 +10,6 @@ import (
 	"github.com/quarkloop/pkg/plugin"
 	spacemodel "github.com/quarkloop/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/api"
-	"github.com/quarkloop/supervisor/pkg/kb"
 	"github.com/quarkloop/supervisor/pkg/natshub"
 	"github.com/quarkloop/supervisor/pkg/pluginmanager"
 	"github.com/quarkloop/supervisor/pkg/sessions"
@@ -168,10 +167,6 @@ func (s *routeSpaceStore) Config(name string) ([]byte, error) {
 }
 
 func (s *routeSpaceStore) AgentEnvironment(string) ([]string, error) { return nil, nil }
-
-func (s *routeSpaceStore) KB(name string) (kb.Store, error) {
-	return kb.Open(filepath.Join(s.root, name, "kb"))
-}
 
 func (s *routeSpaceStore) Plugins(name string) (*pluginmanager.Installer, error) {
 	return pluginmanager.NewInstaller(filepath.Join(s.root, name, "plugins")), nil

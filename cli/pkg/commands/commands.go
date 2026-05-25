@@ -7,9 +7,9 @@ import (
 	auditcmd "github.com/quarkloop/cli/pkg/commands/audit"
 	chatcmd "github.com/quarkloop/cli/pkg/commands/chat"
 	configcmd "github.com/quarkloop/cli/pkg/commands/config"
+	contextcmd "github.com/quarkloop/cli/pkg/commands/context"
 	doctorcmd "github.com/quarkloop/cli/pkg/commands/doctor"
 	initcmd "github.com/quarkloop/cli/pkg/commands/init"
-	kbcmd "github.com/quarkloop/cli/pkg/commands/kb"
 	plancmd "github.com/quarkloop/cli/pkg/commands/plan"
 	plugincmd "github.com/quarkloop/cli/pkg/commands/plugin"
 	runtimecmd "github.com/quarkloop/cli/pkg/commands/runtime"
@@ -27,14 +27,14 @@ func RegisterCommands(root *cobra.Command) {
 		versioncmd.NewVersionCommand(),
 	)
 
-	// Data Commands — session, config, kb, plan, activity management.
+	// Data Commands — session, config, plan, activity management.
 	addGroup("data", root,
 		chatcmd.NewChatCommand(),
 		sessioncmd.NewSessionCommand(),
 		configcmd.NewConfigCommand(),
-		kbcmd.NewKBCommand(),
 		plancmd.NewPlanCommand(),
 		activitycmd.NewActivityCommand(),
+		contextcmd.NewContextCommand(),
 	)
 
 	// Management Commands — plugin manager and validation.

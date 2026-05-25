@@ -2,7 +2,6 @@ package space
 
 import (
 	"github.com/quarkloop/supervisor/pkg/api"
-	"github.com/quarkloop/supervisor/pkg/kb"
 	"github.com/quarkloop/supervisor/pkg/pluginmanager"
 	"github.com/quarkloop/supervisor/pkg/sessions"
 )
@@ -29,9 +28,6 @@ type Store interface {
 	// AgentEnvironment returns concrete environment entries derived from the
 	// authoritative space configuration model declaration.
 	AgentEnvironment(name string) ([]string, error)
-
-	// KB opens the knowledge-base store scoped to the named space.
-	KB(name string) (kb.Store, error)
 
 	// Plugins returns the plugin manager scoped to the named space.
 	Plugins(name string) (*pluginmanager.Installer, error)

@@ -567,7 +567,6 @@ type SpacePaths struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RootDir       string                 `protobuf:"bytes,1,opt,name=root_dir,json=rootDir,proto3" json:"root_dir,omitempty"`
 	ConfigPath    string                 `protobuf:"bytes,2,opt,name=config_path,json=configPath,proto3" json:"config_path,omitempty"`
-	KbDir         string                 `protobuf:"bytes,3,opt,name=kb_dir,json=kbDir,proto3" json:"kb_dir,omitempty"`
 	PluginsDir    string                 `protobuf:"bytes,4,opt,name=plugins_dir,json=pluginsDir,proto3" json:"plugins_dir,omitempty"`
 	SessionsDir   string                 `protobuf:"bytes,5,opt,name=sessions_dir,json=sessionsDir,proto3" json:"sessions_dir,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -614,13 +613,6 @@ func (x *SpacePaths) GetRootDir() string {
 func (x *SpacePaths) GetConfigPath() string {
 	if x != nil {
 		return x.ConfigPath
-	}
-	return ""
-}
-
-func (x *SpacePaths) GetKbDir() string {
-	if x != nil {
-		return x.KbDir
 	}
 	return ""
 }
@@ -824,13 +816,12 @@ const file_quark_space_v1_space_proto_rawDesc = "" +
 	"\x18AgentEnvironmentResponse\x12\x18\n" +
 	"\aentries\x18\x01 \x03(\tR\aentries\"*\n" +
 	"\x14GetSpacePathsRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\"\xa3\x01\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"\x8c\x01\n" +
 	"\n" +
 	"SpacePaths\x12\x19\n" +
 	"\broot_dir\x18\x01 \x01(\tR\arootDir\x12\x1f\n" +
 	"\vconfig_path\x18\x02 \x01(\tR\n" +
-	"configPath\x12\x15\n" +
-	"\x06kb_dir\x18\x03 \x01(\tR\x05kbDir\x12\x1f\n" +
+	"configPath\x12\x1f\n" +
 	"\vplugins_dir\x18\x04 \x01(\tR\n" +
 	"pluginsDir\x12!\n" +
 	"\fsessions_dir\x18\x05 \x01(\tR\vsessionsDir\"#\n" +

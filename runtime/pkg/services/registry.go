@@ -6,9 +6,9 @@ import (
 	devopsv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/devops/v1"
 	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
 	gatewayv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/gateway/v1"
+	harnessv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/harness/v1"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
 	iov1 "github.com/quarkloop/pkg/serviceapi/gen/quark/io/v1"
-	memoryv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/memory/v1"
 	runstatev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/runstate/v1"
 	spacev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/space/v1"
 	systemv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/system/v1"
@@ -23,7 +23,7 @@ var _ = []any{
 	iov1.File_quark_io_v1_io_proto,
 	runstatev1.File_quark_runstate_v1_runstate_proto,
 	citationv1.File_quark_citation_v1_citation_proto,
-	memoryv1.File_quark_memory_v1_memory_proto,
+	harnessv1.File_quark_harness_v1_harness_proto,
 	gatewayv1.File_quark_gateway_v1_gateway_proto,
 	spacev1.File_quark_space_v1_space_proto,
 	systemv1.File_quark_system_v1_system_proto,
