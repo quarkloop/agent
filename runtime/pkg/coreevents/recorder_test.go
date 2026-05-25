@@ -7,9 +7,9 @@ import (
 	"time"
 
 	natsserver "github.com/nats-io/nats-server/v2/server"
+	"github.com/quarkloop/pkg/natskit"
 	corev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/core/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
-	"github.com/quarkloop/pkg/serviceapi/servicebridge"
 	"github.com/quarkloop/runtime/pkg/activity"
 	runtimeservices "github.com/quarkloop/runtime/pkg/services"
 )
@@ -18,21 +18,19 @@ func TestRecorderPersistsActivityEventsAndAudits(t *testing.T) {
 	ns := startCoreEventsNATS(t)
 	coreServer := &captureCoreServer{}
 	descriptor := coreServiceDescriptor()
-	bridge := servicebridge.NewNATSService(servicebridge.NATSConfig{
-		URL:   ns.ClientURL(),
-		Queue: "q.core.events.test",
-		Name:  "core-events-test",
-	})
-	if err := bridge.Start(context.Background(), servicebridge.Binding{
+	host, err := natskit.StartRPCService(context.Background(), natskit.Config{
+		URL: ns.ClientURL(), Name: "core-events-test",
+	}, "q.core.events.test", natskit.Binding{
 		Descriptor: descriptor,
-		Services: []servicebridge.RPCService{{
+		Services: []natskit.RPCService{{
 			Service:        "quark.core.v1.CoreService",
 			Implementation: coreServer,
 		}},
-	}); err != nil {
-		t.Fatalf("start core service bridge: %v", err)
+	})
+	if err != nil {
+		t.Fatalf("start core service host: %v", err)
 	}
-	t.Cleanup(bridge.Close)
+	t.Cleanup(host.Close)
 
 	catalog := runtimeservices.NewCatalogWithCaller([]*servicev1.ServiceDescriptor{descriptor}, runtimeservices.NewNATSCaller(runtimeservices.NATSCallerConfig{
 		URL:     ns.ClientURL(),

@@ -9,6 +9,7 @@ require (
 	github.com/nats-io/nats.go v1.51.0
 	github.com/quarkloop/pkg/boundary v0.0.0
 	github.com/quarkloop/pkg/event v0.0.0
+	github.com/quarkloop/pkg/natskit v0.0.0
 	github.com/quarkloop/pkg/plugin v0.0.0
 	github.com/quarkloop/pkg/serviceapi v0.0.0
 	github.com/quarkloop/supervisor v0.0.0
@@ -49,6 +50,8 @@ replace (
 replace gopkg.in/kr/pretty.v0 => github.com/kr/pretty v0.3.1
 
 replace github.com/quarkloop/pkg/plugin v0.0.0 => ../pkg/plugin
+
+replace github.com/quarkloop/pkg/natskit v0.0.0 => ../pkg/natskit
 
 replace github.com/quarkloop/pkg/serviceapi v0.0.0 => ../pkg/serviceapi
 

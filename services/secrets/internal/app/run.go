@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/quarkloop/pkg/serviceapi/observability"
-	"github.com/quarkloop/services/secrets/internal/secretsnats"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/services/secrets/internal/secretssvc"
 )
 
@@ -16,11 +15,8 @@ type Config struct {
 	OpenBaoAddress string
 	OpenBaoToken   string
 	OpenBaoMount   string
-	NATSURL        string
-	NATSUser       string
-	NATSPassword   string
-	NATSQueue      string
-	Audit          observability.RecorderConfig
+	NATS           natskit.Config
+	Queue          string
 	Logger         *slog.Logger
 }
 
@@ -39,24 +35,18 @@ func Run(ctx context.Context, cfg Config) error {
 		return err
 	}
 
-	if cfg.NATSURL == "" {
+	if cfg.NATS.URL == "" {
 		return fmt.Errorf("nats url is required")
 	}
-	natsServer := secretsnats.New(secretsnats.Config{
-		URL:      cfg.NATSURL,
-		Username: cfg.NATSUser,
-		Password: cfg.NATSPassword,
-		Queue:    cfg.NATSQueue,
-		Logger:   cfg.Logger,
-		Audit:    cfg.Audit,
-	}, server)
-	if err := natsServer.Start(ctx); err != nil {
-		return err
-	}
-	defer natsServer.Close()
+	cfg.NATS.Logger = cfg.Logger
 	cfg.Logger.Info("secrets service listening", "openbao", cfg.OpenBaoAddress)
-	<-ctx.Done()
-	return nil
+	return natskit.RunRPCService(ctx, cfg.NATS, cfg.Queue, natskit.Binding{
+		Descriptor: secretssvc.Descriptor(cfg.Address, nil),
+		Services: []natskit.RPCService{{
+			Service:        "quark.secrets.v1.SecretsService",
+			Implementation: server,
+		}},
+	})
 }
 
 func normalizeConfig(cfg Config) Config {
@@ -69,11 +59,11 @@ func normalizeConfig(cfg Config) Config {
 	if cfg.OpenBaoMount == "" {
 		cfg.OpenBaoMount = "secret"
 	}
-	if cfg.NATSUser == "" {
-		cfg.NATSUser = secretsnats.DefaultUser
+	if cfg.NATS.Username == "" {
+		cfg.NATS.Username = natskit.DefaultUser
 	}
-	if cfg.NATSQueue == "" {
-		cfg.NATSQueue = secretsnats.DefaultQueue
+	if cfg.Queue == "" {
+		cfg.Queue = "q.secrets.v1"
 	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()

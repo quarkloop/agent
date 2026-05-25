@@ -63,7 +63,7 @@ func TestClientRejectsInvalidCredentials(t *testing.T) {
 		Username:      "missing",
 		Password:      "wrong",
 		MaxReconnects: -1,
-	}, nats.NoReconnect())
+	})
 	if err == nil {
 		t.Fatal("expected invalid credentials error")
 	}
@@ -81,9 +81,10 @@ func TestClientReportsPermissionDeniedRequest(t *testing.T) {
 		Username: sessionCredential.Username,
 		Password: sessionCredential.Password,
 		Timeout:  time.Second,
-	}, nats.ErrorHandler(func(_ *nats.Conn, _ *nats.Subscription, err error) {
-		permissionErrors <- err
-	}))
+		AsyncError: func(err error) {
+			permissionErrors <- err
+		},
+	})
 	if err != nil {
 		t.Fatalf("connect session client: %v", err)
 	}

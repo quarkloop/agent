@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/quarkloop/pkg/serviceapi/observability"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/services/secrets/internal/app"
 )
 
@@ -20,16 +20,15 @@ func main() {
 	flag.StringVar(&cfg.OpenBaoAddress, "openbao-addr", envOrDefault("QUARK_OPENBAO_ADDR", "http://127.0.0.1:8200"), "OpenBao API address")
 	flag.StringVar(&cfg.OpenBaoToken, "openbao-token", os.Getenv("QUARK_OPENBAO_TOKEN"), "OpenBao client token")
 	flag.StringVar(&cfg.OpenBaoMount, "openbao-mount", envOrDefault("QUARK_OPENBAO_MOUNT", "secret"), "OpenBao KV v2 mount")
-	flag.StringVar(&cfg.NATSURL, "nats-url", os.Getenv("QUARK_NATS_URL"), "NATS URL for service-function endpoints")
-	flag.StringVar(&cfg.NATSUser, "nats-user", os.Getenv("QUARK_NATS_USER"), "NATS username")
-	flag.StringVar(&cfg.NATSPassword, "nats-password", os.Getenv("QUARK_NATS_PASSWORD"), "NATS password")
-	flag.StringVar(&cfg.NATSQueue, "nats-queue", os.Getenv("QUARK_SECRETS_NATS_QUEUE"), "NATS queue group")
+	flag.StringVar(&cfg.NATS.URL, "nats-url", os.Getenv("QUARK_NATS_URL"), "NATS URL for service-function endpoints")
+	flag.StringVar(&cfg.NATS.Username, "nats-user", os.Getenv("QUARK_NATS_USER"), "NATS username")
+	flag.StringVar(&cfg.NATS.Password, "nats-password", os.Getenv("QUARK_NATS_PASSWORD"), "NATS password")
+	flag.StringVar(&cfg.Queue, "nats-queue", os.Getenv("QUARK_SECRETS_NATS_QUEUE"), "NATS responder queue group")
 	flag.Parse()
-	cfg.Audit = observability.RecorderConfig{
-		AuditPrefix:     os.Getenv("QUARK_NATS_AUDIT_PREFIX"),
-		TelemetryPrefix: os.Getenv("QUARK_NATS_TELEMETRY_PREFIX"),
-		Policy:          observability.DefaultAuditPolicy(),
-	}
+	cfg.NATS.AuditPrefix = os.Getenv("QUARK_NATS_AUDIT_PREFIX")
+	cfg.NATS.TelemetryPrefix = os.Getenv("QUARK_NATS_TELEMETRY_PREFIX")
+	cfg.NATS.AuditPolicy = natskit.DefaultAuditPolicy()
+	cfg.NATS.Name = "quark-secrets"
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil).WithAttrs([]slog.Attr{
 		slog.String("process", "service"),

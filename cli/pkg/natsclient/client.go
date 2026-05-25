@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nats-io/nats.go"
 	"github.com/quarkloop/pkg/boundary"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 )
 
@@ -34,6 +34,7 @@ type Config struct {
 	Timeout       time.Duration
 	ReconnectWait time.Duration
 	MaxReconnects int
+	AsyncError    func(error)
 }
 
 func ConfigFromEnv() Config {
@@ -49,7 +50,7 @@ func ConfigFromEnv() Config {
 }
 
 type Client struct {
-	conn    *nats.Conn
+	client  *natskit.Client
 	timeout time.Duration
 }
 
@@ -76,46 +77,27 @@ func IsConflict(err error) bool {
 	return responseHasCategory(err, boundary.Conflict)
 }
 
-func Connect(ctx context.Context, cfg Config, opts ...nats.Option) (*Client, error) {
+func Connect(ctx context.Context, cfg Config) (*Client, error) {
 	normalized := normalizeConfig(cfg)
-	options := []nats.Option{
-		nats.Name(normalized.Name),
-		nats.Timeout(normalized.Timeout),
-		nats.ReconnectWait(normalized.ReconnectWait),
-		nats.MaxReconnects(normalized.MaxReconnects),
-		nats.RetryOnFailedConnect(true),
-	}
-	if normalized.Username != "" || normalized.Password != "" {
-		options = append(options, nats.UserInfo(normalized.Username, normalized.Password))
-	}
-	options = append(options, opts...)
-
-	if err := ctx.Err(); err != nil {
-		return nil, ctx.Err()
-	}
-	conn, err := nats.Connect(normalized.URL, options...)
+	client, err := natskit.Connect(ctx, natskit.Config{
+		URL: normalized.URL, Username: normalized.Username, Password: normalized.Password,
+		Name: normalized.Name, Timeout: normalized.Timeout, ReconnectWait: normalized.ReconnectWait,
+		MaxReconnects: normalized.MaxReconnects, AsyncError: normalized.AsyncError,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("connect nats: %w", err)
 	}
-	if err := ctx.Err(); err != nil {
-		conn.Close()
-		return nil, err
-	}
-	if err := conn.FlushTimeout(normalized.Timeout); err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("verify nats connection: %w", err)
-	}
-	return &Client{conn: conn, timeout: normalized.Timeout}, nil
+	return &Client{client: client, timeout: normalized.Timeout}, nil
 }
 
 func (c *Client) Close() {
-	if c != nil && c.conn != nil {
-		c.conn.Close()
+	if c != nil && c.client != nil {
+		c.client.Close()
 	}
 }
 
 func (c *Client) Request(ctx context.Context, subject string, req clientcontract.RequestEnvelope) (clientcontract.ResponseEnvelope, error) {
-	if c == nil || c.conn == nil {
+	if c == nil || c.client == nil {
 		return clientcontract.ResponseEnvelope{}, errors.New("nats client is not connected")
 	}
 	if strings.TrimSpace(subject) == "" {
@@ -128,17 +110,12 @@ func (c *Client) Request(ctx context.Context, subject string, req clientcontract
 	if err != nil {
 		return clientcontract.ResponseEnvelope{}, fmt.Errorf("marshal request envelope: %w", err)
 	}
-	msg := nats.NewMsg(subject)
-	msg.Data = data
-	for key, value := range req.CorrelationHeaders() {
-		msg.Header.Set(key, value)
-	}
-	reply, err := c.conn.RequestMsgWithContext(ctx, msg)
+	reply, err := c.client.Request(ctx, subject, data, req.CorrelationHeaders())
 	if err != nil {
 		return clientcontract.ResponseEnvelope{}, fmt.Errorf("request %s: %w", subject, err)
 	}
 	var resp clientcontract.ResponseEnvelope
-	if err := json.Unmarshal(reply.Data, &resp); err != nil {
+	if err := json.Unmarshal(reply, &resp); err != nil {
 		return clientcontract.ResponseEnvelope{}, fmt.Errorf("decode response envelope: %w", err)
 	}
 	if err := resp.Validate(); err != nil {
@@ -172,14 +149,7 @@ func notifySubscriptionError(errs chan<- error, err error) {
 }
 
 func (c *Client) flush(ctx context.Context) error {
-	if _, ok := ctx.Deadline(); ok {
-		return c.conn.FlushWithContext(ctx)
-	}
-	timeout := c.timeout
-	if timeout <= 0 {
-		timeout = 5 * time.Second
-	}
-	return c.conn.FlushTimeout(timeout)
+	return c.client.Flush(ctx)
 }
 func requestPayload[T any](ctx context.Context, c *Client, subject, spaceID string, payload any) (T, error) {
 	var out T

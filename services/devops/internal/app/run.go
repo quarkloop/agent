@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
-	"github.com/quarkloop/pkg/serviceapi/servicebridge"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/services/devops/internal/devopssvc"
 	"log/slog"
@@ -14,7 +14,8 @@ import (
 type Config struct {
 	Address  string
 	SkillDir string
-	NATS     servicebridge.NATSConfig
+	NATS     natskit.Config
+	Queue    string
 	Logger   *slog.Logger
 }
 
@@ -37,9 +38,9 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	descriptor := devopssvc.Descriptor(cfg.Address, skill)
 	cfg.NATS.Logger = cfg.Logger
-	return servicebridge.RunNATSService(ctx, cfg.NATS, servicebridge.Binding{
+	return natskit.RunRPCService(ctx, cfg.NATS, cfg.Queue, natskit.Binding{
 		Descriptor: descriptor,
-		Services: []servicebridge.RPCService{
+		Services: []natskit.RPCService{
 			{Service: "quark.devops.v1.RepoService", Implementation: server},
 			{Service: "quark.devops.v1.BuildService", Implementation: server},
 			{Service: "quark.devops.v1.TestService", Implementation: server},

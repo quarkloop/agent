@@ -10,10 +10,9 @@ import (
 	"strings"
 	"time"
 
-	natsgo "github.com/nats-io/nats.go"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/plugin"
 	gatewayv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/gateway/v1"
-	"github.com/quarkloop/pkg/serviceapi/servicefunction"
 	"github.com/quarkloop/runtime/pkg/modelservice"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -65,15 +64,21 @@ func (p *Provider) ChatCompletionStream(ctx context.Context, req *plugin.ChatReq
 		ctx = context.Background()
 	}
 	streamCtx, cancel := context.WithTimeout(ctx, p.cfg.Timeout)
-	conn, err := natsgo.Connect(p.cfg.URL, natsgo.UserInfo(p.cfg.Username, p.cfg.Password), natsgo.Timeout(p.cfg.Timeout), natsgo.Name("quark-runtime-gateway-client"))
+	client, err := natskit.Connect(streamCtx, natskit.Config{
+		URL:      p.cfg.URL,
+		Username: p.cfg.Username,
+		Password: p.cfg.Password,
+		Timeout:  p.cfg.Timeout,
+		Name:     "quark-runtime-gateway-client",
+	})
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("connect gateway nats: %w", err)
 	}
-	subject, err := servicefunction.Subject("gateway", servicefunction.DefaultVersion, "stream_generate")
+	operation, err := natskit.ServiceOperation("gateway", "stream_generate")
 	if err != nil {
 		cancel()
-		conn.Close()
+		client.Close()
 		return nil, err
 	}
 	payload, err := protojson.Marshal(&gatewayv1.StreamGenerateRequest{
@@ -85,69 +90,41 @@ func (p *Provider) ChatCompletionStream(ctx context.Context, req *plugin.ChatReq
 	})
 	if err != nil {
 		cancel()
-		conn.Close()
+		client.Close()
 		return nil, fmt.Errorf("marshal gateway request: %w", err)
 	}
-	envelope, err := servicefunction.NewRequest(newCallID(), firstNonEmpty(modelservice.SpaceID(ctx), "runtime"), servicefunction.ActorRuntime, servicefunction.Descriptor{
-		Version:       servicefunction.DescriptorVersion,
-		Service:       "gateway",
-		Function:      "stream_generate",
-		Subject:       subject,
-		InputSchema:   json.RawMessage(`{"type":"object"}`),
-		OutputSchema:  json.RawMessage(`{"type":"object"}`),
-		Risk:          servicefunction.RiskRead,
-		TimeoutMillis: int64(p.cfg.Timeout / time.Millisecond),
-	}, payload)
+	envelope, err := natskit.NewRequest(natskit.NewServiceCallID(), firstNonEmpty(modelservice.SpaceID(ctx), "runtime"), natskit.ActorRuntime, payload)
 	if err != nil {
 		cancel()
-		conn.Close()
+		client.Close()
 		return nil, err
 	}
 	envelope.SessionID = modelservice.SessionID(ctx)
 	envelope.RunID = modelservice.RunID(ctx)
-	data, err := json.Marshal(envelope)
+	stream, err := client.OpenServiceStream(streamCtx, operation, envelope)
 	if err != nil {
 		cancel()
-		conn.Close()
-		return nil, fmt.Errorf("encode gateway request: %w", err)
-	}
-	inbox := natsgo.NewInbox()
-	sub, err := conn.SubscribeSync(inbox)
-	if err != nil {
-		cancel()
-		conn.Close()
-		return nil, fmt.Errorf("subscribe gateway reply: %w", err)
-	}
-	if err := conn.PublishRequest(subject, inbox, data); err != nil {
-		cancel()
-		sub.Unsubscribe()
-		conn.Close()
-		return nil, fmt.Errorf("publish gateway request: %w", err)
-	}
-	if err := conn.FlushWithContext(streamCtx); err != nil {
-		cancel()
-		sub.Unsubscribe()
-		conn.Close()
-		return nil, fmt.Errorf("flush gateway request: %w", err)
+		client.Close()
+		return nil, fmt.Errorf("open gateway stream: %w", err)
 	}
 	out := make(chan plugin.StreamEvent, 64)
 	go func() {
 		defer close(out)
 		defer cancel()
-		defer sub.Unsubscribe()
-		defer conn.Close()
+		defer stream.Close()
+		defer client.Close()
 		for {
-			msg, err := sub.NextMsgWithContext(streamCtx)
+			data, err := stream.Next(streamCtx)
 			if err != nil {
 				out <- plugin.StreamEvent{Err: fmt.Errorf("gateway stream wait: %w", err)}
 				return
 			}
-			var envelope servicefunction.ResponseEnvelope
-			if err := json.Unmarshal(msg.Data, &envelope); err != nil {
+			envelope, err := natskit.DecodeServiceResponse(data)
+			if err != nil {
 				out <- plugin.StreamEvent{Err: err}
 				return
 			}
-			if envelope.Status == servicefunction.StatusError {
+			if envelope.Status == natskit.StatusError {
 				out <- plugin.StreamEvent{Err: fmt.Errorf("%s", envelope.Error.Message)}
 				return
 			}
@@ -164,6 +141,10 @@ func (p *Provider) ChatCompletionStream(ctx context.Context, req *plugin.ChatReq
 			}
 			out <- event
 			if event.Done {
+				return
+			}
+			if envelope.Final {
+				out <- plugin.StreamEvent{Err: fmt.Errorf("gateway stream completed without a done response")}
 				return
 			}
 		}
@@ -287,7 +268,7 @@ func toolCallsFromProto(calls []*gatewayv1.ToolCall) []plugin.ToolCall {
 	return out
 }
 
-func streamUsageFromProto(usage *gatewayv1.ModelUsage, envelopeUsage *servicefunction.Usage) *plugin.StreamUsage {
+func streamUsageFromProto(usage *gatewayv1.ModelUsage, envelopeUsage *natskit.Usage) *plugin.StreamUsage {
 	if usage == nil && envelopeUsage == nil {
 		return nil
 	}
@@ -332,10 +313,6 @@ func normalizeConfig(cfg Config) Config {
 		cfg.Timeout = DefaultTimeout
 	}
 	return cfg
-}
-
-func newCallID() string {
-	return fmt.Sprintf("gateway-%d", time.Now().UnixNano())
 }
 
 func firstNonEmpty(values ...string) string {

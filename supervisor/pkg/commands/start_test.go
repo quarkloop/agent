@@ -17,7 +17,6 @@ func TestStartNATSConfigBuildsEmbeddedConfig(t *testing.T) {
 	natsClientPort = 14222
 	natsWebSocketPort = 19222
 	natsMonitorPort = 18222
-	natsArtifactHandoffMaxBytes = 64 * 1024 * 1024
 	natsAuditRetention = 48 * time.Hour
 	natsAuditMaxMessages = 2048
 
@@ -33,9 +32,6 @@ func TestStartNATSConfigBuildsEmbeddedConfig(t *testing.T) {
 	}
 	if cfg.Client.Port != natsClientPort || cfg.WebSocket.Port != natsWebSocketPort || cfg.Monitoring.Port != natsMonitorPort {
 		t.Fatalf("ports = client:%d ws:%d monitoring:%d", cfg.Client.Port, cfg.WebSocket.Port, cfg.Monitoring.Port)
-	}
-	if cfg.JetStream.ArtifactHandoffMaxBytes != natsArtifactHandoffMaxBytes {
-		t.Fatalf("artifact handoff max bytes = %d", cfg.JetStream.ArtifactHandoffMaxBytes)
 	}
 	if cfg.JetStream.AuditRetention != natsAuditRetention || cfg.JetStream.AuditMaxMessages != natsAuditMaxMessages {
 		t.Fatalf("audit retention config = duration:%s messages:%d", cfg.JetStream.AuditRetention, cfg.JetStream.AuditMaxMessages)
@@ -75,7 +71,6 @@ func captureStartNATSFlags() func() {
 	oldClientPort := natsClientPort
 	oldWebSocketPort := natsWebSocketPort
 	oldMonitorPort := natsMonitorPort
-	oldArtifactHandoffMaxBytes := natsArtifactHandoffMaxBytes
 	oldAuditRetention := natsAuditRetention
 	oldAuditMaxMessages := natsAuditMaxMessages
 	oldBundledPluginsDir := bundledPluginsDir
@@ -86,7 +81,6 @@ func captureStartNATSFlags() func() {
 		natsClientPort = oldClientPort
 		natsWebSocketPort = oldWebSocketPort
 		natsMonitorPort = oldMonitorPort
-		natsArtifactHandoffMaxBytes = oldArtifactHandoffMaxBytes
 		natsAuditRetention = oldAuditRetention
 		natsAuditMaxMessages = oldAuditMaxMessages
 		bundledPluginsDir = oldBundledPluginsDir

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nats-io/nats.go"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 )
 
@@ -53,7 +53,7 @@ func (c *Client) SendSessionMessage(ctx context.Context, req clientcontract.Send
 }
 
 func (c *Client) SubscribeSessionEvents(ctx context.Context, sessionID string) (<-chan clientcontract.SessionEvent, <-chan error, func(), error) {
-	if c == nil || c.conn == nil {
+	if c == nil || c.client == nil {
 		return nil, nil, nil, errors.New("nats client is not connected")
 	}
 	subject, err := clientcontract.SessionEventsSubject(sessionID)
@@ -62,7 +62,7 @@ func (c *Client) SubscribeSessionEvents(ctx context.Context, sessionID string) (
 	}
 	events := make(chan clientcontract.SessionEvent, 64)
 	errs := make(chan error, 8)
-	sub, err := c.conn.Subscribe(subject, func(msg *nats.Msg) {
+	sub, err := c.client.Subscribe(subject, func(msg natskit.Message) {
 		var event clientcontract.SessionEvent
 		if err := json.Unmarshal(msg.Data, &event); err != nil {
 			notifySubscriptionError(errs, fmt.Errorf("decode session event: %w", err))

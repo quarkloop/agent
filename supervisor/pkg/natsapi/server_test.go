@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	natsserver "github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	event "github.com/quarkloop/pkg/event"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
@@ -222,7 +223,7 @@ func startFixtureWithOptions(t *testing.T, opts ...Option) fixture {
 	t.Helper()
 	ctx := context.Background()
 	cfg := natshub.DefaultConfig(filepath.Join(t.TempDir(), "nats"))
-	cfg.Client.Port = 0
+	cfg.Client.Port = natsserver.RANDOM_PORT
 	cfg.WebSocket.Enabled = false
 	cfg.Monitoring.Enabled = false
 	cfg.ReadyTimeout = 5 * time.Second

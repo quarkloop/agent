@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nats-io/nats.go"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 )
 
@@ -40,12 +40,12 @@ func (c *Client) RuntimeActivity(ctx context.Context, spaceID string, limit int)
 }
 
 func (c *Client) SubscribeRuntimeActivity(ctx context.Context) (<-chan clientcontract.RuntimeActivityRecord, <-chan error, func(), error) {
-	if c == nil || c.conn == nil {
+	if c == nil || c.client == nil {
 		return nil, nil, nil, errors.New("nats client is not connected")
 	}
 	records := make(chan clientcontract.RuntimeActivityRecord, 64)
 	errs := make(chan error, 8)
-	sub, err := c.conn.Subscribe(clientcontract.SubjectRuntimeActivityFeed, func(msg *nats.Msg) {
+	sub, err := c.client.Subscribe(clientcontract.SubjectRuntimeActivityFeed, func(msg natskit.Message) {
 		var record clientcontract.RuntimeActivityRecord
 		if err := json.Unmarshal(msg.Data, &record); err != nil {
 			notifySubscriptionError(errs, fmt.Errorf("decode runtime activity: %w", err))

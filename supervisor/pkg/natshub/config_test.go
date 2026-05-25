@@ -4,13 +4,15 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	natsserver "github.com/nats-io/nats-server/v2/server"
 )
 
 func TestBuildOptionsDefaultsAreDeterministic(t *testing.T) {
 	cfg := DefaultConfig(filepath.Join(t.TempDir(), "nats"))
-	cfg.Client.Port = 0
-	cfg.WebSocket.Port = 0
-	cfg.Monitoring.Port = 0
+	cfg.Client.Port = natsserver.RANDOM_PORT
+	cfg.WebSocket.Port = natsserver.RANDOM_PORT
+	cfg.Monitoring.Port = natsserver.RANDOM_PORT
 	cfg.NoLog = true
 
 	opts, err := BuildOptions(cfg)
@@ -20,14 +22,11 @@ func TestBuildOptionsDefaultsAreDeterministic(t *testing.T) {
 	if opts.ServerName != defaultServerName {
 		t.Fatalf("server name = %q", opts.ServerName)
 	}
-	if opts.Host != defaultClientHost || opts.Port != 0 {
+	if opts.Host != defaultClientHost || opts.Port != natsserver.RANDOM_PORT {
 		t.Fatalf("client listener = %s:%d", opts.Host, opts.Port)
 	}
 	if !opts.JetStream {
 		t.Fatal("jetstream is not enabled")
-	}
-	if cfg.JetStream.ArtifactHandoffMaxBytes != defaultArtifactHandoffMaxBytes {
-		t.Fatalf("artifact handoff max bytes = %d", cfg.JetStream.ArtifactHandoffMaxBytes)
 	}
 	if opts.StoreDir != filepath.Join(cfg.StateDir, "jetstream") {
 		t.Fatalf("store dir = %q", opts.StoreDir)
@@ -44,10 +43,10 @@ func TestBuildOptionsDefaultsAreDeterministic(t *testing.T) {
 	if opts.CustomClientAuthentication == nil {
 		t.Fatal("custom client authentication is not configured")
 	}
-	if opts.Websocket.Host != defaultWebSocketHost || opts.Websocket.Port != 0 || !opts.Websocket.NoTLS {
+	if opts.Websocket.Host != defaultWebSocketHost || opts.Websocket.Port != natsserver.RANDOM_PORT || !opts.Websocket.NoTLS {
 		t.Fatalf("websocket config = %+v", opts.Websocket)
 	}
-	if opts.HTTPHost != defaultMonitoringHost || opts.HTTPPort != 0 {
+	if opts.HTTPHost != defaultMonitoringHost || opts.HTTPPort != natsserver.RANDOM_PORT {
 		t.Fatalf("monitoring listener = %s:%d", opts.HTTPHost, opts.HTTPPort)
 	}
 }
@@ -116,17 +115,5 @@ func TestDefaultConfigAllowsTimeoutOverride(t *testing.T) {
 	}
 	if normalized.ReadyTimeout != time.Second {
 		t.Fatalf("ready timeout = %v", normalized.ReadyTimeout)
-	}
-}
-
-func TestNormalizeDefaultsArtifactHandoffMaxBytes(t *testing.T) {
-	cfg := DefaultConfig(filepath.Join(t.TempDir(), "nats"))
-	cfg.JetStream.ArtifactHandoffMaxBytes = 0
-	normalized, err := Normalize(cfg)
-	if err != nil {
-		t.Fatalf("normalize: %v", err)
-	}
-	if normalized.JetStream.ArtifactHandoffMaxBytes != defaultArtifactHandoffMaxBytes {
-		t.Fatalf("artifact handoff max bytes = %d", normalized.JetStream.ArtifactHandoffMaxBytes)
 	}
 }

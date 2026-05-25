@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nats-io/nats.go"
 	"github.com/quarkloop/pkg/boundary"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 	"github.com/quarkloop/supervisor/pkg/events"
 	"github.com/quarkloop/supervisor/pkg/natshub"
@@ -67,7 +67,7 @@ func WithSpaceBootstrapper(bootstrapper SpaceBootstrapper) Option {
 }
 
 type Server struct {
-	conn              *nats.Conn
+	client            *natskit.Client
 	url               string
 	store             space.Store
 	events            *events.Bus
@@ -76,7 +76,7 @@ type Server struct {
 	serviceInspector  ServiceInspector
 	catalogResolver   CatalogResolver
 	spaceBootstrapper SpaceBootstrapper
-	subs              []*nats.Subscription
+	subs              []*natskit.Subscription
 }
 
 type Config struct {
@@ -92,24 +92,16 @@ func Start(ctx context.Context, cfg Config, store space.Store, bus *events.Bus, 
 	if bus == nil {
 		bus = events.NewBus()
 	}
-	conn, err := nats.Connect(
-		cfg.URL,
-		nats.UserInfo(cfg.Username, cfg.Password),
-		nats.Name("quark-supervisor-control-api"),
-		nats.Timeout(5*time.Second),
-		nats.RetryOnFailedConnect(true),
-		nats.MaxReconnects(10),
-		nats.ReconnectWait(250*time.Millisecond),
-	)
+	client, err := natskit.Connect(ctx, natskit.Config{
+		URL: cfg.URL, Username: cfg.Username, Password: cfg.Password,
+		Name: "quark-supervisor-control-api", Timeout: 5 * time.Second,
+		ReconnectWait: 250 * time.Millisecond, MaxReconnects: 10,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("connect nats api: %w", err)
 	}
-	if err := verifyConnection(ctx, conn); err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("verify nats api connection: %w", err)
-	}
 	server := &Server{
-		conn:             conn,
+		client:           client,
 		url:              cfg.URL,
 		store:            store,
 		events:           bus,
@@ -131,16 +123,6 @@ func credentialIssuerFromProvisioner(provisioner SpaceProvisioner) CredentialIss
 	return issuer
 }
 
-func verifyConnection(ctx context.Context, conn *nats.Conn) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	if _, ok := ctx.Deadline(); ok {
-		return conn.FlushWithContext(ctx)
-	}
-	return conn.FlushTimeout(5 * time.Second)
-}
-
 func (s *Server) Close() {
 	if s == nil {
 		return
@@ -148,8 +130,8 @@ func (s *Server) Close() {
 	for _, sub := range s.subs {
 		_ = sub.Unsubscribe()
 	}
-	if s.conn != nil {
-		s.conn.Close()
+	if s.client != nil {
+		s.client.Close()
 	}
 }
 
@@ -187,38 +169,34 @@ func (s *Server) subscribe() error {
 	for subject, handler := range handlers {
 		subject := subject
 		handler := handler
-		sub, err := s.conn.QueueSubscribe(subject, "q.supervisor.control", func(msg *nats.Msg) {
-			s.handle(msg, handler)
+		sub, err := s.client.Respond(subject, "q.supervisor.control", 5*time.Second, func(_ context.Context, msg natskit.Message) ([]byte, error) {
+			return s.handle(msg, handler), nil
 		})
 		if err != nil {
 			return fmt.Errorf("subscribe %s: %w", subject, err)
 		}
 		s.subs = append(s.subs, sub)
 	}
-	return s.conn.Flush()
+	return s.client.Flush(context.Background())
 }
 
-func (s *Server) handle(msg *nats.Msg, handler func(clientcontract.RequestEnvelope) (any, error)) {
+func (s *Server) handle(msg natskit.Message, handler func(clientcontract.RequestEnvelope) (any, error)) []byte {
 	var req clientcontract.RequestEnvelope
 	if err := json.Unmarshal(msg.Data, &req); err != nil {
-		respond(msg, clientcontract.Error("", string(boundary.InvalidArgument), "invalid request envelope: "+err.Error()))
-		return
+		return encodeResponse(clientcontract.Error("", string(boundary.InvalidArgument), "invalid request envelope: "+err.Error()))
 	}
 	if err := req.Validate(); err != nil {
-		respond(msg, clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), err.Error()))
-		return
+		return encodeResponse(clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), err.Error()))
 	}
 	payload, err := handler(req)
 	if err != nil {
-		respond(msg, clientcontract.Error(req.RequestID, string(errorCategory(msg.Subject, err)), err.Error()))
-		return
+		return encodeResponse(clientcontract.Error(req.RequestID, string(errorCategory(msg.Subject, err)), err.Error()))
 	}
 	resp, err := clientcontract.OK(req.RequestID, payload)
 	if err != nil {
-		respond(msg, clientcontract.Error(req.RequestID, string(boundary.Internal), err.Error()))
-		return
+		return encodeResponse(clientcontract.Error(req.RequestID, string(boundary.Internal), err.Error()))
 	}
-	respond(msg, resp)
+	return encodeResponse(resp)
 }
 
 func errorCategory(operation string, err error) boundary.Category {
@@ -234,10 +212,10 @@ func errorCategory(operation string, err error) boundary.Category {
 	}
 }
 
-func respond(msg *nats.Msg, resp clientcontract.ResponseEnvelope) {
+func encodeResponse(resp clientcontract.ResponseEnvelope) []byte {
 	data, err := json.Marshal(resp)
 	if err != nil {
 		data = []byte(`{"version":"v1","request_id":"","status":"error","error":{"category":"internal","message":"marshal response"}}`)
 	}
-	_ = msg.Respond(data)
+	return data
 }

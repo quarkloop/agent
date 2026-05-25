@@ -2,48 +2,43 @@ package gatewayclient
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 	"time"
 
 	natsserver "github.com/nats-io/nats-server/v2/server"
-	natsgo "github.com/nats-io/nats.go"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/plugin"
 	gatewayv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/gateway/v1"
-	"github.com/quarkloop/pkg/serviceapi/servicefunction"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func TestProviderStreamsGatewayResponsesAndUsage(t *testing.T) {
 	ns := startProviderTestNATS(t)
-	conn := connectProviderTestNATS(t, ns.ClientURL())
-	defer conn.Close()
-
-	subject, err := servicefunction.Subject("gateway", servicefunction.DefaultVersion, "stream_generate")
+	host, err := natskit.NewHost(context.Background(), natskit.Config{
+		URL: ns.ClientURL(), Username: "quark-control", Password: "secret",
+		Name: "gateway-provider-test",
+	}, "q.test.gateway")
 	if err != nil {
 		t.Fatal(err)
 	}
-	sub, err := conn.QueueSubscribe(subject, "q.test.gateway", func(msg *natsgo.Msg) {
-		var req servicefunction.RequestEnvelope
-		if err := json.Unmarshal(msg.Data, &req); err != nil {
-			t.Errorf("decode request: %v", err)
-			return
-		}
+	t.Cleanup(host.Close)
+	operation, _ := natskit.ServiceOperation("gateway", "stream_generate")
+	err = host.RegisterStream(operation, time.Second, func(_ context.Context, req natskit.RequestEnvelope, publish func(natskit.ResponseEnvelope) error) (natskit.ResponseEnvelope, error) {
 		var payload gatewayv1.StreamGenerateRequest
 		if err := protojson.Unmarshal(req.Payload, &payload); err != nil {
-			t.Errorf("decode payload: %v", err)
-			return
+			return natskit.ResponseEnvelope{}, err
 		}
 		if payload.GetProvider() != "openrouter" || payload.GetModel() != "test/model" {
 			t.Errorf("request provider/model = %q/%q", payload.GetProvider(), payload.GetModel())
-			return
 		}
 		if payload.GetOptions()["max_output_tokens"] != "512" {
 			t.Errorf("max_output_tokens option = %q", payload.GetOptions()["max_output_tokens"])
-			return
 		}
-		publishProviderChunk(t, conn, msg.Reply, req.ServiceCallID, &gatewayv1.StreamGenerateResponse{Delta: "hello"})
-		publishProviderChunk(t, conn, msg.Reply, req.ServiceCallID, &gatewayv1.StreamGenerateResponse{
+		first := providerChunk(t, req.ServiceCallID, &gatewayv1.StreamGenerateResponse{Delta: "hello"})
+		if err := publish(first); err != nil {
+			return natskit.ResponseEnvelope{}, err
+		}
+		return providerChunk(t, req.ServiceCallID, &gatewayv1.StreamGenerateResponse{
 			Done: true,
 			Usage: &gatewayv1.ModelUsage{
 				Provider:      "openrouter",
@@ -54,13 +49,12 @@ func TestProviderStreamsGatewayResponsesAndUsage(t *testing.T) {
 				FinishReason:  "stop",
 				FallbackChain: []string{"openrouter"},
 			},
-		})
+		}), nil
 	})
 	if err != nil {
 		t.Fatalf("subscribe gateway subject: %v", err)
 	}
-	defer sub.Unsubscribe()
-	if err := conn.FlushTimeout(time.Second); err != nil {
+	if err := host.Ready(context.Background()); err != nil {
 		t.Fatalf("flush gateway subscription: %v", err)
 	}
 
@@ -147,37 +141,22 @@ func startProviderTestNATS(t *testing.T) *natsserver.Server {
 	return ns
 }
 
-func connectProviderTestNATS(t *testing.T, url string) *natsgo.Conn {
-	t.Helper()
-	conn, err := natsgo.Connect(url, natsgo.UserInfo("quark-control", "secret"), natsgo.Timeout(time.Second))
-	if err != nil {
-		t.Fatalf("connect nats: %v", err)
-	}
-	return conn
-}
-
-func publishProviderChunk(t *testing.T, conn *natsgo.Conn, reply, callID string, chunk *gatewayv1.StreamGenerateResponse) {
+func providerChunk(t *testing.T, callID string, chunk *gatewayv1.StreamGenerateResponse) natskit.ResponseEnvelope {
 	t.Helper()
 	payload, err := protojson.Marshal(chunk)
 	if err != nil {
 		t.Fatalf("marshal chunk: %v", err)
 	}
-	envelope := servicefunction.OKResponse(callID, payload)
+	envelope := natskit.OKResponse(callID, payload)
 	envelope.Usage = usageEnvelope(chunk.GetUsage())
-	data, err := json.Marshal(envelope)
-	if err != nil {
-		t.Fatalf("marshal envelope: %v", err)
-	}
-	if err := conn.Publish(reply, data); err != nil {
-		t.Fatalf("publish chunk: %v", err)
-	}
+	return envelope
 }
 
-func usageEnvelope(usage *gatewayv1.ModelUsage) *servicefunction.Usage {
+func usageEnvelope(usage *gatewayv1.ModelUsage) *natskit.Usage {
 	if usage == nil {
 		return nil
 	}
-	return &servicefunction.Usage{
+	return &natskit.Usage{
 		Provider:     usage.GetProvider(),
 		Model:        usage.GetModel(),
 		RequestID:    usage.GetRequestId(),

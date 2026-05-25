@@ -6,8 +6,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/nats-io/nats.go"
 	"github.com/quarkloop/e2e/utils"
+	"github.com/quarkloop/pkg/natskit"
 	gatewayv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/gateway/v1"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
 	"github.com/quarkloop/supervisor/pkg/natshub"
@@ -21,7 +21,7 @@ func verifyPersistedPDFIndexState(t *testing.T, ctx context.Context, artifactDir
 	report := make([]map[string]any, 0, len(documents))
 	for _, document := range documents {
 		var embedding gatewayv1.EmbedResponse
-		requestServiceFunction(t, ctx, conn, env.Space, "svc.gateway.v1.embed", "gateway", "embed", &gatewayv1.EmbedRequest{
+		requestServiceFunction(t, ctx, conn, env.Space, "gateway", "embed", &gatewayv1.EmbedRequest{
 			Inputs: gatewayTextInputs(document.Name + " " + document.Filename),
 		}, &embedding)
 		if len(embedding.GetEmbeddings()) != 1 {
@@ -29,7 +29,7 @@ func verifyPersistedPDFIndexState(t *testing.T, ctx context.Context, artifactDir
 		}
 		vector := embedding.GetEmbeddings()[0]
 		var resp indexerv1.ContextResponse
-		requestServiceFunction(t, ctx, conn, env.Space, "svc.indexer.v1.get_context", "indexer", "get_context", &indexerv1.QueryRequest{
+		requestServiceFunction(t, ctx, conn, env.Space, "indexer", "get_context", &indexerv1.QueryRequest{
 			QueryVector: vector.GetVector(),
 			Limit:       1,
 			Depth:       1,
@@ -67,7 +67,7 @@ func verifyPersistedMarkdownIndexState(t *testing.T, ctx context.Context, artifa
 	report := make([]map[string]any, 0, len(documents))
 	for _, document := range documents {
 		var embedding gatewayv1.EmbedResponse
-		requestServiceFunction(t, ctx, conn, env.Space, "svc.gateway.v1.embed", "gateway", "embed", &gatewayv1.EmbedRequest{
+		requestServiceFunction(t, ctx, conn, env.Space, "gateway", "embed", &gatewayv1.EmbedRequest{
 			Inputs: gatewayTextInputs(document.Query),
 		}, &embedding)
 		if len(embedding.GetEmbeddings()) != 1 {
@@ -75,7 +75,7 @@ func verifyPersistedMarkdownIndexState(t *testing.T, ctx context.Context, artifa
 		}
 		vector := embedding.GetEmbeddings()[0]
 		var resp indexerv1.ContextResponse
-		requestServiceFunction(t, ctx, conn, env.Space, "svc.indexer.v1.get_context", "indexer", "get_context", &indexerv1.QueryRequest{
+		requestServiceFunction(t, ctx, conn, env.Space, "indexer", "get_context", &indexerv1.QueryRequest{
 			QueryVector: vector.GetVector(),
 			Limit:       1,
 			Depth:       1,
@@ -121,13 +121,12 @@ func gatewayTextInputs(values ...string) []*gatewayv1.MultimodalInput {
 	return inputs
 }
 
-func openIndexVerificationConn(t *testing.T, env *utils.E2EEnv) *nats.Conn {
+func openIndexVerificationConn(t *testing.T, env *utils.E2EEnv) *natskit.Client {
 	t.Helper()
-	conn, err := nats.Connect(
-		env.NATS.ClientURL,
-		nats.UserInfo(natshub.DefaultControlUser, natshub.DefaultControlPassword),
-		nats.Name("quark-e2e-index-verification"),
-	)
+	conn, err := natskit.Connect(context.Background(), natskit.Config{
+		URL: env.NATS.ClientURL, Username: natshub.DefaultControlUser,
+		Password: natshub.DefaultControlPassword, Name: "quark-e2e-index-verification",
+	})
 	if err != nil {
 		t.Fatalf("connect control nats for index verification: %v", err)
 	}

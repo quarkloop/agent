@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/quarkloop/pkg/serviceapi/servicebridge"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/services/citation/internal/app"
 )
 
@@ -38,11 +38,11 @@ func main() {
 	if err := app.Run(ctx, app.Config{
 		Address:  addr,
 		SkillDir: skillDir,
-		NATS: servicebridge.NATSConfig{
+		Queue:    natsQueue,
+		NATS: natskit.Config{
 			URL:             natsURL,
 			Username:        natsUser,
 			Password:        natsPassword,
-			Queue:           natsQueue,
 			Name:            "quark-citation",
 			AuditPrefix:     os.Getenv("QUARK_NATS_AUDIT_PREFIX"),
 			TelemetryPrefix: os.Getenv("QUARK_NATS_TELEMETRY_PREFIX"),

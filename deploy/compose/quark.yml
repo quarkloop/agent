@@ -10,6 +10,10 @@ x-service-defaults: &service-defaults
     - quark
   env_file:
     - ../../.env.example
+  environment:
+    QUARK_NATS_URL: nats://supervisor:4222
+    QUARK_NATS_USER: quark-control
+    QUARK_NATS_PASSWORD: quark-control-dev
 
 services:
   supervisor:
@@ -57,7 +61,7 @@ services:
       <<: *go-build
       args:
         PACKAGE: ./runtime/cmd/runtime
-    command: ["start", "--port", "8765", "--channel", "web"]
+    command: ["start", "--port", "8765", "--channel", "nats"]
     depends_on:
       supervisor:
         condition: service_healthy
@@ -67,6 +71,9 @@ services:
       - spaces:/var/lib/quark/spaces
     environment:
       QUARK_SUPERVISOR_URL: http://supervisor:7200
+      QUARK_NATS_URL: nats://supervisor:4222
+      QUARK_NATS_USER: ${QUARK_RUNTIME_NATS_USER:-quark-control}
+      QUARK_NATS_PASSWORD: ${QUARK_RUNTIME_NATS_PASSWORD:-quark-control-dev}
       QUARK_SPACE: ${QUARK_SPACE:-default}
       QUARK_PLUGINS_DIR: /var/lib/quark/spaces/${QUARK_SPACE:-default}/plugins
       QUARK_MODEL_PROVIDER: ${QUARK_MODEL_PROVIDER:-openrouter}
@@ -80,6 +87,9 @@ services:
       args:
         PACKAGE: ./services/io/cmd/io
     command: ["--addr", "0.0.0.0:7308", "--skill-dir", "/plugins/services/io"]
+    depends_on:
+      supervisor:
+        condition: service_healthy
     ports:
       - "7308:7308"
     volumes:
@@ -94,6 +104,9 @@ services:
       args:
         PACKAGE: ./services/space/cmd/space
     command: ["--addr", "0.0.0.0:7303", "--root", "/var/lib/quark/spaces", "--skill-dir", "/plugins/services/space"]
+    depends_on:
+      supervisor:
+        condition: service_healthy
     ports:
       - "7303:7303"
     volumes:
@@ -108,6 +121,9 @@ services:
       args:
         PACKAGE: ./services/document/cmd/document
     command: ["--addr", "0.0.0.0:7305", "--skill-dir", "/plugins/services/document"]
+    depends_on:
+      supervisor:
+        condition: service_healthy
     ports:
       - "7305:7305"
     volumes:
@@ -136,6 +152,8 @@ services:
         PACKAGE: ./services/indexer/cmd/indexer
     command: ["--addr", "0.0.0.0:7301", "--dgraph", "dgraph:9080", "--skill-dir", "/plugins/services/indexer"]
     depends_on:
+      supervisor:
+        condition: service_healthy
       dgraph:
         condition: service_started
     ports:
@@ -159,6 +177,9 @@ services:
     volumes:
       - ../../plugins:/plugins:ro
     environment:
+      QUARK_NATS_URL: nats://supervisor:4222
+      QUARK_NATS_USER: quark-control
+      QUARK_NATS_PASSWORD: quark-control-dev
       QUARK_GATEWAY_EMBEDDING_PROVIDER: ${QUARK_GATEWAY_EMBEDDING_PROVIDER:-openrouter}
       OPENROUTER_EMBEDDING_MODEL: ${OPENROUTER_EMBEDDING_MODEL:-}
 
@@ -206,6 +227,9 @@ services:
       args:
         PACKAGE: ./services/citation/cmd/citation
     command: ["--addr", "0.0.0.0:7310", "--skill-dir", "/plugins/services/citation"]
+    depends_on:
+      supervisor:
+        condition: service_healthy
     ports:
       - "7310:7310"
     volumes:
@@ -219,6 +243,9 @@ services:
       args:
         PACKAGE: ./services/core/cmd/core
     command: ["--addr", "0.0.0.0:7311", "--root", "/var/lib/quark/core", "--skill-dir", "/plugins/services/core"]
+    depends_on:
+      supervisor:
+        condition: service_healthy
     ports:
       - "7311:7311"
     volumes:
@@ -233,6 +260,9 @@ services:
       args:
         PACKAGE: ./services/devops/cmd/devops
     command: ["--addr", "0.0.0.0:7312", "--skill-dir", "/plugins/services/devops"]
+    depends_on:
+      supervisor:
+        condition: service_healthy
     ports:
       - "7312:7312"
     volumes:
@@ -246,6 +276,9 @@ services:
       args:
         PACKAGE: ./services/system/cmd/system
     command: ["--addr", "0.0.0.0:7313", "--skill-dir", "/plugins/services/system"]
+    depends_on:
+      supervisor:
+        condition: service_healthy
     ports:
       - "7313:7313"
     volumes:

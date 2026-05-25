@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/quarkloop/pkg/boundary"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/plugin"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
-	"github.com/quarkloop/pkg/serviceapi/servicefunction"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -194,7 +194,7 @@ func (e *Executor) CaptureToolResult(toolName, arguments, result string) (string
 	return result, nil
 }
 
-func attachServiceCallReferences(result string, envelope servicefunction.ResponseEnvelope) (string, error) {
+func attachServiceCallReferences(result string, envelope natskit.ResponseEnvelope) (string, error) {
 	var payload map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(result), &payload); err != nil {
 		return result, nil

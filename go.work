@@ -6,6 +6,7 @@ use (
 	./pkg/boundary
 	./pkg/event
 	./pkg/plugin
+	./pkg/natskit
 	./pkg/serviceapi
 	./pkg/space
 	./pkg/toolkit
@@ -30,6 +31,7 @@ replace (
 	github.com/quarkloop/pkg/boundary v0.0.0 => ./pkg/boundary
 	github.com/quarkloop/pkg/event v0.0.0 => ./pkg/event
 	github.com/quarkloop/pkg/plugin v0.0.0 => ./pkg/plugin
+	github.com/quarkloop/pkg/natskit v0.0.0 => ./pkg/natskit
 	github.com/quarkloop/pkg/serviceapi v0.0.0 => ./pkg/serviceapi
 	github.com/quarkloop/pkg/space v0.0.0 => ./pkg/space
 	github.com/quarkloop/pkg/toolkit v0.0.0 => ./pkg/toolkit

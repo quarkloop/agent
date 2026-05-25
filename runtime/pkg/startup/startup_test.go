@@ -7,6 +7,7 @@ import (
 	"time"
 
 	natsserver "github.com/nats-io/nats-server/v2/server"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/plugin"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
@@ -280,6 +281,7 @@ func TestClaimRuntimeSpacesRejectsCompetingRuntime(t *testing.T) {
 	ns := startRuntimeLeaseNATS(t)
 	defer ns.Shutdown()
 	ctx := context.Background()
+	provisionRuntimeLeaseBucket(t, ctx, ns.ClientURL(), "runtime_claim_test")
 	t.Setenv("QUARK_NATS_URL", ns.ClientURL())
 	t.Setenv("QUARK_RUNTIME_LEASE_BUCKET", "runtime_claim_test")
 	t.Setenv("QUARK_RUNTIME_ID", "runtime-1")
@@ -314,6 +316,18 @@ func startRuntimeLeaseNATS(t *testing.T) *natsserver.Server {
 		t.Fatal("nats server did not become ready")
 	}
 	return ns
+}
+
+func provisionRuntimeLeaseBucket(t *testing.T, ctx context.Context, url, bucket string) {
+	t.Helper()
+	client, err := natskit.Connect(ctx, natskit.Config{URL: url, Name: "startup-test-setup"})
+	if err != nil {
+		t.Fatalf("connect provisioning client: %v", err)
+	}
+	defer client.Close()
+	if _, err := client.EnsureKeyValue(natskit.KeyValueConfig{Bucket: bucket, TTL: time.Minute, History: 1}); err != nil {
+		t.Fatalf("provision runtime lease bucket: %v", err)
+	}
 }
 
 func TestResolveModelSelectionFallsBackToEnvironment(t *testing.T) {

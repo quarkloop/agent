@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/quarkloop/pkg/serviceapi/servicefunction"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/stretchr/testify/mock"
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/testsuite"
@@ -100,18 +100,20 @@ func TestActivitiesDispatchServiceFunctionBuildsWorkflowEnvelope(t *testing.T) {
 	if req.Actor != "workflow" || req.WorkflowID != "wf-1" || req.SpaceID != "space-1" {
 		t.Fatalf("request correlation = %+v", req)
 	}
-	if req.Subject != "svc.document.v1.extract_text" {
-		t.Fatalf("subject = %q", req.Subject)
+	if dispatcher.operation.Subject != "svc.document.v1.extract_text" {
+		t.Fatalf("subject = %q", dispatcher.operation.Subject)
 	}
 }
 
 type recordingDispatcher struct {
-	request servicefunction.RequestEnvelope
+	operation natskit.Operation
+	request   natskit.RequestEnvelope
 }
 
-func (d *recordingDispatcher) Dispatch(_ context.Context, req servicefunction.RequestEnvelope) (servicefunction.ResponseEnvelope, error) {
+func (d *recordingDispatcher) Dispatch(_ context.Context, operation natskit.Operation, req natskit.RequestEnvelope) (natskit.ResponseEnvelope, error) {
+	d.operation = operation
 	d.request = req.Clone()
-	return servicefunction.OKResponse(req.ServiceCallID, []byte(`{"ok":true}`)), nil
+	return natskit.OKResponse(req.ServiceCallID, []byte(`{"ok":true}`)), nil
 }
 
 type workflowTestEnv interface {

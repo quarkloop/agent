@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	natsserver "github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 )
 
@@ -240,7 +241,7 @@ func TestIssuedCredentialsSurviveEmbeddedHubRestart(t *testing.T) {
 func startTestHub(t *testing.T) *Hub {
 	t.Helper()
 	cfg := DefaultConfig(filepath.Join(t.TempDir(), "nats"))
-	cfg.Client.Port = 0
+	cfg.Client.Port = natsserver.RANDOM_PORT
 	cfg.WebSocket.Enabled = false
 	cfg.Monitoring.Enabled = false
 	cfg.ReadyTimeout = 5 * time.Second

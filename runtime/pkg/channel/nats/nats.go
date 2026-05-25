@@ -12,9 +12,8 @@ import (
 	"sync"
 	"time"
 
-	natsgo "github.com/nats-io/nats.go"
-
 	"github.com/quarkloop/pkg/boundary"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 	"github.com/quarkloop/runtime/pkg/activity"
 	"github.com/quarkloop/runtime/pkg/channel"
@@ -73,8 +72,8 @@ type Channel struct {
 	activity *activity.Store
 
 	mu     sync.Mutex
-	conn   *natsgo.Conn
-	subs   []*natsgo.Subscription
+	client *natskit.Client
+	subs   []*natskit.Subscription
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -114,35 +113,24 @@ func (c *Channel) Start(ctx context.Context) error {
 		return errors.New("session store is required")
 	}
 	cfg := normalizeConfig(c.cfg)
-	options := []natsgo.Option{
-		natsgo.Name(cfg.Name),
-		natsgo.Timeout(cfg.Timeout),
-		natsgo.ReconnectWait(cfg.ReconnectWait),
-		natsgo.MaxReconnects(cfg.MaxReconnects),
-		natsgo.RetryOnFailedConnect(true),
-	}
-	if cfg.Username != "" || cfg.Password != "" {
-		options = append(options, natsgo.UserInfo(cfg.Username, cfg.Password))
-	}
-	conn, err := natsgo.Connect(cfg.URL, options...)
+	client, err := natskit.Connect(ctx, natskit.Config{
+		URL: cfg.URL, Username: cfg.Username, Password: cfg.Password, Name: cfg.Name,
+		Timeout: cfg.Timeout, ReconnectWait: cfg.ReconnectWait, MaxReconnects: cfg.MaxReconnects,
+	})
 	if err != nil {
 		return fmt.Errorf("connect nats runtime channel: %w", err)
 	}
-	if err := conn.FlushTimeout(cfg.Timeout); err != nil {
-		conn.Close()
-		return fmt.Errorf("verify nats runtime channel: %w", err)
-	}
 	runCtx, cancel := context.WithCancel(ctx)
-	subs, err := c.subscribe(conn, cfg)
+	subs, err := c.subscribe(client, cfg)
 	if err != nil {
 		cancel()
-		conn.Close()
+		client.Close()
 		return err
 	}
 
 	c.mu.Lock()
 	c.cfg = cfg
-	c.conn = conn
+	c.client = client
 	c.subs = subs
 	c.ctx = runCtx
 	c.cancel = cancel
@@ -152,8 +140,8 @@ func (c *Channel) Start(ctx context.Context) error {
 	return nil
 }
 
-func (c *Channel) subscribe(conn *natsgo.Conn, cfg Config) ([]*natsgo.Subscription, error) {
-	handlers := map[string]func(*natsgo.Msg){
+func (c *Channel) subscribe(client *natskit.Client, cfg Config) ([]*natskit.Subscription, error) {
+	handlers := map[string]func(natskit.Message) clientcontract.ResponseEnvelope{
 		"session.*.input":                         c.handleInput,
 		clientcontract.SubjectRuntimeInfoGet:      c.handleInfoGet,
 		clientcontract.SubjectRuntimeSessionGet:   c.handleSessionGet,
@@ -162,11 +150,13 @@ func (c *Channel) subscribe(conn *natsgo.Conn, cfg Config) ([]*natsgo.Subscripti
 		clientcontract.SubjectRuntimePlanReject:   c.handlePlanReject,
 		clientcontract.SubjectRuntimeActivityList: c.handleActivityList,
 	}
-	subs := make([]*natsgo.Subscription, 0, len(handlers))
+	subs := make([]*natskit.Subscription, 0, len(handlers))
 	for subject, handler := range handlers {
 		subject := subject
 		handler := handler
-		sub, err := conn.QueueSubscribe(subject, cfg.Queue, handler)
+		sub, err := client.Respond(subject, cfg.Queue, cfg.Timeout, func(_ context.Context, msg natskit.Message) ([]byte, error) {
+			return encodeResponse(handler(msg)), nil
+		})
 		if err != nil {
 			for _, sub := range subs {
 				_ = sub.Unsubscribe()
@@ -175,7 +165,7 @@ func (c *Channel) subscribe(conn *natsgo.Conn, cfg Config) ([]*natsgo.Subscripti
 		}
 		subs = append(subs, sub)
 	}
-	if err := conn.FlushTimeout(cfg.Timeout); err != nil {
+	if err := client.Flush(context.Background()); err != nil {
 		for _, sub := range subs {
 			_ = sub.Unsubscribe()
 		}
@@ -186,10 +176,10 @@ func (c *Channel) subscribe(conn *natsgo.Conn, cfg Config) ([]*natsgo.Subscripti
 
 func (c *Channel) Stop(ctx context.Context) error {
 	c.mu.Lock()
-	conn := c.conn
-	subs := append([]*natsgo.Subscription(nil), c.subs...)
+	client := c.client
+	subs := append([]*natskit.Subscription(nil), c.subs...)
 	cancel := c.cancel
-	c.conn = nil
+	c.client = nil
 	c.subs = nil
 	c.cancel = nil
 	c.ctx = nil
@@ -201,37 +191,28 @@ func (c *Channel) Stop(ctx context.Context) error {
 	for _, sub := range subs {
 		_ = sub.Unsubscribe()
 	}
-	if conn == nil {
+	if client == nil {
 		return nil
 	}
-	done := make(chan error, 1)
-	go func() {
-		done <- conn.Drain()
-		conn.Close()
-	}()
-	select {
-	case <-ctx.Done():
-		conn.Close()
-		return ctx.Err()
-	case err := <-done:
+	if err := ctx.Err(); err != nil {
+		client.Close()
 		return err
 	}
+	client.Close()
+	return nil
 }
 
-func (c *Channel) handleInput(msg *natsgo.Msg) {
+func (c *Channel) handleInput(msg natskit.Message) clientcontract.ResponseEnvelope {
 	req, ok := decodeRequest(msg)
 	if !ok {
-		respond(msg, clientcontract.Error("unknown", string(boundary.InvalidArgument), "invalid request envelope"))
-		return
+		return clientcontract.Error("unknown", string(boundary.InvalidArgument), "invalid request envelope")
 	}
 	var payload clientcontract.SendMessageRequest
 	if err := req.DecodePayload(&payload); err != nil {
-		respond(msg, clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), err.Error()))
-		return
+		return clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), err.Error())
 	}
 	if err := validateSendMessage(payload); err != nil {
-		respond(msg, clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), err.Error()))
-		return
+		return clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), err.Error())
 	}
 	c.sessions.GetOrCreate(payload.SessionID, string(clientcontract.SessionTypeChat), "")
 	ack, err := clientcontract.OK(req.RequestID, clientcontract.SendMessageResponse{
@@ -239,125 +220,107 @@ func (c *Channel) handleInput(msg *natsgo.Msg) {
 		Accepted:  true,
 	})
 	if err != nil {
-		respond(msg, clientcontract.Error(req.RequestID, string(boundary.Internal), err.Error()))
-		return
+		return clientcontract.Error(req.RequestID, string(boundary.Internal), err.Error())
 	}
-	respond(msg, ack)
-
 	go c.postAndStream(c.requestContext(), payload)
+	return ack
 }
 
-func (c *Channel) handleInfoGet(msg *natsgo.Msg) {
+func (c *Channel) handleInfoGet(msg natskit.Message) clientcontract.ResponseEnvelope {
 	req, ok := decodeRequest(msg)
 	if !ok {
-		respond(msg, clientcontract.Error("unknown", string(boundary.InvalidArgument), "invalid request envelope"))
-		return
+		return clientcontract.Error("unknown", string(boundary.InvalidArgument), "invalid request envelope")
 	}
 	var payload clientcontract.RuntimeInfoRequest
 	if err := req.DecodePayload(&payload); err != nil {
-		respond(msg, clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), err.Error()))
-		return
+		return clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), err.Error())
 	}
 	if strings.TrimSpace(payload.SpaceID) == "" {
-		respond(msg, clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), "space_id is required"))
-		return
+		return clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), "space_id is required")
 	}
-	respondPayload(msg, req.RequestID, clientcontract.RuntimeInfoResponse{Sessions: len(c.sessions.List())})
+	return responsePayload(req.RequestID, clientcontract.RuntimeInfoResponse{Sessions: len(c.sessions.List())})
 }
 
-func (c *Channel) handleSessionGet(msg *natsgo.Msg) {
+func (c *Channel) handleSessionGet(msg natskit.Message) clientcontract.ResponseEnvelope {
 	req, ok := decodeRequest(msg)
 	if !ok {
-		respond(msg, clientcontract.Error("unknown", string(boundary.InvalidArgument), "invalid request envelope"))
-		return
+		return clientcontract.Error("unknown", string(boundary.InvalidArgument), "invalid request envelope")
 	}
 	var payload clientcontract.RuntimeSessionRequest
 	if err := req.DecodePayload(&payload); err != nil {
-		respond(msg, clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), err.Error()))
-		return
+		return clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), err.Error())
 	}
 	if strings.TrimSpace(payload.SpaceID) == "" {
-		respond(msg, clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), "space_id is required"))
-		return
+		return clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), "space_id is required")
 	}
 	if strings.TrimSpace(payload.SessionID) == "" {
-		respond(msg, clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), "session_id is required"))
-		return
+		return clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), "session_id is required")
 	}
-	respondPayload(msg, req.RequestID, clientcontract.RuntimeSessionResponse{
+	return responsePayload(req.RequestID, clientcontract.RuntimeSessionResponse{
 		SessionID: payload.SessionID,
 		Found:     c.sessions.Has(payload.SessionID),
 	})
 }
 
-func (c *Channel) handlePlanGet(msg *natsgo.Msg) {
+func (c *Channel) handlePlanGet(msg natskit.Message) clientcontract.ResponseEnvelope {
 	req, ok := decodeRequest(msg)
 	if !ok {
-		respond(msg, clientcontract.Error("unknown", string(boundary.InvalidArgument), "invalid request envelope"))
-		return
+		return clientcontract.Error("unknown", string(boundary.InvalidArgument), "invalid request envelope")
 	}
 	if _, err := decodeRuntimePlanRequest(req); err != nil {
-		respond(msg, clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), err.Error()))
-		return
+		return clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), err.Error())
 	}
-	respondPayload(msg, req.RequestID, c.planResponse())
+	return responsePayload(req.RequestID, c.planResponse())
 }
 
-func (c *Channel) handlePlanApprove(msg *natsgo.Msg) {
+func (c *Channel) handlePlanApprove(msg natskit.Message) clientcontract.ResponseEnvelope {
 	req, ok := decodeRequest(msg)
 	if !ok {
-		respond(msg, clientcontract.Error("unknown", string(boundary.InvalidArgument), "invalid request envelope"))
-		return
+		return clientcontract.Error("unknown", string(boundary.InvalidArgument), "invalid request envelope")
 	}
 	if _, err := decodeRuntimePlanRequest(req); err != nil {
-		respond(msg, clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), err.Error()))
-		return
+		return clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), err.Error())
 	}
 	if c.plan != nil {
 		c.plan.Resume()
 	}
-	respondPayload(msg, req.RequestID, c.planResponse())
+	return responsePayload(req.RequestID, c.planResponse())
 }
 
-func (c *Channel) handlePlanReject(msg *natsgo.Msg) {
+func (c *Channel) handlePlanReject(msg natskit.Message) clientcontract.ResponseEnvelope {
 	req, ok := decodeRequest(msg)
 	if !ok {
-		respond(msg, clientcontract.Error("unknown", string(boundary.InvalidArgument), "invalid request envelope"))
-		return
+		return clientcontract.Error("unknown", string(boundary.InvalidArgument), "invalid request envelope")
 	}
 	if _, err := decodeRuntimePlanRequest(req); err != nil {
-		respond(msg, clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), err.Error()))
-		return
+		return clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), err.Error())
 	}
 	if c.plan != nil {
 		c.plan.Pause()
 	}
-	respondPayload(msg, req.RequestID, c.planResponse())
+	return responsePayload(req.RequestID, c.planResponse())
 }
 
-func (c *Channel) handleActivityList(msg *natsgo.Msg) {
+func (c *Channel) handleActivityList(msg natskit.Message) clientcontract.ResponseEnvelope {
 	req, ok := decodeRequest(msg)
 	if !ok {
-		respond(msg, clientcontract.Error("unknown", string(boundary.InvalidArgument), "invalid request envelope"))
-		return
+		return clientcontract.Error("unknown", string(boundary.InvalidArgument), "invalid request envelope")
 	}
 	var payload clientcontract.RuntimeActivityListRequest
 	if err := req.DecodePayload(&payload); err != nil {
-		respond(msg, clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), err.Error()))
-		return
+		return clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), err.Error())
 	}
 	if strings.TrimSpace(payload.SpaceID) == "" {
-		respond(msg, clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), "space_id is required"))
-		return
+		return clientcontract.Error(req.RequestID, string(boundary.InvalidArgument), "space_id is required")
 	}
 	var records []clientcontract.RuntimeActivityRecord
 	if c.activity != nil {
 		records = mapActivityRecords(c.activity.List(payload.Limit))
 	}
-	respondPayload(msg, req.RequestID, clientcontract.RuntimeActivityListResponse{Records: records})
+	return responsePayload(req.RequestID, clientcontract.RuntimeActivityListResponse{Records: records})
 }
 
-func decodeRequest(msg *natsgo.Msg) (clientcontract.RequestEnvelope, bool) {
+func decodeRequest(msg natskit.Message) (clientcontract.RequestEnvelope, bool) {
 	var req clientcontract.RequestEnvelope
 	if err := json.Unmarshal(msg.Data, &req); err != nil {
 		return clientcontract.RequestEnvelope{}, false
@@ -436,9 +399,9 @@ func (c *Channel) publishStreamEvent(sessionID string, stream message.StreamMess
 
 func (c *Channel) publishEvent(event clientcontract.SessionEvent) error {
 	c.mu.Lock()
-	conn := c.conn
+	client := c.client
 	c.mu.Unlock()
-	if conn == nil {
+	if client == nil {
 		return errors.New("nats runtime channel is not connected")
 	}
 	subject, err := clientcontract.SessionEventsSubject(event.SessionID)
@@ -450,7 +413,7 @@ func (c *Channel) publishEvent(event clientcontract.SessionEvent) error {
 	if err != nil {
 		return fmt.Errorf("marshal session event: %w", err)
 	}
-	if err := conn.Publish(subject, data); err != nil {
+	if err := client.Publish(c.requestContext(), subject, data, nil); err != nil {
 		return fmt.Errorf("publish %s: %w", subject, err)
 	}
 	return nil
@@ -481,9 +444,9 @@ func (c *Channel) forwardActivity(ctx context.Context) {
 
 func (c *Channel) publishActivity(record activity.Record) error {
 	c.mu.Lock()
-	conn := c.conn
+	client := c.client
 	c.mu.Unlock()
-	if conn == nil {
+	if client == nil {
 		return errors.New("nats runtime channel is not connected")
 	}
 	payload := mapActivityRecord(record)
@@ -491,7 +454,7 @@ func (c *Channel) publishActivity(record activity.Record) error {
 	if err != nil {
 		return fmt.Errorf("marshal activity record: %w", err)
 	}
-	if err := conn.Publish(clientcontract.SubjectRuntimeActivityFeed, data); err != nil {
+	if err := client.Publish(c.requestContext(), clientcontract.SubjectRuntimeActivityFeed, data, nil); err != nil {
 		return fmt.Errorf("publish %s: %w", clientcontract.SubjectRuntimeActivityFeed, err)
 	}
 	return nil
@@ -575,21 +538,20 @@ func mapActivityRecord(record activity.Record) clientcontract.RuntimeActivityRec
 	}
 }
 
-func respondPayload(msg *natsgo.Msg, requestID string, payload any) {
+func responsePayload(requestID string, payload any) clientcontract.ResponseEnvelope {
 	resp, err := clientcontract.OK(requestID, payload)
 	if err != nil {
-		respond(msg, clientcontract.Error(requestID, string(boundary.Internal), err.Error()))
-		return
+		return clientcontract.Error(requestID, string(boundary.Internal), err.Error())
 	}
-	respond(msg, resp)
+	return resp
 }
 
-func respond(msg *natsgo.Msg, resp clientcontract.ResponseEnvelope) {
+func encodeResponse(resp clientcontract.ResponseEnvelope) []byte {
 	data, err := json.Marshal(resp)
 	if err != nil {
 		data = []byte(`{"version":"v1","request_id":"unknown","status":"error","error":{"category":"internal","message":"marshal response"}}`)
 	}
-	_ = msg.Respond(data)
+	return data
 }
 
 func normalizeConfig(cfg Config) Config {

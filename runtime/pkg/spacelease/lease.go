@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	natsgo "github.com/nats-io/nats.go"
+	"github.com/quarkloop/pkg/natskit"
 )
 
 const (
@@ -37,10 +37,10 @@ type Record struct {
 }
 
 type Manager struct {
-	cfg  Config
-	conn *natsgo.Conn
-	kv   natsgo.KeyValue
-	mu   sync.Mutex
+	cfg    Config
+	client *natskit.Client
+	kv     *natskit.KeyValue
+	mu     sync.Mutex
 }
 
 type Lease struct {
@@ -60,51 +60,32 @@ func ConfigFromEnv() Config {
 	}
 }
 
-func New(_ context.Context, cfg Config) (*Manager, error) {
+func New(ctx context.Context, cfg Config) (*Manager, error) {
 	cfg = normalizeConfig(cfg)
 	if cfg.URL == "" {
 		return nil, errors.New("nats url is required")
 	}
-	conn, err := natsgo.Connect(cfg.URL, natsgo.UserInfo(cfg.Username, cfg.Password), natsgo.Name("quark-runtime-space-lease"))
+	client, err := natskit.Connect(ctx, natskit.Config{
+		URL: cfg.URL, Username: cfg.Username, Password: cfg.Password,
+		Name: "quark-runtime-space-lease", Timeout: 5 * time.Second,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("connect nats: %w", err)
 	}
-	js, err := conn.JetStream()
+	kv, err := client.OpenKeyValue(cfg.Bucket)
 	if err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("open jetstream: %w", err)
+		client.Close()
+		return nil, fmt.Errorf("open lease bucket: %w", err)
 	}
-	kv, err := js.KeyValue(cfg.Bucket)
-	if err != nil {
-		if !errors.Is(err, natsgo.ErrBucketNotFound) {
-			conn.Close()
-			return nil, fmt.Errorf("open lease bucket: %w", err)
-		}
-		kv, err = js.CreateKeyValue(&natsgo.KeyValueConfig{
-			Bucket:      cfg.Bucket,
-			Description: "Quark runtime space assignment leases",
-			TTL:         cfg.TTL,
-			History:     1,
-		})
-		if err != nil {
-			conn.Close()
-			return nil, fmt.Errorf("create lease bucket: %w", err)
-		}
-	}
-	if err := conn.FlushTimeout(5 * time.Second); err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("flush lease connection: %w", err)
-	}
-	return &Manager{cfg: cfg, conn: conn, kv: kv}, nil
+	return &Manager{cfg: cfg, client: client, kv: kv}, nil
 }
 
 func (m *Manager) Close() {
-	if m == nil || m.conn == nil {
+	if m == nil || m.client == nil {
 		return
 	}
-	m.conn.Drain()
-	m.conn.Close()
-	m.conn = nil
+	m.client.Close()
+	m.client = nil
 }
 
 func (m *Manager) Claim(_ context.Context, spaceID string) (*Lease, error) {
@@ -125,12 +106,12 @@ func (m *Manager) Claim(_ context.Context, spaceID string) (*Lease, error) {
 	if err == nil {
 		return &Lease{SpaceID: spaceID, RuntimeID: m.cfg.RuntimeID, revision: revision, manager: m}, nil
 	}
-	if !errors.Is(err, natsgo.ErrKeyExists) {
+	if !errors.Is(err, natskit.ErrKeyExists) {
 		return nil, fmt.Errorf("create lease: %w", err)
 	}
 	entry, err := m.kv.Get(key)
 	if err != nil {
-		if errors.Is(err, natsgo.ErrKeyNotFound) {
+		if errors.Is(err, natskit.ErrKeyNotFound) {
 			revision, err = m.kv.Create(key, data)
 			if err != nil {
 				return nil, fmt.Errorf("create lease after missing key: %w", err)
@@ -221,7 +202,7 @@ func (m *Manager) release(_ context.Context, lease *Lease) error {
 	key := leaseKey(lease.SpaceID)
 	entry, err := m.kv.Get(key)
 	if err != nil {
-		if errors.Is(err, natsgo.ErrKeyNotFound) {
+		if errors.Is(err, natskit.ErrKeyNotFound) {
 			return nil
 		}
 		return fmt.Errorf("read lease before release: %w", err)
@@ -233,7 +214,7 @@ func (m *Manager) release(_ context.Context, lease *Lease) error {
 	if existing.RuntimeID != m.cfg.RuntimeID {
 		return nil
 	}
-	if err := m.kv.Delete(key); err != nil {
+	if err := m.kv.DeleteRevision(key, entry.Revision()); err != nil {
 		return fmt.Errorf("release lease: %w", err)
 	}
 	return nil

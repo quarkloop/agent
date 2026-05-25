@@ -1,33 +1,31 @@
 package runstatesvc
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 
 	natsserver "github.com/nats-io/nats-server/v2/server"
-	"github.com/nats-io/nats.go"
+	"github.com/quarkloop/pkg/natskit"
 )
 
 func TestNATSLeaseStoreUsesCASOwnershipAndExpiredTakeover(t *testing.T) {
 	ns := startJetStreamServer(t)
-	nc, err := nats.Connect(ns.ClientURL())
+	client, err := natskit.Connect(context.Background(), natskit.Config{URL: ns.ClientURL(), Name: "runstate-test"})
 	if err != nil {
 		t.Fatalf("connect nats: %v", err)
 	}
-	t.Cleanup(nc.Close)
-	js, err := nc.JetStream()
-	if err != nil {
-		t.Fatalf("open jetstream: %v", err)
-	}
-	kv, err := js.CreateKeyValue(&nats.KeyValueConfig{Bucket: "runstate_leases", TTL: 10 * time.Minute})
+	t.Cleanup(client.Close)
+	kv, err := client.EnsureKeyValue(natskit.KeyValueConfig{Bucket: "runstate_leases", TTL: 10 * time.Minute})
 	if err != nil {
 		t.Fatalf("create kv: %v", err)
 	}
-	storeValue, err := NewNATSLeaseStore(kv)
+	storeValue, err := NewCASLeaseStore(natsTestCASStore{kv: kv})
 	if err != nil {
 		t.Fatalf("new nats lease store: %v", err)
 	}
-	store := storeValue.(*natsLeaseStore)
+	store := storeValue.(*casLeaseStore)
 	now := time.Date(2026, 5, 17, 12, 0, 0, 0, time.UTC)
 	first, err := store.Acquire("run.r1", "r1", "", "runtime-1", now.Add(time.Minute), now)
 	if err != nil || first.Revision == 0 {
@@ -43,6 +41,33 @@ func TestNATSLeaseStoreUsesCASOwnershipAndExpiredTakeover(t *testing.T) {
 	if err := store.Release(taken.Key, taken.OwnerID, taken.Revision); err != nil {
 		t.Fatalf("release: %v", err)
 	}
+}
+
+type natsTestCASStore struct {
+	kv *natskit.KeyValue
+}
+
+func (s natsTestCASStore) Create(key string, value []byte) (uint64, error) {
+	return s.kv.Create(key, value)
+}
+
+func (s natsTestCASStore) Get(key string) (CASEntry, error) {
+	entry, err := s.kv.Get(key)
+	if errors.Is(err, natskit.ErrKeyNotFound) {
+		return CASEntry{}, ErrCASKeyNotFound
+	}
+	if err != nil {
+		return CASEntry{}, err
+	}
+	return CASEntry{Value: entry.Value(), Revision: entry.Revision()}, nil
+}
+
+func (s natsTestCASStore) Update(key string, value []byte, revision uint64) (uint64, error) {
+	return s.kv.Update(key, value, revision)
+}
+
+func (s natsTestCASStore) DeleteRevision(key string, revision uint64) error {
+	return s.kv.DeleteRevision(key, revision)
 }
 
 func startJetStreamServer(t *testing.T) *natsserver.Server {

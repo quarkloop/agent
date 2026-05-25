@@ -4,16 +4,13 @@ package e2e
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/nats-io/nats.go"
 	"github.com/quarkloop/e2e/utils"
+	"github.com/quarkloop/pkg/natskit"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
-	"github.com/quarkloop/pkg/serviceapi/servicefunction"
 	"github.com/quarkloop/supervisor/pkg/natshub"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -34,12 +31,10 @@ func TestIndexerServiceWithRealDgraph(t *testing.T) {
 		},
 	})
 
-	conn, err := nats.Connect(
-		env.NATS.ClientURL,
-		nats.UserInfo(natshub.DefaultControlUser, natshub.DefaultControlPassword),
-		nats.Name("quark-e2e-indexer-service"),
-		nats.Timeout(5*time.Second),
-	)
+	conn, err := natskit.Connect(context.Background(), natskit.Config{
+		URL: env.NATS.ClientURL, Username: natshub.DefaultControlUser,
+		Password: natshub.DefaultControlPassword, Name: "quark-e2e-indexer-service", Timeout: 5 * time.Second,
+	})
 	if err != nil {
 		t.Fatalf("connect control nats: %v", err)
 	}
@@ -49,7 +44,7 @@ func TestIndexerServiceWithRealDgraph(t *testing.T) {
 	defer cancel()
 
 	var indexResp indexerv1.IndexStatus
-	requestServiceFunction(t, ctx, conn, env.Space, "svc.indexer.v1.index_document", "indexer", "index_document", &indexerv1.IndexRequest{
+	requestServiceFunction(t, ctx, conn, env.Space, "indexer", "index_document", &indexerv1.IndexRequest{
 		ChunkId:     "e2e-chunk-1",
 		TextContent: "Quark service extraction uses NATS service functions and Dgraph vector indexes.",
 		Embedding:   []float32{1, 0, 0},
@@ -67,7 +62,7 @@ func TestIndexerServiceWithRealDgraph(t *testing.T) {
 	}
 
 	var contextResp indexerv1.ContextResponse
-	requestServiceFunction(t, ctx, conn, env.Space, "svc.indexer.v1.get_context", "indexer", "get_context", &indexerv1.QueryRequest{
+	requestServiceFunction(t, ctx, conn, env.Space, "indexer", "get_context", &indexerv1.QueryRequest{
 		QueryVector: []float32{1, 0, 0},
 		Limit:       5,
 		Depth:       2,
@@ -84,46 +79,30 @@ func TestIndexerServiceWithRealDgraph(t *testing.T) {
 	}
 }
 
-func requestServiceFunction(t *testing.T, ctx context.Context, conn *nats.Conn, spaceID, subject, service, function string, req proto.Message, resp proto.Message) {
+func requestServiceFunction(t *testing.T, ctx context.Context, conn *natskit.Client, spaceID, service, function string, req proto.Message, resp proto.Message) {
 	t.Helper()
 	payload, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(req)
 	if err != nil {
 		t.Fatalf("marshal service request: %v", err)
 	}
-	envelope := servicefunction.RequestEnvelope{
-		Version:       servicefunction.EnvelopeVersion,
-		ServiceCallID: fmt.Sprintf("e2e-%s-%d", function, time.Now().UnixNano()),
-		SpaceID:       spaceID,
-		Actor:         servicefunction.ActorRuntime,
-		Service:       service,
-		Function:      function,
-		Subject:       subject,
-		Payload:       payload,
+	operation, err := natskit.ServiceOperation(service, function)
+	if err != nil {
+		t.Fatalf("service operation: %v", err)
 	}
-	if err := envelope.Validate(); err != nil {
+	envelope, err := natskit.NewRequest(natskit.NewServiceCallID(), spaceID, natskit.ActorRuntime, payload)
+	if err != nil {
 		t.Fatalf("validate service request: %v", err)
 	}
-	data, err := json.Marshal(envelope)
+	out, err := conn.Call(ctx, operation, envelope)
 	if err != nil {
-		t.Fatalf("encode service request: %v", err)
+		t.Fatalf("request %s: %v", operation.Subject, err)
 	}
-	reply, err := conn.RequestWithContext(ctx, subject, data)
-	if err != nil {
-		t.Fatalf("request %s: %v", subject, err)
-	}
-	var out servicefunction.ResponseEnvelope
-	if err := json.Unmarshal(reply.Data, &out); err != nil {
-		t.Fatalf("decode service response: %v", err)
-	}
-	if err := out.Validate(); err != nil {
-		t.Fatalf("validate service response envelope: %v", err)
-	}
-	if out.Status != servicefunction.StatusOK {
+	if out.Status != natskit.StatusOK {
 		t.Fatalf("service response failed: %+v", out.Error)
 	}
 	if out.ServiceCallID != envelope.ServiceCallID ||
-		out.ReferenceID != servicefunction.ReferenceIDForServiceCall(envelope.ServiceCallID) ||
-		out.AuditRef != servicefunction.AuditRefForReference(out.ReferenceID) {
+		out.ReferenceID != natskit.ReferenceIDForServiceCall(envelope.ServiceCallID) ||
+		out.AuditRef != natskit.AuditRefForReference(out.ReferenceID) {
 		t.Fatalf("service response audit references are inconsistent: %+v", out)
 	}
 	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(out.Payload, resp); err != nil {

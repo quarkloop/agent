@@ -5,6 +5,7 @@ go 1.26.2
 require (
 	github.com/nats-io/nats.go v1.51.0
 	github.com/quarkloop/pkg/boundary v0.0.0
+	github.com/quarkloop/pkg/natskit v0.0.0
 	github.com/quarkloop/pkg/serviceapi v0.0.0
 	github.com/quarkloop/pkg/space v0.0.0
 	github.com/quarkloop/supervisor v0.0.0
@@ -28,11 +29,13 @@ require (
 	golang.org/x/crypto v0.50.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
+	google.golang.org/protobuf v1.36.10 // indirect
 )
 
 replace (
 	github.com/quarkloop/pkg/boundary => ../pkg/boundary
 	github.com/quarkloop/pkg/event => ../pkg/event
+	github.com/quarkloop/pkg/natskit => ../pkg/natskit
 	github.com/quarkloop/pkg/plugin => ../pkg/plugin
 	github.com/quarkloop/pkg/serviceapi => ../pkg/serviceapi
 	github.com/quarkloop/pkg/space v0.0.0 => ../pkg/space

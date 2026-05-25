@@ -3,8 +3,13 @@ module github.com/quarkloop/services/gateway
 go 1.26.2
 
 require (
+	github.com/maximhq/bifrost/core v1.5.12
+	github.com/nats-io/nats-server/v2 v2.14.0
+	github.com/quarkloop/pkg/boundary v0.0.0
+	github.com/quarkloop/pkg/natskit v0.0.0
 	github.com/quarkloop/pkg/plugin v0.0.0
 	github.com/quarkloop/pkg/serviceapi v0.0.0
+	google.golang.org/protobuf v1.36.11
 )
 
 require (
@@ -47,16 +52,13 @@ require (
 	github.com/invopop/jsonschema v0.13.0 // indirect
 	github.com/klauspost/compress v1.18.5 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
-	github.com/kr/text v0.2.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mailru/easyjson v0.9.1 // indirect
 	github.com/mark3labs/mcp-go v0.43.2 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/maximhq/bifrost/core v1.5.12 // indirect
 	github.com/minio/highwayhash v1.0.4 // indirect
 	github.com/nats-io/jwt/v2 v2.8.1 // indirect
-	github.com/nats-io/nats-server/v2 v2.14.0 // indirect
 	github.com/nats-io/nats.go v1.51.0 // indirect
 	github.com/nats-io/nkeys v0.4.15 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
@@ -80,12 +82,12 @@ require (
 	golang.org/x/sys v0.43.0 // indirect
 	golang.org/x/text v0.36.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250818200422-3122310a409c // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 replace (
+	github.com/quarkloop/pkg/boundary v0.0.0 => ../../pkg/boundary
+	github.com/quarkloop/pkg/natskit v0.0.0 => ../../pkg/natskit
 	github.com/quarkloop/pkg/plugin v0.0.0 => ../../pkg/plugin
 	github.com/quarkloop/pkg/serviceapi v0.0.0 => ../../pkg/serviceapi
 )

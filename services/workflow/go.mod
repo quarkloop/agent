@@ -4,12 +4,17 @@ go 1.26.2
 
 require (
 	github.com/nats-io/nats-server/v2 v2.14.1
-	github.com/nats-io/nats.go v1.51.0
 	github.com/quarkloop/pkg/boundary v0.0.0
+	github.com/quarkloop/pkg/natskit v0.0.0
 	github.com/quarkloop/pkg/serviceapi v0.0.0
 	github.com/stretchr/testify v1.10.0
 	go.temporal.io/sdk v1.38.0
 	google.golang.org/protobuf v1.36.10
+)
+
+require (
+	github.com/nats-io/nats.go v1.51.0 // indirect
+	google.golang.org/grpc v1.71.0 // indirect
 )
 
 require (
@@ -46,6 +51,7 @@ require (
 
 replace (
 	github.com/quarkloop/pkg/boundary v0.0.0 => ../../pkg/boundary
+	github.com/quarkloop/pkg/natskit v0.0.0 => ../../pkg/natskit
 	github.com/quarkloop/pkg/plugin v0.0.0 => ../../pkg/plugin
 	github.com/quarkloop/pkg/serviceapi v0.0.0 => ../../pkg/serviceapi
 )

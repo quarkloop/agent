@@ -26,7 +26,7 @@ func (s *Server) runtimeCatalog(req clientcontract.RequestEnvelope) (any, error)
 }
 
 func (s *Server) publishCatalogEvent(spaceID, reason string) error {
-	if s == nil || s.conn == nil {
+	if s == nil || s.client == nil {
 		return nil
 	}
 	event := clientcontract.RuntimeCatalogEvent{
@@ -38,11 +38,10 @@ func (s *Server) publishCatalogEvent(spaceID, reason string) error {
 	if err != nil {
 		return fmt.Errorf("marshal catalog event: %w", err)
 	}
-	if err := s.conn.Publish(clientcontract.SubjectCatalogRuntimeEvents, data); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := s.client.Publish(ctx, clientcontract.SubjectCatalogRuntimeEvents, data, nil); err != nil {
 		return fmt.Errorf("publish catalog event: %w", err)
-	}
-	if err := s.conn.FlushTimeout(time.Second); err != nil {
-		return fmt.Errorf("flush catalog event: %w", err)
 	}
 	return nil
 }

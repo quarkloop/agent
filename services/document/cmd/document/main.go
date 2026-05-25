@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/quarkloop/pkg/serviceapi/servicebridge"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/services/document/internal/app"
 )
 
@@ -41,11 +41,11 @@ func main() {
 		Address:   addr,
 		SkillDir:  skillDir,
 		PDFToText: pdftotextPath,
-		NATS: servicebridge.NATSConfig{
+		Queue:     natsQueue,
+		NATS: natskit.Config{
 			URL:             natsURL,
 			Username:        natsUser,
 			Password:        natsPassword,
-			Queue:           natsQueue,
 			Name:            "quark-document",
 			AuditPrefix:     os.Getenv("QUARK_NATS_AUDIT_PREFIX"),
 			TelemetryPrefix: os.Getenv("QUARK_NATS_TELEMETRY_PREFIX"),

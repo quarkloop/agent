@@ -19,7 +19,6 @@ var natsStateDir string
 var natsClientPort int
 var natsWebSocketPort int
 var natsMonitorPort int
-var natsArtifactHandoffMaxBytes int64
 var natsAuditRetention time.Duration
 var natsAuditMaxMessages int64
 var bundledPluginsDir string
@@ -43,7 +42,6 @@ Example:
 	cmd.Flags().IntVar(&natsClientPort, "nats-client-port", 4222, "Embedded NATS client listen port")
 	cmd.Flags().IntVar(&natsWebSocketPort, "nats-websocket-port", 9222, "Embedded NATS WebSocket listen port")
 	cmd.Flags().IntVar(&natsMonitorPort, "nats-monitor-port", 8222, "Embedded NATS HTTP monitoring listen port")
-	cmd.Flags().Int64Var(&natsArtifactHandoffMaxBytes, "nats-artifact-handoff-max-bytes", 0, "Embedded NATS artifact handoff object-store max bytes; 0 uses the supervisor default")
 	cmd.Flags().DurationVar(&natsAuditRetention, "nats-audit-retention", 0, "Retain redacted service-call audit records for this duration; 0 uses the supervisor default")
 	cmd.Flags().Int64Var(&natsAuditMaxMessages, "nats-audit-max-messages", 0, "Maximum retained audit records; 0 uses the supervisor default")
 	cmd.Flags().StringVar(&bundledPluginsDir, "bundled-plugins-dir", "plugins", "Product plugin bundle root used to install required default plugins in new spaces")
@@ -93,9 +91,6 @@ func startNATSConfig() (natshub.Config, error) {
 		cfg.Client.Port = natsClientPort
 		cfg.WebSocket.Port = natsWebSocketPort
 		cfg.Monitoring.Port = natsMonitorPort
-		if natsArtifactHandoffMaxBytes > 0 {
-			cfg.JetStream.ArtifactHandoffMaxBytes = natsArtifactHandoffMaxBytes
-		}
 		if natsAuditRetention > 0 {
 			cfg.JetStream.AuditRetention = natsAuditRetention
 		}

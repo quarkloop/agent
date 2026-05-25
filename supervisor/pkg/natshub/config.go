@@ -40,8 +40,6 @@ const (
 	defaultMonitoringPort = 8222
 )
 
-const defaultArtifactHandoffMaxBytes int64 = 512 * 1024 * 1024
-
 type ListenerConfig struct {
 	Enabled bool
 	Host    string
@@ -49,14 +47,13 @@ type ListenerConfig struct {
 }
 
 type JetStreamConfig struct {
-	Enabled                 bool
-	StoreDir                string
-	MaxMemory               int64
-	MaxStore                int64
-	Domain                  string
-	ArtifactHandoffMaxBytes int64
-	AuditRetention          time.Duration
-	AuditMaxMessages        int64
+	Enabled          bool
+	StoreDir         string
+	MaxMemory        int64
+	MaxStore         int64
+	Domain           string
+	AuditRetention   time.Duration
+	AuditMaxMessages int64
 }
 
 type PermissionConfig struct {
@@ -109,11 +106,10 @@ func DefaultConfig(stateDir string) Config {
 		WebSocket:  ListenerConfig{Enabled: true, Host: defaultWebSocketHost, Port: defaultWebSocketPort},
 		Monitoring: ListenerConfig{Enabled: true, Host: defaultMonitoringHost, Port: defaultMonitoringPort},
 		JetStream: JetStreamConfig{
-			Enabled:                 true,
-			StoreDir:                filepath.Join(stateDir, "jetstream"),
-			ArtifactHandoffMaxBytes: defaultArtifactHandoffMaxBytes,
-			AuditRetention:          90 * 24 * time.Hour,
-			AuditMaxMessages:        10_000_000,
+			Enabled:          true,
+			StoreDir:         filepath.Join(stateDir, "jetstream"),
+			AuditRetention:   90 * 24 * time.Hour,
+			AuditMaxMessages: 10_000_000,
 		},
 		SystemAccount: SystemAccountName,
 		Accounts:      DefaultAccounts(),
@@ -174,9 +170,6 @@ func Normalize(cfg Config) (Config, error) {
 		}
 		if cfg.JetStream.Enabled && strings.TrimSpace(cfg.JetStream.StoreDir) == "" {
 			cfg.JetStream.StoreDir = filepath.Join(cfg.StateDir, "jetstream")
-		}
-		if cfg.JetStream.Enabled && cfg.JetStream.ArtifactHandoffMaxBytes <= 0 {
-			cfg.JetStream.ArtifactHandoffMaxBytes = defaultArtifactHandoffMaxBytes
 		}
 		if cfg.JetStream.Enabled && cfg.JetStream.AuditRetention <= 0 {
 			cfg.JetStream.AuditRetention = 90 * 24 * time.Hour

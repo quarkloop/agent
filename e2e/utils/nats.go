@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nats-io/nats.go"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 	"github.com/quarkloop/supervisor/pkg/natshub"
 )
@@ -46,7 +46,7 @@ func issueSpaceScopedCredential(t *testing.T, endpoints NATSEndpoints, subject, 
 	return credential
 }
 
-func connectControlNATS(t *testing.T, endpoints NATSEndpoints) *nats.Conn {
+func connectControlNATS(t *testing.T, endpoints NATSEndpoints) *natskit.Client {
 	t.Helper()
 	conn, err := tryConnectControlNATS(endpoints)
 	if err != nil {
@@ -55,17 +55,11 @@ func connectControlNATS(t *testing.T, endpoints NATSEndpoints) *nats.Conn {
 	return conn
 }
 
-func tryConnectControlNATS(endpoints NATSEndpoints) (*nats.Conn, error) {
-	conn, err := nats.Connect(
-		endpoints.ClientURL,
-		nats.UserInfo(natshub.DefaultControlUser, natshub.DefaultControlPassword),
-		nats.Name("quark-e2e-control"),
-		nats.Timeout(5*time.Second),
-	)
-	if err != nil {
-		return nil, err
-	}
-	return conn, nil
+func tryConnectControlNATS(endpoints NATSEndpoints) (*natskit.Client, error) {
+	return natskit.Connect(context.Background(), natskit.Config{
+		URL: endpoints.ClientURL, Username: natshub.DefaultControlUser,
+		Password: natshub.DefaultControlPassword, Name: "quark-e2e-control", Timeout: 5 * time.Second,
+	})
 }
 
 func waitForControlNATS(t *testing.T, endpoints NATSEndpoints, timeout time.Duration) {
@@ -110,23 +104,20 @@ func CreateChatSession(t *testing.T, env *E2EEnv, title string) clientcontract.S
 	return CreateSession(t, env, clientcontract.SessionTypeChat, title)
 }
 
-func connectNATSCredential(t *testing.T, credential clientcontract.NATSCredential) *nats.Conn {
+func connectNATSCredential(t *testing.T, credential clientcontract.NATSCredential) *natskit.Client {
 	t.Helper()
-	conn, err := nats.Connect(
-		credential.URL,
-		nats.UserInfo(credential.Username, credential.Password),
-		nats.Name("quark-e2e-"+credential.Role),
-		nats.Timeout(5*time.Second),
-		nats.ReconnectWait(250*time.Millisecond),
-		nats.MaxReconnects(10),
-	)
+	conn, err := natskit.Connect(context.Background(), natskit.Config{
+		URL: credential.URL, Username: credential.Username, Password: credential.Password,
+		Name: "quark-e2e-" + credential.Role, Timeout: 5 * time.Second,
+		ReconnectWait: 250 * time.Millisecond, MaxReconnects: 10,
+	})
 	if err != nil {
 		t.Fatalf("connect scoped nats credential: %v", err)
 	}
 	return conn
 }
 
-func requestNATSPayload[T any](t *testing.T, conn *nats.Conn, subject, spaceID string, payload any) T {
+func requestNATSPayload[T any](t *testing.T, conn *natskit.Client, subject, spaceID string, payload any) T {
 	t.Helper()
 	out, err := tryRequestNATSPayload[T](conn, subject, spaceID, payload, 10*time.Second)
 	if err != nil {
@@ -135,7 +126,7 @@ func requestNATSPayload[T any](t *testing.T, conn *nats.Conn, subject, spaceID s
 	return out
 }
 
-func tryRequestNATSPayload[T any](conn *nats.Conn, subject, spaceID string, payload any, timeout time.Duration) (T, error) {
+func tryRequestNATSPayload[T any](conn *natskit.Client, subject, spaceID string, payload any, timeout time.Duration) (T, error) {
 	var out T
 	req, err := clientcontract.NewRequest("e2e-"+subject, spaceID, payload)
 	if err != nil {
@@ -147,12 +138,12 @@ func tryRequestNATSPayload[T any](conn *nats.Conn, subject, spaceID string, payl
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	reply, err := conn.RequestWithContext(ctx, subject, data)
+	reply, err := conn.Request(ctx, subject, data, req.CorrelationHeaders())
 	if err != nil {
 		return out, fmt.Errorf("nats request %s: %w", subject, err)
 	}
 	var resp clientcontract.ResponseEnvelope
-	if err := json.Unmarshal(reply.Data, &resp); err != nil {
+	if err := json.Unmarshal(reply, &resp); err != nil {
 		return out, fmt.Errorf("decode nats response: %w", err)
 	}
 	if resp.Status != "ok" {
@@ -167,17 +158,17 @@ func tryRequestNATSPayload[T any](conn *nats.Conn, subject, spaceID string, payl
 	return out, nil
 }
 
-func requestNATSMessage(ctx context.Context, conn *nats.Conn, subject string, req clientcontract.RequestEnvelope) error {
+func requestNATSMessage(ctx context.Context, conn *natskit.Client, subject string, req clientcontract.RequestEnvelope) error {
 	data, err := json.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("marshal nats request: %w", err)
 	}
-	reply, err := conn.RequestWithContext(ctx, subject, data)
+	reply, err := conn.Request(ctx, subject, data, req.CorrelationHeaders())
 	if err != nil {
 		return fmt.Errorf("nats request %s: %w", subject, err)
 	}
 	var resp clientcontract.ResponseEnvelope
-	if err := json.Unmarshal(reply.Data, &resp); err != nil {
+	if err := json.Unmarshal(reply, &resp); err != nil {
 		return fmt.Errorf("decode nats response: %w", err)
 	}
 	if resp.Status == "error" {

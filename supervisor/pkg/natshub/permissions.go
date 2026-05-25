@@ -23,7 +23,6 @@ func RuntimePermissions() PermissionConfig {
 			"session.*.status",
 			"runtime.activity.v1.events",
 			"agent.*.events",
-			"workflow.*.events",
 			"svc.>",
 			"$JS.API.>",
 			"$KV.>",

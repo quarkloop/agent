@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	natsserver "github.com/nats-io/nats-server/v2/server"
 	natsgo "github.com/nats-io/nats.go"
 	"github.com/quarkloop/pkg/plugin"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
@@ -343,7 +344,7 @@ services:
 
 func TestImportServiceFunctionRoutesMakesControlServiceReachableFromRuntime(t *testing.T) {
 	cfg := natshub.DefaultConfig(filepath.Join(t.TempDir(), "nats"))
-	cfg.Client.Port = 0
+	cfg.Client.Port = natsserver.RANDOM_PORT
 	cfg.WebSocket.Enabled = false
 	cfg.Monitoring.Enabled = false
 	cfg.NoLog = true
@@ -408,7 +409,7 @@ func TestImportServiceFunctionRoutesMakesControlServiceReachableFromRuntime(t *t
 
 func TestImportServiceFunctionRoutesPreservesStreamingResponses(t *testing.T) {
 	cfg := natshub.DefaultConfig(filepath.Join(t.TempDir(), "nats"))
-	cfg.Client.Port = 0
+	cfg.Client.Port = natsserver.RANDOM_PORT
 	cfg.WebSocket.Enabled = false
 	cfg.Monitoring.Enabled = false
 	cfg.NoLog = true

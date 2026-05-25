@@ -6,12 +6,14 @@ import (
 	"time"
 
 	natsserver "github.com/nats-io/nats-server/v2/server"
+	"github.com/quarkloop/pkg/natskit"
 )
 
 func TestClaimRejectsActiveLeaseFromAnotherRuntime(t *testing.T) {
 	ns := startJetStreamNATS(t)
 	defer ns.Shutdown()
 	ctx := context.Background()
+	provisionLeaseBucket(t, ctx, ns.ClientURL(), "leases_a", time.Minute)
 
 	first, err := New(ctx, Config{URL: ns.ClientURL(), RuntimeID: "runtime-1", Bucket: "leases_a", TTL: time.Minute})
 	if err != nil {
@@ -36,6 +38,7 @@ func TestClaimAllowsRenewAndReleaseByOwner(t *testing.T) {
 	ns := startJetStreamNATS(t)
 	defer ns.Shutdown()
 	ctx := context.Background()
+	provisionLeaseBucket(t, ctx, ns.ClientURL(), "leases_b", time.Minute)
 
 	manager, err := New(ctx, Config{URL: ns.ClientURL(), RuntimeID: "runtime-1", Bucket: "leases_b", TTL: time.Minute})
 	if err != nil {
@@ -61,6 +64,7 @@ func TestExpiredLeaseCanBeReclaimed(t *testing.T) {
 	ns := startJetStreamNATS(t)
 	defer ns.Shutdown()
 	ctx := context.Background()
+	provisionLeaseBucket(t, ctx, ns.ClientURL(), "leases_c", time.Minute)
 
 	first, err := New(ctx, Config{URL: ns.ClientURL(), RuntimeID: "runtime-1", Bucket: "leases_c", TTL: 150 * time.Millisecond})
 	if err != nil {
@@ -100,4 +104,16 @@ func startJetStreamNATS(t *testing.T) *natsserver.Server {
 		t.Fatal("nats server did not become ready")
 	}
 	return ns
+}
+
+func provisionLeaseBucket(t *testing.T, ctx context.Context, url, bucket string, ttl time.Duration) {
+	t.Helper()
+	client, err := natskit.Connect(ctx, natskit.Config{URL: url, Name: "spacelease-test-setup"})
+	if err != nil {
+		t.Fatalf("connect provisioning client: %v", err)
+	}
+	defer client.Close()
+	if _, err := client.EnsureKeyValue(natskit.KeyValueConfig{Bucket: bucket, TTL: ttl, History: 1}); err != nil {
+		t.Fatalf("provision lease bucket: %v", err)
+	}
 }

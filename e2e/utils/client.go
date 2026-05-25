@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nats-io/nats.go"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 )
 
@@ -107,7 +107,7 @@ func PostMessageTraceWithOptions(t *testing.T, ctx context.Context, env *E2EEnv,
 		t.Fatalf("session events subject: %v", err)
 	}
 	events := make(chan clientcontract.SessionEvent, 64)
-	sub, err := sessionConn.Subscribe(eventsSubject, func(msg *nats.Msg) {
+	sub, err := sessionConn.Subscribe(eventsSubject, func(msg natskit.Message) {
 		var event clientcontract.SessionEvent
 		if err := json.Unmarshal(msg.Data, &event); err != nil {
 			t.Errorf("decode nats session event: %v", err)
@@ -120,7 +120,7 @@ func PostMessageTraceWithOptions(t *testing.T, ctx context.Context, env *E2EEnv,
 		t.Fatalf("subscribe nats session events: %v", err)
 	}
 	defer sub.Unsubscribe()
-	if err := sessionConn.FlushWithContext(reqCtx); err != nil {
+	if err := sessionConn.Flush(reqCtx); err != nil {
 		t.Fatalf("flush nats event subscription: %v", err)
 	}
 

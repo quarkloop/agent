@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
-	"github.com/quarkloop/pkg/serviceapi/servicebridge"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/services/core/internal/server"
 	"log/slog"
@@ -15,7 +15,8 @@ type Config struct {
 	Address  string
 	RootDir  string
 	SkillDir string
-	NATS     servicebridge.NATSConfig
+	NATS     natskit.Config
+	Queue    string
 	Logger   *slog.Logger
 }
 
@@ -46,9 +47,9 @@ func Run(ctx context.Context, cfg Config) error {
 	descriptor := server.Descriptor(cfg.Address, skill)
 	cfg.Logger.Info("core service configured", "root", root)
 	cfg.NATS.Logger = cfg.Logger
-	return servicebridge.RunNATSService(ctx, cfg.NATS, servicebridge.Binding{
+	return natskit.RunRPCService(ctx, cfg.NATS, cfg.Queue, natskit.Binding{
 		Descriptor: descriptor,
-		Services: []servicebridge.RPCService{{
+		Services: []natskit.RPCService{{
 			Service:        "quark.core.v1.CoreService",
 			Implementation: coreServer,
 		}},

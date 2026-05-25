@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/quarkloop/pkg/serviceapi/observability"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/services/gateway/internal/app"
 )
 
@@ -48,17 +48,15 @@ func main() {
 	if err := app.Run(ctx, app.Config{
 		Address:  addr,
 		SkillDir: skillDir,
-		NATS: app.GatewayNATSConfig{
-			URL:      natsURL,
-			Username: natsUser,
-			Password: natsPassword,
-			Queue:    natsQueue,
-			Timeout:  natsTimeout,
-			Audit: observability.RecorderConfig{
-				AuditPrefix:     os.Getenv("QUARK_NATS_AUDIT_PREFIX"),
-				TelemetryPrefix: os.Getenv("QUARK_NATS_TELEMETRY_PREFIX"),
-				Policy:          observability.DefaultAuditPolicy(),
-			},
+		Queue:    natsQueue,
+		NATS: natskit.Config{
+			URL:             natsURL,
+			Username:        natsUser,
+			Password:        natsPassword,
+			Timeout:         natsTimeout,
+			AuditPrefix:     os.Getenv("QUARK_NATS_AUDIT_PREFIX"),
+			TelemetryPrefix: os.Getenv("QUARK_NATS_TELEMETRY_PREFIX"),
+			AuditPolicy:     natskit.DefaultAuditPolicy(),
 		},
 		Providers:         providerConfigsFromEnv(),
 		Fallbacks:         fallbacks,

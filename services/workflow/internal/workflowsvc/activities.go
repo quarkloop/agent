@@ -7,55 +7,38 @@ import (
 	"strings"
 	"time"
 
-	natsgo "github.com/nats-io/nats.go"
 	"github.com/quarkloop/pkg/boundary"
+	"github.com/quarkloop/pkg/natskit"
 	workflowv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/workflow/v1"
-	"github.com/quarkloop/pkg/serviceapi/servicefunction"
 )
 
 type ServiceFunctionDispatcher interface {
-	Dispatch(context.Context, servicefunction.RequestEnvelope) (servicefunction.ResponseEnvelope, error)
+	Dispatch(context.Context, natskit.Operation, natskit.RequestEnvelope) (natskit.ResponseEnvelope, error)
 }
 
 type NATSDispatcher struct {
-	conn    *natsgo.Conn
+	client  *natskit.Client
 	timeout time.Duration
 }
 
-func NewNATSDispatcher(conn *natsgo.Conn, timeout time.Duration) *NATSDispatcher {
+func NewNATSDispatcher(client *natskit.Client, timeout time.Duration) *NATSDispatcher {
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}
-	return &NATSDispatcher{conn: conn, timeout: timeout}
+	return &NATSDispatcher{client: client, timeout: timeout}
 }
 
-func (d *NATSDispatcher) Dispatch(ctx context.Context, req servicefunction.RequestEnvelope) (servicefunction.ResponseEnvelope, error) {
-	if d == nil || d.conn == nil {
-		return servicefunction.ResponseEnvelope{}, fmt.Errorf("nats dispatcher is not configured")
-	}
-	data, err := json.Marshal(req)
-	if err != nil {
-		return servicefunction.ResponseEnvelope{}, err
+func (d *NATSDispatcher) Dispatch(ctx context.Context, operation natskit.Operation, req natskit.RequestEnvelope) (natskit.ResponseEnvelope, error) {
+	if d == nil || d.client == nil {
+		return natskit.ResponseEnvelope{}, fmt.Errorf("nats dispatcher is not configured")
 	}
 	callCtx, cancel := context.WithTimeout(ctx, d.timeout)
 	defer cancel()
-	msg := natsgo.NewMsg(req.Subject)
-	msg.Data = data
-	for key, value := range req.CorrelationHeaders() {
-		msg.Header.Set(key, value)
-	}
-	reply, err := d.conn.RequestMsgWithContext(callCtx, msg)
+	resp, err := d.client.Call(callCtx, operation, req)
 	if err != nil {
-		return servicefunction.ResponseEnvelope{}, err
+		return natskit.ResponseEnvelope{}, err
 	}
-	var resp servicefunction.ResponseEnvelope
-	if err := json.Unmarshal(reply.Data, &resp); err != nil {
-		return servicefunction.ResponseEnvelope{}, err
-	}
-	if err := resp.Validate(); err != nil {
-		return servicefunction.ResponseEnvelope{}, err
-	}
-	if resp.Status == servicefunction.StatusError {
+	if resp.Status == natskit.StatusError {
 		return resp, responseError(resp)
 	}
 	return resp, nil
@@ -87,19 +70,14 @@ func (a *Activities) DispatchServiceFunction(ctx context.Context, input ServiceF
 	if !json.Valid(payload) {
 		return ServiceFunctionActivityResult{}, fmt.Errorf("payload_json must be valid JSON")
 	}
-	subject := strings.TrimSpace(input.Subject)
-	if subject == "" {
-		var err error
-		subject, err = servicefunction.Subject(input.Service, servicefunction.DefaultVersion, input.Function)
-		if err != nil {
-			return ServiceFunctionActivityResult{}, err
-		}
+	operation, err := natskit.ServiceOperation(input.Service, input.Function)
+	if err != nil {
+		return ServiceFunctionActivityResult{}, err
 	}
-	req, err := servicefunction.NewRequest(
+	req, err := natskit.NewRequest(
 		fmt.Sprintf("%s.%s", input.WorkflowID, firstNonEmpty(input.StepID, input.Function)),
 		input.SpaceID,
-		servicefunction.ActorWorkflow,
-		servicefunction.Descriptor{Service: input.Service, Function: input.Function, Subject: subject},
+		natskit.ActorWorkflow,
 		payload,
 	)
 	if err != nil {
@@ -108,7 +86,7 @@ func (a *Activities) DispatchServiceFunction(ctx context.Context, input ServiceF
 	req.WorkflowID = input.WorkflowID
 	req.SessionID = input.SessionID
 	req.AgentID = input.AgentID
-	resp, err := a.dispatcher.Dispatch(ctx, req)
+	resp, err := a.dispatcher.Dispatch(ctx, operation, req)
 	if err != nil {
 		return ServiceFunctionActivityResult{}, err
 	}
@@ -129,7 +107,7 @@ func (a *Activities) RecordWorkflowEvent(_ context.Context, event WorkflowEventR
 	return nil
 }
 
-func responseError(resp servicefunction.ResponseEnvelope) error {
+func responseError(resp natskit.ResponseEnvelope) error {
 	if resp.Error == nil {
 		return fmt.Errorf("service function returned error")
 	}

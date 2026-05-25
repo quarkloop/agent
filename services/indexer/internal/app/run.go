@@ -3,8 +3,8 @@ package app
 import (
 	"context"
 	"fmt"
+	"github.com/quarkloop/pkg/natskit"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
-	"github.com/quarkloop/pkg/serviceapi/servicebridge"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/services/indexer/internal/indexing"
 	"github.com/quarkloop/services/indexer/internal/server"
@@ -18,7 +18,8 @@ type Config struct {
 	Address  string
 	Driver   indexer.GraphVectorDriver
 	SkillDir string
-	NATS     servicebridge.NATSConfig
+	NATS     natskit.Config
+	Queue    string
 	Logger   *slog.Logger
 }
 
@@ -68,9 +69,9 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	defer cfg.Driver.Close()
 	cfg.NATS.Logger = cfg.Logger
-	return servicebridge.RunNATSService(ctx, cfg.NATS, servicebridge.Binding{
+	return natskit.RunRPCService(ctx, cfg.NATS, cfg.Queue, natskit.Binding{
 		Descriptor: descriptor,
-		Services: []servicebridge.RPCService{{
+		Services: []natskit.RPCService{{
 			Service:        "quark.indexer.v1.IndexerService",
 			Implementation: indexerServer,
 		}},

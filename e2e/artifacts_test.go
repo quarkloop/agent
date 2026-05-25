@@ -13,7 +13,7 @@ import (
 
 	"github.com/quarkloop/e2e/utils"
 	"github.com/quarkloop/pkg/boundary/redaction"
-	"github.com/quarkloop/pkg/serviceapi/servicefunction"
+	"github.com/quarkloop/pkg/natskit"
 )
 
 type agentRunArtifacts struct {
@@ -291,11 +291,11 @@ func serviceSubjectFromTool(name string) string {
 	if !ok {
 		return ""
 	}
-	subject, err := servicefunction.Subject(service, servicefunction.DefaultVersion, function)
+	operation, err := natskit.ServiceOperation(service, function)
 	if err != nil {
 		return ""
 	}
-	return subject
+	return operation.Subject
 }
 
 func redactValue(value any) any {

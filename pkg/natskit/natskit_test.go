@@ -1,0 +1,307 @@
+package natskit
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"strings"
+	"testing"
+	"time"
+
+	natsserver "github.com/nats-io/nats-server/v2/server"
+	natsgo "github.com/nats-io/nats.go"
+)
+
+func TestRequestEnvelopeDoesNotDuplicateOperationRoute(t *testing.T) {
+	req, err := NewRequest("call-1", "space-1", ActorRuntime, json.RawMessage(`{"value":"test"}`))
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	data, err := json.Marshal(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, prohibited := range []string{`"service"`, `"function"`, `"subject"`} {
+		if strings.Contains(string(data), prohibited) {
+			t.Fatalf("request repeats routing identity %s: %s", prohibited, data)
+		}
+	}
+}
+
+func TestHostCallUsesSubjectAndResponderOwnedQueue(t *testing.T) {
+	server := startNATS(t, false)
+	host, err := NewHost(context.Background(), Config{URL: server.ClientURL(), Name: "host-test"}, "q.echo.v1")
+	if err != nil {
+		t.Fatalf("new host: %v", err)
+	}
+	t.Cleanup(host.Close)
+	operation, err := ServiceOperation("echo", "get")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := host.RegisterUnary(operation, time.Second, func(_ context.Context, req RequestEnvelope) (ResponseEnvelope, error) {
+		return OKResponse(req.ServiceCallID, json.RawMessage(`{"ok":true}`)), nil
+	}); err != nil {
+		t.Fatalf("register operation: %v", err)
+	}
+	if err := host.Ready(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	client, err := Connect(context.Background(), Config{URL: server.ClientURL(), Name: "caller-test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(client.Close)
+	req, _ := NewRequest("call-echo", "space-1", ActorRuntime, json.RawMessage(`{}`))
+	resp, err := client.Call(context.Background(), operation, req)
+	if err != nil {
+		t.Fatalf("call: %v", err)
+	}
+	if resp.ReferenceID != ReferenceIDForServiceCall("call-echo") || resp.Status != StatusOK {
+		t.Fatalf("response = %+v", resp)
+	}
+}
+
+func TestOperationRejectsMetadataThatDisagreesWithSubject(t *testing.T) {
+	server := startNATS(t, false)
+	host, err := NewHost(context.Background(), Config{URL: server.ClientURL(), Name: "metadata-host"}, "q.echo.v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(host.Close)
+	err = host.RegisterUnary(Operation{Owner: "other", Function: "get", Subject: "svc.echo.v1.get"}, time.Second, func(_ context.Context, req RequestEnvelope) (ResponseEnvelope, error) {
+		return OKResponse(req.ServiceCallID, json.RawMessage(`{}`)), nil
+	})
+	if err == nil {
+		t.Fatal("registered operation with duplicated, conflicting route identity")
+	}
+}
+
+func TestCallReportsNoResponder(t *testing.T) {
+	server := startNATS(t, false)
+	client, err := Connect(context.Background(), Config{URL: server.ClientURL(), Name: "no-responder-client"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(client.Close)
+	operation, _ := ServiceOperation("missing", "get")
+	req, _ := NewRequest("call-missing", "space-1", ActorRuntime, json.RawMessage(`{}`))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if _, err := client.Call(ctx, operation, req); !errors.Is(err, natsgo.ErrNoResponders) {
+		t.Fatalf("no responder error = %v", err)
+	}
+}
+
+func TestSubscriptionWildcardsAreResponderOnly(t *testing.T) {
+	server := startNATS(t, false)
+	client, err := Connect(context.Background(), Config{URL: server.ClientURL(), Name: "wildcard-test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(client.Close)
+	sub, err := client.Respond("session.*.input", "q.runtime.sessions", time.Second, func(_ context.Context, _ Message) ([]byte, error) {
+		return []byte(`{"status":"ok"}`), nil
+	})
+	if err != nil {
+		t.Fatalf("register wildcard responder: %v", err)
+	}
+	t.Cleanup(func() { _ = sub.Unsubscribe() })
+	if err := client.Publish(context.Background(), "session.*.input", []byte(`{}`), nil); err == nil {
+		t.Fatal("publisher accepted wildcard destination")
+	}
+}
+
+func TestHostReturnsStructuredErrorForMalformedRequest(t *testing.T) {
+	server := startNATS(t, false)
+	host, err := NewHost(context.Background(), Config{URL: server.ClientURL(), Name: "malformed-host"}, "q.malformed.v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(host.Close)
+	operation, _ := ServiceOperation("document", "parse")
+	called := false
+	if err := host.RegisterUnary(operation, time.Second, func(_ context.Context, req RequestEnvelope) (ResponseEnvelope, error) {
+		called = true
+		return OKResponse(req.ServiceCallID, json.RawMessage(`{}`)), nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_ = host.Ready(context.Background())
+	client, _ := Connect(context.Background(), Config{URL: server.ClientURL(), Name: "malformed-client"})
+	t.Cleanup(client.Close)
+	data, err := client.Request(context.Background(), operation.Subject, []byte(`{invalid`), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := DecodeServiceResponse(data)
+	if err != nil || resp.Status != StatusError || called {
+		t.Fatalf("malformed response = %+v, called = %v, err = %v", resp, called, err)
+	}
+}
+
+func TestCorePublishSubscribeDoesNotReplayMessagesBeforeSubscription(t *testing.T) {
+	server := startNATS(t, false)
+	client, err := Connect(context.Background(), Config{URL: server.ClientURL(), Name: "pubsub-client"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(client.Close)
+	if err := client.Publish(context.Background(), "session.space_1.events", []byte("before"), nil); err != nil {
+		t.Fatal(err)
+	}
+	received := make(chan string, 1)
+	sub, err := client.Subscribe("session.space_1.events", func(msg Message) {
+		received <- string(msg.Data)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = sub.Unsubscribe() })
+	if err := client.Flush(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := client.Publish(context.Background(), "session.space_1.events", []byte("after"), nil); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case value := <-received:
+		if value != "after" {
+			t.Fatalf("received replayed Core NATS value %q", value)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for live published message")
+	}
+}
+
+func TestStreamingServiceMarksOnlyTerminalResponseFinal(t *testing.T) {
+	server := startNATS(t, false)
+	host, err := NewHost(context.Background(), Config{URL: server.ClientURL(), Name: "stream-host"}, "q.stream.v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(host.Close)
+	operation, _ := ServiceOperation("gateway", "stream_generate")
+	if err := host.RegisterStream(operation, time.Second, func(_ context.Context, req RequestEnvelope, publish func(ResponseEnvelope) error) (ResponseEnvelope, error) {
+		if err := publish(OKResponse(req.ServiceCallID, json.RawMessage(`{"delta":"one"}`))); err != nil {
+			return ResponseEnvelope{}, err
+		}
+		return OKResponse(req.ServiceCallID, json.RawMessage(`{"done":true}`)), nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_ = host.Ready(context.Background())
+	client, _ := Connect(context.Background(), Config{URL: server.ClientURL(), Name: "stream-client"})
+	t.Cleanup(client.Close)
+	req, _ := NewRequest("call-stream", "space-1", ActorRuntime, json.RawMessage(`{}`))
+	stream, err := client.OpenServiceStream(context.Background(), operation, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stream.Close() })
+	firstData, _ := stream.Next(context.Background())
+	first, err := DecodeServiceResponse(firstData)
+	if err != nil || first.Final {
+		t.Fatalf("first stream response = %+v, err = %v", first, err)
+	}
+	finalData, _ := stream.Next(context.Background())
+	final, err := DecodeServiceResponse(finalData)
+	if err != nil || !final.Final {
+		t.Fatalf("terminal stream response = %+v, err = %v", final, err)
+	}
+}
+
+func TestAuditWritesAcknowledgedRecordWithoutContent(t *testing.T) {
+	server := startNATS(t, true)
+	conn, err := natsgo.Connect(server.ClientURL())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	js, _ := conn.JetStream()
+	if _, err := js.AddStream(&natsgo.StreamConfig{Name: "AUDIT", Subjects: []string{"audit.>"}}); err != nil {
+		t.Fatal(err)
+	}
+	host, err := NewHost(context.Background(), Config{
+		URL:         server.ClientURL(),
+		Name:        "audit-host",
+		AuditPrefix: "audit",
+		AuditPolicy: AuditPolicy{SnapshotPolicy: SnapshotPolicyMetadata},
+	}, "q.audit.v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(host.Close)
+	operation, _ := ServiceOperation("audit", "write")
+	if err := host.RegisterUnary(operation, time.Second, func(_ context.Context, req RequestEnvelope) (ResponseEnvelope, error) {
+		return OKResponse(req.ServiceCallID, json.RawMessage(`{"secret":"output"}`)), nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_ = host.Ready(context.Background())
+	client, _ := Connect(context.Background(), Config{URL: server.ClientURL(), Name: "audit-client"})
+	t.Cleanup(client.Close)
+	req, _ := NewRequest("call-audit", "space-1", ActorRuntime, json.RawMessage(`{"secret":"input"}`))
+	resp, err := client.Call(context.Background(), operation, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg, err := js.GetMsg("AUDIT", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(msg.Data), "input") || strings.Contains(string(msg.Data), "output") || !strings.Contains(string(msg.Data), `"content_stored":false`) {
+		t.Fatalf("audit data contains content or lacks metadata: %s", msg.Data)
+	}
+	if resp.ReferenceID == "" {
+		t.Fatal("missing reference")
+	}
+}
+
+func TestKeyValueWrapsRevisionAndConflictSemantics(t *testing.T) {
+	server := startNATS(t, true)
+	client, err := Connect(context.Background(), Config{URL: server.ClientURL(), Name: "kv-client"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(client.Close)
+	kv, err := client.EnsureKeyValue(KeyValueConfig{Bucket: "leases", TTL: time.Minute, History: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	revision, err := kv.Create("space", []byte("runtime-1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := kv.Create("space", []byte("runtime-2")); !errors.Is(err, ErrKeyExists) {
+		t.Fatalf("duplicate create error = %v", err)
+	}
+	entry, err := kv.Get("space")
+	if err != nil || entry.Revision() != revision || string(entry.Value()) != "runtime-1" {
+		t.Fatalf("entry = %+v, err = %v", entry, err)
+	}
+	if err := kv.DeleteRevision("space", revision); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := kv.Get("space"); !errors.Is(err, ErrKeyNotFound) {
+		t.Fatalf("deleted entry error = %v", err)
+	}
+}
+
+func startNATS(t *testing.T, jetStream bool) *natsserver.Server {
+	t.Helper()
+	cfg := &natsserver.Options{Host: "127.0.0.1", Port: -1, NoLog: true, NoSigs: true, JetStream: jetStream}
+	if jetStream {
+		cfg.StoreDir = t.TempDir()
+	}
+	server, err := natsserver.NewServer(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	go server.Start()
+	if !server.ReadyForConnections(time.Second) {
+		t.Fatal("nats server not ready")
+	}
+	t.Cleanup(server.Shutdown)
+	return server
+}

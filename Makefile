@@ -13,6 +13,7 @@ MODULES := \
 		cli \
 		pkg/boundary \
 		pkg/plugin \
+		pkg/natskit \
 		pkg/serviceapi \
 		pkg/space \
 		pkg/toolkit \

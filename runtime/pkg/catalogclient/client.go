@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nats-io/nats.go"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 )
 
@@ -53,22 +53,15 @@ func FetchRuntimeCatalog(ctx context.Context, cfg Config) (clientcontract.Runtim
 	if timeout <= 0 {
 		timeout = 5 * time.Second
 	}
-	conn, err := nats.Connect(
-		cfg.URL,
-		nats.UserInfo(cfg.Username, cfg.Password),
-		nats.Name("quark-runtime-catalog-client"),
-		nats.Timeout(timeout),
-		nats.RetryOnFailedConnect(true),
-		nats.MaxReconnects(10),
-		nats.ReconnectWait(250*time.Millisecond),
-	)
+	client, err := natskit.Connect(ctx, natskit.Config{
+		URL: cfg.URL, Username: cfg.Username, Password: cfg.Password,
+		Name: "quark-runtime-catalog-client", Timeout: timeout,
+		ReconnectWait: 250 * time.Millisecond, MaxReconnects: 10,
+	})
 	if err != nil {
 		return clientcontract.RuntimeCatalogResponse{}, fmt.Errorf("connect nats catalog client: %w", err)
 	}
-	defer conn.Close()
-	if err := conn.FlushTimeout(timeout); err != nil {
-		return clientcontract.RuntimeCatalogResponse{}, fmt.Errorf("verify nats catalog client: %w", err)
-	}
+	defer client.Close()
 	req, err := clientcontract.NewRequest("runtime-catalog", cfg.SpaceID, clientcontract.RuntimeCatalogRequest{SpaceID: cfg.SpaceID})
 	if err != nil {
 		return clientcontract.RuntimeCatalogResponse{}, err
@@ -79,17 +72,12 @@ func FetchRuntimeCatalog(ctx context.Context, cfg Config) (clientcontract.Runtim
 	}
 	requestCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	msg := nats.NewMsg(clientcontract.SubjectCatalogRuntimeGet)
-	msg.Data = data
-	for key, value := range req.CorrelationHeaders() {
-		msg.Header.Set(key, value)
-	}
-	reply, err := conn.RequestMsgWithContext(requestCtx, msg)
+	reply, err := client.Request(requestCtx, clientcontract.SubjectCatalogRuntimeGet, data, req.CorrelationHeaders())
 	if err != nil {
 		return clientcontract.RuntimeCatalogResponse{}, fmt.Errorf("request runtime catalog: %w", err)
 	}
 	var resp clientcontract.ResponseEnvelope
-	if err := json.Unmarshal(reply.Data, &resp); err != nil {
+	if err := json.Unmarshal(reply, &resp); err != nil {
 		return clientcontract.RuntimeCatalogResponse{}, fmt.Errorf("decode runtime catalog response: %w", err)
 	}
 	if resp.Status != "ok" {

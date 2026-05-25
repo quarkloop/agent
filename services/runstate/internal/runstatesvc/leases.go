@@ -7,8 +7,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/nats-io/nats.go"
 )
 
 // leaseStore owns only short-lived coordination claims. Durable run records
@@ -19,38 +17,54 @@ type LeaseStore interface {
 	Release(key, ownerID string, revision uint64) error
 }
 
-type natsLeaseStore struct {
-	kv nats.KeyValue
+var ErrCASKeyNotFound = errors.New("lease CAS key not found")
+
+type CASEntry struct {
+	Value    []byte
+	Revision uint64
 }
 
-func NewNATSLeaseStore(kv nats.KeyValue) (LeaseStore, error) {
-	if kv == nil {
+// CASStore is the lease domain's required atomic storage behavior. Transport
+// adapters translate their own storage errors and values at the app boundary.
+type CASStore interface {
+	Create(key string, value []byte) (uint64, error)
+	Get(key string) (CASEntry, error)
+	Update(key string, value []byte, revision uint64) (uint64, error)
+	DeleteRevision(key string, revision uint64) error
+}
+
+type casLeaseStore struct {
+	store CASStore
+}
+
+func NewCASLeaseStore(store CASStore) (LeaseStore, error) {
+	if store == nil {
 		return nil, fmt.Errorf("%w: runstate lease bucket is required", errInvalidArgument)
 	}
-	return &natsLeaseStore{kv: kv}, nil
+	return &casLeaseStore{store: store}, nil
 }
 
-func (s *natsLeaseStore) Acquire(key, runID, itemID, ownerID string, expiresAt time.Time, now time.Time) (leaseRecord, error) {
+func (s *casLeaseStore) Acquire(key, runID, itemID, ownerID string, expiresAt time.Time, now time.Time) (leaseRecord, error) {
 	lease := newLease(key, runID, itemID, ownerID, expiresAt)
 	data, err := json.Marshal(lease)
 	if err != nil {
 		return leaseRecord{}, err
 	}
-	revision, err := s.kv.Create(key, data)
+	revision, err := s.store.Create(key, data)
 	if err == nil {
 		lease.Revision = revision
 		return lease, nil
 	}
-	entry, getErr := s.kv.Get(key)
+	entry, getErr := s.store.Get(key)
 	if getErr != nil {
 		return leaseRecord{}, fmt.Errorf("%w: acquire lease: %v", errConflict, err)
 	}
-	current, decodeErr := decodeLease(entry.Value(), entry.Revision())
+	current, decodeErr := decodeLease(entry.Value, entry.Revision)
 	if decodeErr != nil {
 		return leaseRecord{}, decodeErr
 	}
 	if expiry, parseErr := time.Parse(time.RFC3339Nano, current.ExpiresAt); parseErr != nil || !expiry.After(now) {
-		revision, updateErr := s.kv.Update(key, data, entry.Revision())
+		revision, updateErr := s.store.Update(key, data, entry.Revision)
 		if updateErr == nil {
 			lease.Revision = revision
 			return lease, nil
@@ -59,16 +73,16 @@ func (s *natsLeaseStore) Acquire(key, runID, itemID, ownerID string, expiresAt t
 	return leaseRecord{}, fmt.Errorf("%w: lease %q is held by %q", errConflict, key, current.OwnerID)
 }
 
-func (s *natsLeaseStore) Renew(key, ownerID string, revision uint64, expiresAt time.Time, _ time.Time) (leaseRecord, error) {
-	entry, err := s.kv.Get(key)
+func (s *casLeaseStore) Renew(key, ownerID string, revision uint64, expiresAt time.Time, _ time.Time) (leaseRecord, error) {
+	entry, err := s.store.Get(key)
 	if err != nil {
 		return leaseRecord{}, errNotFound
 	}
-	current, err := decodeLease(entry.Value(), entry.Revision())
+	current, err := decodeLease(entry.Value, entry.Revision)
 	if err != nil {
 		return leaseRecord{}, err
 	}
-	if current.OwnerID != ownerID || (revision != 0 && entry.Revision() != revision) {
+	if current.OwnerID != ownerID || (revision != 0 && entry.Revision != revision) {
 		return leaseRecord{}, fmt.Errorf("%w: lease owner or revision does not match", errConflict)
 	}
 	current.ExpiresAt = expiresAt.UTC().Format(time.RFC3339Nano)
@@ -76,7 +90,7 @@ func (s *natsLeaseStore) Renew(key, ownerID string, revision uint64, expiresAt t
 	if err != nil {
 		return leaseRecord{}, err
 	}
-	next, err := s.kv.Update(key, data, entry.Revision())
+	next, err := s.store.Update(key, data, entry.Revision)
 	if err != nil {
 		return leaseRecord{}, fmt.Errorf("%w: renew lease", errConflict)
 	}
@@ -84,22 +98,22 @@ func (s *natsLeaseStore) Renew(key, ownerID string, revision uint64, expiresAt t
 	return current, nil
 }
 
-func (s *natsLeaseStore) Release(key, ownerID string, revision uint64) error {
-	entry, err := s.kv.Get(key)
-	if errors.Is(err, nats.ErrKeyNotFound) {
+func (s *casLeaseStore) Release(key, ownerID string, revision uint64) error {
+	entry, err := s.store.Get(key)
+	if errors.Is(err, ErrCASKeyNotFound) {
 		return errNotFound
 	}
 	if err != nil {
 		return err
 	}
-	current, err := decodeLease(entry.Value(), entry.Revision())
+	current, err := decodeLease(entry.Value, entry.Revision)
 	if err != nil {
 		return err
 	}
-	if current.OwnerID != ownerID || (revision != 0 && entry.Revision() != revision) {
+	if current.OwnerID != ownerID || (revision != 0 && entry.Revision != revision) {
 		return fmt.Errorf("%w: lease owner or revision does not match", errConflict)
 	}
-	if err := s.kv.Delete(key, nats.LastRevision(entry.Revision())); err != nil {
+	if err := s.store.DeleteRevision(key, entry.Revision); err != nil {
 		return fmt.Errorf("%w: release lease", errConflict)
 	}
 	return nil

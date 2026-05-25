@@ -14,17 +14,10 @@ const (
 	StreamTelemetry       = "QUARK_TELEMETRY"
 	StreamSessionEvents   = "QUARK_SESSION_EVENTS"
 	StreamRuntimeActivity = "QUARK_RUNTIME_ACTIVITY"
-	StreamWorkflowEvents  = "QUARK_WORKFLOW_EVENTS"
 	StreamCatalog         = "QUARK_CATALOG"
-	StreamJobs            = "QUARK_JOBS"
 
 	KVRuntimeSpaceLeases = "runtime_space_leases"
-	KVServiceLeases      = "service_leases"
 	KVRunStateLeases     = "runstate_leases"
-	KVAccountMetadata    = "account_metadata"
-	KVCatalogCursors     = "catalog_cursors"
-
-	ObjectArtifactHandoff = "artifact_handoff"
 )
 
 type streamSpec struct {
@@ -40,13 +33,6 @@ type kvSpec struct {
 	Bucket      string
 	Description string
 	TTL         time.Duration
-}
-
-type objectStoreSpec struct {
-	Bucket      string
-	Description string
-	TTL         time.Duration
-	MaxBytes    int64
 }
 
 func controlStreams(cfg JetStreamConfig) []streamSpec {
@@ -84,27 +70,11 @@ func controlStreams(cfg JetStreamConfig) []streamSpec {
 			MaxMsgs:     5_000_000,
 		},
 		{
-			Name:        StreamWorkflowEvents,
-			Description: "Workflow progress and lifecycle events.",
-			Subjects:    []string{"workflow.*.events"},
-			Retention:   nats.LimitsPolicy,
-			MaxAge:      30 * 24 * time.Hour,
-			MaxMsgs:     5_000_000,
-		},
-		{
 			Name:        StreamCatalog,
 			Description: "Supervisor-published catalog snapshots and update events.",
 			Subjects:    []string{"catalog.runtime.v1.events", "catalog.snapshots.>"},
 			Retention:   nats.LimitsPolicy,
 			MaxAge:      30 * 24 * time.Hour,
-			MaxMsgs:     1_000_000,
-		},
-		{
-			Name:        StreamJobs,
-			Description: "JetStream-backed async jobs and work queues.",
-			Subjects:    []string{"jobs.>"},
-			Retention:   nats.WorkQueuePolicy,
-			MaxAge:      7 * 24 * time.Hour,
 			MaxMsgs:     1_000_000,
 		},
 	}
@@ -144,33 +114,11 @@ func coordinationBuckets() []kvSpec {
 			TTL:         10 * time.Minute,
 		},
 		{
-			Bucket:      KVServiceLeases,
-			Description: "Ephemeral service readiness and ownership leases.",
-			TTL:         10 * time.Minute,
-		},
-		{
 			Bucket:      KVRunStateLeases,
 			Description: "Active run and work-item ownership leases.",
 			TTL:         10 * time.Minute,
 		},
-		{
-			Bucket:      KVAccountMetadata,
-			Description: "Supervisor-owned account metadata pointers.",
-		},
-		{
-			Bucket:      KVCatalogCursors,
-			Description: "Catalog update cursors and compact coordination pointers.",
-		},
 	}
-}
-
-func objectStores(artifactHandoffMaxBytes int64) []objectStoreSpec {
-	return []objectStoreSpec{{
-		Bucket:      ObjectArtifactHandoff,
-		Description: "Temporary large payload handoff for artifacts that should not fit in request/reply envelopes.",
-		TTL:         24 * time.Hour,
-		MaxBytes:    artifactHandoffMaxBytes,
-	}}
 }
 
 func (h *Hub) provisionJetStreamLocked(ctx context.Context) error {
@@ -205,11 +153,6 @@ func (h *Hub) provisionJetStreamLocked(ctx context.Context) error {
 	}
 	for _, spec := range coordinationBuckets() {
 		if err := ensureBucket(js, spec); err != nil {
-			return err
-		}
-	}
-	for _, spec := range objectStores(h.cfg.JetStream.ArtifactHandoffMaxBytes) {
-		if err := ensureObjectStore(js, spec); err != nil {
 			return err
 		}
 	}
@@ -273,23 +216,6 @@ func ensureBucket(js nats.JetStreamContext, spec kvSpec) error {
 	})
 	if err != nil {
 		return fmt.Errorf("create kv bucket %s: %w", spec.Bucket, err)
-	}
-	return nil
-}
-
-func ensureObjectStore(js nats.JetStreamContext, spec objectStoreSpec) error {
-	if _, err := js.ObjectStore(spec.Bucket); err == nil {
-		return nil
-	}
-	_, err := js.CreateObjectStore(&nats.ObjectStoreConfig{
-		Bucket:      spec.Bucket,
-		Description: spec.Description,
-		TTL:         spec.TTL,
-		MaxBytes:    spec.MaxBytes,
-		Storage:     nats.FileStorage,
-	})
-	if err != nil {
-		return fmt.Errorf("create object store %s: %w", spec.Bucket, err)
 	}
 	return nil
 }

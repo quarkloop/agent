@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/quarkloop/pkg/serviceapi/servicebridge"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/services/indexer/internal/app"
 	"github.com/quarkloop/services/indexer/internal/dgraph"
 )
@@ -50,11 +50,11 @@ func main() {
 		Address:  addr,
 		Driver:   driver,
 		SkillDir: skillDir,
-		NATS: servicebridge.NATSConfig{
+		Queue:    natsQueue,
+		NATS: natskit.Config{
 			URL:             natsURL,
 			Username:        natsUser,
 			Password:        natsPassword,
-			Queue:           natsQueue,
 			Name:            "quark-indexer",
 			AuditPrefix:     os.Getenv("QUARK_NATS_AUDIT_PREFIX"),
 			TelemetryPrefix: os.Getenv("QUARK_NATS_TELEMETRY_PREFIX"),

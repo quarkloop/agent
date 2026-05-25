@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	natsserver "github.com/nats-io/nats-server/v2/server"
 	"github.com/quarkloop/pkg/plugin"
 	spacemodel "github.com/quarkloop/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/api"
@@ -54,7 +55,7 @@ func TestCreateSpaceProvisionsNATSAccount(t *testing.T) {
 func spaceRouteServer(t *testing.T) *Server {
 	t.Helper()
 	cfg := natshub.DefaultConfig(filepath.Join(t.TempDir(), "nats"))
-	cfg.Client.Port = 0
+	cfg.Client.Port = natsserver.RANDOM_PORT
 	cfg.WebSocket.Enabled = false
 	cfg.Monitoring.Enabled = false
 	cfg.NoLog = true

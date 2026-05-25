@@ -5,21 +5,20 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/quarkloop/services/gateway/internal/gatewaynats"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/services/gateway/internal/gatewaysvc"
 )
 
 type Config struct {
 	Address           string
 	SkillDir          string
-	NATS              gatewaynats.Config
+	NATS              natskit.Config
+	Queue             string
 	Providers         []ProviderConfig
 	Fallbacks         map[string][]string
 	EmbeddingProvider string
 	Logger            *slog.Logger
 }
-
-type GatewayNATSConfig = gatewaynats.Config
 
 type ProviderConfig struct {
 	ID             string
@@ -53,11 +52,11 @@ func Run(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("nats url is required")
 	}
 	cfg.NATS.Logger = cfg.Logger
-	gateway := gatewaynats.New(cfg.NATS, server)
-	if err := gateway.Start(ctx); err != nil {
+	host, err := startGatewayHost(ctx, cfg.NATS, cfg.Queue, server)
+	if err != nil {
 		return err
 	}
-	defer gateway.Close()
+	defer host.Close()
 	cfg.Logger.Info("gateway service listening", "providers", server.ProviderIDs())
 	<-ctx.Done()
 	return nil

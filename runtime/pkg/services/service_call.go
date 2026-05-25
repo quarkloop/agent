@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/quarkloop/pkg/boundary"
+	"github.com/quarkloop/pkg/natskit"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
-	"github.com/quarkloop/pkg/serviceapi/servicefunction"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
@@ -60,29 +60,27 @@ func serviceFunctionContext(ctx context.Context, rpc *servicev1.RpcDescriptor) (
 	return context.WithTimeout(ctx, timeout)
 }
 
-func (e *Executor) invokeNATSServiceFunction(ctx context.Context, resolved resolvedRPC, payload json.RawMessage, response protoreflect.MessageDescriptor) (*dynamicpb.Message, servicefunction.ResponseEnvelope, error) {
+func (e *Executor) invokeNATSServiceFunction(ctx context.Context, resolved resolvedRPC, payload json.RawMessage, response protoreflect.MessageDescriptor) (*dynamicpb.Message, natskit.ResponseEnvelope, error) {
 	if e == nil || e.caller == nil {
-		return nil, servicefunction.ResponseEnvelope{}, boundary.New(boundary.Runtime, boundary.Unavailable, "service function", "NATS service function caller is not configured")
+		return nil, natskit.ResponseEnvelope{}, boundary.New(boundary.Runtime, boundary.Unavailable, "service function", "NATS service function caller is not configured")
 	}
-	subject, serviceName, functionName, err := serviceFunctionSubject(resolved)
+	operation, err := serviceFunctionOperation(resolved)
 	if err != nil {
-		return nil, servicefunction.ResponseEnvelope{}, boundary.Wrap(boundary.Service, boundary.InvalidArgument, "service function subject", err)
+		return nil, natskit.ResponseEnvelope{}, boundary.Wrap(boundary.Service, boundary.InvalidArgument, "service function operation", err)
 	}
 	attempts := serviceFunctionMaxAttempts(resolved.rpc)
 	var lastErr error
 	for attempt := 1; attempt <= attempts; attempt++ {
 		envelope, err := e.caller.Call(ctx, serviceFunctionCall{
-			Subject:  subject,
-			Service:  serviceName,
-			Function: functionName,
-			Payload:  payload,
-			RPC:      resolved.rpc,
+			Operation: operation,
+			Payload:   payload,
+			RPC:       resolved.rpc,
 		})
-		if err == nil && envelope.Status == servicefunction.StatusOK {
+		if err == nil && envelope.Status == natskit.StatusOK {
 			out := dynamicpb.NewMessage(response)
 			if len(envelope.Payload) > 0 {
 				if err := protojson.Unmarshal(envelope.Payload, out); err != nil {
-					return nil, envelope, boundary.Wrap(boundary.Service, boundary.InvalidArgument, subject, err)
+					return nil, envelope, boundary.Wrap(boundary.Service, boundary.InvalidArgument, operation.Subject, err)
 				}
 			}
 			return out, envelope, nil
@@ -91,25 +89,25 @@ func (e *Executor) invokeNATSServiceFunction(ctx context.Context, resolved resol
 			err = boundary.New(envelope.Error.Boundary, envelope.Error.Category, envelope.Error.Operation, envelope.Error.Message)
 		}
 		if err == nil {
-			err = boundary.New(boundary.Service, boundary.Unknown, subject, "service function returned non-ok response without an error payload")
+			err = boundary.New(boundary.Service, boundary.Unknown, operation.Subject, "service function returned non-ok response without an error payload")
 		}
 		lastErr = err
 		if attempt == attempts || !serviceFunctionRetryable(resolved.rpc, err) {
-			return nil, envelope, boundary.FromError(boundary.Service, subject, err)
+			return nil, envelope, boundary.FromError(boundary.Service, operation.Subject, err)
 		}
 		if err := waitServiceFunctionRetry(ctx, resolved.rpc, attempt); err != nil {
 			return nil, envelope, err
 		}
 	}
-	return nil, servicefunction.ResponseEnvelope{}, lastErr
+	return nil, natskit.ResponseEnvelope{}, lastErr
 }
 
-func serviceFunctionSubject(resolved resolvedRPC) (subject string, serviceName string, functionName string, err error) {
+func serviceFunctionOperation(resolved resolvedRPC) (natskit.Operation, error) {
 	rpc := resolved.rpc
 	if rpc == nil {
-		return "", "", "", fmt.Errorf("rpc descriptor is required")
+		return natskit.Operation{}, fmt.Errorf("rpc descriptor is required")
 	}
-	serviceName = strings.TrimSpace(rpc.GetOwner())
+	serviceName := strings.TrimSpace(rpc.GetOwner())
 	if serviceName == "" {
 		serviceName = serviceNameFromFunctionName(rpc.GetFunctionName())
 	}
@@ -117,21 +115,13 @@ func serviceFunctionSubject(resolved resolvedRPC) (subject string, serviceName s
 		serviceName = serviceNameFromProtoService(rpc.GetService())
 	}
 	if serviceName == "" {
-		return "", "", "", fmt.Errorf("service owner is required for %s/%s", rpc.GetService(), rpc.GetMethod())
+		return natskit.Operation{}, fmt.Errorf("service owner is required for %s/%s", rpc.GetService(), rpc.GetMethod())
 	}
 	functionSource := strings.TrimSpace(rpc.GetFunctionName())
 	if functionSource == "" {
 		functionSource = strings.TrimSpace(rpc.GetMethod())
 	}
-	subject, err = servicefunction.SubjectFromOwnerAndFunctionName(serviceName, functionSource)
-	if err != nil {
-		return "", "", "", err
-	}
-	functionName, err = servicefunction.FunctionTokenFromOwnerAndFunctionName(serviceName, functionSource)
-	if err != nil {
-		return "", "", "", err
-	}
-	return subject, serviceName, functionName, nil
+	return natskit.ServiceOperationFromFunctionName(serviceName, functionSource)
 }
 
 func serviceNameFromFunctionName(functionName string) string {

@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
-	"github.com/quarkloop/pkg/serviceapi/servicebridge"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/services/space/pkg/spacesvc"
 	"log/slog"
@@ -16,7 +16,8 @@ type Config struct {
 	RootDir     string
 	SkillDir    string
 	Environment []string
-	NATS        servicebridge.NATSConfig
+	NATS        natskit.Config
+	Queue       string
 	Logger      *slog.Logger
 }
 
@@ -47,9 +48,9 @@ func Run(ctx context.Context, cfg Config) error {
 	descriptor := spacesvc.Descriptor(cfg.Address, skill)
 	cfg.Logger.Info("space service configured", "root", store.Root())
 	cfg.NATS.Logger = cfg.Logger
-	return servicebridge.RunNATSService(ctx, cfg.NATS, servicebridge.Binding{
+	return natskit.RunRPCService(ctx, cfg.NATS, cfg.Queue, natskit.Binding{
 		Descriptor: descriptor,
-		Services: []servicebridge.RPCService{{
+		Services: []natskit.RPCService{{
 			Service:        "quark.space.v1.SpaceService",
 			Implementation: server,
 		}},

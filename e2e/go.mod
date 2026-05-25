@@ -3,8 +3,8 @@ module github.com/quarkloop/e2e
 go 1.26.2
 
 require (
-	github.com/nats-io/nats.go v1.51.0
 	github.com/quarkloop/pkg/boundary v0.0.0
+	github.com/quarkloop/pkg/natskit v0.0.0
 	github.com/quarkloop/pkg/plugin v0.0.0
 	github.com/quarkloop/pkg/serviceapi v0.0.0
 	github.com/quarkloop/supervisor v0.0.0
@@ -18,6 +18,7 @@ require (
 	github.com/minio/highwayhash v1.0.4 // indirect
 	github.com/nats-io/jwt/v2 v2.8.1 // indirect
 	github.com/nats-io/nats-server/v2 v2.14.0 // indirect
+	github.com/nats-io/nats.go v1.51.0 // indirect
 	github.com/nats-io/nkeys v0.4.15 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/quarkloop/pkg/event v0.0.0 // indirect
@@ -31,6 +32,7 @@ replace (
 	github.com/quarkloop/cli v0.0.0 => ../cli
 	github.com/quarkloop/pkg/boundary => ../pkg/boundary
 	github.com/quarkloop/pkg/event => ../pkg/event
+	github.com/quarkloop/pkg/natskit => ../pkg/natskit
 	github.com/quarkloop/pkg/plugin => ../pkg/plugin
 	github.com/quarkloop/pkg/serviceapi v0.0.0 => ../pkg/serviceapi
 	github.com/quarkloop/pkg/space => ../pkg/space

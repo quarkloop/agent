@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/quarkloop/pkg/serviceapi/servicebridge"
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/services/runstate/internal/runstatesvc"
 )
@@ -16,7 +16,8 @@ type Config struct {
 	Address  string
 	RootDir  string
 	SkillDir string
-	NATS     servicebridge.NATSConfig
+	NATS     natskit.Config
+	Queue    string
 	Logger   *slog.Logger
 }
 
@@ -31,7 +32,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return err
 	}
-	leases, closeLeases, err := openLeaseStore(cfg.NATS)
+	leases, closeLeases, err := openLeaseStore(ctx, cfg.NATS)
 	if err != nil {
 		return err
 	}
@@ -51,9 +52,9 @@ func Run(ctx context.Context, cfg Config) error {
 	descriptor := runstatesvc.Descriptor(cfg.Address, skill)
 	cfg.Logger.Info("runstate service configured", "root", root)
 	cfg.NATS.Logger = cfg.Logger
-	return servicebridge.RunNATSService(ctx, cfg.NATS, servicebridge.Binding{
+	return natskit.RunRPCService(ctx, cfg.NATS, cfg.Queue, natskit.Binding{
 		Descriptor: descriptor,
-		Services: []servicebridge.RPCService{{
+		Services: []natskit.RPCService{{
 			Service:        "quark.runstate.v1.RunStateService",
 			Implementation: server,
 		}},

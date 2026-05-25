@@ -201,7 +201,6 @@ func documentInputFromRequest(id string, req *workflowv1.StartWorkflowRequest) D
 			ID:          step.GetId(),
 			Service:     step.GetService(),
 			Function:    step.GetFunction(),
-			Subject:     step.GetSubject(),
 			PayloadJSON: step.GetPayloadJson(),
 			Required:    step.GetRequired(),
 		})

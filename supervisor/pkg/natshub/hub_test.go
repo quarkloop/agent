@@ -2,21 +2,21 @@ package natshub
 
 import (
 	"context"
-	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	natsserver "github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 )
 
 func TestHubStartsAcceptsConnectionAndStops(t *testing.T) {
 	cfg := DefaultConfig(filepath.Join(t.TempDir(), "nats"))
-	cfg.Client.Port = 0
-	cfg.WebSocket.Port = 0
-	cfg.Monitoring.Port = reservePort(t)
+	cfg.Client.Port = natsserver.RANDOM_PORT
+	cfg.WebSocket.Port = natsserver.RANDOM_PORT
+	cfg.Monitoring.Port = natsserver.RANDOM_PORT
 	cfg.ReadyTimeout = 5 * time.Second
 	cfg.NoLog = true
 
@@ -79,7 +79,7 @@ func TestHubProvisionsControlStreamsAndCoordinationBuckets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("jetstream: %v", err)
 	}
-	for _, stream := range []string{StreamAudit, StreamTelemetry, StreamSessionEvents, StreamRuntimeActivity, StreamWorkflowEvents, StreamCatalog, StreamJobs} {
+	for _, stream := range []string{StreamAudit, StreamTelemetry, StreamSessionEvents, StreamRuntimeActivity, StreamCatalog} {
 		info, err := js.StreamInfo(stream)
 		if err != nil {
 			t.Fatalf("stream %s missing: %v", stream, err)
@@ -88,7 +88,7 @@ func TestHubProvisionsControlStreamsAndCoordinationBuckets(t *testing.T) {
 			t.Fatalf("stream %s config incomplete: %+v", stream, info.Config)
 		}
 	}
-	for _, bucket := range []string{KVRuntimeSpaceLeases, KVServiceLeases, KVRunStateLeases, KVAccountMetadata, KVCatalogCursors} {
+	for _, bucket := range []string{KVRuntimeSpaceLeases, KVRunStateLeases} {
 		kv, err := js.KeyValue(bucket)
 		if err != nil {
 			t.Fatalf("kv bucket %s missing: %v", bucket, err)
@@ -96,20 +96,6 @@ func TestHubProvisionsControlStreamsAndCoordinationBuckets(t *testing.T) {
 		if _, err := kv.Put("probe", []byte("ok")); err != nil {
 			t.Fatalf("write kv bucket %s: %v", bucket, err)
 		}
-	}
-	objects, err := js.ObjectStore(ObjectArtifactHandoff)
-	if err != nil {
-		t.Fatalf("artifact handoff object store missing: %v", err)
-	}
-	objectStream, err := js.StreamInfo("OBJ_" + ObjectArtifactHandoff)
-	if err != nil {
-		t.Fatalf("artifact handoff backing stream missing: %v", err)
-	}
-	if objectStream.Config.MaxBytes != defaultArtifactHandoffMaxBytes {
-		t.Fatalf("artifact handoff max bytes = %d", objectStream.Config.MaxBytes)
-	}
-	if _, err := objects.PutBytes("probe", []byte("large-payload-ref")); err != nil {
-		t.Fatalf("write artifact handoff object: %v", err)
 	}
 	if _, err := js.Publish("audit.space_1.service_calls.svc_ref_probe", []byte(`{"type":"service_call"}`)); err != nil {
 		t.Fatalf("publish audit event: %v", err)
@@ -141,9 +127,9 @@ func TestHubStartFailsWhenStateDirIsFile(t *testing.T) {
 		t.Fatalf("write state file: %v", err)
 	}
 	cfg := DefaultConfig(statePath)
-	cfg.Client.Port = 0
-	cfg.WebSocket.Port = 0
-	cfg.Monitoring.Port = 0
+	cfg.Client.Port = natsserver.RANDOM_PORT
+	cfg.WebSocket.Port = natsserver.RANDOM_PORT
+	cfg.Monitoring.Port = natsserver.RANDOM_PORT
 	cfg.NoLog = true
 	hub, err := New(cfg)
 	if err != nil {
@@ -180,7 +166,7 @@ func TestExternalModeDoesNotStartEmbeddedServer(t *testing.T) {
 
 func TestHubRejectsDoubleStart(t *testing.T) {
 	cfg := DefaultConfig(filepath.Join(t.TempDir(), "nats"))
-	cfg.Client.Port = 0
+	cfg.Client.Port = natsserver.RANDOM_PORT
 	cfg.WebSocket.Enabled = false
 	cfg.Monitoring.Enabled = false
 	cfg.NoLog = true
@@ -199,14 +185,4 @@ func TestHubRejectsDoubleStart(t *testing.T) {
 	if err := hub.Start(context.Background()); err == nil {
 		t.Fatal("expected double start error")
 	}
-}
-
-func reservePort(t *testing.T) int {
-	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("reserve port: %v", err)
-	}
-	defer ln.Close()
-	return ln.Addr().(*net.TCPAddr).Port
 }

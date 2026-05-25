@@ -39,7 +39,6 @@ type ServiceCallInput struct {
 	ID          string `json:"id"`
 	Service     string `json:"service"`
 	Function    string `json:"function"`
-	Subject     string `json:"subject"`
 	PayloadJSON string `json:"payload_json"`
 	Required    bool   `json:"required"`
 }
@@ -64,7 +63,6 @@ type ServiceFunctionActivityInput struct {
 	StepID      string `json:"step_id"`
 	Service     string `json:"service"`
 	Function    string `json:"function"`
-	Subject     string `json:"subject"`
 	PayloadJSON string `json:"payload_json"`
 }
 
@@ -124,7 +122,6 @@ func DocumentIngestionWorkflow(ctx workflow.Context, input DocumentIngestionInpu
 			StepID:      step.ID,
 			Service:     step.Service,
 			Function:    step.Function,
-			Subject:     step.Subject,
 			PayloadJSON: step.PayloadJSON,
 		}).Get(ctx, &result)
 		if err != nil {

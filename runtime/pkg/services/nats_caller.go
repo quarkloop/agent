@@ -3,16 +3,14 @@ package services
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
-	natsgo "github.com/nats-io/nats.go"
 	"github.com/quarkloop/pkg/boundary"
+	"github.com/quarkloop/pkg/natskit"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
-	"github.com/quarkloop/pkg/serviceapi/servicefunction"
 	"github.com/quarkloop/runtime/pkg/modelservice"
 )
 
@@ -27,15 +25,13 @@ const (
 )
 
 type serviceFunctionCaller interface {
-	Call(context.Context, serviceFunctionCall) (servicefunction.ResponseEnvelope, error)
+	Call(context.Context, serviceFunctionCall) (natskit.ResponseEnvelope, error)
 }
 
 type serviceFunctionCall struct {
-	Subject  string
-	Service  string
-	Function string
-	Payload  json.RawMessage
-	RPC      *servicev1.RpcDescriptor
+	Operation natskit.Operation
+	Payload   json.RawMessage
+	RPC       *servicev1.RpcDescriptor
 }
 
 type NATSCallerConfig struct {
@@ -65,76 +61,53 @@ func NATSCallerConfigFromEnv() NATSCallerConfig {
 }
 
 type NATSCaller struct {
-	cfg  NATSCallerConfig
-	mu   sync.Mutex
-	conn *natsgo.Conn
+	cfg    NATSCallerConfig
+	mu     sync.Mutex
+	client *natskit.Client
 }
 
 func NewNATSCaller(cfg NATSCallerConfig) *NATSCaller {
 	return &NATSCaller{cfg: normalizeNATSCallerConfig(cfg)}
 }
 
-func (c *NATSCaller) Call(ctx context.Context, call serviceFunctionCall) (servicefunction.ResponseEnvelope, error) {
+func (c *NATSCaller) Call(ctx context.Context, call serviceFunctionCall) (natskit.ResponseEnvelope, error) {
 	if c == nil {
-		return servicefunction.ResponseEnvelope{}, boundary.New(boundary.Runtime, boundary.Unavailable, call.Subject, "service function caller is not configured")
+		return natskit.ResponseEnvelope{}, boundary.New(boundary.Runtime, boundary.Unavailable, call.Operation.Subject, "service function caller is not configured")
 	}
 	cfg := normalizeNATSCallerConfig(c.cfg)
 	if cfg.URL == "" {
-		return servicefunction.ResponseEnvelope{}, boundary.New(boundary.Runtime, boundary.Unavailable, call.Subject, "QUARK_NATS_URL is required for service function calls")
+		return natskit.ResponseEnvelope{}, boundary.New(boundary.Runtime, boundary.Unavailable, call.Operation.Subject, "QUARK_NATS_URL is required for service function calls")
 	}
 	spaceID := strings.TrimSpace(modelservice.SpaceID(ctx))
 	if spaceID == "" {
 		spaceID = cfg.SpaceID
 	}
 	if spaceID == "" {
-		return servicefunction.ResponseEnvelope{}, boundary.New(boundary.Runtime, boundary.InvalidArgument, call.Subject, "space id is required for service function calls")
+		return natskit.ResponseEnvelope{}, boundary.New(boundary.Runtime, boundary.InvalidArgument, call.Operation.Subject, "space id is required for service function calls")
 	}
 	timeout := serviceFunctionTimeout(call.RPC, cfg.Timeout)
 	callCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	conn, err := c.connection()
+	client, err := c.connection(callCtx)
 	if err != nil {
-		return servicefunction.ResponseEnvelope{}, boundary.Wrap(boundary.Service, boundary.Transport, call.Subject, err)
+		return natskit.ResponseEnvelope{}, boundary.Wrap(boundary.Service, boundary.Transport, call.Operation.Subject, err)
 	}
-	request := servicefunction.RequestEnvelope{
-		Version:       servicefunction.EnvelopeVersion,
-		ServiceCallID: servicefunction.NewServiceCallID(),
-		SpaceID:       spaceID,
-		SessionID:     modelservice.SessionID(ctx),
-		RunID:         modelservice.RunID(ctx),
-		Actor:         servicefunction.ActorRuntime,
-		Service:       call.Service,
-		Function:      call.Function,
-		Subject:       call.Subject,
-		Payload:       append(json.RawMessage(nil), call.Payload...),
-		TraceParent:   "",
+	request, err := natskit.NewRequest(natskit.NewServiceCallID(), spaceID, natskit.ActorRuntime, append(json.RawMessage(nil), call.Payload...))
+	if err != nil {
+		return natskit.ResponseEnvelope{}, boundary.Wrap(boundary.Runtime, boundary.InvalidArgument, call.Operation.Subject, err)
 	}
+	request.SessionID = modelservice.SessionID(ctx)
+	request.RunID = modelservice.RunID(ctx)
 	if request.RunID != "" {
 		request.AgentID = "main"
 	}
 	if err := request.Validate(); err != nil {
-		return servicefunction.ResponseEnvelope{}, boundary.Wrap(boundary.Runtime, boundary.InvalidArgument, call.Subject, err)
+		return natskit.ResponseEnvelope{}, boundary.Wrap(boundary.Runtime, boundary.InvalidArgument, call.Operation.Subject, err)
 	}
-	data, err := json.Marshal(request)
+	response, err := client.Call(callCtx, call.Operation, request)
 	if err != nil {
-		return servicefunction.ResponseEnvelope{}, boundary.Wrap(boundary.Runtime, boundary.Internal, call.Subject, err)
-	}
-	msg := natsgo.NewMsg(call.Subject)
-	msg.Data = data
-	for key, value := range request.CorrelationHeaders() {
-		msg.Header.Set(key, value)
-	}
-	reply, err := conn.RequestMsgWithContext(callCtx, msg)
-	if err != nil {
-		return servicefunction.ResponseEnvelope{}, servicefunction.BoundaryError(err, boundary.Service, call.Subject)
-	}
-	var response servicefunction.ResponseEnvelope
-	if err := json.Unmarshal(reply.Data, &response); err != nil {
-		return servicefunction.ResponseEnvelope{}, boundary.Wrap(boundary.Service, boundary.InvalidArgument, call.Subject, err)
-	}
-	if err := response.Validate(); err != nil {
-		return servicefunction.ResponseEnvelope{}, boundary.Wrap(boundary.Service, boundary.InvalidArgument, call.Subject, err)
+		return natskit.ResponseEnvelope{}, boundary.FromError(boundary.Service, call.Operation.Subject, err)
 	}
 	return response, nil
 }
@@ -142,40 +115,33 @@ func (c *NATSCaller) Call(ctx context.Context, call serviceFunctionCall) (servic
 func (c *NATSCaller) Close() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.conn != nil {
-		_ = c.conn.Drain()
-		c.conn.Close()
-		c.conn = nil
+	if c.client != nil {
+		c.client.Close()
+		c.client = nil
 	}
 }
 
-func (c *NATSCaller) connection() (*natsgo.Conn, error) {
+func (c *NATSCaller) connection(ctx context.Context) (*natskit.Client, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.conn != nil && c.conn.IsConnected() {
-		return c.conn, nil
+	if c.client != nil {
+		return c.client, nil
 	}
 	cfg := normalizeNATSCallerConfig(c.cfg)
-	options := []natsgo.Option{
-		natsgo.Name(cfg.Name),
-		natsgo.Timeout(cfg.Timeout),
-		natsgo.ReconnectWait(cfg.ReconnectWait),
-		natsgo.MaxReconnects(cfg.MaxReconnects),
-		natsgo.RetryOnFailedConnect(true),
-	}
-	if cfg.Username != "" || cfg.Password != "" {
-		options = append(options, natsgo.UserInfo(cfg.Username, cfg.Password))
-	}
-	conn, err := natsgo.Connect(cfg.URL, options...)
+	client, err := natskit.Connect(ctx, natskit.Config{
+		URL:           cfg.URL,
+		Username:      cfg.Username,
+		Password:      cfg.Password,
+		Name:          cfg.Name,
+		Timeout:       cfg.Timeout,
+		ReconnectWait: cfg.ReconnectWait,
+		MaxReconnects: cfg.MaxReconnects,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("connect nats service functions: %w", err)
+		return nil, err
 	}
-	if err := conn.FlushTimeout(cfg.Timeout); err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("verify nats service functions: %w", err)
-	}
-	c.conn = conn
-	return conn, nil
+	c.client = client
+	return client, nil
 }
 
 func normalizeNATSCallerConfig(cfg NATSCallerConfig) NATSCallerConfig {

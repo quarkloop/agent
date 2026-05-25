@@ -9,15 +9,14 @@ import (
 	"time"
 
 	natsserver "github.com/nats-io/nats-server/v2/server"
-	natsgo "github.com/nats-io/nats.go"
 	"github.com/quarkloop/pkg/boundary"
+	"github.com/quarkloop/pkg/natskit"
 	citationv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/citation/v1"
 	documentv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/document/v1"
 	gatewayv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/gateway/v1"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
 	iov1 "github.com/quarkloop/pkg/serviceapi/gen/quark/io/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
-	"github.com/quarkloop/pkg/serviceapi/servicefunction"
 	"github.com/quarkloop/runtime/pkg/modelservice"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -910,56 +909,35 @@ func startServicesNATSServer(t *testing.T) *natsserver.Server {
 
 func subscribeGatewayEmbeddingFunction(t *testing.T, url string, handler func(*gatewayv1.EmbedRequest) (*gatewayv1.EmbedResponse, error)) {
 	t.Helper()
-	conn, err := natsgo.Connect(url)
+	host, err := natskit.NewHost(context.Background(), natskit.Config{URL: url, Name: "gateway-test-host"}, "q.gateway.test")
 	if err != nil {
-		t.Fatalf("connect nats service: %v", err)
+		t.Fatalf("open nats service host: %v", err)
 	}
-	t.Cleanup(conn.Close)
-	subject, err := servicefunction.Subject("gateway", "v1", "embed")
+	t.Cleanup(host.Close)
+	operation, err := natskit.ServiceOperation("gateway", "embed")
 	if err != nil {
-		t.Fatalf("subject: %v", err)
+		t.Fatalf("operation: %v", err)
 	}
-	sub, err := conn.QueueSubscribe(subject, "q.gateway.test", func(msg *natsgo.Msg) {
-		var envelope servicefunction.RequestEnvelope
-		if err := json.Unmarshal(msg.Data, &envelope); err != nil {
-			respondServiceFunction(t, msg, servicefunction.ErrorResponse("", err, boundary.Service, subject))
-			return
-		}
+	err = host.RegisterUnary(operation, time.Second, func(_ context.Context, envelope natskit.RequestEnvelope) (natskit.ResponseEnvelope, error) {
 		var req gatewayv1.EmbedRequest
 		if err := protojson.Unmarshal(envelope.Payload, &req); err != nil {
-			respondServiceFunction(t, msg, servicefunction.ErrorResponse(envelope.ServiceCallID, err, boundary.Service, subject))
-			return
+			return natskit.ResponseEnvelope{}, err
 		}
 		resp, err := handler(&req)
 		if err != nil {
-			respondServiceFunction(t, msg, servicefunction.ErrorResponse(envelope.ServiceCallID, err, boundary.Service, subject))
-			return
+			return natskit.ResponseEnvelope{}, err
 		}
 		payload, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(resp)
 		if err != nil {
-			respondServiceFunction(t, msg, servicefunction.ErrorResponse(envelope.ServiceCallID, err, boundary.Service, subject))
-			return
+			return natskit.ResponseEnvelope{}, err
 		}
-		respondServiceFunction(t, msg, servicefunction.OKResponse(envelope.ServiceCallID, payload))
+		return natskit.OKResponse(envelope.ServiceCallID, payload), nil
 	})
 	if err != nil {
 		t.Fatalf("subscribe Gateway embedding function: %v", err)
 	}
-	t.Cleanup(func() { _ = sub.Unsubscribe() })
-	if err := conn.FlushTimeout(time.Second); err != nil {
+	if err := host.Ready(context.Background()); err != nil {
 		t.Fatalf("flush subscription: %v", err)
-	}
-}
-
-func respondServiceFunction(t *testing.T, msg *natsgo.Msg, response servicefunction.ResponseEnvelope) {
-	t.Helper()
-	data, err := json.Marshal(response)
-	if err != nil {
-		t.Errorf("marshal response: %v", err)
-		return
-	}
-	if err := msg.Respond(data); err != nil {
-		t.Errorf("respond: %v", err)
 	}
 }
 

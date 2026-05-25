@@ -17,7 +17,7 @@ import (
 const (
 	defaultServiceReadyTimeout = 10 * time.Second
 	indexerServiceReadyTimeout = 60 * time.Second
-	natsServiceBridgeReadyLog  = "nats service bridge ready"
+	natsServiceReadyLog        = "nats service operations ready"
 	gatewayServiceReadyLog     = "gateway service listening"
 )
 
@@ -276,7 +276,7 @@ func startNATSServiceProcess(t *testing.T, spec natsServiceProcessSpec) {
 		spec.ReadyTimeout = defaultServiceReadyTimeout
 	}
 	if spec.ReadyLog == "" {
-		spec.ReadyLog = natsServiceBridgeReadyLog
+		spec.ReadyLog = natsServiceReadyLog
 	}
 	env := spec.Env
 	if env == nil {
