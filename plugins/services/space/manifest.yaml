@@ -2,7 +2,7 @@ name: space
 version: "1.0.0"
 type: service
 mode: api
-description: "Space metadata, Quarkfile, and launch environment over NATS"
+description: "Authoritative space configuration and derived paths over NATS"
 author: quarkloop
 license: Apache-2.0
 
@@ -25,23 +25,23 @@ service:
       method: CreateSpace
       request: quark.space.v1.CreateSpaceRequest
       response: quark.space.v1.Space
-      description: "Create a space and persist its initial Quarkfile."
+      description: "Create a space and persist its initial configuration."
       risk_level: write
       approval_required: true
       approval_requirements:
         - space-create
       streaming: false
       idempotent: false
-    - name: space_UpdateQuarkfile
+    - name: space_UpdateConfig
       service: quark.space.v1.SpaceService
-      method: UpdateQuarkfile
-      request: quark.space.v1.UpdateQuarkfileRequest
+      method: UpdateConfig
+      request: quark.space.v1.UpdateConfigRequest
       response: quark.space.v1.Space
-      description: "Replace the latest Quarkfile for a space."
+      description: "Replace the authoritative configuration for a space."
       risk_level: write
       approval_required: true
       approval_requirements:
-        - quarkfile-write
+        - space-config-write
       streaming: false
       idempotent: false
     - name: space_GetSpace
@@ -76,12 +76,12 @@ service:
         - space-delete
       streaming: false
       idempotent: false
-    - name: space_GetQuarkfile
+    - name: space_GetConfig
       service: quark.space.v1.SpaceService
-      method: GetQuarkfile
-      request: quark.space.v1.GetQuarkfileRequest
-      response: quark.space.v1.QuarkfileResponse
-      description: "Return the authoritative Quarkfile bytes."
+      method: GetConfig
+      request: quark.space.v1.GetConfigRequest
+      response: quark.space.v1.ConfigResponse
+      description: "Return the authoritative space configuration."
       risk_level: read
       approval_required: false
       streaming: false
@@ -111,7 +111,7 @@ service:
       method: Doctor
       request: quark.space.v1.DoctorRequest
       response: quark.space.v1.DoctorResponse
-      description: "Run Quarkfile and installed-plugin diagnostics."
+      description: "Validate the persisted space configuration."
       risk_level: read
       approval_required: false
       streaming: false

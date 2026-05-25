@@ -50,9 +50,8 @@ Example:
 }
 
 func runStart(cmd *cobra.Command, args []string) error {
-	// When no positional arg is given, leave SpacesDir empty so
-	// server.New falls back to space.DefaultRoot (which honours
-	// QUARK_SPACES_ROOT or $HOME/.quarkloop/spaces).
+	// The optional root is forwarded as startup context for space orchestration;
+	// persisted space configuration remains owned by the Space service.
 	var spacesDir string
 	if len(args) > 0 {
 		spacesDir = args[0]

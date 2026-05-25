@@ -1,17 +1,17 @@
 {
   "version": 1,
   "terms": {
-    "supervisor": "Control plane. Owns persistent state, space registry, plugin/service discovery, catalog generation, service readiness, runtime launch, and process supervision.",
+    "supervisor": "Control plane. Owns high-level space orchestration, plugin/service discovery, catalog generation, service readiness, runtime leases, and session orchestration.",
     "runtime": "Execution engine. Owns sessions, prompt assembly, LLM/tool loop, service function dispatch through tool calls, events, and agent profile execution.",
     "agent_plugin": "Installable definition of an agent role, prompts, skills, default permissions, handoff rules, and evaluation requirements.",
-    "agent_profile": "Resolved runtime contract produced from an agent plugin plus Quarkfile/session overrides.",
+    "agent_profile": "Resolved runtime contract produced from an agent plugin plus space configuration/session overrides.",
     "service_plugin": "Installable descriptor for a protobuf-backed NATS service and its exported service functions.",
     "service_function": "Agent-facing callable service capability exposed through the runtime tool-call envelope.",
     "tool_plugin": "Installable tool implementation with schema, execution code, and SKILL.md guidance.",
     "provider_plugin": "Legacy model-provider adapter category removed from runtime; provider dispatch is owned by Gateway.",
-    "space": "Isolated workspace identity and persistent state boundary.",
+    "space": "Isolated workspace identity whose authoritative configuration persistence is owned by the Space service.",
     "catalog": "Supervisor-resolved startup input consumed by runtime.",
-    "quarkfile_override": "Space-level configuration overlay that supervisor validates before runtime launch."
+    "space_config_override": "Space-service-owned configuration overlay that supervisor validates before runtime launch."
   },
   "ownership": [
     {
@@ -40,13 +40,12 @@
       "path": "supervisor",
       "module": "github.com/quarkloop/supervisor",
       "owns": [
-        "persistent state",
-        "space registry",
+        "high-level space orchestration",
         "plugin and service discovery",
         "runtime catalog generation",
         "service readiness",
-        "runtime lifecycle",
-        "process supervision"
+        "runtime leases",
+        "session orchestration"
       ],
       "forbidden_import_prefixes": [
         "github.com/quarkloop/runtime",
@@ -62,8 +61,8 @@
       "module": "github.com/quarkloop/cli",
       "owns": [
         "user-facing command surface",
-        "Quarkfile read/write in current working directory",
-        "HTTP calls to supervisor",
+        "explicit space selection through CLI input or environment",
+        "NATS calls to supervisor",
         "direct runtime client calls after supervisor resolution"
       ],
       "allowed_import_prefixes": [
@@ -174,15 +173,15 @@
       "area": "runtime",
       "file": "runtime/pkg/agent/agent.go",
       "import": "github.com/quarkloop/supervisor/pkg/client",
-      "task": "Task 11 / Task 30",
-      "reason": "Runtime still imports supervisor client directly for space-scoped data operations. This should move behind a shared client contract or runtime boundary adapter."
+      "task": "Task 26",
+      "reason": "Runtime still constructs the legacy supervisor HTTP client for session mirroring. Task 26 replaces this with the NATS-native execution plane."
     },
     {
-      "area": "supervisor",
-      "file": "supervisor/pkg/server/server.go",
-      "import": "github.com/quarkloop/services/space/pkg/spacesvc",
-      "task": "Task 9 / Task 20",
-      "reason": "Supervisor embeds the space service directly during bootstrap. This needs a cleaner service lifecycle boundary when supervisor runtime lifecycle and Core services are split."
+      "area": "runtime",
+      "file": "runtime/pkg/agent/session_sync.go",
+      "import": "github.com/quarkloop/supervisor/pkg/client",
+      "task": "Task 26",
+      "reason": "Runtime still mirrors legacy supervisor session state through an HTTP client. Task 26 replaces this with the NATS-native execution plane."
     }
   ]
 }

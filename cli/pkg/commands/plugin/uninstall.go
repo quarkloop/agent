@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	spacemodel "github.com/quarkloop/pkg/space"
+	"github.com/quarkloop/cli/pkg/spacecontext"
 )
 
 func newUninstallCmd() *cobra.Command {
@@ -14,7 +14,7 @@ func newUninstallCmd() *cobra.Command {
 		Short: "Uninstall a plugin from the current space",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			name, err := spacemodel.CurrentName()
+			name, err := spacecontext.FromCommand(cmd)
 			if err != nil {
 				return err
 			}

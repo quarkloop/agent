@@ -1,7 +1,7 @@
 // Package client is the Go SDK for the Quark supervisor HTTP API.
 //
 // The SDK is split by resource concern:
-//   - spaces.go   — space CRUD and latest Quarkfile state
+//   - spaces.go   - space CRUD and authoritative configuration state
 //   - kb.go       — knowledge base operations
 //   - plugins.go  — plugin install/uninstall/search
 //   - agents.go   — agent runtime start/stop/lookup

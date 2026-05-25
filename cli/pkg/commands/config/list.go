@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	spacemodel "github.com/quarkloop/pkg/space"
+	"github.com/quarkloop/cli/pkg/spacecontext"
 )
 
 func newConfigListCmd() *cobra.Command {
@@ -14,7 +14,7 @@ func newConfigListCmd() *cobra.Command {
 		Short: "List all configuration keys",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			name, err := spacemodel.CurrentName()
+			name, err := spacecontext.FromCommand(cmd)
 			if err != nil {
 				return err
 			}

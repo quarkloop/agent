@@ -85,14 +85,14 @@ type StartOptions struct {
 	// the e2e space and exposed to runtime via supervisor discovery.
 	Services []ServicePlugin
 	// ExtraServicePlugins installs service plugins without declaring a running
-	// service binding in the Quarkfile.
+	// service binding in the authoritative space configuration.
 	ExtraServicePlugins []string
 	// Agents declares agent profile plugins that should be installed and
-	// enabled through the Quarkfile. When empty, tests use the runtime fallback
+	// enabled through the space configuration. When empty, tests use the runtime fallback
 	// profile so legacy tool E2Es stay focused.
 	Agents []string
 	// AgentServicePermissions narrows an installed agent profile to the named
-	// service functions through the Quarkfile override layer.
+	// service functions through the space configuration override layer.
 	AgentServicePermissions map[string][]string
 	// BeforeRuntime runs after the space and plugins are ready, but before the
 	// runtime child is started. Use it to start external services whose
@@ -145,9 +145,7 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 	}
 	agents := withDefaultMainAgent(opt.Agents)
 	createSpace(t, natsEndpoints, clientcontract.CreateSpaceRequest{
-		Name:       spaceName,
-		Quarkfile:  quarkfileFor(spaceName, provider, model, opt.Services, opt.ExtraServicePlugins, agents, opt.AgentServicePermissions, !opt.DisableKnowledgeServices),
-		WorkingDir: workingDir,
+		Config: spaceConfigFor(t, spaceName, workingDir, provider, model, opt.Services, opt.ExtraServicePlugins, agents, opt.AgentServicePermissions, !opt.DisableKnowledgeServices),
 	})
 	runtimeCredential := issueRuntimeCredential(t, natsEndpoints, spaceName)
 

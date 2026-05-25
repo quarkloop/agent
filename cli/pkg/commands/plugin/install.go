@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	spacemodel "github.com/quarkloop/pkg/space"
+	"github.com/quarkloop/cli/pkg/spacecontext"
 )
 
 func newInstallCmd() *cobra.Command {
@@ -13,14 +13,14 @@ func newInstallCmd() *cobra.Command {
 		Use:   "install <ref>",
 		Short: "Install a plugin into the current space",
 		Long: `Install a plugin into the current space. The supervisor performs the
-install and updates the Quarkfile — the CLI only sends the request.
+install and updates the installed catalog; the CLI only sends the request.
 
   quark plugin install bash                       # hub or registry name
   quark plugin install github.com/user/tool-foo   # git URL
   quark plugin install ./local-plugin/            # local path`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			name, err := spacemodel.CurrentName()
+			name, err := spacecontext.FromCommand(cmd)
 			if err != nil {
 				return err
 			}

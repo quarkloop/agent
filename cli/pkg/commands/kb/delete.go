@@ -3,7 +3,7 @@ package kbcmd
 import (
 	"github.com/spf13/cobra"
 
-	spacemodel "github.com/quarkloop/pkg/space"
+	"github.com/quarkloop/cli/pkg/spacecontext"
 )
 
 func newKBDeleteCmd() *cobra.Command {
@@ -16,7 +16,7 @@ func newKBDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			name, err := spacemodel.CurrentName()
+			name, err := spacecontext.FromCommand(cmd)
 			if err != nil {
 				return err
 			}

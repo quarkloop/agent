@@ -29,6 +29,7 @@ func Root() *cobra.Command {
 	})
 
 	root.PersistentFlags().String("agent-url", "", "Agent HTTP URL (omit for local mode)")
+	root.PersistentFlags().String("space", "", "Space name (or set QUARK_SPACE)")
 
 	commands.RegisterCommands(root)
 

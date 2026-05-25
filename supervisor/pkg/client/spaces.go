@@ -16,15 +16,12 @@ func (c *Client) ListSpaces(ctx context.Context) ([]api.SpaceInfo, error) {
 	return out, nil
 }
 
-// CreateSpace registers a new space. quarkfile is the raw bytes of the user's
-// Quarkfile; meta.name inside must match name. The supervisor writes the
-// Quarkfile to workingDir.
-func (c *Client) CreateSpace(ctx context.Context, name string, quarkfile []byte, workingDir string) (api.SpaceInfo, error) {
+// CreateSpace registers a new space using an authoritative configuration
+// serialized for the Space service.
+func (c *Client) CreateSpace(ctx context.Context, config []byte) (api.SpaceInfo, error) {
 	var out api.SpaceInfo
 	err := c.do(ctx, http.MethodPost, c.route.Spaces(), api.CreateSpaceRequest{
-		Name:       name,
-		Quarkfile:  quarkfile,
-		WorkingDir: workingDir,
+		Config: config,
 	}, &out)
 	return out, err
 }
@@ -41,18 +38,18 @@ func (c *Client) DeleteSpace(ctx context.Context, name string) error {
 	return c.do(ctx, http.MethodDelete, c.route.Space(name), nil, nil)
 }
 
-// Quarkfile returns the latest stored Quarkfile for the space.
-func (c *Client) Quarkfile(ctx context.Context, name string) (api.QuarkfileResponse, error) {
-	var out api.QuarkfileResponse
-	err := c.do(ctx, http.MethodGet, c.route.SpaceQuarkfile(name), nil, &out)
+// SpaceConfig returns the authoritative stored configuration for the space.
+func (c *Client) SpaceConfig(ctx context.Context, name string) (api.SpaceConfigResponse, error) {
+	var out api.SpaceConfigResponse
+	err := c.do(ctx, http.MethodGet, c.route.SpaceConfig(name), nil, &out)
 	return out, err
 }
 
-// UpdateQuarkfile replaces the latest Quarkfile for the space.
-func (c *Client) UpdateQuarkfile(ctx context.Context, name string, quarkfile []byte) (api.SpaceInfo, error) {
+// UpdateSpaceConfig replaces the authoritative configuration for the space.
+func (c *Client) UpdateSpaceConfig(ctx context.Context, name string, config []byte) (api.SpaceInfo, error) {
 	var out api.SpaceInfo
-	err := c.do(ctx, http.MethodPut, c.route.SpaceQuarkfile(name),
-		api.UpdateQuarkfileRequest{Quarkfile: quarkfile}, &out)
+	err := c.do(ctx, http.MethodPut, c.route.SpaceConfig(name),
+		api.UpdateSpaceConfigRequest{Config: config}, &out)
 	return out, err
 }
 

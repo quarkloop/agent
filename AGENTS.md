@@ -7,16 +7,19 @@ unrelated scopes.
 
 ## Architecture Boundaries
 
-- `supervisor` owns persistent state, spaces, sessions, plugin installs,
-  embedded NATS, account setup, and discovery catalogs.
+- `supervisor` owns high-level space/session orchestration, plugin installs,
+  embedded NATS, account setup, runtime leases, and discovery catalogs.
 - `runtime` owns the agent loop, sessions, prompts, tool execution, extraction
   profiles, workspace sidecar policy, and consumption of supervisor-resolved
   catalogs.
-- `cli` is a NATS client. It reads/writes only the local `Quarkfile` and
-  delegates all other operations to supervisor or the resolved runtime.
+- `cli` is a NATS client. It selects a space through `--space` or
+  `QUARK_SPACE` and delegates state operations to supervisor or the resolved
+  runtime.
 - `services/*` own durable domain behavior behind protobuf-backed NATS
   service-function contracts.
   Services expose agent-facing service functions and must not call each other.
+- `services/space` owns the authoritative `space.json` record and low-level
+  space configuration persistence.
 - `plugins/tools/*` expose agent-callable tool plugins in lib and/or api mode.
 - `plugins/services/*` contain service plugin manifests and `SKILL.md`
   guidance for NATS services and their exported service functions.
@@ -40,12 +43,12 @@ The workspace modules are listed in `go.work`:
 - `supervisor`
 - `runtime`
 - `e2e`
-- `pkg/boundary`, `pkg/event`, `pkg/plugin`, `pkg/serviceapi`, `pkg/space`,
-  `pkg/toolkit`
+- `pkg/boundary`, `pkg/event`, `pkg/natskit`, `pkg/plugin`,
+  `pkg/serviceapi`, `pkg/space`, `pkg/toolkit`
 - `services/citation`, `services/core`, `services/devops`,
-  `services/document`, `services/indexer`,
-  `services/runstate`, `services/gateway`, `services/space`,
-  `services/system`
+  `services/document`, `services/indexer`, `services/runstate`,
+  `services/gateway`, `services/secrets`, `services/space`,
+  `services/system`, `services/workflow`
 - `services/io`
 - `plugins/agents/quark-knowledge`, `plugins/agents/quark-devops`,
   `plugins/agents/quark-system`
@@ -88,15 +91,16 @@ turns their RPC descriptors into generated service functions such as
 `gateway_Embed` and `indexer_QueryContext`.
 
 `quark-main` is the required root coordinator agent plugin. Supervisor resolves
-its allowed service functions from installed services and any Quarkfile
+its allowed service functions from installed services and any space configuration
 narrowing; runtime must not select a specialist agent as the root. Knowledge,
 DevOps, and System agent profiles are delegate plugins.
 
-`Quarkfile` is the space-level override layer for installed agent profiles. It
-may select enabled profiles, model/provider overrides, service/tool narrowing,
-approval policy, and memory scope. Supervisor must validate those overrides
-against the installed profile maximum and pass only the resolved catalog to
-runtime.
+`space.json` is the Space-service-owned override record for installed agent
+profiles. It may select enabled profiles, model/provider overrides,
+service/tool narrowing, approval policy, and memory scope. Supervisor obtains
+it through Space service functions, validates overrides against the installed
+profile maximum, and passes only the resolved catalog to runtime. Product
+paths do not create or read legacy working-directory manifests.
 
 Service plugins must declare NATS service-function health/readiness
 requirements. Supervisor validates descriptor version, subject metadata, and

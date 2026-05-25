@@ -1,4 +1,4 @@
-// Package space models the on-disk Quark space directory and its Quarkfile.
+// Package space models the Space-service-owned on-disk space layout.
 package space
 
 import (
@@ -9,12 +9,10 @@ import (
 )
 
 const (
-	MetaFile      = "meta.json"
-	QuarkfileName = "Quarkfile"
-	KBDir         = "kb"
-	PluginsDir    = "plugins"
-	SessionsDir   = "sessions"
-	ServicesDir   = "services"
+	ConfigFile  = "space.json"
+	KBDir       = "kb"
+	PluginsDir  = "plugins"
+	SessionsDir = "sessions"
 )
 
 var namePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
@@ -34,7 +32,7 @@ func NewLayout(spacesRoot, name string) (Layout, error) {
 }
 
 // ValidateName rejects names that could escape the spaces root or collide with
-// path syntax. Quarkfile meta.name is an identifier, not a path.
+// path syntax. The config name is an identifier, not a path.
 func ValidateName(name string) error {
 	if strings.TrimSpace(name) == "" {
 		return fmt.Errorf("space name is required")
@@ -54,17 +52,12 @@ func ValidateName(name string) error {
 	return nil
 }
 
-func (l Layout) MetaPath() string      { return filepath.Join(l.Root, MetaFile) }
-func (l Layout) QuarkfilePath() string { return filepath.Join(l.Root, QuarkfileName) }
-func (l Layout) KBPath() string        { return filepath.Join(l.Root, KBDir) }
-func (l Layout) PluginsPath() string   { return filepath.Join(l.Root, PluginsDir) }
-func (l Layout) SessionsPath() string  { return filepath.Join(l.Root, SessionsDir) }
-func (l Layout) ServicesPath() string  { return filepath.Join(l.Root, ServicesDir) }
-func (l Layout) ServicePath(name string) string {
-	return filepath.Join(l.ServicesPath(), name)
-}
+func (l Layout) ConfigPath() string   { return filepath.Join(l.Root, ConfigFile) }
+func (l Layout) KBPath() string       { return filepath.Join(l.Root, KBDir) }
+func (l Layout) PluginsPath() string  { return filepath.Join(l.Root, PluginsDir) }
+func (l Layout) SessionsPath() string { return filepath.Join(l.Root, SessionsDir) }
 
 // RequiredDirs returns the directories that must exist for a usable space.
 func (l Layout) RequiredDirs() []string {
-	return []string{l.Root, l.KBPath(), l.PluginsPath(), l.SessionsPath(), l.ServicesPath()}
+	return []string{l.Root, l.KBPath(), l.PluginsPath(), l.SessionsPath()}
 }

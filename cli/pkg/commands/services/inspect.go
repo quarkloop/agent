@@ -12,7 +12,7 @@ func newInspectCmd() *cobra.Command {
 		Short: "Inspect one service",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			space, err := currentSpaceName()
+			space, err := currentSpaceName(cmd)
 			if err != nil {
 				return err
 			}

@@ -12,7 +12,7 @@ func newListCmd() *cobra.Command {
 		Short: "List services resolved by the supervisor",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			space, err := currentSpaceName()
+			space, err := currentSpaceName(cmd)
 			if err != nil {
 				return err
 			}

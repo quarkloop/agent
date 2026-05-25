@@ -8,23 +8,26 @@ Runtime    = execution engine
 Agents     = reasoning coordinators
 Services   = typed kernel capabilities
 Plugins    = installable extension units
-Spaces     = isolated workspaces
-Quarkfile  = space-level override/config layer
+Spaces     = isolated workspace identities
+space.json = Space-service-owned configuration record
 ```
 
 ## Process Model
 
-The supervisor is the long-running daemon. It owns persistent state, space
-metadata, sessions, plugin installation, service discovery, service readiness,
-catalog generation, and runtime lifecycle.
+The supervisor is the long-running control plane. It owns high-level space
+orchestration, sessions, plugin installation, service discovery, service
+readiness, catalog generation, and runtime lifecycle. The Space service owns
+the authoritative `space.json` record and low-level space configuration
+persistence.
 
 The runtime is launched by the supervisor. It consumes supervisor-resolved
 plugin and service catalogs, executes the required main agent profile, manages
 sessions, assembles prompts, calls the Gateway model path, dispatches
 tools and service functions, and emits activity.
 
-The CLI is a thin HTTP client. It reads or writes only the local `Quarkfile` and
-delegates everything else to the supervisor or the resolved runtime.
+The CLI is a NATS client. It selects a space with `--space` or `QUARK_SPACE`
+and delegates all state operations to the supervisor or the resolved runtime.
+It does not write product state into user working directories.
 
 ## Plugin Types
 
@@ -42,9 +45,9 @@ and delegated to through the resolved catalog.
 
 ## Services
 
-Service functions are agent-facing callable operations. RPC methods are the
-gRPC transport implementation. Tool calls are the runtime execution envelope
-used by the LLM/function-calling loop.
+Service functions are agent-facing callable operations. Protobuf method
+descriptors define their NATS request/reply payload contracts. Tool calls are
+the runtime execution envelope used by the LLM/function-calling loop.
 
 Services execute deterministic typed work and must not call each other. The
 agent coordinates multi-step flows.
@@ -59,7 +62,7 @@ Initial service stacks:
   policy-gated admin functions.
 - Quark Core: health, readiness, audit, artifacts, approval, config, events,
   policy, scheduler, and workspace mutation plans.
-- Quark Model: provider adapters, generation, embedding, fallback, usage, and
+- Quark Gateway: provider adapters, generation, embedding, fallback, usage, and
   provider diagnostics.
 
 ## Knowledge Flow

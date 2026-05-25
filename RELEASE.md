@@ -15,7 +15,7 @@ The gate verifies:
 - formatting, vet, unit tests, architecture boundaries, and dead-code checks,
 - generated protobuf/service API output is current,
 - CLI, supervisor, runtime, tool plugins, and services build,
-- the local deterministic E2E subset passes.
+- the configured local E2E scenarios pass against their real service/model boundaries.
 
 ## Provider-Backed Gate
 

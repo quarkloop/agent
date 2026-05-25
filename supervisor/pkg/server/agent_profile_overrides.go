@@ -9,36 +9,36 @@ import (
 	spacemodel "github.com/quarkloop/pkg/space"
 )
 
-// agentProfileOverrideResolver applies the Quarkfile override layer over
+// agentProfileOverrideResolver applies the space-selected override layer over
 // installed agent plugin profiles. Precedence is:
 //
-// built-in profile defaults -> installed plugin defaults -> Quarkfile
+// installed plugin defaults -> space config overrides
 // overrides -> temporary session overrides.
 //
 // Temporary session overrides are runtime-scoped and intentionally not applied
 // here.
 type agentProfileOverrideResolver struct {
-	quarkfile *spacemodel.Quarkfile
-	agents    map[string]spacemodel.AgentRef
-	order     []string
-	explicit  bool
-	matched   map[string]bool
-	catalog   agentPluginValidationCatalog
+	config   *spacemodel.Config
+	agents   map[string]spacemodel.AgentRef
+	order    []string
+	explicit bool
+	matched  map[string]bool
+	catalog  agentPluginValidationCatalog
 }
 
-func newAgentProfileOverrideResolver(qf *spacemodel.Quarkfile, catalog agentPluginValidationCatalog) *agentProfileOverrideResolver {
+func newAgentProfileOverrideResolver(config *spacemodel.Config, catalog agentPluginValidationCatalog) *agentProfileOverrideResolver {
 	resolver := &agentProfileOverrideResolver{
-		quarkfile: qf,
-		agents:    make(map[string]spacemodel.AgentRef),
-		order:     make([]string, 0),
-		matched:   make(map[string]bool),
-		catalog:   catalog,
+		config:  config,
+		agents:  make(map[string]spacemodel.AgentRef),
+		order:   make([]string, 0),
+		matched: make(map[string]bool),
+		catalog: catalog,
 	}
-	if qf == nil {
+	if config == nil {
 		return resolver
 	}
-	resolver.explicit = len(qf.Agents) > 0
-	for _, agent := range qf.Agents {
+	resolver.explicit = len(config.Agents) > 0
+	for _, agent := range config.Agents {
 		resolver.agents[agent.Profile] = agent
 		resolver.order = append(resolver.order, agent.Profile)
 	}
@@ -112,7 +112,7 @@ func (r *agentProfileOverrideResolver) applyOne(entry runtimePluginCatalogEntry)
 		return entry, false, nil
 	}
 
-	model := resolvedAgentModel(r.quarkfile, override, hasOverride, profile.Model)
+	model := resolvedAgentModel(r.config, override, hasOverride, profile.Model)
 	if model.Provider != "" || model.Model != "" {
 		profile = profile.WithModel(model.Provider, model.Model)
 	}
@@ -123,10 +123,10 @@ func (r *agentProfileOverrideResolver) applyOne(entry runtimePluginCatalogEntry)
 		}
 		profile = next
 		if hasOverride {
-			profile = applyAgentApprovalOverride(r.quarkfile, profile, override)
+			profile = applyAgentApprovalOverride(r.config, profile, override)
 			profile = applyAgentMemoryOverride(profile, override)
 		} else {
-			profile = applyQuarkfileApprovalPolicy(r.quarkfile, profile)
+			profile = applySpaceApprovalPolicy(r.config, profile)
 		}
 	} else if hasOverride {
 		next, err := applyAgentPermissionOverride(profile, override)
@@ -134,10 +134,10 @@ func (r *agentProfileOverrideResolver) applyOne(entry runtimePluginCatalogEntry)
 			return entry, false, err
 		}
 		profile = next
-		profile = applyAgentApprovalOverride(r.quarkfile, profile, override)
+		profile = applyAgentApprovalOverride(r.config, profile, override)
 		profile = applyAgentMemoryOverride(profile, override)
 	} else {
-		profile = applyQuarkfileApprovalPolicy(r.quarkfile, profile)
+		profile = applySpaceApprovalPolicy(r.config, profile)
 	}
 	entry.AgentProfile = &profile
 	return entry, true, nil
@@ -163,11 +163,11 @@ func (r *agentProfileOverrideResolver) applyMainPermissionResolution(profile plu
 	return profile.WithPermissions(tools, services), nil
 }
 
-func resolvedAgentModel(qf *spacemodel.Quarkfile, override spacemodel.AgentRef, hasOverride bool, base plugin.AgentProfileModel) plugin.AgentProfileModel {
+func resolvedAgentModel(config *spacemodel.Config, override spacemodel.AgentRef, hasOverride bool, base plugin.AgentProfileModel) plugin.AgentProfileModel {
 	model := base
-	if qf != nil && !qf.Model.IsZero() {
-		model.Provider = qf.Model.Provider
-		model.Model = qf.Model.Name
+	if config != nil && !config.Model.IsZero() {
+		model.Provider = config.Model.Provider
+		model.Model = config.Model.Name
 	}
 	if hasOverride && !override.Model.IsZero() {
 		model.Provider = override.Model.Provider
@@ -194,19 +194,19 @@ func applyAgentPermissionOverride(profile plugin.AgentProfile, override spacemod
 	return profile.WithPermissions(tools, services), nil
 }
 
-func applyAgentApprovalOverride(qf *spacemodel.Quarkfile, profile plugin.AgentProfile, override spacemodel.AgentRef) plugin.AgentProfile {
-	profile = applyQuarkfileApprovalPolicy(qf, profile)
+func applyAgentApprovalOverride(config *spacemodel.Config, profile plugin.AgentProfile, override spacemodel.AgentRef) plugin.AgentProfile {
+	profile = applySpaceApprovalPolicy(config, profile)
 	if override.Approval.Policy != "" || override.Approval.RequiredFor != nil {
 		profile = profile.WithApproval(override.Approval.Policy, override.Approval.RequiredFor)
 	}
 	return profile
 }
 
-func applyQuarkfileApprovalPolicy(qf *spacemodel.Quarkfile, profile plugin.AgentProfile) plugin.AgentProfile {
-	if qf == nil || qf.Capabilities.ApprovalPolicy == "" {
+func applySpaceApprovalPolicy(config *spacemodel.Config, profile plugin.AgentProfile) plugin.AgentProfile {
+	if config == nil || config.Capabilities.ApprovalPolicy == "" {
 		return profile
 	}
-	return profile.WithApproval(qf.Capabilities.ApprovalPolicy, nil)
+	return profile.WithApproval(config.Capabilities.ApprovalPolicy, nil)
 }
 
 func applyAgentMemoryOverride(profile plugin.AgentProfile, override spacemodel.AgentRef) plugin.AgentProfile {
@@ -248,7 +248,7 @@ func patternAllows(allowed, requested string) bool {
 func (r *agentProfileOverrideResolver) rejectUnknownOverrides() error {
 	for _, profileID := range r.order {
 		if !r.matched[profileID] {
-			return fmt.Errorf("quarkfile agent profile %q is not installed", profileID)
+			return fmt.Errorf("space config agent profile %q is not installed", profileID)
 		}
 	}
 	return nil

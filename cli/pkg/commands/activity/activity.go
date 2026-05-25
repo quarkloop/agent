@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/quarkloop/cli/pkg/runtimeconnect"
+	"github.com/quarkloop/cli/pkg/spacecontext"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 )
 
@@ -30,7 +31,11 @@ func newActivityQueryCmd() *cobra.Command {
 		Use:   "query",
 		Short: "Query activity log entries",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			conn, err := runtimeconnect.CurrentSpaceClient(cmd.Context())
+			space, err := spacecontext.FromCommand(cmd)
+			if err != nil {
+				return err
+			}
+			conn, err := runtimeconnect.SpaceRuntimeClient(cmd.Context(), space)
 			if err != nil {
 				return err
 			}

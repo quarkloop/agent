@@ -15,27 +15,27 @@ func (s *Server) createSpace(req clientcontract.RequestEnvelope) (any, error) {
 	if err := req.DecodePayload(&payload); err != nil {
 		return nil, err
 	}
-	sp, err := s.store.Create(payload.Name, append([]byte(nil), payload.Quarkfile...), payload.WorkingDir)
+	sp, err := s.store.Create(append([]byte(nil), payload.Config...))
 	if err != nil {
 		return nil, err
 	}
 	if s.spaceBootstrapper != nil {
-		if err := s.spaceBootstrapper.BootstrapSpace(context.Background(), payload.Name); err != nil {
-			if rollbackErr := s.store.Delete(payload.Name); rollbackErr != nil {
+		if err := s.spaceBootstrapper.BootstrapSpace(context.Background(), sp.Name); err != nil {
+			if rollbackErr := s.store.Delete(sp.Name); rollbackErr != nil {
 				return nil, fmt.Errorf("bootstrap required space plugins: %v; rollback space: %v", err, rollbackErr)
 			}
 			return nil, fmt.Errorf("bootstrap required space plugins: %w", err)
 		}
 	}
 	if s.provisioner != nil {
-		if _, err := s.provisioner.ProvisionSpace(payload.Name); err != nil {
-			if rollbackErr := s.store.Delete(payload.Name); rollbackErr != nil {
+		if _, err := s.provisioner.ProvisionSpace(sp.Name); err != nil {
+			if rollbackErr := s.store.Delete(sp.Name); rollbackErr != nil {
 				return nil, fmt.Errorf("provision nats space account: %v; rollback space: %v", err, rollbackErr)
 			}
 			return nil, err
 		}
 	}
-	if err := s.publishCatalogEvent(payload.Name, "space_created"); err != nil {
+	if err := s.publishCatalogEvent(sp.Name, "space_created"); err != nil {
 		return nil, err
 	}
 	return toContractSpace(sp), nil
@@ -70,16 +70,16 @@ func (s *Server) updateSpace(req clientcontract.RequestEnvelope) (any, error) {
 	if err := req.DecodePayload(&payload); err != nil {
 		return nil, err
 	}
-	sp, err := s.store.UpdateQuarkfile(payload.Name, append([]byte(nil), payload.Quarkfile...))
+	sp, err := s.store.UpdateConfig(append([]byte(nil), payload.Config...))
 	if err != nil {
 		return nil, err
 	}
 	s.events.Publish(event.Event{
-		Space:   payload.Name,
-		Kind:    events.QuarkfileUpdated,
+		Space:   sp.Name,
+		Kind:    events.SpaceConfigUpdated,
 		Payload: nil,
 	})
-	if err := s.publishCatalogEvent(payload.Name, "quarkfile_updated"); err != nil {
+	if err := s.publishCatalogEvent(sp.Name, "space_config_updated"); err != nil {
 		return nil, err
 	}
 	return toContractSpace(sp), nil
@@ -99,12 +99,12 @@ func (s *Server) deleteSpace(req clientcontract.RequestEnvelope) (any, error) {
 	return struct{}{}, nil
 }
 
-func (s *Server) getQuarkfile(req clientcontract.RequestEnvelope) (any, error) {
-	var payload clientcontract.QuarkfileRequest
+func (s *Server) getSpaceConfig(req clientcontract.RequestEnvelope) (any, error) {
+	var payload clientcontract.SpaceConfigRequest
 	if err := req.DecodePayload(&payload); err != nil {
 		return nil, err
 	}
-	data, err := s.store.Quarkfile(payload.Name)
+	data, err := s.store.Config(payload.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -112,10 +112,10 @@ func (s *Server) getQuarkfile(req clientcontract.RequestEnvelope) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return clientcontract.QuarkfileResponse{
+	return clientcontract.SpaceConfigResponse{
 		Name:      payload.Name,
 		Version:   sp.Version,
-		Quarkfile: append([]byte(nil), data...),
+		Config:    append([]byte(nil), data...),
 		UpdatedAt: sp.UpdatedAt,
 	}, nil
 }

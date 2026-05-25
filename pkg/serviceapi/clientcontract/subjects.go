@@ -17,7 +17,7 @@ const (
 	SubjectSpaceGet          = "control.space.v1.get"
 	SubjectSpaceUpdate       = "control.space.v1.update"
 	SubjectSpaceDelete       = "control.space.v1.delete"
-	SubjectSpaceQuarkfile    = "control.space.v1.quarkfile"
+	SubjectSpaceConfig       = "control.space.v1.config"
 	SubjectSpaceDoctor       = "control.space.v1.doctor"
 	SubjectSpaceCredential   = "control.space.v1.credential"
 	SubjectRuntimeCredential = "control.space.v1.runtime_credential"

@@ -154,18 +154,18 @@ type CreateSessionRequest struct {
 
 // Event is the wire format for a supervisor → agent signal. The supervisor
 // publishes events on its space-scoped SSE stream and agents consume them to
-// stay in sync with supervisor state (sessions, plugins, quarkfile, etc).
+// stay in sync with supervisor state (sessions, plugins, and configuration).
 // It is an alias for the canonical event.Event from pkg/event.
 type Event = event.Event
 
-// Event kinds are defined in pkg/event. Re-export for API backwards compatibility.
+// Event kinds are defined in pkg/event.
 const (
-	EventSessionCreated   = event.SessionCreated
-	EventSessionDeleted   = event.SessionDeleted
-	EventQuarkfileUpdated = event.QuarkfileUpdated
-	EventPluginInstalled  = event.PluginInstalled
-	EventPluginRemoved    = event.PluginRemoved
-	EventRuntimeShutdown  = event.RuntimeShutdown
+	EventSessionCreated     = event.SessionCreated
+	EventSessionDeleted     = event.SessionDeleted
+	EventSpaceConfigUpdated = event.SpaceConfigUpdated
+	EventPluginInstalled    = event.PluginInstalled
+	EventPluginRemoved      = event.PluginRemoved
+	EventRuntimeShutdown    = event.RuntimeShutdown
 )
 
 // BudgetResponse is returned by budget endpoints.
@@ -187,8 +187,8 @@ type ErrorResponse struct {
 // --- Space (data) types ---
 
 // SpaceInfo identifies a space and exposes non-sensitive metadata. A space is
-// a supervisor-owned data namespace keyed by Name (from Quarkfile meta.name).
-// WorkingDir is the user workspace where the agent is launched.
+// keyed by Name from its Space-service-owned configuration record. WorkingDir
+// is the user workspace where an agent may operate after approval.
 type SpaceInfo struct {
 	Name       string    `json:"name"`
 	Version    string    `json:"version,omitempty"`
@@ -197,27 +197,24 @@ type SpaceInfo struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
-// CreateSpaceRequest is the body for POST /v1/spaces. The CLI sends the
-// space name, Quarkfile contents, and working directory path.
-// The supervisor creates the space in its storage and writes the Quarkfile
-// to the working directory.
+// CreateSpaceRequest is the body for POST /v1/spaces. Config contains a
+// complete serialized space configuration; the Space service validates,
+// persists, and derives the space identity from it.
 type CreateSpaceRequest struct {
-	Name       string `json:"name"`
-	Quarkfile  []byte `json:"quarkfile"`
-	WorkingDir string `json:"working_dir"`
+	Config []byte `json:"config"`
 }
 
-// UpdateQuarkfileRequest is the body for PUT /v1/spaces/{name}/quarkfile.
-type UpdateQuarkfileRequest struct {
-	Quarkfile []byte `json:"quarkfile"`
+// UpdateSpaceConfigRequest is the body for PUT /v1/spaces/{name}/config.
+type UpdateSpaceConfigRequest struct {
+	Config []byte `json:"config"`
 }
 
-// QuarkfileResponse is returned when fetching a space's stored Quarkfile.
-type QuarkfileResponse struct {
-	Name string `json:"name"`
-	// Version is meta.version from this Quarkfile.
+// SpaceConfigResponse is returned when fetching a space's authoritative
+// configuration.
+type SpaceConfigResponse struct {
+	Name      string    `json:"name"`
 	Version   string    `json:"version,omitempty"`
-	Quarkfile []byte    `json:"quarkfile"`
+	Config    []byte    `json:"config"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 

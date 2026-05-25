@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/quarkloop/cli/pkg/runtimeconnect"
+	"github.com/quarkloop/cli/pkg/spacecontext"
 )
 
 func NewPlanCommand() *cobra.Command {
@@ -27,7 +28,7 @@ func newPlanGetCmd() *cobra.Command {
 		Use:   "get",
 		Short: "Get the agent's current plan",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			conn, err := runtimeconnect.CurrentSpaceClient(cmd.Context())
+			conn, err := currentSpaceRuntimeClient(cmd)
 			if err != nil {
 				return err
 			}
@@ -48,7 +49,7 @@ func newPlanListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List the agent's current plan",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			conn, err := runtimeconnect.CurrentSpaceClient(cmd.Context())
+			conn, err := currentSpaceRuntimeClient(cmd)
 			if err != nil {
 				return err
 			}
@@ -69,7 +70,7 @@ func newPlanApproveCmd() *cobra.Command {
 		Short: "Approve the current active plan",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			conn, err := runtimeconnect.CurrentSpaceClient(cmd.Context())
+			conn, err := currentSpaceRuntimeClient(cmd)
 			if err != nil {
 				return err
 			}
@@ -93,7 +94,7 @@ func newPlanRejectCmd() *cobra.Command {
 		Short: "Reject the current active plan",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			conn, err := runtimeconnect.CurrentSpaceClient(cmd.Context())
+			conn, err := currentSpaceRuntimeClient(cmd)
 			if err != nil {
 				return err
 			}
@@ -109,4 +110,12 @@ func newPlanRejectCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func currentSpaceRuntimeClient(cmd *cobra.Command) (runtimeconnect.SpaceClient, error) {
+	space, err := spacecontext.FromCommand(cmd)
+	if err != nil {
+		return runtimeconnect.SpaceClient{}, err
+	}
+	return runtimeconnect.SpaceRuntimeClient(cmd.Context(), space)
 }

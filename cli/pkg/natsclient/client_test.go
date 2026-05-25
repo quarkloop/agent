@@ -10,6 +10,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
+	spacemodel "github.com/quarkloop/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/natshub"
 )
 
@@ -124,11 +125,11 @@ func TestTypedControlMethodsUseNATSContracts(t *testing.T) {
 	}
 	defer client.Close()
 
-	space, err := client.CreateSpace(context.Background(), clientcontract.CreateSpaceRequest{
-		Name:       "docs",
-		Quarkfile:  []byte("meta:\n  name: docs\n"),
-		WorkingDir: filepath.Join(t.TempDir(), "workspace"),
-	})
+	config, err := spacemodel.MarshalConfig(spacemodel.NewConfig("docs", filepath.Join(t.TempDir(), "workspace")))
+	if err != nil {
+		t.Fatalf("marshal config: %v", err)
+	}
+	space, err := client.CreateSpace(context.Background(), clientcontract.CreateSpaceRequest{Config: config})
 	if err != nil {
 		t.Fatalf("create space: %v", err)
 	}
@@ -136,7 +137,7 @@ func TestTypedControlMethodsUseNATSContracts(t *testing.T) {
 		t.Fatalf("space = %#v", space)
 	}
 
-	updated, err := client.UpdateSpace(context.Background(), "docs", []byte("meta:\n  name: docs\n"))
+	updated, err := client.UpdateSpace(context.Background(), "docs", config)
 	if err != nil {
 		t.Fatalf("update space: %v", err)
 	}
@@ -390,14 +391,24 @@ func registerTypedControlResponders(t *testing.T, responder *nats.Conn, hub *nat
 			if err := req.DecodePayload(&payload); err != nil {
 				t.Errorf("decode create space: %v", err)
 			}
-			return clientcontract.SpaceInfo{Name: payload.Name}
+			config, err := spacemodel.ParseConfig(payload.Config)
+			if err != nil {
+				t.Errorf("parse create config: %v", err)
+				return clientcontract.SpaceInfo{}
+			}
+			return clientcontract.SpaceInfo{Name: config.Name}
 		},
 		clientcontract.SubjectSpaceUpdate: func(req clientcontract.RequestEnvelope) any {
 			var payload clientcontract.UpdateSpaceRequest
 			if err := req.DecodePayload(&payload); err != nil {
 				t.Errorf("decode update space: %v", err)
 			}
-			return clientcontract.SpaceInfo{Name: payload.Name}
+			config, err := spacemodel.ParseConfig(payload.Config)
+			if err != nil {
+				t.Errorf("parse update config: %v", err)
+				return clientcontract.SpaceInfo{}
+			}
+			return clientcontract.SpaceInfo{Name: config.Name}
 		},
 		clientcontract.SubjectSessionCreate: func(req clientcontract.RequestEnvelope) any {
 			var payload clientcontract.CreateSessionRequest

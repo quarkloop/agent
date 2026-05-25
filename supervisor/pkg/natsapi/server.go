@@ -161,7 +161,7 @@ func (s *Server) subscribe() error {
 		clientcontract.SubjectSpaceGet:          s.getSpace,
 		clientcontract.SubjectSpaceUpdate:       s.updateSpace,
 		clientcontract.SubjectSpaceDelete:       s.deleteSpace,
-		clientcontract.SubjectSpaceQuarkfile:    s.getQuarkfile,
+		clientcontract.SubjectSpaceConfig:       s.getSpaceConfig,
 		clientcontract.SubjectSpaceDoctor:       s.doctor,
 		clientcontract.SubjectSpaceCredential:   s.spaceCredential,
 		clientcontract.SubjectRuntimeCredential: s.runtimeCredential,

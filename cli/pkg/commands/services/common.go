@@ -5,11 +5,12 @@ import (
 	"fmt"
 
 	"github.com/quarkloop/cli/pkg/natsclient"
-	spacemodel "github.com/quarkloop/pkg/space"
+	"github.com/quarkloop/cli/pkg/spacecontext"
+	"github.com/spf13/cobra"
 )
 
-func currentSpaceName() (string, error) {
-	name, err := spacemodel.CurrentName()
+func currentSpaceName(cmd *cobra.Command) (string, error) {
+	name, err := spacecontext.FromCommand(cmd)
 	if err != nil {
 		return "", err
 	}

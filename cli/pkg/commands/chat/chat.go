@@ -12,8 +12,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/quarkloop/cli/pkg/natsclient"
+	"github.com/quarkloop/cli/pkg/spacecontext"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
-	spacemodel "github.com/quarkloop/pkg/space"
 )
 
 // NewChatCommand returns the "chat" command.
@@ -43,7 +43,7 @@ func NewChatCommand() *cobra.Command {
 			}
 			defer cancel()
 
-			space, err := spacemodel.CurrentName()
+			space, err := spacecontext.FromCommand(cmd)
 			if err != nil {
 				return err
 			}

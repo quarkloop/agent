@@ -6,7 +6,7 @@ require (
 	github.com/go-git/go-git/v5 v5.17.2
 	github.com/gofiber/fiber/v2 v2.52.13
 	github.com/spf13/cobra v1.8.0
-	google.golang.org/protobuf v1.36.10 // indirect
+	google.golang.org/protobuf v1.36.10
 )
 
 require (
@@ -70,5 +70,4 @@ replace (
 	github.com/quarkloop/pkg/plugin => ../pkg/plugin
 	github.com/quarkloop/pkg/serviceapi => ../pkg/serviceapi
 	github.com/quarkloop/pkg/space => ../pkg/space
-	github.com/quarkloop/services/space => ../services/space
 )

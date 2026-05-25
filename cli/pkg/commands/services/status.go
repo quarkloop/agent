@@ -12,7 +12,7 @@ func newStatusCmd() *cobra.Command {
 		Short: "Show service readiness status",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			space, err := currentSpaceName()
+			space, err := currentSpaceName(cmd)
 			if err != nil {
 				return err
 			}

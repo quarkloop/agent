@@ -3,7 +3,7 @@ package configcmd
 import (
 	"github.com/spf13/cobra"
 
-	spacemodel "github.com/quarkloop/pkg/space"
+	"github.com/quarkloop/cli/pkg/spacecontext"
 )
 
 func newConfigSetCmd() *cobra.Command {
@@ -12,7 +12,7 @@ func newConfigSetCmd() *cobra.Command {
 		Short: "Write a configuration value",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			name, err := spacemodel.CurrentName()
+			name, err := spacecontext.FromCommand(cmd)
 			if err != nil {
 				return err
 			}

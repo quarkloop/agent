@@ -7,14 +7,14 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/quarkloop/pkg/serviceapi/gen/quark/space/v1;spacev1";
 
-// SpaceService owns Quark space metadata, Quarkfile state, and derived paths.
+// SpaceService owns the authoritative persisted space config and derived paths.
 service SpaceService {
   rpc CreateSpace(CreateSpaceRequest) returns (Space);
-  rpc UpdateQuarkfile(UpdateQuarkfileRequest) returns (Space);
+  rpc UpdateConfig(UpdateConfigRequest) returns (Space);
   rpc GetSpace(GetSpaceRequest) returns (Space);
   rpc ListSpaces(google.protobuf.Empty) returns (ListSpacesResponse);
   rpc DeleteSpace(DeleteSpaceRequest) returns (google.protobuf.Empty);
-  rpc GetQuarkfile(GetQuarkfileRequest) returns (QuarkfileResponse);
+  rpc GetConfig(GetConfigRequest) returns (ConfigResponse);
   rpc GetAgentEnvironment(GetAgentEnvironmentRequest) returns (AgentEnvironmentResponse);
   rpc GetSpacePaths(GetSpacePathsRequest) returns (SpacePaths);
   rpc Doctor(DoctorRequest) returns (DoctorResponse);
@@ -29,14 +29,11 @@ message Space {
 }
 
 message CreateSpaceRequest {
-  string name = 1;
-  bytes quarkfile = 2;
-  string working_dir = 3;
+  bytes config = 1;
 }
 
-message UpdateQuarkfileRequest {
-  string name = 1;
-  bytes quarkfile = 2;
+message UpdateConfigRequest {
+  bytes config = 1;
 }
 
 message GetSpaceRequest {
@@ -51,14 +48,14 @@ message DeleteSpaceRequest {
   string name = 1;
 }
 
-message GetQuarkfileRequest {
+message GetConfigRequest {
   string name = 1;
 }
 
-message QuarkfileResponse {
+message ConfigResponse {
   string name = 1;
   string version = 2;
-  bytes quarkfile = 3;
+  bytes config = 3;
   google.protobuf.Timestamp updated_at = 4;
 }
 
@@ -76,7 +73,7 @@ message GetSpacePathsRequest {
 
 message SpacePaths {
   string root_dir = 1;
-  string quarkfile_path = 2;
+  string config_path = 2;
   string kb_dir = 3;
   string plugins_dir = 4;
   string sessions_dir = 5;

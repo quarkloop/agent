@@ -60,7 +60,7 @@ checked readiness, and included the function in the runtime service catalog.
 
 ## E2E
 
-The local deterministic subset does not require provider credentials:
+Local E2E scenarios use the configured real model and service boundaries:
 
 ```bash
 make test-e2e-local
@@ -106,7 +106,7 @@ model-usage timelines, diagnostics, and manual verification files.
   provider model access.
 - Runtime cannot call a service function: run `quark services doctor` and
   inspect the resolved service catalog before changing prompts.
-- Policy denied errors: check the active agent profile and any Quarkfile
+- Policy denied errors: check the active agent profile and any `space.json`
   permission narrowing.
 
 ## Release Readiness

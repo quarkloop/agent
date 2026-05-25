@@ -34,7 +34,7 @@ const (
 const (
 	routeSpaces          = "/v1/spaces"
 	routeSpace           = "/v1/spaces/%s"
-	routeSpaceQuarkfile  = "/v1/spaces/%s/quarkfile"
+	routeSpaceConfig     = "/v1/spaces/%s/config"
 	routeSpaceDoctor     = "/v1/spaces/%s/doctor"
 	routeSpaceKBList     = "/v1/spaces/%s/kb/%s"
 	routeSpaceKBItem     = "/v1/spaces/%s/kb/%s/%s"
@@ -62,7 +62,7 @@ type RouteBuilder struct{}
 
 func (RouteBuilder) Spaces() string                  { return routeSpaces }
 func (RouteBuilder) Space(name string) string        { return fmt.Sprintf(routeSpace, name) }
-func (RouteBuilder) SpaceQuarkfile(n string) string  { return fmt.Sprintf(routeSpaceQuarkfile, n) }
+func (RouteBuilder) SpaceConfig(n string) string     { return fmt.Sprintf(routeSpaceConfig, n) }
 func (RouteBuilder) SpaceDoctor(n string) string     { return fmt.Sprintf(routeSpaceDoctor, n) }
 func (RouteBuilder) SpaceKBList(n, ns string) string { return fmt.Sprintf(routeSpaceKBList, n, ns) }
 func (RouteBuilder) SpaceKBItem(n, ns, k string) string {

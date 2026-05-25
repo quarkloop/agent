@@ -24,12 +24,14 @@ func TestSpaceServiceLifecycle(t *testing.T) {
 	}
 	ctx := context.Background()
 	workDir := t.TempDir()
-	qf := spacemodel.DefaultQuarkfile("svc-space")
+	config := spacemodel.NewConfig("svc-space", workDir)
+	data, err := spacemodel.MarshalConfig(config)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	created, err := server.CreateSpace(ctx, &spacev1.CreateSpaceRequest{
-		Name:       "svc-space",
-		Quarkfile:  qf,
-		WorkingDir: workDir,
+		Config: data,
 	})
 	if err != nil {
 		t.Fatalf("create: %v", err)
@@ -37,8 +39,8 @@ func TestSpaceServiceLifecycle(t *testing.T) {
 	if created.GetName() != "svc-space" {
 		t.Fatalf("created name = %q", created.GetName())
 	}
-	if _, err := os.Stat(filepath.Join(workDir, spacemodel.QuarkfileName)); err != nil {
-		t.Fatalf("working Quarkfile missing: %v", err)
+	if _, err := os.Stat(filepath.Join(workDir, spacemodel.ConfigFile)); !os.IsNotExist(err) {
+		t.Fatalf("working directory received hidden space config, stat error = %v", err)
 	}
 
 	listed, err := server.ListSpaces(ctx, &emptypb.Empty{})
@@ -57,12 +59,12 @@ func TestSpaceServiceLifecycle(t *testing.T) {
 		t.Fatalf("incomplete paths: %+v", paths)
 	}
 
-	qfResp, err := server.GetQuarkfile(ctx, &spacev1.GetQuarkfileRequest{Name: "svc-space"})
+	configResp, err := server.GetConfig(ctx, &spacev1.GetConfigRequest{Name: "svc-space"})
 	if err != nil {
-		t.Fatalf("quarkfile: %v", err)
+		t.Fatalf("config: %v", err)
 	}
-	if string(qfResp.GetQuarkfile()) != string(qf) {
-		t.Fatal("stored Quarkfile mismatch")
+	if _, err := spacemodel.ParseAndValidateConfig(configResp.GetConfig(), "svc-space"); err != nil {
+		t.Fatalf("stored config: %v", err)
 	}
 }
 
@@ -77,22 +79,15 @@ func TestAgentEnvironmentUsesInjectedEnvironmentSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	quarkfile := []byte(`quark: "1.0"
-meta:
-  name: env-space
-  version: "0.1.0"
-plugins:
-  - ref: quark/service-io
-model:
-  provider: openrouter
-  name: openai/gpt-5-mini
-  env:
-    - OPENROUTER_API_KEY
-`)
+	config := spacemodel.NewConfig("env-space", t.TempDir())
+	config.Plugins = []spacemodel.PluginRef{{Ref: "quark/service-io"}}
+	config.Model = spacemodel.Model{Provider: "openrouter", Name: "openai/gpt-5-mini", Env: []string{"OPENROUTER_API_KEY"}}
+	data, err := spacemodel.MarshalConfig(config)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if _, err := server.CreateSpace(context.Background(), &spacev1.CreateSpaceRequest{
-		Name:       "env-space",
-		Quarkfile:  quarkfile,
-		WorkingDir: t.TempDir(),
+		Config: data,
 	}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -128,22 +123,15 @@ func TestAgentEnvironmentReportsMissingInjectedVariable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	quarkfile := []byte(`quark: "1.0"
-meta:
-  name: missing-env-space
-  version: "0.1.0"
-plugins:
-  - ref: quark/service-io
-model:
-  provider: openrouter
-  name: openai/gpt-5-mini
-  env:
-    - OPENROUTER_API_KEY
-`)
+	config := spacemodel.NewConfig("missing-env-space", t.TempDir())
+	config.Plugins = []spacemodel.PluginRef{{Ref: "quark/service-io"}}
+	config.Model = spacemodel.Model{Provider: "openrouter", Name: "openai/gpt-5-mini", Env: []string{"OPENROUTER_API_KEY"}}
+	data, err := spacemodel.MarshalConfig(config)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if _, err := server.CreateSpace(context.Background(), &spacev1.CreateSpaceRequest{
-		Name:       "missing-env-space",
-		Quarkfile:  quarkfile,
-		WorkingDir: t.TempDir(),
+		Config: data,
 	}); err != nil {
 		t.Fatalf("create: %v", err)
 	}

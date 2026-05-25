@@ -124,11 +124,11 @@ select queue groups.
 | `secrets` | `q.service.v1.secrets` | `secrets_RotateSecret` | `svc.secrets.v1.rotate_secret` |
 | `secrets` | `q.service.v1.secrets` | `secrets_AuditAccess` | `svc.secrets.v1.audit_access` |
 | `space` | `q.service.v1.space` | `space_CreateSpace` | `svc.space.v1.create_space` |
-| `space` | `q.service.v1.space` | `space_UpdateQuarkfile` | `svc.space.v1.update_quarkfile` |
+| `space` | `q.service.v1.space` | `space_UpdateConfig` | `svc.space.v1.update_config` |
 | `space` | `q.service.v1.space` | `space_GetSpace` | `svc.space.v1.get_space` |
 | `space` | `q.service.v1.space` | `space_ListSpaces` | `svc.space.v1.list_spaces` |
 | `space` | `q.service.v1.space` | `space_DeleteSpace` | `svc.space.v1.delete_space` |
-| `space` | `q.service.v1.space` | `space_GetQuarkfile` | `svc.space.v1.get_quarkfile` |
+| `space` | `q.service.v1.space` | `space_GetConfig` | `svc.space.v1.get_config` |
 | `space` | `q.service.v1.space` | `space_GetAgentEnvironment` | `svc.space.v1.get_agent_environment` |
 | `space` | `q.service.v1.space` | `space_GetSpacePaths` | `svc.space.v1.get_space_paths` |
 | `space` | `q.service.v1.space` | `space_Doctor` | `svc.space.v1.doctor` |

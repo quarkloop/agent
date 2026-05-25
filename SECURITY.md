@@ -20,4 +20,7 @@ Out of scope:
 
 ## API Keys
 
-Quark never stores API keys — they are injected at runtime from environment variables and forwarded to spaces that explicitly declare them in the `env:` section of their Quarkfile. Never commit your `.env` file; use `.env.example` as a template.
+Quark never stores API keys: they are injected at runtime from environment
+variables and resolved only for spaces whose service-owned `space.json`
+configuration declares the corresponding environment reference. Never commit
+your `.env` file; use `.env.example` as a template.

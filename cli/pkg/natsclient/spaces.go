@@ -18,10 +18,9 @@ func (c *Client) GetSpace(ctx context.Context, name string) (clientcontract.Spac
 	return requestPayload[clientcontract.SpaceInfo](ctx, c, clientcontract.SubjectSpaceGet, "", clientcontract.GetSpaceRequest{Name: name})
 }
 
-func (c *Client) UpdateSpace(ctx context.Context, name string, quarkfile []byte) (clientcontract.SpaceInfo, error) {
+func (c *Client) UpdateSpace(ctx context.Context, name string, config []byte) (clientcontract.SpaceInfo, error) {
 	return requestPayload[clientcontract.SpaceInfo](ctx, c, clientcontract.SubjectSpaceUpdate, name, clientcontract.UpdateSpaceRequest{
-		Name:      name,
-		Quarkfile: append([]byte(nil), quarkfile...),
+		Config: append([]byte(nil), config...),
 	})
 }
 
@@ -30,8 +29,8 @@ func (c *Client) DeleteSpace(ctx context.Context, name string) error {
 	return err
 }
 
-func (c *Client) Quarkfile(ctx context.Context, name string) (clientcontract.QuarkfileResponse, error) {
-	return requestPayload[clientcontract.QuarkfileResponse](ctx, c, clientcontract.SubjectSpaceQuarkfile, name, clientcontract.QuarkfileRequest{Name: name})
+func (c *Client) SpaceConfig(ctx context.Context, name string) (clientcontract.SpaceConfigResponse, error) {
+	return requestPayload[clientcontract.SpaceConfigResponse](ctx, c, clientcontract.SubjectSpaceConfig, name, clientcontract.SpaceConfigRequest{Name: name})
 }
 
 func (c *Client) Doctor(ctx context.Context, name string) (clientcontract.DoctorResponse, error) {

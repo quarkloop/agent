@@ -11,8 +11,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/quarkloop/cli/pkg/natsclient"
+	"github.com/quarkloop/cli/pkg/spacecontext"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
-	spacemodel "github.com/quarkloop/pkg/space"
 )
 
 func NewAuditCommand() *cobra.Command {
@@ -32,7 +32,7 @@ func newGetCommand() *cobra.Command {
 		Short: "Retrieve one service-call record by reference ID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolvedSpace, err := resolveSpace(space)
+			resolvedSpace, err := resolveSpace(cmd, space)
 			if err != nil {
 				return err
 			}
@@ -61,7 +61,7 @@ func newListCommand() *cobra.Command {
 		Short: "List recent service-call audit records",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			space, err := resolveSpace(request.SpaceID)
+			space, err := resolveSpace(cmd, request.SpaceID)
 			if err != nil {
 				return err
 			}
@@ -112,11 +112,11 @@ func newRetentionCommand() *cobra.Command {
 	return cmd
 }
 
-func resolveSpace(explicit string) (string, error) {
+func resolveSpace(cmd *cobra.Command, explicit string) (string, error) {
 	if strings.TrimSpace(explicit) != "" {
 		return explicit, nil
 	}
-	return spacemodel.CurrentName()
+	return spacecontext.FromCommand(cmd)
 }
 
 func writeJSON(out io.Writer, value any) error {

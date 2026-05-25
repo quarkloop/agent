@@ -20,11 +20,11 @@ type runtimePluginCatalogEntry = plugin.RuntimeCatalogPlugin
 
 func (s *Server) resolveRuntimePluginCatalog(ctx context.Context, space string) (plugin.RuntimeCatalog, string, error) {
 	_ = ctx
-	qfBytes, err := s.store.Quarkfile(space)
+	configBytes, err := s.store.Config(space)
 	if err != nil {
-		return plugin.RuntimeCatalog{}, "", fmt.Errorf("read quarkfile: %w", err)
+		return plugin.RuntimeCatalog{}, "", fmt.Errorf("read space config: %w", err)
 	}
-	qf, err := spacemodel.ParseAndValidateQuarkfileForSpace(qfBytes, space)
+	config, err := spacemodel.ParseAndValidateConfig(configBytes, space)
 	if err != nil {
 		return plugin.RuntimeCatalog{}, "", err
 	}
@@ -48,7 +48,7 @@ func (s *Server) resolveRuntimePluginCatalog(ctx context.Context, space string) 
 			catalog.Plugins = append(catalog.Plugins, entry)
 		}
 	}
-	plugins, selectedAgent, err := newAgentProfileOverrideResolver(qf, validationCatalog).apply(catalog.Plugins)
+	plugins, selectedAgent, err := newAgentProfileOverrideResolver(config, validationCatalog).apply(catalog.Plugins)
 	if err != nil {
 		return plugin.RuntimeCatalog{}, "", err
 	}

@@ -1,6 +1,6 @@
 // Package permissions provides runtime permission enforcement for agents.
 // It validates tool calls, file access, and network operations against
-// the permissions declared in Quarkfile.
+// the permissions declared in the resolved space configuration.
 package permissions
 
 import (

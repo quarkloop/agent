@@ -14,6 +14,7 @@ import (
 	"github.com/quarkloop/pkg/plugin"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
+	spacemodel "github.com/quarkloop/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/natshub"
 	"github.com/quarkloop/supervisor/pkg/pluginmanager"
 )
@@ -113,20 +114,20 @@ func TestRuntimeCatalogSnapshotReturnsVersionedPayloads(t *testing.T) {
 	srv := serviceTestServer(t)
 	writeInstalledMainAgentPlugin(t, srv, "test-space")
 	writeInstalledServicePlugin(t, srv, "test-space")
-	qf := []byte(`quark: "1.0"
-meta:
-  name: test-space
-  version: "0.1.0"
-plugins:
-  - ref: quark/service-indexer
-services:
-  - name: indexer
-    ref: quark/service-indexer
-    mode: local
-    address_env: QUARK_INDEXER_ADDR
-`)
-	if _, err := srv.store.UpdateQuarkfile("test-space", qf); err != nil {
-		t.Fatalf("update quarkfile: %v", err)
+	config := spacemodel.NewConfig("test-space", t.TempDir())
+	config.Plugins = []spacemodel.PluginRef{{Ref: "quark/service-indexer"}}
+	config.Services = []spacemodel.ServiceRef{{
+		Name:       "indexer",
+		Ref:        "quark/service-indexer",
+		Mode:       "local",
+		AddressEnv: "QUARK_INDEXER_ADDR",
+	}}
+	data, err := spacemodel.MarshalConfig(config)
+	if err != nil {
+		t.Fatalf("marshal config: %v", err)
+	}
+	if _, err := srv.store.UpdateConfig(data); err != nil {
+		t.Fatalf("update config: %v", err)
 	}
 	snapshot, err := srv.RuntimeCatalogSnapshot(t.Context(), "test-space")
 	if err != nil {
@@ -333,21 +334,20 @@ func TestResolveServicePluginCatalogIgnoresUnboundInstalledServicePlugins(t *tes
 		ProtoService: "quark.citation.v1.CitationService",
 		FunctionName: "citation_VerifyGrounding",
 	})
-	qf := []byte(`quark: "1.0"
-meta:
-  name: test-space
-  version: "0.1.0"
-plugins:
-  - ref: quark/service-indexer
-  - ref: quark/service-citation
-services:
-  - name: indexer
-    ref: quark/service-indexer
-    mode: local
-    address_env: QUARK_INDEXER_ADDR
-`)
-	if _, err := srv.store.UpdateQuarkfile("test-space", qf); err != nil {
-		t.Fatalf("update quarkfile: %v", err)
+	config := spacemodel.NewConfig("test-space", t.TempDir())
+	config.Plugins = []spacemodel.PluginRef{{Ref: "quark/service-indexer"}, {Ref: "quark/service-citation"}}
+	config.Services = []spacemodel.ServiceRef{{
+		Name:       "indexer",
+		Ref:        "quark/service-indexer",
+		Mode:       "local",
+		AddressEnv: "QUARK_INDEXER_ADDR",
+	}}
+	data, err := spacemodel.MarshalConfig(config)
+	if err != nil {
+		t.Fatalf("marshal config: %v", err)
+	}
+	if _, err := srv.store.UpdateConfig(data); err != nil {
+		t.Fatalf("update config: %v", err)
 	}
 	descriptors, err := srv.resolveServicePluginCatalog(t.Context(), "test-space")
 	if err != nil {

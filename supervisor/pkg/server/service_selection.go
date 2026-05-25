@@ -9,16 +9,16 @@ import (
 )
 
 func (s *Server) serviceConfigByPluginName(space string) (map[string]spacemodel.ServiceRef, error) {
-	data, err := s.store.Quarkfile(space)
+	data, err := s.store.Config(space)
 	if err != nil {
-		return nil, fmt.Errorf("read quarkfile for service config: %w", err)
+		return nil, fmt.Errorf("read space config for service selection: %w", err)
 	}
-	qf, err := spacemodel.ParseAndValidateQuarkfileForSpace(data, space)
+	config, err := spacemodel.ParseAndValidateConfig(data, space)
 	if err != nil {
-		return nil, fmt.Errorf("parse quarkfile for service config: %w", err)
+		return nil, fmt.Errorf("parse space config for service selection: %w", err)
 	}
-	out := make(map[string]spacemodel.ServiceRef, len(qf.Services))
-	for _, service := range qf.Services {
+	out := make(map[string]spacemodel.ServiceRef, len(config.Services))
+	for _, service := range config.Services {
 		out[service.Name] = service
 		if service.Ref != "" {
 			out[pluginNameFromRef(service.Ref)] = service

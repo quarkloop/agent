@@ -42,9 +42,7 @@ type SpaceInfo struct {
 }
 
 type CreateSpaceRequest struct {
-	Name       string `json:"name"`
-	Quarkfile  []byte `json:"quarkfile"`
-	WorkingDir string `json:"working_dir"`
+	Config []byte `json:"config"`
 }
 
 type GetSpaceRequest struct {
@@ -56,18 +54,17 @@ type DeleteSpaceRequest struct {
 }
 
 type UpdateSpaceRequest struct {
-	Name      string `json:"name"`
-	Quarkfile []byte `json:"quarkfile"`
+	Config []byte `json:"config"`
 }
 
-type QuarkfileRequest struct {
+type SpaceConfigRequest struct {
 	Name string `json:"name"`
 }
 
-type QuarkfileResponse struct {
+type SpaceConfigResponse struct {
 	Name      string    `json:"name"`
 	Version   string    `json:"version,omitempty"`
-	Quarkfile []byte    `json:"quarkfile"`
+	Config    []byte    `json:"config"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 

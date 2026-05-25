@@ -7,19 +7,12 @@ import (
 	"github.com/quarkloop/supervisor/pkg/sessions"
 )
 
-// Store is the supervisor's persistent space registry. All spaces are
-// identified by Name (meta.name from the Quarkfile). The store keeps only the
-// latest Quarkfile state; Quarkfile history is user-owned.
-//
-// Implementations must be safe for concurrent use.
+// Store is the supervisor's semantic space boundary. Authoritative config
+// persistence is implemented by calls to the Space service.
 type Store interface {
-	// Create registers a new space with the given name and initial Quarkfile
-	// contents. The Quarkfile is written to workingDir.
-	// Returns ErrAlreadyExists if a space with that name is already registered.
-	Create(name string, quarkfile []byte, workingDir string) (*Space, error)
+	Create(config []byte) (*Space, error)
 
-	// UpdateQuarkfile replaces the latest Quarkfile for the named space.
-	UpdateQuarkfile(name string, quarkfile []byte) (*Space, error)
+	UpdateConfig(config []byte) (*Space, error)
 
 	// Get returns the metadata for the named space.
 	Get(name string) (*Space, error)
@@ -30,11 +23,11 @@ type Store interface {
 	// Delete permanently removes the named space and all of its data.
 	Delete(name string) error
 
-	// Quarkfile returns the latest stored Quarkfile contents.
-	Quarkfile(name string) (contents []byte, err error)
+	// Config returns authoritative `space.json` contents.
+	Config(name string) (contents []byte, err error)
 
 	// AgentEnvironment returns concrete environment entries derived from the
-	// latest Quarkfile model declaration.
+	// authoritative space configuration model declaration.
 	AgentEnvironment(name string) ([]string, error)
 
 	// KB opens the knowledge-base store scoped to the named space.
@@ -50,7 +43,6 @@ type Store interface {
 	// process scoped to the named space.
 	ServiceStateDir(name, service string) (string, error)
 
-	// Doctor runs health checks against the named space's Quarkfile and
-	// installed plugins.
+	// Doctor runs storage/configuration health checks for a named space.
 	Doctor(name string) (api.DoctorResponse, error)
 }

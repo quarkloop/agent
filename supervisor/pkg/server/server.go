@@ -15,6 +15,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/supervisor/internal/supervisor"
 	"github.com/quarkloop/supervisor/pkg/api"
 	"github.com/quarkloop/supervisor/pkg/events"
@@ -22,21 +23,25 @@ import (
 	"github.com/quarkloop/supervisor/pkg/natshub"
 	"github.com/quarkloop/supervisor/pkg/pluginbootstrap"
 	"github.com/quarkloop/supervisor/pkg/space"
-	"github.com/quarkloop/supervisor/pkg/space/fsstore"
+	"github.com/quarkloop/supervisor/pkg/space/remotestore"
 )
 
 // Config holds supervisor server configuration.
 type Config struct {
 	// Port is the TCP port to listen on.
 	Port int
-	// SpacesDir is the root directory for the filesystem-backed space store.
-	// When empty, fsstore.DefaultRoot() is used.
+	// SpacesDir is retained for deployment validation while persistence is
+	// delegated to the configured Space service.
 	SpacesDir string
 	// NATS configures the supervisor-owned NATS hub.
 	NATS natshub.Config
 	// BundledPluginsDir is the product plugin bundle root. The supervisor
 	// installs required default plugins from this directory for new spaces.
 	BundledPluginsDir string
+	// Store is an injected semantic store for focused tests only. Product
+	// startup always establishes the Space-service-backed store after NATS is
+	// ready.
+	Store space.Store
 }
 
 // Server is the Supervisor HTTP API server.
@@ -44,10 +49,11 @@ type Server struct {
 	cfg Config
 	app *fiber.App
 
-	store   space.Store
-	events  *events.Bus
-	natsHub *natshub.Hub
-	natsAPI *natsapi.Server
+	store       space.Store
+	storeCloser interface{ Close() }
+	events      *events.Bus
+	natsHub     *natshub.Hub
+	natsAPI     *natsapi.Server
 
 	pluginBootstrap *pluginbootstrap.Installer
 }
@@ -71,18 +77,6 @@ func New(cfg Config) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("configure nats hub: %w", err)
 	}
-	root := cfg.SpacesDir
-	if root == "" {
-		r, err := fsstore.DefaultRoot()
-		if err != nil {
-			return nil, fmt.Errorf("resolve spaces root: %w", err)
-		}
-		root = r
-	}
-	store, err := fsstore.NewFSStore(root)
-	if err != nil {
-		return nil, fmt.Errorf("open space store: %w", err)
-	}
 	bootstrap, err := pluginbootstrap.New(cfg.BundledPluginsDir)
 	if err != nil {
 		return nil, fmt.Errorf("configure required plugin bootstrap: %w", err)
@@ -90,7 +84,7 @@ func New(cfg Config) (*Server, error) {
 
 	s := &Server{
 		cfg:             cfg,
-		store:           store,
+		store:           cfg.Store,
 		events:          events.NewBus(),
 		natsHub:         natsHub,
 		pluginBootstrap: bootstrap,
@@ -141,6 +135,25 @@ func (s *Server) Start(ctx context.Context) error {
 		controlCredential, err := s.natsHub.ControlCredential()
 		if err != nil {
 			return fmt.Errorf("resolve nats control credential: %w", err)
+		}
+		if s.store == nil {
+			remote, err := remotestore.New(ctx, natskit.Config{
+				URL:             endpoints.ClientURL,
+				Username:        controlCredential.Username,
+				Password:        controlCredential.Password,
+				Name:            "quark-supervisor-space-persistence",
+				AuditPrefix:     "audit",
+				TelemetryPrefix: "telemetry",
+			})
+			if err != nil {
+				return fmt.Errorf("connect space persistence: %w", err)
+			}
+			s.store = remote
+			s.storeCloser = remote
+			defer func() {
+				s.storeCloser.Close()
+				s.storeCloser = nil
+			}()
 		}
 		apiServer, err := natsapi.Start(ctx, natsapi.Config{
 			URL:      endpoints.ClientURL,

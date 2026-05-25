@@ -27,18 +27,18 @@ func (s *Server) CreateSpace(ctx context.Context, req *spacev1.CreateSpaceReques
 	if err := ctx.Err(); err != nil {
 		return nil, grpcError(err)
 	}
-	space, err := s.store.Create(req.GetName(), req.GetQuarkfile(), req.GetWorkingDir())
+	space, err := s.store.Create(req.GetConfig())
 	if err != nil {
 		return nil, grpcError(err)
 	}
 	return spaceToProto(space), nil
 }
 
-func (s *Server) UpdateQuarkfile(ctx context.Context, req *spacev1.UpdateQuarkfileRequest) (*spacev1.Space, error) {
+func (s *Server) UpdateConfig(ctx context.Context, req *spacev1.UpdateConfigRequest) (*spacev1.Space, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, grpcError(err)
 	}
-	space, err := s.store.UpdateQuarkfile(req.GetName(), req.GetQuarkfile())
+	space, err := s.store.UpdateConfig(req.GetConfig())
 	if err != nil {
 		return nil, grpcError(err)
 	}
@@ -81,18 +81,18 @@ func (s *Server) DeleteSpace(ctx context.Context, req *spacev1.DeleteSpaceReques
 	return &emptypb.Empty{}, nil
 }
 
-func (s *Server) GetQuarkfile(ctx context.Context, req *spacev1.GetQuarkfileRequest) (*spacev1.QuarkfileResponse, error) {
+func (s *Server) GetConfig(ctx context.Context, req *spacev1.GetConfigRequest) (*spacev1.ConfigResponse, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, grpcError(err)
 	}
-	data, space, err := s.store.Quarkfile(req.GetName())
+	data, space, err := s.store.Config(req.GetName())
 	if err != nil {
 		return nil, grpcError(err)
 	}
-	return &spacev1.QuarkfileResponse{
+	return &spacev1.ConfigResponse{
 		Name:      space.Name,
 		Version:   space.Version,
-		Quarkfile: data,
+		Config:    data,
 		UpdatedAt: timestamppb.New(space.UpdatedAt),
 	}, nil
 }
@@ -117,11 +117,11 @@ func (s *Server) GetSpacePaths(ctx context.Context, req *spacev1.GetSpacePathsRe
 		return nil, grpcError(err)
 	}
 	return &spacev1.SpacePaths{
-		RootDir:       paths.RootDir,
-		QuarkfilePath: paths.QuarkfilePath,
-		KbDir:         paths.KBDir,
-		PluginsDir:    paths.PluginsDir,
-		SessionsDir:   paths.SessionsDir,
+		RootDir:     paths.RootDir,
+		ConfigPath:  paths.ConfigPath,
+		KbDir:       paths.KBDir,
+		PluginsDir:  paths.PluginsDir,
+		SessionsDir: paths.SessionsDir,
 	}, nil
 }
 
@@ -143,7 +143,7 @@ func (s *Server) Doctor(ctx context.Context, req *spacev1.DoctorRequest) (*space
 	return out, nil
 }
 
-func spaceToProto(space *spacemodel.Metadata) *spacev1.Space {
+func spaceToProto(space *spacemodel.Config) *spacev1.Space {
 	if space == nil {
 		return nil
 	}

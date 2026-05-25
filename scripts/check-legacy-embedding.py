@@ -54,7 +54,11 @@ SCANNED_TOP_LEVEL_FILES = {
 
 
 def tracked_files() -> list[str]:
-    output = subprocess.check_output(["git", "ls-files"], cwd=ROOT, text=True)
+    output = subprocess.check_output(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+        cwd=ROOT,
+        text=True,
+    )
     return [line.strip() for line in output.splitlines() if line.strip()]
 
 
@@ -71,7 +75,10 @@ def main() -> int:
             continue
         if path == "scripts/check-legacy-embedding.py":
             continue
-        data = (ROOT / path).read_text(encoding="utf-8", errors="replace")
+        source = ROOT / path
+        if not source.exists():
+            continue
+        data = source.read_text(encoding="utf-8", errors="replace")
         for line_number, line in enumerate(data.splitlines(), start=1):
             for term in FORBIDDEN_TERMS:
                 if term in line:

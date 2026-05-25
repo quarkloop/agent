@@ -12,7 +12,7 @@ func newDoctorCmd() *cobra.Command {
 		Short: "Run service diagnostics through the supervisor",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			space, err := currentSpaceName()
+			space, err := currentSpaceName(cmd)
 			if err != nil {
 				return err
 			}

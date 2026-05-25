@@ -49,7 +49,7 @@ func diagnosticHint(err *Error) string {
 	case RateLimit:
 		return "The provider reported quota or rate limiting; retry later or switch the configured model/provider."
 	case PolicyDenied:
-		return "Review the active agent profile and Quarkfile permission narrowing for this tool or service function."
+		return "Review the active agent profile and space configuration permission narrowing for this tool or service function."
 	case ApprovalRequired:
 		return "Approve the requested operation or ask the agent for a read-only plan."
 	case NotFound:

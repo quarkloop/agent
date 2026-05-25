@@ -10,17 +10,16 @@ import (
 	event "github.com/quarkloop/pkg/event"
 )
 
-// Kind and constants are now defined in pkg/event.
-// Re-export for backwards compatibility within this package.
+// Kind and constants are defined in pkg/event.
 type Kind = event.Kind
 
 const (
-	SessionCreated   = event.SessionCreated
-	SessionDeleted   = event.SessionDeleted
-	QuarkfileUpdated = event.QuarkfileUpdated
-	PluginInstalled  = event.PluginInstalled
-	PluginRemoved    = event.PluginRemoved
-	RuntimeShutdown  = event.RuntimeShutdown
+	SessionCreated     = event.SessionCreated
+	SessionDeleted     = event.SessionDeleted
+	SpaceConfigUpdated = event.SpaceConfigUpdated
+	PluginInstalled    = event.PluginInstalled
+	PluginRemoved      = event.PluginRemoved
+	RuntimeShutdown    = event.RuntimeShutdown
 )
 
 // Bus is an in-memory fan-out of events scoped by space.

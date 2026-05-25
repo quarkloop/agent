@@ -22,7 +22,6 @@ func RegisterCommands(root *cobra.Command) {
 	// Space Commands — agent lifecycle + space operations.
 	addGroup("space", root,
 		runtimecmd.NewInspectCommand(),
-		runtimecmd.NewSyncCommand(),
 		initcmd.NewInitCommand(),
 		doctorcmd.NewDoctorCommand(),
 		versioncmd.NewVersionCommand(),

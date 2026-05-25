@@ -2501,18 +2501,18 @@
         {
           "approval_required": true,
           "idempotent": false,
-          "method": "UpdateQuarkfile",
+          "method": "UpdateConfig",
           "method_implemented": true,
-          "name": "space_UpdateQuarkfile",
+          "name": "space_UpdateConfig",
           "owner": "space",
           "proto_rpc_exists": true,
-          "request": "quark.space.v1.UpdateQuarkfileRequest",
+          "request": "quark.space.v1.UpdateConfigRequest",
           "response": "quark.space.v1.Space",
           "risk_level": "write",
           "service": "quark.space.v1.SpaceService",
           "status": "implemented_end_to_end",
           "streaming": false,
-          "subject": "svc.space.v1.update_quarkfile"
+          "subject": "svc.space.v1.update_config"
         },
         {
           "approval_required": false,
@@ -2565,18 +2565,18 @@
         {
           "approval_required": false,
           "idempotent": true,
-          "method": "GetQuarkfile",
+          "method": "GetConfig",
           "method_implemented": true,
-          "name": "space_GetQuarkfile",
+          "name": "space_GetConfig",
           "owner": "space",
           "proto_rpc_exists": true,
-          "request": "quark.space.v1.GetQuarkfileRequest",
-          "response": "quark.space.v1.QuarkfileResponse",
+          "request": "quark.space.v1.GetConfigRequest",
+          "response": "quark.space.v1.ConfigResponse",
           "risk_level": "read",
           "service": "quark.space.v1.SpaceService",
           "status": "implemented_end_to_end",
           "streaming": false,
-          "subject": "svc.space.v1.get_quarkfile"
+          "subject": "svc.space.v1.get_config"
         },
         {
           "approval_required": false,

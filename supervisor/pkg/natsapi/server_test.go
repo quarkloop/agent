@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
+	"sort"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,18 +15,21 @@ import (
 	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 	spacemodel "github.com/quarkloop/pkg/space"
+	"github.com/quarkloop/supervisor/pkg/api"
 	"github.com/quarkloop/supervisor/pkg/events"
+	"github.com/quarkloop/supervisor/pkg/kb"
 	"github.com/quarkloop/supervisor/pkg/natshub"
-	"github.com/quarkloop/supervisor/pkg/space/fsstore"
+	"github.com/quarkloop/supervisor/pkg/pluginmanager"
+	"github.com/quarkloop/supervisor/pkg/sessions"
+	"github.com/quarkloop/supervisor/pkg/space"
+	spacestore "github.com/quarkloop/supervisor/pkg/space/store"
 )
 
 func TestSpaceAndSessionContracts(t *testing.T) {
 	fixture := startFixture(t)
 
 	createSpace := requestPayload[clientcontract.SpaceInfo](t, fixture.client, clientcontract.SubjectSpaceCreate, clientcontract.CreateSpaceRequest{
-		Name:       "docs",
-		Quarkfile:  spacemodel.DefaultQuarkfile("docs"),
-		WorkingDir: filepath.Join(t.TempDir(), "workspace"),
+		Config: spaceConfig(t, "docs", filepath.Join(t.TempDir(), "workspace")),
 	})
 	if createSpace.Name != "docs" {
 		t.Fatalf("space name = %q", createSpace.Name)
@@ -67,10 +72,9 @@ func TestSpaceAndSessionContracts(t *testing.T) {
 		t.Fatalf("flush catalog event subscription: %v", err)
 	}
 	_ = requestPayload[clientcontract.SpaceInfo](t, fixture.client, clientcontract.SubjectSpaceUpdate, clientcontract.UpdateSpaceRequest{
-		Name:      "docs",
-		Quarkfile: spacemodel.DefaultQuarkfile("docs"),
+		Config: spaceConfig(t, "docs", filepath.Join(t.TempDir(), "workspace")),
 	})
-	assertCatalogEvent(t, catalogEvents, "docs", "quarkfile_updated")
+	assertCatalogEvent(t, catalogEvents, "docs", "space_config_updated")
 
 	runtimeCredential := requestPayload[clientcontract.SpaceCredentialResponse](t, fixture.client, clientcontract.SubjectRuntimeCredential, clientcontract.SpaceCredentialRequest{SpaceID: "docs"})
 	if runtimeCredential.Credential.Username == "" || runtimeCredential.Credential.Role != "runtime" {
@@ -238,9 +242,7 @@ func TestCreateSpaceRunsRequiredPluginBootstrap(t *testing.T) {
 	bootstrapper := &recordingSpaceBootstrapper{}
 	fixture := startFixtureWithOptions(t, WithSpaceBootstrapper(bootstrapper))
 	_ = requestPayload[clientcontract.SpaceInfo](t, fixture.client, clientcontract.SubjectSpaceCreate, clientcontract.CreateSpaceRequest{
-		Name:       "docs",
-		Quarkfile:  spacemodel.DefaultQuarkfile("docs"),
-		WorkingDir: filepath.Join(t.TempDir(), "workspace"),
+		Config: spaceConfig(t, "docs", filepath.Join(t.TempDir(), "workspace")),
 	})
 	if len(bootstrapper.spaces) != 1 || bootstrapper.spaces[0] != "docs" {
 		t.Fatalf("bootstrapped spaces = %#v", bootstrapper.spaces)
@@ -280,10 +282,7 @@ func startFixtureWithOptions(t *testing.T, opts ...Option) fixture {
 		_ = hub.Stop(shutdownCtx)
 	})
 
-	store, err := fsstore.NewFSStore(t.TempDir())
-	if err != nil {
-		t.Fatalf("new store: %v", err)
-	}
+	store := newFixtureSpaceStore(t.TempDir())
 	bus := events.NewBus()
 	controlCredential, err := hub.ControlCredential()
 	if err != nil {
@@ -314,6 +313,139 @@ func startFixtureWithOptions(t *testing.T, opts ...Option) fixture {
 
 	return fixture{hub: hub, client: client, events: bus}
 }
+
+func spaceConfig(t *testing.T, name, workDir string) []byte {
+	t.Helper()
+	data, err := spacemodel.MarshalConfig(spacemodel.NewConfig(name, workDir))
+	if err != nil {
+		t.Fatalf("marshal space config: %v", err)
+	}
+	return data
+}
+
+// fixtureSpaceStore isolates NATS control-handler tests from Space service
+// transport tests. remotestore tests cover the service-function delegation.
+type fixtureSpaceStore struct {
+	root    string
+	mu      sync.Mutex
+	configs map[string][]byte
+}
+
+func newFixtureSpaceStore(root string) *fixtureSpaceStore {
+	return &fixtureSpaceStore{root: root, configs: make(map[string][]byte)}
+}
+
+func (s *fixtureSpaceStore) Create(data []byte) (*space.Space, error) {
+	cfg, err := spacemodel.ParseConfig(data)
+	if err != nil {
+		return nil, err
+	}
+	if err := spacemodel.ValidateConfig(cfg); err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.configs[cfg.Name]; exists {
+		return nil, spacestore.ErrAlreadyExists
+	}
+	s.configs[cfg.Name] = append([]byte(nil), data...)
+	return space.FromConfig(*cfg), nil
+}
+
+func (s *fixtureSpaceStore) UpdateConfig(data []byte) (*space.Space, error) {
+	cfg, err := spacemodel.ParseConfig(data)
+	if err != nil {
+		return nil, err
+	}
+	if err := spacemodel.ValidateConfig(cfg); err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.configs[cfg.Name]; !exists {
+		return nil, spacestore.NewNotFoundError(cfg.Name)
+	}
+	s.configs[cfg.Name] = append([]byte(nil), data...)
+	return space.FromConfig(*cfg), nil
+}
+
+func (s *fixtureSpaceStore) Get(name string) (*space.Space, error) {
+	data, err := s.Config(name)
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := spacemodel.ParseConfig(data)
+	if err != nil {
+		return nil, err
+	}
+	return space.FromConfig(*cfg), nil
+}
+
+func (s *fixtureSpaceStore) List() ([]*space.Space, error) {
+	s.mu.Lock()
+	names := make([]string, 0, len(s.configs))
+	for name := range s.configs {
+		names = append(names, name)
+	}
+	s.mu.Unlock()
+	sort.Strings(names)
+	out := make([]*space.Space, 0, len(names))
+	for _, name := range names {
+		item, err := s.Get(name)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, nil
+}
+
+func (s *fixtureSpaceStore) Delete(name string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.configs[name]; !exists {
+		return spacestore.NewNotFoundError(name)
+	}
+	delete(s.configs, name)
+	return nil
+}
+
+func (s *fixtureSpaceStore) Config(name string) ([]byte, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	data, exists := s.configs[name]
+	if !exists {
+		return nil, spacestore.NewNotFoundError(name)
+	}
+	return append([]byte(nil), data...), nil
+}
+
+func (s *fixtureSpaceStore) AgentEnvironment(string) ([]string, error) { return nil, nil }
+
+func (s *fixtureSpaceStore) KB(name string) (kb.Store, error) {
+	return kb.Open(filepath.Join(s.root, name, "kb"))
+}
+
+func (s *fixtureSpaceStore) Plugins(name string) (*pluginmanager.Installer, error) {
+	return pluginmanager.NewInstaller(filepath.Join(s.root, name, "plugins")), nil
+}
+
+func (s *fixtureSpaceStore) Sessions(name string) (*sessions.Store, error) {
+	return sessions.Open(filepath.Join(s.root, name, "sessions"), name)
+}
+
+func (s *fixtureSpaceStore) ServiceStateDir(name, serviceName string) (string, error) {
+	return filepath.Join(s.root, name, "services", serviceName), nil
+}
+
+func (s *fixtureSpaceStore) Doctor(name string) (api.DoctorResponse, error) {
+	if _, err := s.Config(name); err != nil {
+		return api.DoctorResponse{}, err
+	}
+	return api.DoctorResponse{OK: true}, nil
+}
+
+var _ space.Store = (*fixtureSpaceStore)(nil)
 
 type recordingSpaceBootstrapper struct {
 	spaces []string

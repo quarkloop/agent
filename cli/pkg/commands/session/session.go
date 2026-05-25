@@ -10,14 +10,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/quarkloop/cli/pkg/natsclient"
+	"github.com/quarkloop/cli/pkg/spacecontext"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
-	spacemodel "github.com/quarkloop/pkg/space"
 )
 
-// currentSpace returns the space name from the Quarkfile in the current
-// working directory. Session commands operate on this space.
-func currentSpace() (string, error) {
-	return spacemodel.CurrentName()
+func currentSpace(cmd *cobra.Command) (string, error) {
+	return spacecontext.FromCommand(cmd)
 }
 
 func NewSessionCommand() *cobra.Command {
@@ -38,7 +36,7 @@ func newSessionCreateCmd() *cobra.Command {
 		Use:   "create",
 		Short: "Create a new session",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			space, err := currentSpace()
+			space, err := currentSpace(cmd)
 			if err != nil {
 				return err
 			}
@@ -70,7 +68,7 @@ func newSessionGetCmd() *cobra.Command {
 		Short: "Get a session",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			space, err := currentSpace()
+			space, err := currentSpace(cmd)
 			if err != nil {
 				return err
 			}
@@ -96,7 +94,7 @@ func newSessionDeleteCmd() *cobra.Command {
 		Short: "Delete a session",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			space, err := currentSpace()
+			space, err := currentSpace(cmd)
 			if err != nil {
 				return err
 			}
@@ -119,7 +117,7 @@ func newSessionListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List sessions for the current space",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			space, err := currentSpace()
+			space, err := currentSpace(cmd)
 			if err != nil {
 				return err
 			}

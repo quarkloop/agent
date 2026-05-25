@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
+	spacemodel "github.com/quarkloop/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/api"
 	"github.com/quarkloop/supervisor/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/space/store"
@@ -31,17 +32,14 @@ func (s *Server) handleCreateSpace(c *fiber.Ctx) error {
 		return writeError(c, fiber.StatusBadRequest, "invalid request body: "+err.Error())
 	}
 
-	if req.Name == "" {
-		return writeError(c, fiber.StatusBadRequest, "name is required")
+	if len(req.Config) == 0 {
+		return writeError(c, fiber.StatusBadRequest, "config is required")
 	}
-	if len(req.Quarkfile) == 0 {
-		return writeError(c, fiber.StatusBadRequest, "quarkfile is required")
-	}
-	if req.WorkingDir == "" {
-		return writeError(c, fiber.StatusBadRequest, "working_dir is required")
+	if _, err := spacemodel.ParseConfig(req.Config); err != nil {
+		return writeError(c, fiber.StatusBadRequest, err.Error())
 	}
 
-	sp, err := s.store.Create(req.Name, cloneBytes(req.Quarkfile), req.WorkingDir)
+	sp, err := s.store.Create(cloneBytes(req.Config))
 	if err != nil {
 		switch {
 		case errors.Is(err, store.ErrAlreadyExists):
@@ -50,15 +48,15 @@ func (s *Server) handleCreateSpace(c *fiber.Ctx) error {
 			return writeError(c, fiber.StatusBadRequest, err.Error())
 		}
 	}
-	if err := s.BootstrapSpace(context.Background(), req.Name); err != nil {
-		if rollbackErr := s.store.Delete(req.Name); rollbackErr != nil {
+	if err := s.BootstrapSpace(context.Background(), sp.Name); err != nil {
+		if rollbackErr := s.store.Delete(sp.Name); rollbackErr != nil {
 			return writeError(c, fiber.StatusInternalServerError, fmt.Sprintf("bootstrap required space plugins: %v; rollback space: %v", err, rollbackErr))
 		}
 		return writeError(c, fiber.StatusInternalServerError, "bootstrap required space plugins: "+err.Error())
 	}
 	if s.natsHub != nil {
-		if _, err := s.natsHub.ProvisionSpace(req.Name); err != nil {
-			if rollbackErr := s.store.Delete(req.Name); rollbackErr != nil {
+		if _, err := s.natsHub.ProvisionSpace(sp.Name); err != nil {
+			if rollbackErr := s.store.Delete(sp.Name); rollbackErr != nil {
 				return writeError(c, fiber.StatusInternalServerError, fmt.Sprintf("provision nats space account: %v; rollback space: %v", err, rollbackErr))
 			}
 			return writeError(c, fiber.StatusInternalServerError, "provision nats space account: "+err.Error())
@@ -87,10 +85,10 @@ func (s *Server) handleDeleteSpace(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-// handleGetQuarkfile serves GET /v1/spaces/:name/quarkfile.
-func (s *Server) handleGetQuarkfile(c *fiber.Ctx) error {
+// handleGetSpaceConfig serves GET /v1/spaces/:name/config.
+func (s *Server) handleGetSpaceConfig(c *fiber.Ctx) error {
 	name := c.Params("name")
-	data, err := s.store.Quarkfile(name)
+	data, err := s.store.Config(name)
 	if err != nil {
 		return s.writeSpaceError(c, name, err)
 	}
@@ -99,25 +97,32 @@ func (s *Server) handleGetQuarkfile(c *fiber.Ctx) error {
 		return s.writeSpaceError(c, name, err)
 	}
 
-	return writeJSON(c, fiber.StatusOK, api.QuarkfileResponse{
+	return writeJSON(c, fiber.StatusOK, api.SpaceConfigResponse{
 		Name:      name,
 		Version:   sp.Version,
-		Quarkfile: data,
+		Config:    data,
 		UpdatedAt: sp.UpdatedAt,
 	})
 }
 
-// handleUpdateQuarkfile serves PUT /v1/spaces/:name/quarkfile.
-func (s *Server) handleUpdateQuarkfile(c *fiber.Ctx) error {
+// handleUpdateSpaceConfig serves PUT /v1/spaces/:name/config.
+func (s *Server) handleUpdateSpaceConfig(c *fiber.Ctx) error {
 	name := c.Params("name")
-	var req api.UpdateQuarkfileRequest
+	var req api.UpdateSpaceConfigRequest
 	if err := c.BodyParser(&req); err != nil {
 		return writeError(c, fiber.StatusBadRequest, "invalid request body: "+err.Error())
 	}
-	if len(req.Quarkfile) == 0 {
-		return writeError(c, fiber.StatusBadRequest, "quarkfile is required")
+	if len(req.Config) == 0 {
+		return writeError(c, fiber.StatusBadRequest, "config is required")
 	}
-	sp, err := s.store.UpdateQuarkfile(name, cloneBytes(req.Quarkfile))
+	cfg, err := spacemodel.ParseConfig(req.Config)
+	if err != nil {
+		return writeError(c, fiber.StatusBadRequest, err.Error())
+	}
+	if cfg.Name != name {
+		return writeError(c, fiber.StatusBadRequest, "config name does not match route space")
+	}
+	sp, err := s.store.UpdateConfig(cloneBytes(req.Config))
 	if err != nil {
 		return s.writeSpaceError(c, name, err)
 	}

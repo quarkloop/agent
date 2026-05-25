@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	spacemodel "github.com/quarkloop/pkg/space"
+	"github.com/quarkloop/cli/pkg/spacecontext"
 )
 
 func newKBSetCmd() *cobra.Command {
@@ -29,7 +29,7 @@ func newKBSetCmd() *cobra.Command {
 			} else {
 				value = []byte(args[1])
 			}
-			name, err := spacemodel.CurrentName()
+			name, err := spacecontext.FromCommand(cmd)
 			if err != nil {
 				return err
 			}

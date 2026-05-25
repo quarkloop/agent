@@ -12,12 +12,12 @@ type Kind string
 
 // EventKind constants published by the supervisor on the space event stream.
 const (
-	SessionCreated   Kind = "session.created"
-	SessionDeleted   Kind = "session.deleted"
-	QuarkfileUpdated Kind = "quarkfile.updated"
-	PluginInstalled  Kind = "plugin.installed"
-	PluginRemoved    Kind = "plugin.removed"
-	RuntimeShutdown  Kind = "runtime.shutdown"
+	SessionCreated     Kind = "session.created"
+	SessionDeleted     Kind = "session.deleted"
+	SpaceConfigUpdated Kind = "space.config.updated"
+	PluginInstalled    Kind = "plugin.installed"
+	PluginRemoved      Kind = "plugin.removed"
+	RuntimeShutdown    Kind = "runtime.shutdown"
 )
 
 // Event is the wire format for a supervisor → agent signal.

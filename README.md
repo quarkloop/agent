@@ -18,7 +18,7 @@ data-flow rules.
 
 | Area | What it does |
 | --- | --- |
-| Spaces | Local-first workspaces configured by a `Quarkfile`. |
+| Spaces | Service-owned workspaces with one authoritative `space.json` configuration record. |
 | Supervisor | Control plane for spaces, sessions, plugin installs, service discovery, readiness, catalogs, and embedded NATS. |
 | Runtime | Agent loop, profile prompts, LLM/model calls, tool execution, service-function dispatch, permissions, activity, and workflow guards. |
 | Agents | Required Quark Main coordinator plus installable Knowledge, DevOps, and System specialist profiles. |
@@ -37,27 +37,29 @@ make build
 export PATH="$PWD/bin:$PATH"
 ```
 
-Start the supervisor:
+Start the Space service and supervisor:
 
 ```bash
+space-service --root ~/.quarkloop/spaces
 supervisor start --port 7200
 ```
 
-Create and run a space:
+Create a space and select it for subsequent CLI requests:
 
 ```bash
 mkdir /tmp/quark-demo
-cd /tmp/quark-demo
-quark init --name quark-demo
+quark init quark-demo --work-dir /tmp/quark-demo
+export QUARK_SPACE=quark-demo
 export OPENROUTER_API_KEY=sk-or-v1-...
-quark run
 quark session create --title "Demo"
 ```
 
-The CLI talks to supervisor/runtime contracts through NATS. The supervisor
-stores space state under `$QUARK_SPACES_ROOT` or `~/.quarkloop/spaces`.
+The CLI talks to supervisor/runtime contracts through NATS. The Space service
+persists the authoritative `space.json` record under `$QUARK_SPACES_ROOT` or
+`~/.quarkloop/spaces`; it does not write hidden product state into the working
+directory.
 
-See [QUARKFILE.md](QUARKFILE.md) for Knowledge, DevOps, System, and Gateway
+See [SPACE-CONFIG.md](SPACE-CONFIG.md) for Knowledge, DevOps, System, and Gateway
 configuration examples.
 
 ## Architecture
@@ -67,7 +69,7 @@ quark CLI
   |
   | NATS request/reply and streams
   v
-supervisor  -> spaces, sessions, discovery, catalogs, embedded NATS
+supervisor  -> orchestration, sessions, discovery, catalogs, embedded NATS
   |
   | publishes resolved catalogs and account credentials
   v
@@ -75,7 +77,7 @@ runtime     -> agent loop, prompts, tools, service functions, activity
   |
   | tool calls and NATS service functions
   v
-plugins/tools/*     services/*     plugins/agents/*
+plugins/tools/*     services/* (including Space persistence)     plugins/agents/*
 ```
 
 Core rule: agents coordinate, services execute. Services do not call each
@@ -90,10 +92,10 @@ Read the deeper architecture notes in [ARCHITECTURE.md](ARCHITECTURE.md).
 make build           # cli, supervisor, runtime, tools, services
 make build-plugins   # tool plugin build targets
 make test            # unit tests across workspace modules
-make test-e2e-local  # deterministic E2E subset, no provider key
+make test-e2e-local  # configured local E2E scenarios
 make test-e2e        # provider-backed E2E suite
 make check           # fmt-check, vet, test, arch-check, dead-code-check
-make release-check   # release readiness gate with local deterministic E2E
+make release-check   # release readiness gate
 ```
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for setup, E2E requirements, provider
@@ -105,7 +107,7 @@ keys, troubleshooting, and release checks.
   catalogs, and strict boundaries.
 - [DEVELOPMENT.md](DEVELOPMENT.md) - build, test, E2E, provider keys, and
   debugging.
-- [QUARKFILE.md](QUARKFILE.md) - practical Quarkfile examples.
+- [SPACE-CONFIG.md](SPACE-CONFIG.md) - authoritative space configuration examples.
 - [RELEASE.md](RELEASE.md) - release readiness gates and manual checks.
 - [AGENTS.md](AGENTS.md) - coding-agent instructions and repository rules.
 - [CONTRIBUTING.md](CONTRIBUTING.md) - contribution expectations.

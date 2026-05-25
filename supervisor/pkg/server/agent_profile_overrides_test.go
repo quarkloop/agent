@@ -7,9 +7,9 @@ import (
 	spacemodel "github.com/quarkloop/pkg/space"
 )
 
-func TestAgentProfileOverrideResolverAppliesQuarkfileOverrides(t *testing.T) {
+func TestAgentProfileOverrideResolverAppliesSpaceConfigOverrides(t *testing.T) {
 	enabled := true
-	qf := &spacemodel.Quarkfile{
+	config := &spacemodel.Config{
 		Model:        spacemodel.Model{Provider: "anthropic", Name: "claude-sonnet-4"},
 		Capabilities: spacemodel.Capabilities{ApprovalPolicy: "auto"},
 		Agents: []spacemodel.AgentRef{{
@@ -29,7 +29,7 @@ func TestAgentProfileOverrideResolverAppliesQuarkfileOverrides(t *testing.T) {
 	}
 	entries := []runtimePluginCatalogEntry{mainAgentEntry("quark-main"), agentEntry("quark-knowledge"), agentEntry("quark-devops")}
 
-	got, selected, err := newAgentProfileOverrideResolver(qf, agentValidationCatalog()).apply(entries)
+	got, selected, err := newAgentProfileOverrideResolver(config, agentValidationCatalog()).apply(entries)
 	if err != nil {
 		t.Fatalf("apply overrides: %v", err)
 	}
@@ -59,28 +59,28 @@ func TestAgentProfileOverrideResolverAppliesQuarkfileOverrides(t *testing.T) {
 }
 
 func TestAgentProfileOverrideResolverRejectsPermissionExpansion(t *testing.T) {
-	qf := &spacemodel.Quarkfile{Agents: []spacemodel.AgentRef{{
+	config := &spacemodel.Config{Agents: []spacemodel.AgentRef{{
 		Profile: "quark-main",
 	}, {
 		Profile:  "quark-knowledge",
 		Services: []string{"deploy.*"},
 	}}}
 
-	if _, _, err := newAgentProfileOverrideResolver(qf, agentValidationCatalog()).apply([]runtimePluginCatalogEntry{mainAgentEntry("quark-main"), agentEntry("quark-knowledge")}); err == nil {
+	if _, _, err := newAgentProfileOverrideResolver(config, agentValidationCatalog()).apply([]runtimePluginCatalogEntry{mainAgentEntry("quark-main"), agentEntry("quark-knowledge")}); err == nil {
 		t.Fatal("permission expansion unexpectedly succeeded")
 	}
 }
 
 func TestAgentProfileOverrideResolverRejectsUnknownProfile(t *testing.T) {
-	qf := &spacemodel.Quarkfile{Agents: []spacemodel.AgentRef{{Profile: "quark-main"}, {Profile: "missing-agent"}}}
+	config := &spacemodel.Config{Agents: []spacemodel.AgentRef{{Profile: "quark-main"}, {Profile: "missing-agent"}}}
 
-	if _, _, err := newAgentProfileOverrideResolver(qf, agentValidationCatalog()).apply([]runtimePluginCatalogEntry{mainAgentEntry("quark-main"), agentEntry("quark-knowledge")}); err == nil {
+	if _, _, err := newAgentProfileOverrideResolver(config, agentValidationCatalog()).apply([]runtimePluginCatalogEntry{mainAgentEntry("quark-main"), agentEntry("quark-knowledge")}); err == nil {
 		t.Fatal("unknown profile unexpectedly succeeded")
 	}
 }
 
 func TestAgentProfileOverrideResolverAllowsEmptyPermissionNarrowing(t *testing.T) {
-	qf := &spacemodel.Quarkfile{Agents: []spacemodel.AgentRef{{
+	config := &spacemodel.Config{Agents: []spacemodel.AgentRef{{
 		Profile: "quark-main",
 	}, {
 		Profile:  "quark-knowledge",
@@ -88,7 +88,7 @@ func TestAgentProfileOverrideResolverAllowsEmptyPermissionNarrowing(t *testing.T
 		Tools:    []string{},
 	}}}
 
-	got, _, err := newAgentProfileOverrideResolver(qf, agentValidationCatalog()).apply([]runtimePluginCatalogEntry{mainAgentEntry("quark-main"), agentEntry("quark-knowledge")})
+	got, _, err := newAgentProfileOverrideResolver(config, agentValidationCatalog()).apply([]runtimePluginCatalogEntry{mainAgentEntry("quark-main"), agentEntry("quark-knowledge")})
 	if err != nil {
 		t.Fatalf("apply overrides: %v", err)
 	}
@@ -99,7 +99,7 @@ func TestAgentProfileOverrideResolverAllowsEmptyPermissionNarrowing(t *testing.T
 }
 
 func TestAgentProfileOverrideResolverSelectsOnlyMainAgentByDefault(t *testing.T) {
-	got, selected, err := newAgentProfileOverrideResolver(&spacemodel.Quarkfile{}, agentValidationCatalog("io_Read", "indexer_QueryContext")).apply([]runtimePluginCatalogEntry{
+	got, selected, err := newAgentProfileOverrideResolver(&spacemodel.Config{}, agentValidationCatalog("io_Read", "indexer_QueryContext")).apply([]runtimePluginCatalogEntry{
 		mainAgentEntry("quark-main"),
 		agentEntry("quark-system"),
 		agentEntry("quark-devops"),

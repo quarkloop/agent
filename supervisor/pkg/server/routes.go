@@ -13,9 +13,9 @@ func (s *Server) routes() {
 	app.Get("/v1/spaces/:name", s.handleGetSpace)
 	app.Delete("/v1/spaces/:name", s.handleDeleteSpace)
 
-	// Quarkfile
-	app.Get("/v1/spaces/:name/quarkfile", s.handleGetQuarkfile)
-	app.Put("/v1/spaces/:name/quarkfile", s.handleUpdateQuarkfile)
+	// Authoritative space configuration
+	app.Get("/v1/spaces/:name/config", s.handleGetSpaceConfig)
+	app.Put("/v1/spaces/:name/config", s.handleUpdateSpaceConfig)
 
 	// Doctor
 	app.Post("/v1/spaces/:name/doctor", s.handleDoctor)

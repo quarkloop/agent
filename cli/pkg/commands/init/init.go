@@ -14,10 +14,11 @@ import (
 var workDir string
 
 const (
-	initLong = `Scaffold a new Quarkfile and register the space with the supervisor.
+	initLong = `Register a new space with the supervisor.
 
-The <name> argument is used as the space identifier. A local Quarkfile is created
-in the working directory, and the space is registered with the supervisor.
+The <name> argument is used as the space identifier. The Space service persists
+its authoritative configuration; the working directory is only a referenced
+workspace and is not mutated by this command.
 
 The command refuses to run if a space with the same name is already registered.`
 	initExample = `  # Create a new space in ./my-space (default)
@@ -34,7 +35,7 @@ The command refuses to run if a space with the same name is already registered.`
 func NewInitCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "init <name>",
-		Short:   "Scaffold a Quarkfile and register the space with the supervisor",
+		Short:   "Register a space with the supervisor",
 		Long:    initLong,
 		Example: initExample,
 		Args:    cobra.ExactArgs(1),
@@ -73,12 +74,13 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("check space: %w", err)
 	}
 
-	data := spacemodel.DefaultQuarkfile(name)
+	data, err := spacemodel.MarshalConfig(spacemodel.NewConfig(name, abs))
+	if err != nil {
+		return fmt.Errorf("build space config: %w", err)
+	}
 
 	info, err := control.CreateSpace(cmd.Context(), clientcontract.CreateSpaceRequest{
-		Name:       name,
-		Quarkfile:  data,
-		WorkingDir: abs,
+		Config: data,
 	})
 	if err != nil {
 		if natsclient.IsConflict(err) {
@@ -93,9 +95,8 @@ func runInit(cmd *cobra.Command, args []string) error {
 		fmt.Printf(" (version %s)", info.Version)
 	}
 	fmt.Println()
-	fmt.Printf("Quarkfile written to: %s\n", filepath.Join(abs, "Quarkfile"))
 	fmt.Println("Next steps:")
-	fmt.Println("  1. Edit Quarkfile")
+	fmt.Printf("  1. Select this space with --space %s or QUARK_SPACE=%s\n", info.Name, info.Name)
 	fmt.Println("  2. quark plugin install <ref>")
 	fmt.Println("  3. Start runtime and services through deploy/compose or systemd")
 

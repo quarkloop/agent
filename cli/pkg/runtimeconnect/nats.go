@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/quarkloop/cli/pkg/natsclient"
-	spacemodel "github.com/quarkloop/pkg/space"
 )
 
 type SpaceClient struct {
@@ -14,11 +13,7 @@ type SpaceClient struct {
 	Client  *natsclient.Client
 }
 
-func CurrentSpaceClient(ctx context.Context) (SpaceClient, error) {
-	spaceID, err := spacemodel.CurrentName()
-	if err != nil {
-		return SpaceClient{}, err
-	}
+func SpaceRuntimeClient(ctx context.Context, spaceID string) (SpaceClient, error) {
 	control, err := natsclient.ConnectFromEnv(ctx)
 	if err != nil {
 		return SpaceClient{}, err

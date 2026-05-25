@@ -3,18 +3,20 @@
 package utils
 
 import (
-	"fmt"
 	"strings"
+	"testing"
+
+	spacemodel "github.com/quarkloop/pkg/space"
 )
 
-func quarkfileFor(name, provider, model string, services []ServicePlugin, extraServicePlugins []string, agents []string, agentServices map[string][]string, includeKnowledgeServices bool) []byte {
-	env := ""
+func spaceConfigFor(t *testing.T, name, workingDir, provider, model string, services []ServicePlugin, extraServicePlugins []string, agents []string, agentServices map[string][]string, includeKnowledgeServices bool) []byte {
+	t.Helper()
+	config := spacemodel.NewConfig(name, workingDir)
+	config.Model = spacemodel.Model{Provider: provider, Name: model}
 	if provider != "noop" {
-		env = `  env:
-    - OPENROUTER_API_KEY
-`
+		config.Model.Env = []string{"OPENROUTER_API_KEY"}
 	}
-	pluginRefs := ""
+	config.Plugins = nil
 	seenPluginRefs := make(map[string]struct{})
 	addPluginRef := func(ref string) {
 		if ref == "" {
@@ -24,9 +26,8 @@ func quarkfileFor(name, provider, model string, services []ServicePlugin, extraS
 			return
 		}
 		seenPluginRefs[ref] = struct{}{}
-		pluginRefs += fmt.Sprintf("  - ref: %s\n", ref)
+		config.Plugins = append(config.Plugins, spacemodel.PluginRef{Ref: ref})
 	}
-	serviceBlocks := ""
 	seenServices := make(map[string]struct{})
 	addService := func(service ServicePlugin) {
 		service = service.withDefaults()
@@ -38,33 +39,22 @@ func quarkfileFor(name, provider, model string, services []ServicePlugin, extraS
 		}
 		seenServices[service.Name] = struct{}{}
 		addPluginRef("quark/service-" + service.Plugin)
-		serviceBlocks += fmt.Sprintf(`  - name: %s
-    ref: quark/service-%s
-    mode: %s
-    address_env: %s
-`, service.Name, service.Plugin, service.Mode, service.AddressEnv)
+		config.Services = append(config.Services, spacemodel.ServiceRef{
+			Name:       service.Name,
+			Ref:        "quark/service-" + service.Plugin,
+			Mode:       service.Mode,
+			AddressEnv: service.AddressEnv,
+		})
 	}
 	addService(ServicePlugin{Name: "io", Plugin: "io", Mode: "local", AddressEnv: "QUARK_IO_ADDR"})
-	agentBlocks := ""
+	enabled := true
 	for _, agent := range agents {
 		addPluginRef("quark/agent-" + agent)
-		agentBlocks += fmt.Sprintf(`  - profile: %s
-    enabled: true
-`, agent)
+		ref := spacemodel.AgentRef{Profile: agent, Enabled: &enabled}
 		if allowed, ok := agentServices[agent]; ok {
-			if len(allowed) == 0 {
-				agentBlocks += "    services: []\n"
-			} else {
-				agentBlocks += "    services:\n"
-				for _, service := range allowed {
-					agentBlocks += fmt.Sprintf("      - %s\n", service)
-				}
-			}
+			ref.Services = append([]string(nil), allowed...)
 		}
-	}
-	agentsSection := ""
-	if agentBlocks != "" {
-		agentsSection = "agents:\n" + agentBlocks
+		config.Agents = append(config.Agents, ref)
 	}
 	if includeKnowledgeServices {
 		addService(ServicePlugin{Name: "core", Plugin: "core", Mode: "local", AddressEnv: "QUARK_CORE_ADDR"})
@@ -80,20 +70,11 @@ func quarkfileFor(name, provider, model string, services []ServicePlugin, extraS
 	for _, plugin := range extraServicePlugins {
 		addPluginRef("quark/service-" + plugin)
 	}
-	qf := fmt.Sprintf(`quark: "1.0"
-meta:
-  name: %s
-  version: "0.1.0"
-model:
-  provider: %s
-  name: %s
-%s
-plugins:
-%s
-%s
-services:
-%s`, name, provider, model, env, pluginRefs, agentsSection, serviceBlocks)
-	return []byte(qf)
+	data, err := spacemodel.MarshalConfig(config)
+	if err != nil {
+		t.Fatalf("marshal space config: %v", err)
+	}
+	return data
 }
 
 // ServicePlugin declares an additional service plugin for an e2e space.
@@ -141,5 +122,3 @@ func (o GatewayEmbeddingOptions) withDefaults() GatewayEmbeddingOptions {
 	}
 	return o
 }
-
-// startSupervisor launches a supervisor subprocess with an isolated spaces

@@ -5,9 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	spacemodel "github.com/quarkloop/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/api"
-	"github.com/quarkloop/supervisor/pkg/space/fsstore"
 )
 
 func TestInspectServicesReportsNATSServiceFromManifest(t *testing.T) {
@@ -28,14 +26,11 @@ func TestInspectServicesReportsNATSServiceFromManifest(t *testing.T) {
 
 func serviceTestServer(t *testing.T) *Server {
 	t.Helper()
-	store, err := fsstore.NewFSStore(t.TempDir())
-	if err != nil {
+	srv := spaceRouteServer(t)
+	if _, err := srv.store.Create(testSpaceConfig(t, "test-space", t.TempDir())); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.Create("test-space", spacemodel.DefaultQuarkfile("test-space"), t.TempDir()); err != nil {
-		t.Fatal(err)
-	}
-	return &Server{store: store}
+	return srv
 }
 
 func writeInstalledServicePlugin(t *testing.T, srv *Server, space string) {

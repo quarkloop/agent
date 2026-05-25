@@ -7,45 +7,55 @@ import (
 	"strings"
 )
 
-// ValidateQuarkfile performs semantic validation of qf.
-func ValidateQuarkfile(qf *Quarkfile) error {
-	if qf == nil {
-		return fmt.Errorf("quarkfile is nil")
+// ValidateConfig performs semantic validation of the authoritative space
+// configuration persisted by the Space service.
+func ValidateConfig(cfg *Config) error {
+	if cfg == nil {
+		return fmt.Errorf("space config is nil")
 	}
-	if qf.SchemaVersion() == "" {
-		return fmt.Errorf("missing required field: quark")
+	if cfg.Schema != ConfigSchema {
+		return fmt.Errorf("schema must be %q", ConfigSchema)
 	}
-	if qf.Meta.Name == "" {
-		return fmt.Errorf("missing required field: meta.name")
+	if cfg.Name == "" {
+		return fmt.Errorf("missing required field: name")
 	}
-	if err := ValidateName(qf.Meta.Name); err != nil {
-		return fmt.Errorf("meta.name: %w", err)
+	if err := ValidateName(cfg.Name); err != nil {
+		return fmt.Errorf("name: %w", err)
 	}
-	if qf.Meta.Version == "" {
-		return fmt.Errorf("missing required field: meta.version")
+	if cfg.Version == "" {
+		return fmt.Errorf("missing required field: version")
 	}
-	if len(qf.Plugins) == 0 {
+	if cfg.CreatedAt.IsZero() || cfg.UpdatedAt.IsZero() {
+		return fmt.Errorf("created_at and updated_at are required")
+	}
+	if len(cfg.Plugins) == 0 {
 		return fmt.Errorf("missing required field: plugins (must have at least one)")
 	}
-	for i, p := range qf.Plugins {
+	for i, p := range cfg.Plugins {
 		if p.Ref == "" {
 			return fmt.Errorf("plugins[%d]: missing ref", i)
 		}
 	}
-	if err := validateAgents(qf.Agents); err != nil {
+	if err := validateAgents(cfg.Agents); err != nil {
 		return err
 	}
-	if err := validateServices(qf.Services); err != nil {
+	if err := validateServices(cfg.Services); err != nil {
 		return err
 	}
-	if err := validateModel(qf.Model); err != nil {
+	if err := validateModel(cfg.Model); err != nil {
 		return err
 	}
-	if err := validateEnvVars(qf.EnvironmentVariables()); err != nil {
+	if err := validateEnvVars(cfg.EnvironmentVariables()); err != nil {
 		return err
 	}
+	if err := validateRoutingGatewayCapabilities(cfg.Routing, cfg.Gateway, cfg.Capabilities); err != nil {
+		return err
+	}
+	return validatePermissionValue(cfg.Permissions)
+}
 
-	for i, rule := range qf.Routing.Rules {
+func validateRoutingGatewayCapabilities(routing RoutingSection, gateway Gateway, capabilities Capabilities) error {
+	for i, rule := range routing.Rules {
 		if rule.Match == "" {
 			return fmt.Errorf("routing.rules[%d]: missing match pattern", i)
 		}
@@ -57,18 +67,18 @@ func ValidateQuarkfile(qf *Quarkfile) error {
 		}
 	}
 
-	if qf.Gateway.TokenBudgetPerHour < 0 {
-		return fmt.Errorf("gateway.token_budget_per_hour must be >= 0, got %d", qf.Gateway.TokenBudgetPerHour)
+	if gateway.TokenBudgetPerHour < 0 {
+		return fmt.Errorf("gateway.token_budget_per_hour must be >= 0, got %d", gateway.TokenBudgetPerHour)
 	}
-	if qf.Capabilities.ApprovalPolicy != "" {
-		switch qf.Capabilities.ApprovalPolicy {
+	if capabilities.ApprovalPolicy != "" {
+		switch capabilities.ApprovalPolicy {
 		case "auto", "required":
 		default:
 			return fmt.Errorf("capabilities.approval_policy must be auto or required")
 		}
 	}
 
-	return validatePermissions(qf)
+	return nil
 }
 
 func validateModel(model Model) error {
@@ -192,8 +202,7 @@ func validateServices(services []ServiceRef) error {
 	return nil
 }
 
-func validatePermissions(qf *Quarkfile) error {
-	perms := qf.Permissions
+func validatePermissionValue(perms Permissions) error {
 	for _, entry := range perms.Network.Deny {
 		if _, _, err := net.ParseCIDR(entry); err != nil {
 			if net.ParseIP(entry) == nil && !isValidHostname(entry) {

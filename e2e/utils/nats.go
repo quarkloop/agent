@@ -11,6 +11,7 @@ import (
 
 	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
+	spacemodel "github.com/quarkloop/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/natshub"
 )
 
@@ -85,7 +86,11 @@ func createSpace(t *testing.T, endpoints NATSEndpoints, req clientcontract.Creat
 	t.Helper()
 	control := connectControlNATS(t, endpoints)
 	defer control.Close()
-	return requestNATSPayload[clientcontract.SpaceInfo](t, control, clientcontract.SubjectSpaceCreate, req.Name, req)
+	config, err := spacemodel.ParseConfig(req.Config)
+	if err != nil {
+		t.Fatalf("parse space config for request scope: %v", err)
+	}
+	return requestNATSPayload[clientcontract.SpaceInfo](t, control, clientcontract.SubjectSpaceCreate, config.Name, req)
 }
 
 // GetAuditRecord reads redacted service-call metadata through the supervisor

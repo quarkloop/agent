@@ -3,12 +3,11 @@ package doctorcmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/quarkloop/cli/pkg/natsclient"
-	spacemodel "github.com/quarkloop/pkg/space"
+	"github.com/quarkloop/cli/pkg/spacecontext"
 )
 
 // NewDoctorCommand returns the "doctor" command.
@@ -18,11 +17,7 @@ func NewDoctorCommand() *cobra.Command {
 		Short: "Run supervisor-side health checks against the current space",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			cwd, err := os.Getwd()
-			if err != nil {
-				return err
-			}
-			name, err := spacemodel.NameFromDir(cwd)
+			name, err := spacecontext.FromCommand(cmd)
 			if err != nil {
 				return err
 			}

@@ -37,7 +37,7 @@ func TestAgentPluginValidationAcceptsConcreteInstalledContracts(t *testing.T) {
 	}
 }
 
-func TestAgentPluginValidationAllowsQuarkfileNarrowedServiceSubset(t *testing.T) {
+func TestAgentPluginValidationAllowsSpaceConfigNarrowedServiceSubset(t *testing.T) {
 	installed := validationInstalledPlugins(
 		validationService("io", "io_Read"),
 		validationAgent("quark-knowledge", nil, []string{"io_Read", "workflow_Start"}),

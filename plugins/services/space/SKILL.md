@@ -1,7 +1,9 @@
 # service-space
 
-The space service owns Quark space metadata, the authoritative Quarkfile copy,
-derived storage paths, launch environment resolution, and space diagnostics.
+The space service owns the authoritative `space.json` configuration file,
+derived storage paths, environment extraction from that configuration, and
+configuration diagnostics. It does not interpret plugin policy or mutate user
+working directories.
 
 Use `quark.space.v1.SpaceService` service functions for space lifecycle and
 metadata operations. Space business logic lives behind this NATS
@@ -11,13 +13,13 @@ service-function contract.
 
 - `CreateSpace(CreateSpaceRequest) -> Space`
   - Generated service function: `space_CreateSpace`
-  - Required: `name`, `quarkfile`, `working_dir`
-  - Creates the supervised space layout and writes the initial Quarkfile.
+  - Required: `config`
+  - Creates the service-owned space layout and writes its initial `space.json`.
 
-- `UpdateQuarkfile(UpdateQuarkfileRequest) -> Space`
-  - Generated service function: `space_UpdateQuarkfile`
-  - Required: `name`, `quarkfile`
-  - Replaces the latest Quarkfile and updates metadata.
+- `UpdateConfig(UpdateConfigRequest) -> Space`
+  - Generated service function: `space_UpdateConfig`
+  - Required: `config`
+  - Replaces `space.json`, retaining service-owned creation metadata.
 
 - `GetSpace(GetSpaceRequest) -> Space`
   - Generated service function: `space_GetSpace`
@@ -33,10 +35,10 @@ service-function contract.
   - Required: `name`
   - Deletes a space and all service-owned data.
 
-- `GetQuarkfile(GetQuarkfileRequest) -> QuarkfileResponse`
-  - Generated service function: `space_GetQuarkfile`
+- `GetConfig(GetConfigRequest) -> ConfigResponse`
+  - Generated service function: `space_GetConfig`
   - Required: `name`
-  - Returns the authoritative Quarkfile bytes and version.
+  - Returns the authoritative space configuration and version.
 
 - `GetAgentEnvironment(GetAgentEnvironmentRequest) -> AgentEnvironmentResponse`
   - Generated service function: `space_GetAgentEnvironment`
@@ -46,16 +48,17 @@ service-function contract.
 - `GetSpacePaths(GetSpacePathsRequest) -> SpacePaths`
   - Generated service function: `space_GetSpacePaths`
   - Required: `name`
-  - Returns derived storage paths for KB, plugins, sessions, and Quarkfile.
+  - Returns derived storage paths for service-owned state and `space.json`.
 
 - `Doctor(DoctorRequest) -> DoctorResponse`
   - Generated service function: `space_Doctor`
   - Required: `name`
-  - Runs Quarkfile validation and installed-plugin checks.
+  - Validates stored `space.json` syntax and space invariants.
 
 ## Contract Notes
 
-- Spaces are keyed by Quarkfile `meta.name`, not by path.
+- Spaces are keyed by `space.json` `name`, not by path.
+- Plugin meaning, catalog resolution, and orchestration remain supervisor-owned.
 - The CLI should use supervisor-owned NATS contracts for space operations.
 - Runtime and supervisor callers should use service functions for space
   metadata and environment operations.
