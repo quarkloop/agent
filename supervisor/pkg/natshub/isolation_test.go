@@ -220,9 +220,25 @@ func TestRuntimeCanRequestSupervisorCatalogSnapshot(t *testing.T) {
 
 func TestIssuedCredentialsSurviveEmbeddedHubRestart(t *testing.T) {
 	hub := startTestHub(t)
+	space, err := hub.ProvisionSpace("restart-space")
+	if err != nil {
+		t.Fatalf("provision space: %v", err)
+	}
 	session, err := hub.IssueSessionCredential("restart-space", "chat")
 	if err != nil {
 		t.Fatalf("issue session credential: %v", err)
+	}
+	runtime := connectWithCredential(t, hub, space.Runtime)
+	js, err := runtime.JetStream()
+	if err != nil {
+		t.Fatalf("runtime jetstream: %v", err)
+	}
+	leases, err := js.KeyValue(KVRuntimeSpaceLeases)
+	if err != nil {
+		t.Fatalf("runtime leases: %v", err)
+	}
+	if _, err := leases.Put("restart-space", []byte("runtime-a")); err != nil {
+		t.Fatalf("write runtime lease: %v", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -235,6 +251,22 @@ func TestIssuedCredentialsSurviveEmbeddedHubRestart(t *testing.T) {
 	nc := connectWithCredential(t, hub, session)
 	if err := nc.Flush(); err != nil {
 		t.Fatalf("flush restarted credential: %v", err)
+	}
+	restartedRuntime := connectWithCredential(t, hub, space.Runtime)
+	restartedJS, err := restartedRuntime.JetStream()
+	if err != nil {
+		t.Fatalf("restarted runtime jetstream: %v", err)
+	}
+	restartedLeases, err := restartedJS.KeyValue(KVRuntimeSpaceLeases)
+	if err != nil {
+		t.Fatalf("restarted runtime leases: %v", err)
+	}
+	entry, err := restartedLeases.Get("restart-space")
+	if err != nil {
+		t.Fatalf("read restarted runtime lease: %v", err)
+	}
+	if string(entry.Value()) != "runtime-a" {
+		t.Fatalf("restarted runtime lease value = %q", entry.Value())
 	}
 }
 

@@ -53,6 +53,25 @@ func TestUserPermissionsCanReachRuntimeInspectionOnly(t *testing.T) {
 	assertNotContains(t, perms.SubscribeAllow, "session.session_01.events")
 }
 
+func TestRunStateStoragePermissionsAreNotGrantedToOtherServices(t *testing.T) {
+	route := []ServiceFunctionRoute{{ExportSubject: "svc.runstate.v1.acquire_lease"}}
+	runstate, err := serviceCredential("runstate", ControlAccountName, route)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertContains(t, runstate.Permissions.PublishAllow, "$JS.API.>")
+	assertContains(t, runstate.Permissions.PublishAllow, "$KV.>")
+	assertContains(t, runstate.Permissions.SubscribeAllow, "_INBOX.>")
+
+	indexer, err := serviceCredential("indexer", ControlAccountName, []ServiceFunctionRoute{{ExportSubject: "svc.indexer.v1.index"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertNotContains(t, indexer.Permissions.PublishAllow, "$JS.API.>")
+	assertNotContains(t, indexer.Permissions.PublishAllow, "$KV.>")
+	assertNotContains(t, indexer.Permissions.SubscribeAllow, "_INBOX.>")
+}
+
 func assertContains(t *testing.T, values []string, want string) {
 	t.Helper()
 	for _, value := range values {

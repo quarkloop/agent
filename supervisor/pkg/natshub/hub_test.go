@@ -91,7 +91,7 @@ func TestHubProvisionsControlStreamsAndCoordinationBuckets(t *testing.T) {
 			t.Fatalf("stream %s config incomplete: %+v", stream, info.Config)
 		}
 	}
-	for _, bucket := range []string{KVRuntimeSpaceLeases, KVRunStateLeases} {
+	for _, bucket := range []string{KVRunStateLeases} {
 		kv, err := js.KeyValue(bucket)
 		if err != nil {
 			t.Fatalf("kv bucket %s missing: %v", bucket, err)
@@ -147,6 +147,13 @@ func TestHubProvisionsReplayableRuntimeStreamsInsideSpaceAccount(t *testing.T) {
 			t.Fatal("runtime activity stream captures request/reply operations")
 		}
 	}
+	kv, err := js.KeyValue(KVRuntimeSpaceLeases)
+	if err != nil {
+		t.Fatalf("space runtime lease bucket missing: %v", err)
+	}
+	if _, err := kv.Create("docs", []byte("runtime-a")); err != nil {
+		t.Fatalf("claim space runtime lease: %v", err)
+	}
 	if _, err := js.Publish("session.chat.events", []byte(`{"type":"token"}`)); err != nil {
 		t.Fatalf("persist session event: %v", err)
 	}
@@ -164,6 +171,32 @@ func TestHubProvisionsReplayableRuntimeStreamsInsideSpaceAccount(t *testing.T) {
 	}
 	if _, err := controlJS.StreamInfo(StreamSessionEvents); err == nil {
 		t.Fatal("control account unexpectedly owns a space-scoped runtime event stream")
+	}
+	if _, err := controlJS.KeyValue(KVRuntimeSpaceLeases); err == nil {
+		t.Fatal("control account unexpectedly owns a space-scoped runtime lease bucket")
+	}
+}
+
+func TestRunStateServiceCredentialCanUseItsOwnedControlLeaseBucket(t *testing.T) {
+	hub := startTestHub(t)
+	route, err := NewServiceFunctionRoute("runstate", "v1", "acquire_lease")
+	if err != nil {
+		t.Fatal(err)
+	}
+	credential, err := hub.IssueServiceCredential("runstate", []ServiceFunctionRoute{route})
+	if err != nil {
+		t.Fatal(err)
+	}
+	js, err := connectWithCredential(t, hub, credential).JetStream()
+	if err != nil {
+		t.Fatal(err)
+	}
+	kv, err := js.KeyValue(KVRunStateLeases)
+	if err != nil {
+		t.Fatalf("runstate cannot open owned lease bucket: %v", err)
+	}
+	if _, err := kv.Create("run-1", []byte("owner")); err != nil {
+		t.Fatalf("runstate cannot write owned lease: %v", err)
 	}
 }
 

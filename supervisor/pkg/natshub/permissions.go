@@ -5,7 +5,39 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+
+	natsserver "github.com/nats-io/nats-server/v2/server"
 )
+
+func toServerPermissions(config PermissionConfig) *natsserver.Permissions {
+	if isEmptyPermissions(config) {
+		return nil
+	}
+	return &natsserver.Permissions{
+		Publish: &natsserver.SubjectPermission{
+			Allow: append([]string(nil), config.PublishAllow...),
+			Deny:  append([]string(nil), config.PublishDeny...),
+		},
+		Subscribe: &natsserver.SubjectPermission{
+			Allow: append([]string(nil), config.SubscribeAllow...),
+			Deny:  append([]string(nil), config.SubscribeDeny...),
+		},
+	}
+}
+
+func isEmptyPermissions(config PermissionConfig) bool {
+	return len(config.PublishAllow) == 0 &&
+		len(config.PublishDeny) == 0 &&
+		len(config.SubscribeAllow) == 0 &&
+		len(config.SubscribeDeny) == 0
+}
+
+func allowAllPermissions() PermissionConfig {
+	return PermissionConfig{
+		PublishAllow:   []string{">"},
+		SubscribeAllow: []string{">"},
+	}
+}
 
 func SpaceAccountName(spaceID string) (string, error) {
 	token := stableToken(spaceID)
@@ -150,6 +182,23 @@ func ServicePermissions() PermissionConfig {
 			"_R_.>",
 		},
 	}
+}
+
+// ServiceHostPermissions grants service hosts only their responder routes.
+// Run State is the one current service that additionally owns a control-plane
+// KV lease store and therefore needs JetStream request/reply access.
+func ServiceHostPermissions(service string, routes []ServiceFunctionRoute) PermissionConfig {
+	permissions := PermissionConfig{
+		PublishAllow: []string{"_INBOX.>", "_R_.>"},
+	}
+	for _, route := range routes {
+		permissions.SubscribeAllow = append(permissions.SubscribeAllow, route.ExportSubject)
+	}
+	if strings.TrimSpace(service) == "runstate" {
+		permissions.PublishAllow = append(permissions.PublishAllow, "$JS.API.>", "$KV.>")
+		permissions.SubscribeAllow = append(permissions.SubscribeAllow, "$JS.API.>", "$KV.>", "_INBOX.>", "_R_.>")
+	}
+	return permissions
 }
 
 func ObservabilityPermissions(spaceID string) PermissionConfig {

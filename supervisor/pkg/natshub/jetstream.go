@@ -113,16 +113,21 @@ func defaultJetStreamAccountLimits() map[string]natsserver.JetStreamAccountLimit
 	}
 }
 
-func coordinationBuckets() []kvSpec {
+func controlCoordinationBuckets() []kvSpec {
 	return []kvSpec{
-		{
-			Bucket:      KVRuntimeSpaceLeases,
-			Description: "Runtime-to-space assignment leases.",
-			TTL:         10 * time.Minute,
-		},
 		{
 			Bucket:      KVRunStateLeases,
 			Description: "Active run and work-item ownership leases.",
+			TTL:         10 * time.Minute,
+		},
+	}
+}
+
+func spaceRuntimeBuckets() []kvSpec {
+	return []kvSpec{
+		{
+			Bucket:      KVRuntimeSpaceLeases,
+			Description: "Runtime ownership lease for this space.",
 			TTL:         10 * time.Minute,
 		},
 	}
@@ -158,7 +163,7 @@ func (h *Hub) provisionJetStreamLocked(ctx context.Context) error {
 			return err
 		}
 	}
-	for _, spec := range coordinationBuckets() {
+	for _, spec := range controlCoordinationBuckets() {
 		if err := ensureBucket(js, spec); err != nil {
 			return err
 		}
@@ -166,7 +171,7 @@ func (h *Hub) provisionJetStreamLocked(ctx context.Context) error {
 	return nil
 }
 
-func (h *Hub) provisionSpaceRuntimeStreamsLocked(ctx context.Context, space SpaceCredentials) error {
+func (h *Hub) provisionSpaceRuntimeStorageLocked(ctx context.Context, space SpaceCredentials) error {
 	if h == nil || h.server == nil || !h.cfg.JetStream.Enabled {
 		return nil
 	}
@@ -203,27 +208,12 @@ func (h *Hub) provisionSpaceRuntimeStreamsLocked(ctx context.Context, space Spac
 			return err
 		}
 	}
-	return nil
-}
-
-func (h *Hub) controlCredentialLocked() (Credential, error) {
-	for _, account := range h.cfg.Accounts {
-		if account.Name != ControlAccountName {
-			continue
+	for _, spec := range spaceRuntimeBuckets() {
+		if err := ensureBucket(js, spec); err != nil {
+			return err
 		}
-		if len(account.Users) == 0 {
-			return Credential{}, fmt.Errorf("nats control account has no users")
-		}
-		user := cloneUserConfig(account.Users[0])
-		return Credential{
-			Username:    user.Name,
-			Password:    user.Password,
-			Account:     ControlAccountName,
-			Role:        RoleSupervisor,
-			Permissions: clonePermissions(user.Permissions),
-		}, nil
 	}
-	return Credential{}, fmt.Errorf("nats control account is not configured")
+	return nil
 }
 
 func ensureStream(js nats.JetStreamContext, spec streamSpec) error {
