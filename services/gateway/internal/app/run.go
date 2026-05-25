@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 
 	"github.com/quarkloop/pkg/natskit"
+	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/services/gateway/internal/gatewaysvc"
 )
 
@@ -51,15 +54,20 @@ func Run(ctx context.Context, cfg Config) error {
 	if cfg.NATS.URL == "" {
 		return fmt.Errorf("nats url is required")
 	}
-	cfg.NATS.Logger = cfg.Logger
-	host, err := startGatewayHost(ctx, cfg.NATS, cfg.Queue, server)
+	skillPath, err := resolveSkillPath(cfg.SkillDir)
 	if err != nil {
 		return err
 	}
-	defer host.Close()
+	skill, err := servicekit.SkillFromFile("service-gateway", "1.0.0", skillPath)
+	if err != nil {
+		return err
+	}
+	cfg.NATS.Logger = cfg.Logger
+	if cfg.Queue == "" {
+		cfg.Queue = defaultGatewayQueue
+	}
 	cfg.Logger.Info("gateway service listening", "providers", server.ProviderIDs())
-	<-ctx.Done()
-	return nil
+	return natskit.RunRPCService(ctx, cfg.NATS, cfg.Queue, gatewayBinding(cfg.Address, skill, server))
 }
 
 func providerConfigs(in []ProviderConfig) []gatewaysvc.ProviderConfig {
@@ -76,4 +84,20 @@ func providerConfigs(in []ProviderConfig) []gatewaysvc.ProviderConfig {
 		})
 	}
 	return out
+}
+
+func resolveSkillPath(skillDir string) (string, error) {
+	if skillDir != "" {
+		path := filepath.Join(skillDir, "SKILL.md")
+		if _, err := os.Stat(path); err != nil {
+			return "", fmt.Errorf("find gateway skill at %s: %w", path, err)
+		}
+		return path, nil
+	}
+	for _, path := range []string{"SKILL.md", filepath.Join("plugins", "services", "gateway", "SKILL.md"), filepath.Join("services", "gateway", "SKILL.md")} {
+		if _, err := os.Stat(path); err == nil {
+			return path, nil
+		}
+	}
+	return "", fmt.Errorf("gateway service SKILL.md not found; pass --skill-dir")
 }

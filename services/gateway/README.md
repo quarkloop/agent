@@ -9,6 +9,12 @@ Runtime and agents must not call provider adapters directly. They call Gateway
 through NATS service-function subjects, and Gateway performs provider-specific
 work internally.
 
+Gateway registers both unary and streaming handlers through `pkg/natskit`.
+That shared transport package owns NATS subscriptions, request/reply
+envelopes, correlation fields, and streamed terminal delivery. Gateway owns
+only provider selection, request/response mapping, typed diagnostics, and
+redacted model usage values.
+
 Embedding calls require an explicitly configured real provider and embedding
 model. For OpenRouter, configure `QUARK_GATEWAY_EMBEDDING_PROVIDER=openrouter`
 and `OPENROUTER_EMBEDDING_MODEL` alongside its API credential. Gateway has no

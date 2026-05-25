@@ -140,6 +140,14 @@ func TestUnsupportedProviderMapsToStructuredError(t *testing.T) {
 	}
 }
 
+func TestMissingProviderMapsToNotFoundDiagnostic(t *testing.T) {
+	srv := newConfiguredGatewayServer(t, nil)
+	_, err := srv.ProviderHealth(context.Background(), &gatewayv1.ProviderHealthRequest{Provider: "missing"})
+	if !boundary.IsCategory(err, boundary.NotFound) {
+		t.Fatalf("error = %v, want not found", err)
+	}
+}
+
 func TestBifrostProviderInitializesAndClosesWithoutNetworkCall(t *testing.T) {
 	p, err := newProvider(ProviderConfig{
 		ID:      "openrouter",

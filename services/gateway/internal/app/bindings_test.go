@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,12 +16,12 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-func TestGatewayHostDispatchesUnaryOperation(t *testing.T) {
+func TestGatewayBindingDispatchesUnaryOperation(t *testing.T) {
 	broker := startGatewayNATS(t)
 	server := gatewayServer(t)
-	host, err := startGatewayHost(context.Background(), natskit.Config{URL: broker.ClientURL(), Name: "gateway-host"}, "q.gateway.test", server)
+	host, err := natskit.StartRPCService(context.Background(), natskit.Config{URL: broker.ClientURL(), Name: "gateway-host"}, "q.gateway.test", gatewayBinding("svc.gateway.v1", nil, server))
 	if err != nil {
-		t.Fatalf("start gateway host: %v", err)
+		t.Fatalf("start gateway binding: %v", err)
 	}
 	t.Cleanup(host.Close)
 	client := gatewayClient(t, broker.ClientURL())
@@ -42,12 +43,15 @@ func TestGatewayHostDispatchesUnaryOperation(t *testing.T) {
 	if generated.GetText() == "" || generated.GetUsage().GetProvider() != "fixture" || resp.ReferenceID == "" {
 		t.Fatalf("generate response = %+v envelope = %+v", &generated, resp)
 	}
+	if resp.Usage == nil || resp.Usage.Provider != "fixture" {
+		t.Fatalf("gateway envelope usage = %+v", resp.Usage)
+	}
 }
 
-func TestGatewayHostStreamsSingleTerminalCompletion(t *testing.T) {
+func TestGatewayBindingStreamsSingleTerminalCompletion(t *testing.T) {
 	broker := startGatewayNATS(t)
 	server := gatewayServer(t)
-	host, err := startGatewayHost(context.Background(), natskit.Config{URL: broker.ClientURL(), Name: "gateway-stream-host"}, "q.gateway.test", server)
+	host, err := natskit.StartRPCService(context.Background(), natskit.Config{URL: broker.ClientURL(), Name: "gateway-stream-host"}, "q.gateway.test", gatewayBinding("svc.gateway.v1", nil, server))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,11 +90,33 @@ func TestGatewayHostStreamsSingleTerminalCompletion(t *testing.T) {
 			if event.GetUsage().GetProvider() != "fixture" {
 				t.Fatalf("terminal usage = %+v", event.GetUsage())
 			}
+			if envelope.Usage == nil || envelope.Usage.Provider != "fixture" {
+				t.Fatalf("terminal envelope usage = %+v", envelope.Usage)
+			}
 			break
 		}
 	}
 	if done != 1 {
 		t.Fatalf("terminal completions = %d", done)
+	}
+}
+
+func TestGatewayUsageEnvelopeDoesNotCarryModelContent(t *testing.T) {
+	usage := gatewayUsageFromResponse(&gatewayv1.GenerateResponse{
+		Text: "private response content",
+		Usage: &gatewayv1.ModelUsage{
+			Provider:     "fixture",
+			Model:        "fixture/chat",
+			RequestId:    "provider-request-1",
+			InputTokens:  3,
+			OutputTokens: 4,
+		},
+	})
+	if usage == nil {
+		t.Fatal("usage envelope is nil")
+	}
+	if strings.Contains(string(usage.AdditionalJSON), "private response content") {
+		t.Fatalf("usage envelope leaks model content: %s", usage.AdditionalJSON)
 	}
 }
 

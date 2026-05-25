@@ -19,12 +19,28 @@ import (
 type Binding struct {
 	Descriptor *servicev1.ServiceDescriptor
 	Services   []RPCService
+	Streams    []RPCStream
+	Usage      ResponseUsage
 }
 
 type RPCService struct {
 	Service        string
 	Implementation any
 }
+
+// ResponseUsage extracts common accounting metadata from a domain response.
+// The service owns domain usage values; NATSKit owns their transport envelope.
+type ResponseUsage func(proto.Message) *Usage
+
+// RPCStream adapts one protobuf server-streaming method to the NATS response
+// stream. Its handler receives and publishes protobuf messages only.
+type RPCStream struct {
+	Service string
+	Method  string
+	Handle  RPCStreamHandler
+}
+
+type RPCStreamHandler func(context.Context, proto.Message, func(proto.Message) error) (proto.Message, error)
 
 func RunRPCService(ctx context.Context, cfg Config, queue string, bindings ...Binding) error {
 	host, err := StartRPCService(ctx, cfg, queue, bindings...)
@@ -65,8 +81,20 @@ func registerBinding(host *Host, binding Binding, fallback time.Duration) error 
 	}
 	descriptor := servicekit.CloneDescriptor(binding.Descriptor)
 	methods := serviceMethods(binding.Services)
+	streams := streamMethods(binding.Streams)
 	for _, rpc := range descriptor.GetRpcs() {
 		if rpc.GetStreaming() {
+			stream, err := streamBindingFor(streams, rpc)
+			if err != nil {
+				return err
+			}
+			operation, err := operationForRPC(descriptor, rpc)
+			if err != nil {
+				return err
+			}
+			if err := registerStreamBinding(host, operation, rpc, stream, binding.Usage, fallback); err != nil {
+				return err
+			}
 			continue
 		}
 		method, err := methodBindingFor(methods, rpc)
@@ -87,16 +115,32 @@ func registerBinding(host *Host, binding Binding, fallback time.Duration) error 
 			if err != nil {
 				return ResponseEnvelope{}, err
 			}
-			payload, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(response)
-			if err != nil {
-				return ResponseEnvelope{}, err
-			}
-			return OKResponse(req.ServiceCallID, payload), nil
+			return protobufResponse(req.ServiceCallID, response, binding.Usage)
 		}); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func registerStreamBinding(host *Host, operation Operation, rpc *servicev1.RpcDescriptor, stream RPCStream, usage ResponseUsage, fallback time.Duration) error {
+	return host.RegisterStream(operation, serviceTimeout(rpc, fallback), func(ctx context.Context, req RequestEnvelope, publish func(ResponseEnvelope) error) (ResponseEnvelope, error) {
+		request, err := newRequestMessage(protoreflect.FullName(strings.TrimSpace(rpc.GetRequest())), req.Payload)
+		if err != nil {
+			return ResponseEnvelope{}, err
+		}
+		terminal, err := stream.Handle(ctx, request, func(response proto.Message) error {
+			envelope, err := protobufResponse(req.ServiceCallID, response, usage)
+			if err != nil {
+				return err
+			}
+			return publish(envelope)
+		})
+		if err != nil {
+			return ResponseEnvelope{}, err
+		}
+		return protobufResponse(req.ServiceCallID, terminal, usage)
+	})
 }
 
 type methodBinding struct {
@@ -114,6 +158,29 @@ func serviceMethods(services []RPCService) map[string]methodBinding {
 		}
 	}
 	return out
+}
+
+func streamMethods(streams []RPCStream) map[string]RPCStream {
+	out := make(map[string]RPCStream, len(streams))
+	for _, stream := range streams {
+		service := strings.TrimSpace(stream.Service)
+		method := strings.TrimSpace(stream.Method)
+		if service != "" && method != "" && stream.Handle != nil {
+			out[serviceMethodKey(service, method)] = stream
+		}
+	}
+	return out
+}
+
+func streamBindingFor(streams map[string]RPCStream, rpc *servicev1.RpcDescriptor) (RPCStream, error) {
+	if rpc == nil {
+		return RPCStream{}, fmt.Errorf("rpc descriptor is required")
+	}
+	stream, ok := streams[serviceMethodKey(rpc.GetService(), rpc.GetMethod())]
+	if !ok || stream.Handle == nil {
+		return RPCStream{}, fmt.Errorf("missing streaming implementation for %s/%s", rpc.GetService(), rpc.GetMethod())
+	}
+	return stream, nil
 }
 
 func methodBindingFor(methods map[string]methodBinding, rpc *servicev1.RpcDescriptor) (methodBinding, error) {
@@ -160,6 +227,21 @@ func newRequestMessage(name protoreflect.FullName, payload json.RawMessage) (pro
 		return nil, fmt.Errorf("decode protobuf request %s: %w", name, err)
 	}
 	return message, nil
+}
+
+func protobufResponse(callID string, response proto.Message, usage ResponseUsage) (ResponseEnvelope, error) {
+	if response == nil {
+		return ResponseEnvelope{}, fmt.Errorf("protobuf service response is required")
+	}
+	payload, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(response)
+	if err != nil {
+		return ResponseEnvelope{}, err
+	}
+	envelope := OKResponse(callID, payload)
+	if usage != nil {
+		envelope.Usage = usage(response)
+	}
+	return envelope, nil
 }
 
 func callUnaryMethod(ctx context.Context, implementation any, methodName string, req proto.Message) (proto.Message, error) {
