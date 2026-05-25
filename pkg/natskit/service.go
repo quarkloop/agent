@@ -20,7 +20,7 @@ type Host struct {
 type UnaryServiceHandler func(context.Context, RequestEnvelope) (ResponseEnvelope, error)
 type StreamServiceHandler func(context.Context, RequestEnvelope, func(ResponseEnvelope) error) (ResponseEnvelope, error)
 
-func NewHost(ctx context.Context, cfg Config, queue string) (*Host, error) {
+func newHost(ctx context.Context, cfg Config, queue string) (*Host, error) {
 	if strings.TrimSpace(queue) == "" {
 		return nil, fmt.Errorf("nats responder queue is required")
 	}

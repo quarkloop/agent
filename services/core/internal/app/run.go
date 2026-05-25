@@ -16,7 +16,6 @@ type Config struct {
 	RootDir  string
 	SkillDir string
 	NATS     natskit.Config
-	Queue    string
 	Logger   *slog.Logger
 }
 
@@ -47,7 +46,7 @@ func Run(ctx context.Context, cfg Config) error {
 	descriptor := server.Descriptor(cfg.Address, skill)
 	cfg.Logger.Info("core service configured", "root", root)
 	cfg.NATS.Logger = cfg.Logger
-	return natskit.RunRPCService(ctx, cfg.NATS, cfg.Queue, natskit.Binding{
+	return natskit.RunRPCService(ctx, cfg.NATS, natskit.Binding{
 		Descriptor: descriptor,
 		Services: []natskit.RPCService{{
 			Service:        "quark.core.v1.CoreService",

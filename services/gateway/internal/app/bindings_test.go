@@ -19,7 +19,7 @@ import (
 func TestGatewayBindingDispatchesUnaryOperation(t *testing.T) {
 	broker := startGatewayNATS(t)
 	server := gatewayServer(t)
-	host, err := natskit.StartRPCService(context.Background(), natskit.Config{URL: broker.ClientURL(), Name: "gateway-host"}, "q.gateway.test", gatewayBinding("svc.gateway.v1", nil, server))
+	host, err := natskit.StartRPCService(context.Background(), natskit.Config{URL: broker.ClientURL(), Name: "gateway-host"}, gatewayBinding("svc.gateway.v1", nil, server))
 	if err != nil {
 		t.Fatalf("start gateway binding: %v", err)
 	}
@@ -51,7 +51,7 @@ func TestGatewayBindingDispatchesUnaryOperation(t *testing.T) {
 func TestGatewayBindingStreamsSingleTerminalCompletion(t *testing.T) {
 	broker := startGatewayNATS(t)
 	server := gatewayServer(t)
-	host, err := natskit.StartRPCService(context.Background(), natskit.Config{URL: broker.ClientURL(), Name: "gateway-stream-host"}, "q.gateway.test", gatewayBinding("svc.gateway.v1", nil, server))
+	host, err := natskit.StartRPCService(context.Background(), natskit.Config{URL: broker.ClientURL(), Name: "gateway-stream-host"}, gatewayBinding("svc.gateway.v1", nil, server))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -23,7 +23,6 @@ func main() {
 	var natsURL string
 	var natsUser string
 	var natsPassword string
-	var natsQueue string
 	var natsTimeout time.Duration
 
 	flag.StringVar(&addr, "addr", "127.0.0.1:7306", "service descriptor address")
@@ -33,7 +32,6 @@ func main() {
 	flag.StringVar(&natsURL, "nats-url", os.Getenv("QUARK_NATS_URL"), "NATS URL for Gateway service-function endpoints")
 	flag.StringVar(&natsUser, "nats-user", envOrDefault("QUARK_NATS_SERVICE_USER", os.Getenv("QUARK_NATS_USER")), "NATS username for Gateway service-function endpoints")
 	flag.StringVar(&natsPassword, "nats-password", envOrDefault("QUARK_NATS_SERVICE_PASSWORD", os.Getenv("QUARK_NATS_PASSWORD")), "NATS password for Gateway service-function endpoints")
-	flag.StringVar(&natsQueue, "nats-queue", envOrDefault("QUARK_GATEWAY_NATS_QUEUE", "q.gateway.v1"), "NATS queue group for Gateway service-function endpoints")
 	flag.DurationVar(&natsTimeout, "nats-timeout", durationEnvOrDefault("QUARK_GATEWAY_TIMEOUT", 30*time.Second), "Gateway service-function request timeout")
 	flag.Parse()
 
@@ -48,7 +46,6 @@ func main() {
 	if err := app.Run(ctx, app.Config{
 		Address:  addr,
 		SkillDir: skillDir,
-		Queue:    natsQueue,
 		NATS: natskit.Config{
 			URL:             natsURL,
 			Username:        natsUser,

@@ -23,7 +23,6 @@ func main() {
 	flag.StringVar(&cfg.NATS.URL, "nats-url", os.Getenv("QUARK_NATS_URL"), "NATS URL for service-function endpoints and workflow activities")
 	flag.StringVar(&cfg.NATS.Username, "nats-user", os.Getenv("QUARK_NATS_USER"), "NATS username")
 	flag.StringVar(&cfg.NATS.Password, "nats-password", os.Getenv("QUARK_NATS_PASSWORD"), "NATS password")
-	flag.StringVar(&cfg.Queue, "nats-queue", os.Getenv("QUARK_WORKFLOW_NATS_QUEUE"), "NATS responder queue group")
 	flag.Parse()
 	cfg.NATS.Name = "quark-workflow"
 	cfg.NATS.AuditPrefix = os.Getenv("QUARK_NATS_AUDIT_PREFIX")

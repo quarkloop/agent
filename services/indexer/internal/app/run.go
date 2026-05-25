@@ -19,7 +19,6 @@ type Config struct {
 	Driver   indexer.GraphVectorDriver
 	SkillDir string
 	NATS     natskit.Config
-	Queue    string
 	Logger   *slog.Logger
 }
 
@@ -50,7 +49,7 @@ func Run(ctx context.Context, cfg Config) error {
 	descriptor := server.Descriptor(cfg.Address, skill)
 	defer cfg.Driver.Close()
 	cfg.NATS.Logger = cfg.Logger
-	return natskit.RunRPCService(ctx, cfg.NATS, cfg.Queue, natskit.Binding{
+	return natskit.RunRPCService(ctx, cfg.NATS, natskit.Binding{
 		Descriptor: descriptor,
 		Services: []natskit.RPCService{{
 			Service:        "quark.indexer.v1.IndexerService",

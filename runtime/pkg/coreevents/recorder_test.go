@@ -20,7 +20,7 @@ func TestRecorderPersistsActivityEventsAndAudits(t *testing.T) {
 	descriptor := coreServiceDescriptor()
 	host, err := natskit.StartRPCService(context.Background(), natskit.Config{
 		URL: ns.ClientURL(), Name: "core-events-test",
-	}, "q.core.events.test", natskit.Binding{
+	}, natskit.Binding{
 		Descriptor: descriptor,
 		Services: []natskit.RPCService{{
 			Service:        "quark.core.v1.CoreService",

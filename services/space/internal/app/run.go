@@ -17,7 +17,6 @@ type Config struct {
 	SkillDir    string
 	Environment []string
 	NATS        natskit.Config
-	Queue       string
 	Logger      *slog.Logger
 }
 
@@ -48,7 +47,7 @@ func Run(ctx context.Context, cfg Config) error {
 	descriptor := spacesvc.Descriptor(cfg.Address, skill)
 	cfg.Logger.Info("space service configured", "root", store.Root())
 	cfg.NATS.Logger = cfg.Logger
-	return natskit.RunRPCService(ctx, cfg.NATS, cfg.Queue, natskit.Binding{
+	return natskit.RunRPCService(ctx, cfg.NATS, natskit.Binding{
 		Descriptor: descriptor,
 		Services: []natskit.RPCService{{
 			Service:        "quark.space.v1.SpaceService",

@@ -1,6 +1,7 @@
 package spacesvc
 
 import (
+	"github.com/quarkloop/pkg/natskit"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 )
 
@@ -15,16 +16,20 @@ func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.Ser
 		Version: "1.0.0",
 		Address: address,
 		Rpcs: []*servicev1.RpcDescriptor{
-			{Service: "quark.space.v1.SpaceService", Method: "CreateSpace", Request: "quark.space.v1.CreateSpaceRequest", Response: "quark.space.v1.Space", Description: "Create a space and persist its initial Quarkfile."},
-			{Service: "quark.space.v1.SpaceService", Method: "UpdateQuarkfile", Request: "quark.space.v1.UpdateQuarkfileRequest", Response: "quark.space.v1.Space", Description: "Replace the latest Quarkfile for a space."},
-			{Service: "quark.space.v1.SpaceService", Method: "GetSpace", Request: "quark.space.v1.GetSpaceRequest", Response: "quark.space.v1.Space", Description: "Return persisted space metadata."},
-			{Service: "quark.space.v1.SpaceService", Method: "ListSpaces", Request: "google.protobuf.Empty", Response: "quark.space.v1.ListSpacesResponse", Description: "List registered spaces."},
-			{Service: "quark.space.v1.SpaceService", Method: "DeleteSpace", Request: "quark.space.v1.DeleteSpaceRequest", Response: "google.protobuf.Empty", Description: "Delete a space and its service-owned data."},
-			{Service: "quark.space.v1.SpaceService", Method: "GetQuarkfile", Request: "quark.space.v1.GetQuarkfileRequest", Response: "quark.space.v1.QuarkfileResponse", Description: "Return the authoritative Quarkfile bytes."},
-			{Service: "quark.space.v1.SpaceService", Method: "GetAgentEnvironment", Request: "quark.space.v1.GetAgentEnvironmentRequest", Response: "quark.space.v1.AgentEnvironmentResponse", Description: "Resolve model environment entries for runtime launch."},
-			{Service: "quark.space.v1.SpaceService", Method: "GetSpacePaths", Request: "quark.space.v1.GetSpacePathsRequest", Response: "quark.space.v1.SpacePaths", Description: "Return derived storage paths for a space."},
-			{Service: "quark.space.v1.SpaceService", Method: "Doctor", Request: "quark.space.v1.DoctorRequest", Response: "quark.space.v1.DoctorResponse", Description: "Run Quarkfile and installed-plugin diagnostics."},
+			rpc("CreateSpace", "quark.space.v1.CreateSpaceRequest", "quark.space.v1.Space", "Create a space and persist its initial Quarkfile."),
+			rpc("UpdateQuarkfile", "quark.space.v1.UpdateQuarkfileRequest", "quark.space.v1.Space", "Replace the latest Quarkfile for a space."),
+			rpc("GetSpace", "quark.space.v1.GetSpaceRequest", "quark.space.v1.Space", "Return persisted space metadata."),
+			rpc("ListSpaces", "google.protobuf.Empty", "quark.space.v1.ListSpacesResponse", "List registered spaces."),
+			rpc("DeleteSpace", "quark.space.v1.DeleteSpaceRequest", "google.protobuf.Empty", "Delete a space and its service-owned data."),
+			rpc("GetQuarkfile", "quark.space.v1.GetQuarkfileRequest", "quark.space.v1.QuarkfileResponse", "Return the authoritative Quarkfile bytes."),
+			rpc("GetAgentEnvironment", "quark.space.v1.GetAgentEnvironmentRequest", "quark.space.v1.AgentEnvironmentResponse", "Resolve model environment entries for runtime launch."),
+			rpc("GetSpacePaths", "quark.space.v1.GetSpacePathsRequest", "quark.space.v1.SpacePaths", "Return derived storage paths for a space."),
+			rpc("Doctor", "quark.space.v1.DoctorRequest", "quark.space.v1.DoctorResponse", "Run Quarkfile and installed-plugin diagnostics."),
 		},
 		Skills: skills,
 	}
+}
+
+func rpc(method, request, response, description string) *servicev1.RpcDescriptor {
+	return natskit.MustServiceRPC("space", "space_"+method, "quark.space.v1.SpaceService", method, request, response, description)
 }

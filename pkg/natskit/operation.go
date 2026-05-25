@@ -9,6 +9,7 @@ import (
 
 const (
 	ServiceSubjectPrefix = "svc"
+	ServiceQueuePrefix   = "q.service.v1"
 	DefaultVersion       = "v1"
 )
 
@@ -55,6 +56,17 @@ func ServiceOperationFromFunctionName(owner, functionName string) (Operation, er
 		}
 	}
 	return ServiceOperation(ownerToken, function)
+}
+
+// ServiceQueueGroup returns the internal responder load-balancing group for a
+// service owner. It is derived by the service host, never selected by a
+// caller or configured independently by service instances.
+func ServiceQueueGroup(owner string) (string, error) {
+	ownerToken, err := subjectToken("owner", owner)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s.%s", ServiceQueuePrefix, ownerToken), nil
 }
 
 func ParseServiceOperation(subject string) (Operation, error) {

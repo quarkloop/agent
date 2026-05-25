@@ -19,7 +19,7 @@ func TestWorkflowHostDispatchesStartOperation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	host, err := startWorkflowHost(context.Background(), natskit.Config{URL: broker.ClientURL(), Name: "workflow-host"}, "q.workflow.test", server)
+	host, err := natskit.StartRPCService(context.Background(), natskit.Config{URL: broker.ClientURL(), Name: "workflow-host"}, workflowBinding("", nil, server))
 	if err != nil {
 		t.Fatal(err)
 	}

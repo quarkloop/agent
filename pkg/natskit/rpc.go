@@ -42,8 +42,8 @@ type RPCStream struct {
 
 type RPCStreamHandler func(context.Context, proto.Message, func(proto.Message) error) (proto.Message, error)
 
-func RunRPCService(ctx context.Context, cfg Config, queue string, bindings ...Binding) error {
-	host, err := StartRPCService(ctx, cfg, queue, bindings...)
+func RunRPCService(ctx context.Context, cfg Config, bindings ...Binding) error {
+	host, err := StartRPCService(ctx, cfg, bindings...)
 	if err != nil {
 		return err
 	}
@@ -52,11 +52,15 @@ func RunRPCService(ctx context.Context, cfg Config, queue string, bindings ...Bi
 	return nil
 }
 
-func StartRPCService(ctx context.Context, cfg Config, queue string, bindings ...Binding) (*Host, error) {
+func StartRPCService(ctx context.Context, cfg Config, bindings ...Binding) (*Host, error) {
 	if strings.TrimSpace(cfg.URL) == "" {
 		return nil, fmt.Errorf("nats url is required")
 	}
-	host, err := NewHost(ctx, cfg, queue)
+	queue, err := serviceQueueForBindings(bindings)
+	if err != nil {
+		return nil, err
+	}
+	host, err := newHost(ctx, cfg, queue)
 	if err != nil {
 		return nil, err
 	}
@@ -73,6 +77,32 @@ func StartRPCService(ctx context.Context, cfg Config, queue string, bindings ...
 	cfg = normalizeConfig(cfg)
 	cfg.Logger.Info("nats service operations ready", "url", cfg.URL, "queue", queue)
 	return host, nil
+}
+
+func serviceQueueForBindings(bindings []Binding) (string, error) {
+	var owner string
+	for _, binding := range bindings {
+		if binding.Descriptor == nil {
+			return "", fmt.Errorf("service descriptor is required")
+		}
+		for _, rpc := range binding.Descriptor.GetRpcs() {
+			operation, err := operationForRPC(binding.Descriptor, rpc)
+			if err != nil {
+				return "", err
+			}
+			if owner == "" {
+				owner = operation.Owner
+				continue
+			}
+			if operation.Owner != owner {
+				return "", fmt.Errorf("one NATS service host cannot register operations for both %q and %q", owner, operation.Owner)
+			}
+		}
+	}
+	if owner == "" {
+		return "", fmt.Errorf("service host requires at least one operation")
+	}
+	return ServiceQueueGroup(owner)
 }
 
 func registerBinding(host *Host, binding Binding, fallback time.Duration) error {

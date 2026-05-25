@@ -1,6 +1,7 @@
 package iosvc
 
 import (
+	"github.com/quarkloop/pkg/natskit"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 )
 
@@ -34,11 +35,5 @@ func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.Ser
 }
 
 func rpc(service, method, request, response, description string) *servicev1.RpcDescriptor {
-	return &servicev1.RpcDescriptor{
-		Service:     service,
-		Method:      method,
-		Request:     request,
-		Response:    response,
-		Description: description,
-	}
+	return natskit.MustServiceRPC("io", "io_"+method, service, method, request, response, description)
 }

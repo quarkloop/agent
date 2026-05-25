@@ -15,7 +15,6 @@ type Config struct {
 	Address  string
 	SkillDir string
 	NATS     natskit.Config
-	Queue    string
 	Logger   *slog.Logger
 }
 
@@ -38,7 +37,7 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	descriptor := citationsvc.Descriptor(cfg.Address, skill)
 	cfg.NATS.Logger = cfg.Logger
-	return natskit.RunRPCService(ctx, cfg.NATS, cfg.Queue, natskit.Binding{
+	return natskit.RunRPCService(ctx, cfg.NATS, natskit.Binding{
 		Descriptor: descriptor,
 		Services: []natskit.RPCService{{
 			Service:        "quark.citation.v1.CitationService",

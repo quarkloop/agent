@@ -9,54 +9,51 @@ import (
 	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/plugin"
 	gatewayv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/gateway/v1"
-	"google.golang.org/protobuf/encoding/protojson"
+	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestProviderStreamsGatewayResponsesAndUsage(t *testing.T) {
 	ns := startProviderTestNATS(t)
-	host, err := natskit.NewHost(context.Background(), natskit.Config{
+	host, err := natskit.StartRPCService(context.Background(), natskit.Config{
 		URL: ns.ClientURL(), Username: "quark-control", Password: "secret",
 		Name: "gateway-provider-test",
-	}, "q.test.gateway")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(host.Close)
-	operation, _ := natskit.ServiceOperation("gateway", "stream_generate")
-	err = host.RegisterStream(operation, time.Second, func(_ context.Context, req natskit.RequestEnvelope, publish func(natskit.ResponseEnvelope) error) (natskit.ResponseEnvelope, error) {
-		var payload gatewayv1.StreamGenerateRequest
-		if err := protojson.Unmarshal(req.Payload, &payload); err != nil {
-			return natskit.ResponseEnvelope{}, err
-		}
-		if payload.GetProvider() != "openrouter" || payload.GetModel() != "test/model" {
-			t.Errorf("request provider/model = %q/%q", payload.GetProvider(), payload.GetModel())
-		}
-		if payload.GetOptions()["max_output_tokens"] != "512" {
-			t.Errorf("max_output_tokens option = %q", payload.GetOptions()["max_output_tokens"])
-		}
-		first := providerChunk(t, req.ServiceCallID, &gatewayv1.StreamGenerateResponse{Delta: "hello"})
-		if err := publish(first); err != nil {
-			return natskit.ResponseEnvelope{}, err
-		}
-		return providerChunk(t, req.ServiceCallID, &gatewayv1.StreamGenerateResponse{
-			Done: true,
-			Usage: &gatewayv1.ModelUsage{
-				Provider:      "openrouter",
-				Model:         "test/model",
-				InputTokens:   7,
-				OutputTokens:  3,
-				RequestId:     "provider-request-1",
-				FinishReason:  "stop",
-				FallbackChain: []string{"openrouter"},
-			},
-		}), nil
+	}, natskit.Binding{
+		Descriptor: &servicev1.ServiceDescriptor{Name: "gateway", Rpcs: []*servicev1.RpcDescriptor{
+			natskit.MustStreamingServiceRPC("gateway", "gateway_StreamGenerate", "quark.gateway.v1.GatewayService", "StreamGenerate", "quark.gateway.v1.StreamGenerateRequest", "quark.gateway.v1.StreamGenerateResponse", "Stream model output."),
+		}},
+		Streams: []natskit.RPCStream{{Service: "quark.gateway.v1.GatewayService", Method: "StreamGenerate", Handle: func(_ context.Context, input proto.Message, publish func(proto.Message) error) (proto.Message, error) {
+			payload := input.(*gatewayv1.StreamGenerateRequest)
+			if payload.GetProvider() != "openrouter" || payload.GetModel() != "test/model" {
+				t.Errorf("request provider/model = %q/%q", payload.GetProvider(), payload.GetModel())
+			}
+			if payload.GetOptions()["max_output_tokens"] != "512" {
+				t.Errorf("max_output_tokens option = %q", payload.GetOptions()["max_output_tokens"])
+			}
+			if err := publish(&gatewayv1.StreamGenerateResponse{Delta: "hello"}); err != nil {
+				return nil, err
+			}
+			return &gatewayv1.StreamGenerateResponse{
+				Done: true,
+				Usage: &gatewayv1.ModelUsage{
+					Provider:      "openrouter",
+					Model:         "test/model",
+					InputTokens:   7,
+					OutputTokens:  3,
+					RequestId:     "provider-request-1",
+					FinishReason:  "stop",
+					FallbackChain: []string{"openrouter"},
+				},
+			}, nil
+		}}},
+		Usage: func(message proto.Message) *natskit.Usage {
+			return usageEnvelope(message.(*gatewayv1.StreamGenerateResponse).GetUsage())
+		},
 	})
 	if err != nil {
 		t.Fatalf("subscribe gateway subject: %v", err)
 	}
-	if err := host.Ready(context.Background()); err != nil {
-		t.Fatalf("flush gateway subscription: %v", err)
-	}
+	t.Cleanup(host.Close)
 
 	provider := New(Config{URL: ns.ClientURL(), Username: "quark-control", Password: "secret", Timeout: time.Second, MaxOutputTokens: 512}, "openrouter")
 	stream, err := provider.ChatCompletionStream(context.Background(), &plugin.ChatRequest{
@@ -139,17 +136,6 @@ func startProviderTestNATS(t *testing.T) *natsserver.Server {
 	}
 	t.Cleanup(ns.Shutdown)
 	return ns
-}
-
-func providerChunk(t *testing.T, callID string, chunk *gatewayv1.StreamGenerateResponse) natskit.ResponseEnvelope {
-	t.Helper()
-	payload, err := protojson.Marshal(chunk)
-	if err != nil {
-		t.Fatalf("marshal chunk: %v", err)
-	}
-	envelope := natskit.OKResponse(callID, payload)
-	envelope.Usage = usageEnvelope(chunk.GetUsage())
-	return envelope
 }
 
 func usageEnvelope(usage *gatewayv1.ModelUsage) *natskit.Usage {

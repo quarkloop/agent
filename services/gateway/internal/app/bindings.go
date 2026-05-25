@@ -6,8 +6,6 @@ import (
 	"github.com/quarkloop/services/gateway/internal/gatewaysvc"
 )
 
-const defaultGatewayQueue = "q.gateway.v1"
-
 func gatewayBinding(address string, skill *servicev1.SkillDescriptor, server *gatewaysvc.Server) natskit.Binding {
 	return natskit.Binding{
 		Descriptor: gatewaysvc.Descriptor(address, skill),

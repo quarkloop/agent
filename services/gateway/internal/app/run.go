@@ -16,7 +16,6 @@ type Config struct {
 	Address           string
 	SkillDir          string
 	NATS              natskit.Config
-	Queue             string
 	Providers         []ProviderConfig
 	Fallbacks         map[string][]string
 	EmbeddingProvider string
@@ -63,11 +62,8 @@ func Run(ctx context.Context, cfg Config) error {
 		return err
 	}
 	cfg.NATS.Logger = cfg.Logger
-	if cfg.Queue == "" {
-		cfg.Queue = defaultGatewayQueue
-	}
 	cfg.Logger.Info("gateway service listening", "providers", server.ProviderIDs())
-	return natskit.RunRPCService(ctx, cfg.NATS, cfg.Queue, gatewayBinding(cfg.Address, skill, server))
+	return natskit.RunRPCService(ctx, cfg.NATS, gatewayBinding(cfg.Address, skill, server))
 }
 
 func providerConfigs(in []ProviderConfig) []gatewaysvc.ProviderConfig {

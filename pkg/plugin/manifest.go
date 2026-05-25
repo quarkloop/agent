@@ -247,11 +247,15 @@ func (m *Manifest) Validate() error {
 		if err := validateServiceSubjectPrefix(m.Service.SubjectPrefix); err != nil {
 			return fmt.Errorf("service.subject_prefix: %w", err)
 		}
+		expectedQueueGroup := fmt.Sprintf("q.service.v1.%s", manifestSubjectToken(m.Name))
 		if m.Service.QueueGroup == "" {
-			m.Service.QueueGroup = fmt.Sprintf("q.service.v1.%s", manifestSubjectToken(m.Name))
+			m.Service.QueueGroup = expectedQueueGroup
 		}
 		if err := validateQueueGroup(m.Service.QueueGroup); err != nil {
 			return fmt.Errorf("service.queue_group: %w", err)
+		}
+		if m.Service.QueueGroup != expectedQueueGroup {
+			return fmt.Errorf("service.queue_group %q must match responder group %q", m.Service.QueueGroup, expectedQueueGroup)
 		}
 		if m.Service.Skill == "" {
 			m.Service.Skill = "SKILL.md"

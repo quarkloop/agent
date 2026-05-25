@@ -178,6 +178,29 @@ func TestServiceManifestRequiresFunctions(t *testing.T) {
 	}
 }
 
+func TestServiceManifestRejectsNonCanonicalQueueGroup(t *testing.T) {
+	manifest := &Manifest{
+		Name:    "gateway",
+		Version: "1.0.0",
+		Type:    TypeService,
+		Mode:    ModeAPI,
+		Service: &ServiceConfig{
+			QueueGroup: "q.gateway.v1",
+			Functions: []ServiceFunctionConfig{{
+				Name:        "gateway_Embed",
+				Service:     "quark.gateway.v1.GatewayService",
+				Method:      "Embed",
+				Request:     "quark.gateway.v1.EmbedRequest",
+				Response:    "quark.gateway.v1.EmbedResponse",
+				Description: "Embed content.",
+			}},
+		},
+	}
+	if err := manifest.Validate(); err == nil || !strings.Contains(err.Error(), "responder group") {
+		t.Fatalf("validate non-canonical queue = %v", err)
+	}
+}
+
 func TestServiceFunctionConfigRejectsUnknownRisk(t *testing.T) {
 	function := ServiceFunctionConfig{
 		Name:        "gateway_Embed",

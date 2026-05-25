@@ -517,13 +517,15 @@
           "method": "ResolveSpans",
           "method_implemented": true,
           "name": "citation_ResolveSpans",
+          "owner": "citation",
           "proto_rpc_exists": true,
           "request": "quark.citation.v1.ResolveSpansRequest",
           "response": "quark.citation.v1.ResolveSpansResponse",
           "risk_level": "read",
           "service": "quark.citation.v1.CitationService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.citation.v1.resolve_spans"
         },
         {
           "approval_required": false,
@@ -531,13 +533,15 @@
           "method": "CreateCitation",
           "method_implemented": true,
           "name": "citation_CreateCitation",
+          "owner": "citation",
           "proto_rpc_exists": true,
           "request": "quark.citation.v1.CreateCitationRequest",
           "response": "quark.citation.v1.CitationSpan",
           "risk_level": "read",
           "service": "quark.citation.v1.CitationService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.citation.v1.create_citation"
         },
         {
           "approval_required": false,
@@ -545,13 +549,15 @@
           "method": "VerifyGrounding",
           "method_implemented": true,
           "name": "citation_VerifyGrounding",
+          "owner": "citation",
           "proto_rpc_exists": true,
           "request": "quark.citation.v1.VerifyGroundingRequest",
           "response": "quark.citation.v1.VerifyGroundingResponse",
           "risk_level": "read",
           "service": "quark.citation.v1.CitationService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.citation.v1.verify_grounding"
         },
         {
           "approval_required": false,
@@ -559,13 +565,15 @@
           "method": "ScoreCoverage",
           "method_implemented": true,
           "name": "citation_ScoreCoverage",
+          "owner": "citation",
           "proto_rpc_exists": true,
           "request": "quark.citation.v1.ScoreCoverageRequest",
           "response": "quark.citation.v1.ScoreCoverageResponse",
           "risk_level": "read",
           "service": "quark.citation.v1.CitationService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.citation.v1.score_coverage"
         },
         {
           "approval_required": false,
@@ -573,13 +581,15 @@
           "method": "RenderReferences",
           "method_implemented": true,
           "name": "citation_RenderReferences",
+          "owner": "citation",
           "proto_rpc_exists": true,
           "request": "quark.citation.v1.RenderReferencesRequest",
           "response": "quark.citation.v1.RenderReferencesResponse",
           "risk_level": "read",
           "service": "quark.citation.v1.CitationService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.citation.v1.render_references"
         }
       ],
       "health_service": "quark.citation.v1.CitationService",
@@ -606,13 +616,15 @@
           "method": "CheckHealth",
           "method_implemented": true,
           "name": "core_CheckHealth",
+          "owner": "core",
           "proto_rpc_exists": true,
           "request": "quark.core.v1.CheckHealthRequest",
           "response": "quark.core.v1.CheckHealthResponse",
           "risk_level": "read",
           "service": "quark.core.v1.CoreService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.core.v1.check_health"
         },
         {
           "approval_required": false,
@@ -620,13 +632,15 @@
           "method": "CheckReadiness",
           "method_implemented": true,
           "name": "core_CheckReadiness",
+          "owner": "core",
           "proto_rpc_exists": true,
           "request": "quark.core.v1.CheckReadinessRequest",
           "response": "quark.core.v1.CheckReadinessResponse",
           "risk_level": "read",
           "service": "quark.core.v1.CoreService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.core.v1.check_readiness"
         },
         {
           "approval_required": false,
@@ -634,13 +648,15 @@
           "method": "RecordAuditEvent",
           "method_implemented": true,
           "name": "core_RecordAuditEvent",
+          "owner": "core",
           "proto_rpc_exists": true,
           "request": "quark.core.v1.RecordAuditEventRequest",
           "response": "quark.core.v1.RecordAuditEventResponse",
           "risk_level": "write",
           "service": "quark.core.v1.CoreService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.core.v1.record_audit_event"
         },
         {
           "approval_required": false,
@@ -648,13 +664,15 @@
           "method": "ListAuditEvents",
           "method_implemented": true,
           "name": "core_ListAuditEvents",
+          "owner": "core",
           "proto_rpc_exists": true,
           "request": "quark.core.v1.ListAuditEventsRequest",
           "response": "quark.core.v1.ListAuditEventsResponse",
           "risk_level": "read",
           "service": "quark.core.v1.CoreService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.core.v1.list_audit_events"
         },
         {
           "approval_required": false,
@@ -662,13 +680,15 @@
           "method": "PutArtifact",
           "method_implemented": true,
           "name": "core_PutArtifact",
+          "owner": "core",
           "proto_rpc_exists": true,
           "request": "quark.core.v1.PutArtifactRequest",
           "response": "quark.core.v1.PutArtifactResponse",
           "risk_level": "write",
           "service": "quark.core.v1.CoreService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.core.v1.put_artifact"
         },
         {
           "approval_required": false,
@@ -676,13 +696,15 @@
           "method": "GetArtifact",
           "method_implemented": true,
           "name": "core_GetArtifact",
+          "owner": "core",
           "proto_rpc_exists": true,
           "request": "quark.core.v1.GetArtifactRequest",
           "response": "quark.core.v1.GetArtifactResponse",
           "risk_level": "read",
           "service": "quark.core.v1.CoreService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.core.v1.get_artifact"
         },
         {
           "approval_required": false,
@@ -690,13 +712,15 @@
           "method": "RequestApproval",
           "method_implemented": true,
           "name": "core_RequestApproval",
+          "owner": "core",
           "proto_rpc_exists": true,
           "request": "quark.core.v1.RequestApprovalRequest",
           "response": "quark.core.v1.RequestApprovalResponse",
           "risk_level": "write",
           "service": "quark.core.v1.CoreService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.core.v1.request_approval"
         },
         {
           "approval_required": false,
@@ -704,13 +728,15 @@
           "method": "RecordApprovalDecision",
           "method_implemented": true,
           "name": "core_RecordApprovalDecision",
+          "owner": "core",
           "proto_rpc_exists": true,
           "request": "quark.core.v1.RecordApprovalDecisionRequest",
           "response": "quark.core.v1.RecordApprovalDecisionResponse",
           "risk_level": "write",
           "service": "quark.core.v1.CoreService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.core.v1.record_approval_decision"
         },
         {
           "approval_required": false,
@@ -718,13 +744,15 @@
           "method": "GetConfig",
           "method_implemented": true,
           "name": "core_GetConfig",
+          "owner": "core",
           "proto_rpc_exists": true,
           "request": "quark.core.v1.GetConfigRequest",
           "response": "quark.core.v1.GetConfigResponse",
           "risk_level": "read",
           "service": "quark.core.v1.CoreService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.core.v1.get_config"
         },
         {
           "approval_required": true,
@@ -732,13 +760,15 @@
           "method": "SetConfig",
           "method_implemented": true,
           "name": "core_SetConfig",
+          "owner": "core",
           "proto_rpc_exists": true,
           "request": "quark.core.v1.SetConfigRequest",
           "response": "quark.core.v1.SetConfigResponse",
           "risk_level": "write",
           "service": "quark.core.v1.CoreService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.core.v1.set_config"
         },
         {
           "approval_required": false,
@@ -746,13 +776,15 @@
           "method": "GetSecretRef",
           "method_implemented": true,
           "name": "core_GetSecretRef",
+          "owner": "core",
           "proto_rpc_exists": true,
           "request": "quark.core.v1.GetSecretRefRequest",
           "response": "quark.core.v1.GetSecretRefResponse",
           "risk_level": "read",
           "service": "quark.core.v1.CoreService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.core.v1.get_secret_ref"
         },
         {
           "approval_required": false,
@@ -760,13 +792,15 @@
           "method": "PublishEvent",
           "method_implemented": true,
           "name": "core_PublishEvent",
+          "owner": "core",
           "proto_rpc_exists": true,
           "request": "quark.core.v1.PublishEventRequest",
           "response": "quark.core.v1.PublishEventResponse",
           "risk_level": "write",
           "service": "quark.core.v1.CoreService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.core.v1.publish_event"
         },
         {
           "approval_required": false,
@@ -774,13 +808,15 @@
           "method": "ListEvents",
           "method_implemented": true,
           "name": "core_ListEvents",
+          "owner": "core",
           "proto_rpc_exists": true,
           "request": "quark.core.v1.ListEventsRequest",
           "response": "quark.core.v1.ListEventsResponse",
           "risk_level": "read",
           "service": "quark.core.v1.CoreService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.core.v1.list_events"
         },
         {
           "approval_required": false,
@@ -788,13 +824,15 @@
           "method": "EvaluatePolicy",
           "method_implemented": true,
           "name": "core_EvaluatePolicy",
+          "owner": "core",
           "proto_rpc_exists": true,
           "request": "quark.core.v1.EvaluatePolicyRequest",
           "response": "quark.core.v1.EvaluatePolicyResponse",
           "risk_level": "read",
           "service": "quark.core.v1.CoreService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.core.v1.evaluate_policy"
         },
         {
           "approval_required": true,
@@ -802,13 +840,15 @@
           "method": "CreateWorkspaceMutationPlan",
           "method_implemented": true,
           "name": "core_CreateWorkspaceMutationPlan",
+          "owner": "core",
           "proto_rpc_exists": true,
           "request": "quark.core.v1.CreateWorkspaceMutationPlanRequest",
           "response": "quark.core.v1.CreateWorkspaceMutationPlanResponse",
           "risk_level": "write",
           "service": "quark.core.v1.CoreService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.core.v1.create_workspace_mutation_plan"
         },
         {
           "approval_required": true,
@@ -816,13 +856,15 @@
           "method": "ApproveWorkspaceMutationPlan",
           "method_implemented": true,
           "name": "core_ApproveWorkspaceMutationPlan",
+          "owner": "core",
           "proto_rpc_exists": true,
           "request": "quark.core.v1.ApproveWorkspaceMutationPlanRequest",
           "response": "quark.core.v1.ApproveWorkspaceMutationPlanResponse",
           "risk_level": "write",
           "service": "quark.core.v1.CoreService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.core.v1.approve_workspace_mutation_plan"
         },
         {
           "approval_required": true,
@@ -830,13 +872,15 @@
           "method": "ScheduleRun",
           "method_implemented": true,
           "name": "core_ScheduleRun",
+          "owner": "core",
           "proto_rpc_exists": true,
           "request": "quark.core.v1.ScheduleRunRequest",
           "response": "quark.core.v1.ScheduleRunResponse",
           "risk_level": "write",
           "service": "quark.core.v1.CoreService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.core.v1.schedule_run"
         },
         {
           "approval_required": false,
@@ -844,13 +888,15 @@
           "method": "ListSchedules",
           "method_implemented": true,
           "name": "core_ListSchedules",
+          "owner": "core",
           "proto_rpc_exists": true,
           "request": "quark.core.v1.ListSchedulesRequest",
           "response": "quark.core.v1.ListSchedulesResponse",
           "risk_level": "read",
           "service": "quark.core.v1.CoreService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.core.v1.list_schedules"
         },
         {
           "approval_required": false,
@@ -858,13 +904,15 @@
           "method": "RecordEvaluation",
           "method_implemented": true,
           "name": "core_RecordEvaluation",
+          "owner": "core",
           "proto_rpc_exists": true,
           "request": "quark.core.v1.RecordEvaluationRequest",
           "response": "quark.core.v1.RecordEvaluationResponse",
           "risk_level": "write",
           "service": "quark.core.v1.CoreService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.core.v1.record_evaluation"
         },
         {
           "approval_required": false,
@@ -872,13 +920,15 @@
           "method": "GetEvaluation",
           "method_implemented": true,
           "name": "core_GetEvaluation",
+          "owner": "core",
           "proto_rpc_exists": true,
           "request": "quark.core.v1.GetEvaluationRequest",
           "response": "quark.core.v1.GetEvaluationResponse",
           "risk_level": "read",
           "service": "quark.core.v1.CoreService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.core.v1.get_evaluation"
         }
       ],
       "health_service": "quark.core.v1.CoreService",
@@ -905,13 +955,15 @@
           "method": "Status",
           "method_implemented": true,
           "name": "repo_Status",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.StatusRequest",
           "response": "quark.devops.v1.StatusResponse",
           "risk_level": "read",
           "service": "quark.devops.v1.RepoService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.repo_status"
         },
         {
           "approval_required": false,
@@ -919,13 +971,15 @@
           "method": "Diff",
           "method_implemented": true,
           "name": "repo_Diff",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.DiffRequest",
           "response": "quark.devops.v1.DiffResponse",
           "risk_level": "read",
           "service": "quark.devops.v1.RepoService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.repo_diff"
         },
         {
           "approval_required": false,
@@ -933,13 +987,15 @@
           "method": "GetBranch",
           "method_implemented": true,
           "name": "repo_GetBranch",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.GetBranchRequest",
           "response": "quark.devops.v1.GetBranchResponse",
           "risk_level": "read",
           "service": "quark.devops.v1.RepoService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.repo_get_branch"
         },
         {
           "approval_required": false,
@@ -947,13 +1003,15 @@
           "method": "ListChangedFiles",
           "method_implemented": true,
           "name": "repo_ListChangedFiles",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.ListChangedFilesRequest",
           "response": "quark.devops.v1.ListChangedFilesResponse",
           "risk_level": "read",
           "service": "quark.devops.v1.RepoService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.repo_list_changed_files"
         },
         {
           "approval_required": true,
@@ -961,13 +1019,15 @@
           "method": "ApplyPatch",
           "method_implemented": true,
           "name": "repo_ApplyPatch",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.ApplyPatchRequest",
           "response": "quark.devops.v1.ApplyPatchResponse",
           "risk_level": "write",
           "service": "quark.devops.v1.RepoService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.repo_apply_patch"
         },
         {
           "approval_required": true,
@@ -975,13 +1035,15 @@
           "method": "Commit",
           "method_implemented": true,
           "name": "repo_Commit",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.CommitRequest",
           "response": "quark.devops.v1.CommitResponse",
           "risk_level": "write",
           "service": "quark.devops.v1.RepoService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.repo_commit"
         },
         {
           "approval_required": false,
@@ -989,13 +1051,15 @@
           "method": "GenerateReleaseNotes",
           "method_implemented": true,
           "name": "repo_GenerateReleaseNotes",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.GenerateReleaseNotesRequest",
           "response": "quark.devops.v1.GenerateReleaseNotesResponse",
           "risk_level": "read",
           "service": "quark.devops.v1.RepoService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.repo_generate_release_notes"
         },
         {
           "approval_required": false,
@@ -1003,13 +1067,15 @@
           "method": "DetectProject",
           "method_implemented": true,
           "name": "build_DetectProject",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.DetectProjectRequest",
           "response": "quark.devops.v1.DetectProjectResponse",
           "risk_level": "read",
           "service": "quark.devops.v1.BuildService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.build_detect_project"
         },
         {
           "approval_required": false,
@@ -1017,13 +1083,15 @@
           "method": "ResolveTask",
           "method_implemented": true,
           "name": "build_ResolveTask",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.ResolveTaskRequest",
           "response": "quark.devops.v1.ResolveTaskResponse",
           "risk_level": "read",
           "service": "quark.devops.v1.BuildService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.build_resolve_task"
         },
         {
           "approval_required": true,
@@ -1031,13 +1099,15 @@
           "method": "RunTask",
           "method_implemented": true,
           "name": "build_RunTask",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.RunTaskRequest",
           "response": "quark.devops.v1.RunTaskResponse",
           "risk_level": "write",
           "service": "quark.devops.v1.BuildService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.build_run_task"
         },
         {
           "approval_required": true,
@@ -1045,13 +1115,15 @@
           "method": "CreateArtifact",
           "method_implemented": true,
           "name": "build_CreateArtifact",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.CreateArtifactRequest",
           "response": "quark.devops.v1.CreateArtifactResponse",
           "risk_level": "write",
           "service": "quark.devops.v1.BuildService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.build_create_artifact"
         },
         {
           "approval_required": true,
@@ -1059,13 +1131,15 @@
           "method": "InitReleaseConfig",
           "method_implemented": true,
           "name": "build_InitReleaseConfig",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.InitReleaseConfigRequest",
           "response": "quark.devops.v1.InitReleaseConfigResponse",
           "risk_level": "write",
           "service": "quark.devops.v1.BuildService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.build_init_release_config"
         },
         {
           "approval_required": false,
@@ -1073,13 +1147,15 @@
           "method": "DryRunRelease",
           "method_implemented": true,
           "name": "build_DryRunRelease",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.DryRunReleaseRequest",
           "response": "quark.devops.v1.DryRunReleaseResponse",
           "risk_level": "read",
           "service": "quark.devops.v1.BuildService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.build_dry_run_release"
         },
         {
           "approval_required": true,
@@ -1087,13 +1163,15 @@
           "method": "RunRelease",
           "method_implemented": true,
           "name": "build_RunRelease",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.RunReleaseRequest",
           "response": "quark.devops.v1.RunReleaseResponse",
           "risk_level": "admin",
           "service": "quark.devops.v1.BuildService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.build_run_release"
         },
         {
           "approval_required": false,
@@ -1101,13 +1179,15 @@
           "method": "DiscoverTests",
           "method_implemented": true,
           "name": "test_DiscoverTests",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.DiscoverTestsRequest",
           "response": "quark.devops.v1.DiscoverTestsResponse",
           "risk_level": "read",
           "service": "quark.devops.v1.TestService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.test_discover_tests"
         },
         {
           "approval_required": true,
@@ -1115,13 +1195,15 @@
           "method": "RunTests",
           "method_implemented": true,
           "name": "test_RunTests",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.RunTestsRequest",
           "response": "quark.devops.v1.RunTestsResponse",
           "risk_level": "write",
           "service": "quark.devops.v1.TestService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.test_run_tests"
         },
         {
           "approval_required": false,
@@ -1129,13 +1211,15 @@
           "method": "ExplainFailure",
           "method_implemented": true,
           "name": "test_ExplainFailure",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.ExplainFailureRequest",
           "response": "quark.devops.v1.ExplainFailureResponse",
           "risk_level": "read",
           "service": "quark.devops.v1.TestService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.test_explain_failure"
         },
         {
           "approval_required": true,
@@ -1143,13 +1227,15 @@
           "method": "BuildImage",
           "method_implemented": true,
           "name": "container_BuildImage",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.BuildImageRequest",
           "response": "quark.devops.v1.BuildImageResponse",
           "risk_level": "write",
           "service": "quark.devops.v1.ContainerService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.container_build_image"
         },
         {
           "approval_required": false,
@@ -1157,13 +1243,15 @@
           "method": "ListImages",
           "method_implemented": true,
           "name": "container_ListImages",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.ListImagesRequest",
           "response": "quark.devops.v1.ListImagesResponse",
           "risk_level": "read",
           "service": "quark.devops.v1.ContainerService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.container_list_images"
         },
         {
           "approval_required": true,
@@ -1171,13 +1259,15 @@
           "method": "PlanRun",
           "method_implemented": true,
           "name": "container_PlanRun",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.PlanRunRequest",
           "response": "quark.devops.v1.PlanRunResponse",
           "risk_level": "write",
           "service": "quark.devops.v1.ContainerService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.container_plan_run"
         },
         {
           "approval_required": true,
@@ -1185,13 +1275,15 @@
           "method": "Plan",
           "method_implemented": true,
           "name": "deploy_Plan",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.PlanRequest",
           "response": "quark.devops.v1.PlanResponse",
           "risk_level": "write",
           "service": "quark.devops.v1.DeployService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.deploy_plan"
         },
         {
           "approval_required": true,
@@ -1199,13 +1291,15 @@
           "method": "Apply",
           "method_implemented": true,
           "name": "deploy_Apply",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.ApplyRequest",
           "response": "quark.devops.v1.ApplyResponse",
           "risk_level": "admin",
           "service": "quark.devops.v1.DeployService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.deploy_apply"
         },
         {
           "approval_required": false,
@@ -1213,13 +1307,15 @@
           "method": "EvaluateChange",
           "method_implemented": true,
           "name": "policy_EvaluateChange",
+          "owner": "devops",
           "proto_rpc_exists": true,
           "request": "quark.devops.v1.EvaluateChangeRequest",
           "response": "quark.devops.v1.EvaluateChangeResponse",
           "risk_level": "read",
           "service": "quark.devops.v1.PolicyService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.devops.v1.policy_evaluate_change"
         }
       ],
       "health_service": "quark.devops.v1.RepoService",
@@ -1251,13 +1347,15 @@
           "method": "DetectType",
           "method_implemented": true,
           "name": "document_DetectType",
+          "owner": "document",
           "proto_rpc_exists": true,
           "request": "quark.document.v1.DetectTypeRequest",
           "response": "quark.document.v1.DetectTypeResponse",
           "risk_level": "read",
           "service": "quark.document.v1.DocumentService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.document.v1.detect_type"
         },
         {
           "approval_required": false,
@@ -1265,13 +1363,15 @@
           "method": "ParseBytes",
           "method_implemented": true,
           "name": "document_ParseBytes",
+          "owner": "document",
           "proto_rpc_exists": true,
           "request": "quark.document.v1.ParseBytesRequest",
           "response": "quark.document.v1.ParseBytesResponse",
           "risk_level": "read",
           "service": "quark.document.v1.DocumentService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.document.v1.parse_bytes"
         },
         {
           "approval_required": false,
@@ -1279,13 +1379,15 @@
           "method": "ExtractText",
           "method_implemented": true,
           "name": "document_ExtractText",
+          "owner": "document",
           "proto_rpc_exists": true,
           "request": "quark.document.v1.ExtractTextRequest",
           "response": "quark.document.v1.ExtractTextResponse",
           "risk_level": "read",
           "service": "quark.document.v1.DocumentService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.document.v1.extract_text"
         },
         {
           "approval_required": false,
@@ -1293,13 +1395,15 @@
           "method": "ExtractLayout",
           "method_implemented": true,
           "name": "document_ExtractLayout",
+          "owner": "document",
           "proto_rpc_exists": true,
           "request": "quark.document.v1.ExtractLayoutRequest",
           "response": "quark.document.v1.ExtractLayoutResponse",
           "risk_level": "read",
           "service": "quark.document.v1.DocumentService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.document.v1.extract_layout"
         },
         {
           "approval_required": false,
@@ -1307,13 +1411,15 @@
           "method": "GetPages",
           "method_implemented": true,
           "name": "document_GetPages",
+          "owner": "document",
           "proto_rpc_exists": true,
           "request": "quark.document.v1.GetPagesRequest",
           "response": "quark.document.v1.GetPagesResponse",
           "risk_level": "read",
           "service": "quark.document.v1.DocumentService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.document.v1.get_pages"
         },
         {
           "approval_required": false,
@@ -1321,13 +1427,15 @@
           "method": "ExtractTables",
           "method_implemented": true,
           "name": "document_ExtractTables",
+          "owner": "document",
           "proto_rpc_exists": true,
           "request": "quark.document.v1.ExtractTablesRequest",
           "response": "quark.document.v1.ExtractTablesResponse",
           "risk_level": "read",
           "service": "quark.document.v1.DocumentService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.document.v1.extract_tables"
         },
         {
           "approval_required": false,
@@ -1335,13 +1443,15 @@
           "method": "ExtractImages",
           "method_implemented": true,
           "name": "document_ExtractImages",
+          "owner": "document",
           "proto_rpc_exists": true,
           "request": "quark.document.v1.ExtractImagesRequest",
           "response": "quark.document.v1.ExtractImagesResponse",
           "risk_level": "read",
           "service": "quark.document.v1.DocumentService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.document.v1.extract_images"
         },
         {
           "approval_required": false,
@@ -1349,13 +1459,15 @@
           "method": "RunOCR",
           "method_implemented": true,
           "name": "document_RunOCR",
+          "owner": "document",
           "proto_rpc_exists": true,
           "request": "quark.document.v1.RunOCRRequest",
           "response": "quark.document.v1.RunOCRResponse",
           "risk_level": "read",
           "service": "quark.document.v1.DocumentService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.document.v1.run_ocr"
         }
       ],
       "health_service": "quark.document.v1.DocumentService",
@@ -1382,13 +1494,15 @@
           "method": "Generate",
           "method_implemented": true,
           "name": "gateway_Generate",
+          "owner": "gateway",
           "proto_rpc_exists": true,
           "request": "quark.gateway.v1.GenerateRequest",
           "response": "quark.gateway.v1.GenerateResponse",
           "risk_level": "read",
           "service": "quark.gateway.v1.GatewayService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.gateway.v1.generate"
         },
         {
           "approval_required": false,
@@ -1396,13 +1510,15 @@
           "method": "StreamGenerate",
           "method_implemented": true,
           "name": "gateway_StreamGenerate",
+          "owner": "gateway",
           "proto_rpc_exists": true,
           "request": "quark.gateway.v1.StreamGenerateRequest",
           "response": "quark.gateway.v1.StreamGenerateResponse",
           "risk_level": "read",
           "service": "quark.gateway.v1.GatewayService",
           "status": "implemented_end_to_end",
-          "streaming": true
+          "streaming": true,
+          "subject": "svc.gateway.v1.stream_generate"
         },
         {
           "approval_required": false,
@@ -1410,13 +1526,15 @@
           "method": "Embed",
           "method_implemented": true,
           "name": "gateway_Embed",
+          "owner": "gateway",
           "proto_rpc_exists": true,
           "request": "quark.gateway.v1.EmbedRequest",
           "response": "quark.gateway.v1.EmbedResponse",
           "risk_level": "read",
           "service": "quark.gateway.v1.GatewayService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.gateway.v1.embed"
         },
         {
           "approval_required": false,
@@ -1424,13 +1542,15 @@
           "method": "Rerank",
           "method_implemented": true,
           "name": "gateway_Rerank",
+          "owner": "gateway",
           "proto_rpc_exists": true,
           "request": "quark.gateway.v1.RerankRequest",
           "response": "quark.gateway.v1.RerankResponse",
           "risk_level": "read",
           "service": "quark.gateway.v1.GatewayService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.gateway.v1.rerank"
         },
         {
           "approval_required": false,
@@ -1438,13 +1558,15 @@
           "method": "CountTokens",
           "method_implemented": true,
           "name": "gateway_CountTokens",
+          "owner": "gateway",
           "proto_rpc_exists": true,
           "request": "quark.gateway.v1.CountTokensRequest",
           "response": "quark.gateway.v1.CountTokensResponse",
           "risk_level": "read",
           "service": "quark.gateway.v1.GatewayService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.gateway.v1.count_tokens"
         },
         {
           "approval_required": false,
@@ -1452,13 +1574,15 @@
           "method": "ListModels",
           "method_implemented": true,
           "name": "gateway_ListModels",
+          "owner": "gateway",
           "proto_rpc_exists": true,
           "request": "quark.gateway.v1.ListModelsRequest",
           "response": "quark.gateway.v1.ListModelsResponse",
           "risk_level": "read",
           "service": "quark.gateway.v1.GatewayService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.gateway.v1.list_models"
         },
         {
           "approval_required": false,
@@ -1466,13 +1590,15 @@
           "method": "ProviderHealth",
           "method_implemented": true,
           "name": "gateway_ProviderHealth",
+          "owner": "gateway",
           "proto_rpc_exists": true,
           "request": "quark.gateway.v1.ProviderHealthRequest",
           "response": "quark.gateway.v1.ProviderHealthResponse",
           "risk_level": "read",
           "service": "quark.gateway.v1.GatewayService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.gateway.v1.provider_health"
         },
         {
           "approval_required": false,
@@ -1480,13 +1606,15 @@
           "method": "UsageSummary",
           "method_implemented": true,
           "name": "gateway_UsageSummary",
+          "owner": "gateway",
           "proto_rpc_exists": true,
           "request": "quark.gateway.v1.UsageSummaryRequest",
           "response": "quark.gateway.v1.UsageSummaryResponse",
           "risk_level": "read",
           "service": "quark.gateway.v1.GatewayService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.gateway.v1.usage_summary"
         },
         {
           "approval_required": true,
@@ -1494,13 +1622,15 @@
           "method": "ReloadConfig",
           "method_implemented": true,
           "name": "gateway_ReloadConfig",
+          "owner": "gateway",
           "proto_rpc_exists": true,
           "request": "quark.gateway.v1.ReloadConfigRequest",
           "response": "quark.gateway.v1.ReloadConfigResponse",
           "risk_level": "admin",
           "service": "quark.gateway.v1.GatewayService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.gateway.v1.reload_config"
         }
       ],
       "health_service": "quark.gateway.v1.GatewayService",
@@ -1527,13 +1657,15 @@
           "method": "UpsertDocument",
           "method_implemented": true,
           "name": "indexer_UpsertDocument",
+          "owner": "indexer",
           "proto_rpc_exists": true,
           "request": "quark.indexer.v1.UpsertDocumentRequest",
           "response": "quark.indexer.v1.IndexStatus",
           "risk_level": "write",
           "service": "quark.indexer.v1.IndexerService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.indexer.v1.upsert_document"
         },
         {
           "approval_required": false,
@@ -1541,13 +1673,15 @@
           "method": "UpsertChunk",
           "method_implemented": true,
           "name": "indexer_UpsertChunk",
+          "owner": "indexer",
           "proto_rpc_exists": true,
           "request": "quark.indexer.v1.UpsertChunkRequest",
           "response": "quark.indexer.v1.IndexStatus",
           "risk_level": "write",
           "service": "quark.indexer.v1.IndexerService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.indexer.v1.upsert_chunk"
         },
         {
           "approval_required": false,
@@ -1555,13 +1689,15 @@
           "method": "UpsertFact",
           "method_implemented": true,
           "name": "indexer_UpsertFact",
+          "owner": "indexer",
           "proto_rpc_exists": true,
           "request": "quark.indexer.v1.UpsertFactRequest",
           "response": "quark.indexer.v1.IndexStatus",
           "risk_level": "write",
           "service": "quark.indexer.v1.IndexerService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.indexer.v1.upsert_fact"
         },
         {
           "approval_required": false,
@@ -1569,13 +1705,15 @@
           "method": "UpsertEntity",
           "method_implemented": true,
           "name": "indexer_UpsertEntity",
+          "owner": "indexer",
           "proto_rpc_exists": true,
           "request": "quark.indexer.v1.UpsertEntityRequest",
           "response": "quark.indexer.v1.IndexStatus",
           "risk_level": "write",
           "service": "quark.indexer.v1.IndexerService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.indexer.v1.upsert_entity"
         },
         {
           "approval_required": false,
@@ -1583,13 +1721,15 @@
           "method": "UpsertRelation",
           "method_implemented": true,
           "name": "indexer_UpsertRelation",
+          "owner": "indexer",
           "proto_rpc_exists": true,
           "request": "quark.indexer.v1.UpsertRelationRequest",
           "response": "quark.indexer.v1.IndexStatus",
           "risk_level": "write",
           "service": "quark.indexer.v1.IndexerService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.indexer.v1.upsert_relation"
         },
         {
           "approval_required": false,
@@ -1597,13 +1737,15 @@
           "method": "UpsertCitation",
           "method_implemented": true,
           "name": "indexer_UpsertCitation",
+          "owner": "indexer",
           "proto_rpc_exists": true,
           "request": "quark.indexer.v1.UpsertCitationRequest",
           "response": "quark.indexer.v1.IndexStatus",
           "risk_level": "write",
           "service": "quark.indexer.v1.IndexerService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.indexer.v1.upsert_citation"
         },
         {
           "approval_required": false,
@@ -1611,13 +1753,15 @@
           "method": "QueryContext",
           "method_implemented": true,
           "name": "indexer_QueryContext",
+          "owner": "indexer",
           "proto_rpc_exists": true,
           "request": "quark.indexer.v1.QueryRequest",
           "response": "quark.indexer.v1.ContextResponse",
           "risk_level": "read",
           "service": "quark.indexer.v1.IndexerService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.indexer.v1.query_context"
         },
         {
           "approval_required": true,
@@ -1625,13 +1769,15 @@
           "method": "DeleteDocument",
           "method_implemented": true,
           "name": "indexer_DeleteDocument",
+          "owner": "indexer",
           "proto_rpc_exists": true,
           "request": "quark.indexer.v1.DeleteDocumentRequest",
           "response": "quark.indexer.v1.DeleteDocumentResponse",
           "risk_level": "admin",
           "service": "quark.indexer.v1.IndexerService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.indexer.v1.delete_document"
         },
         {
           "approval_required": true,
@@ -1639,13 +1785,15 @@
           "method": "DeleteChunk",
           "method_implemented": true,
           "name": "indexer_DeleteChunk",
+          "owner": "indexer",
           "proto_rpc_exists": true,
           "request": "quark.indexer.v1.DeleteChunkRequest",
           "response": "quark.indexer.v1.DeleteChunkResponse",
           "risk_level": "admin",
           "service": "quark.indexer.v1.IndexerService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.indexer.v1.delete_chunk"
         }
       ],
       "health_service": "quark.indexer.v1.IndexerService",
@@ -1672,13 +1820,15 @@
           "method": "Read",
           "method_implemented": true,
           "name": "io_Read",
+          "owner": "io",
           "proto_rpc_exists": true,
           "request": "quark.io.v1.ReadRequest",
           "response": "quark.io.v1.ReadResponse",
           "risk_level": "read",
           "service": "quark.io.v1.IOService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.io.v1.read"
         },
         {
           "approval_required": false,
@@ -1686,13 +1836,15 @@
           "method": "List",
           "method_implemented": true,
           "name": "io_List",
+          "owner": "io",
           "proto_rpc_exists": true,
           "request": "quark.io.v1.ListRequest",
           "response": "quark.io.v1.ListResponse",
           "risk_level": "read",
           "service": "quark.io.v1.IOService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.io.v1.list"
         },
         {
           "approval_required": false,
@@ -1700,13 +1852,15 @@
           "method": "Stat",
           "method_implemented": true,
           "name": "io_Stat",
+          "owner": "io",
           "proto_rpc_exists": true,
           "request": "quark.io.v1.StatRequest",
           "response": "quark.io.v1.StatResponse",
           "risk_level": "read",
           "service": "quark.io.v1.IOService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.io.v1.stat"
         },
         {
           "approval_required": false,
@@ -1714,13 +1868,15 @@
           "method": "ExtractPdf",
           "method_implemented": true,
           "name": "io_ExtractPdf",
+          "owner": "io",
           "proto_rpc_exists": true,
           "request": "quark.io.v1.ExtractPdfRequest",
           "response": "quark.io.v1.ExtractPdfResponse",
           "risk_level": "read",
           "service": "quark.io.v1.IOService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.io.v1.extract_pdf"
         },
         {
           "approval_required": false,
@@ -1728,13 +1884,15 @@
           "method": "ReadMedia",
           "method_implemented": true,
           "name": "io_ReadMedia",
+          "owner": "io",
           "proto_rpc_exists": true,
           "request": "quark.io.v1.ReadMediaRequest",
           "response": "quark.io.v1.ReadMediaResponse",
           "risk_level": "read",
           "service": "quark.io.v1.IOService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.io.v1.read_media"
         },
         {
           "approval_required": false,
@@ -1742,13 +1900,15 @@
           "method": "SearchWeb",
           "method_implemented": true,
           "name": "io_SearchWeb",
+          "owner": "io",
           "proto_rpc_exists": true,
           "request": "quark.io.v1.SearchWebRequest",
           "response": "quark.io.v1.SearchWebResponse",
           "risk_level": "read",
           "service": "quark.io.v1.IOService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.io.v1.search_web"
         },
         {
           "approval_required": false,
@@ -1756,13 +1916,15 @@
           "method": "Fetch",
           "method_implemented": true,
           "name": "io_Fetch",
+          "owner": "io",
           "proto_rpc_exists": true,
           "request": "quark.io.v1.FetchRequest",
           "response": "quark.io.v1.FetchResponse",
           "risk_level": "read",
           "service": "quark.io.v1.IOService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.io.v1.fetch"
         },
         {
           "approval_required": true,
@@ -1770,13 +1932,15 @@
           "method": "Write",
           "method_implemented": true,
           "name": "io_Write",
+          "owner": "io",
           "proto_rpc_exists": true,
           "request": "quark.io.v1.WriteRequest",
           "response": "quark.io.v1.WriteResponse",
           "risk_level": "write",
           "service": "quark.io.v1.IOService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.io.v1.write"
         },
         {
           "approval_required": true,
@@ -1784,13 +1948,15 @@
           "method": "Append",
           "method_implemented": true,
           "name": "io_Append",
+          "owner": "io",
           "proto_rpc_exists": true,
           "request": "quark.io.v1.AppendRequest",
           "response": "quark.io.v1.AppendResponse",
           "risk_level": "write",
           "service": "quark.io.v1.IOService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.io.v1.append"
         },
         {
           "approval_required": true,
@@ -1798,13 +1964,15 @@
           "method": "Replace",
           "method_implemented": true,
           "name": "io_Replace",
+          "owner": "io",
           "proto_rpc_exists": true,
           "request": "quark.io.v1.ReplaceRequest",
           "response": "quark.io.v1.ReplaceResponse",
           "risk_level": "write",
           "service": "quark.io.v1.IOService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.io.v1.replace"
         },
         {
           "approval_required": true,
@@ -1812,13 +1980,15 @@
           "method": "Remove",
           "method_implemented": true,
           "name": "io_Remove",
+          "owner": "io",
           "proto_rpc_exists": true,
           "request": "quark.io.v1.RemoveRequest",
           "response": "quark.io.v1.RemoveResponse",
           "risk_level": "admin",
           "service": "quark.io.v1.IOService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.io.v1.remove"
         },
         {
           "approval_required": true,
@@ -1826,13 +1996,15 @@
           "method": "Execute",
           "method_implemented": true,
           "name": "io_Execute",
+          "owner": "io",
           "proto_rpc_exists": true,
           "request": "quark.io.v1.ExecuteRequest",
           "response": "quark.io.v1.ExecuteResponse",
           "risk_level": "admin",
           "service": "quark.io.v1.IOService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.io.v1.execute"
         }
       ],
       "health_service": "quark.io.v1.IOService",
@@ -1859,13 +2031,15 @@
           "method": "Put",
           "method_implemented": false,
           "name": "memory_Put",
+          "owner": "memory",
           "proto_rpc_exists": true,
           "request": "quark.memory.v1.PutRequest",
           "response": "quark.memory.v1.PutResponse",
           "risk_level": "write",
           "service": "quark.memory.v1.MemoryService",
           "status": "declared_only",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.memory.v1.put"
         },
         {
           "approval_required": false,
@@ -1873,13 +2047,15 @@
           "method": "Get",
           "method_implemented": false,
           "name": "memory_Get",
+          "owner": "memory",
           "proto_rpc_exists": true,
           "request": "quark.memory.v1.GetRequest",
           "response": "quark.memory.v1.GetResponse",
           "risk_level": "read",
           "service": "quark.memory.v1.MemoryService",
           "status": "declared_only",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.memory.v1.get"
         },
         {
           "approval_required": false,
@@ -1887,13 +2063,15 @@
           "method": "Search",
           "method_implemented": false,
           "name": "memory_Search",
+          "owner": "memory",
           "proto_rpc_exists": true,
           "request": "quark.memory.v1.SearchRequest",
           "response": "quark.memory.v1.SearchResponse",
           "risk_level": "read",
           "service": "quark.memory.v1.MemoryService",
           "status": "declared_only",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.memory.v1.search"
         },
         {
           "approval_required": true,
@@ -1901,13 +2079,15 @@
           "method": "Delete",
           "method_implemented": false,
           "name": "memory_Delete",
+          "owner": "memory",
           "proto_rpc_exists": true,
           "request": "quark.memory.v1.DeleteRequest",
           "response": "quark.memory.v1.DeleteResponse",
           "risk_level": "write",
           "service": "quark.memory.v1.MemoryService",
           "status": "declared_only",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.memory.v1.delete"
         }
       ],
       "health_service": "quark.memory.v1.MemoryService",
@@ -1934,13 +2114,15 @@
           "method": "StartRun",
           "method_implemented": true,
           "name": "runstate_StartRun",
+          "owner": "runstate",
           "proto_rpc_exists": true,
           "request": "quark.runstate.v1.StartRunRequest",
           "response": "quark.runstate.v1.StartRunResponse",
           "risk_level": "write",
           "service": "quark.runstate.v1.RunStateService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.runstate.v1.start_run"
         },
         {
           "approval_required": false,
@@ -1948,13 +2130,15 @@
           "method": "GetRun",
           "method_implemented": true,
           "name": "runstate_GetRun",
+          "owner": "runstate",
           "proto_rpc_exists": true,
           "request": "quark.runstate.v1.GetRunRequest",
           "response": "quark.runstate.v1.GetRunResponse",
           "risk_level": "read",
           "service": "quark.runstate.v1.RunStateService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.runstate.v1.get_run"
         },
         {
           "approval_required": false,
@@ -1962,13 +2146,15 @@
           "method": "ListRuns",
           "method_implemented": true,
           "name": "runstate_ListRuns",
+          "owner": "runstate",
           "proto_rpc_exists": true,
           "request": "quark.runstate.v1.ListRunsRequest",
           "response": "quark.runstate.v1.ListRunsResponse",
           "risk_level": "read",
           "service": "quark.runstate.v1.RunStateService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.runstate.v1.list_runs"
         },
         {
           "approval_required": false,
@@ -1976,13 +2162,15 @@
           "method": "ResumeRun",
           "method_implemented": true,
           "name": "runstate_ResumeRun",
+          "owner": "runstate",
           "proto_rpc_exists": true,
           "request": "quark.runstate.v1.ResumeRunRequest",
           "response": "quark.runstate.v1.ResumeRunResponse",
           "risk_level": "write",
           "service": "quark.runstate.v1.RunStateService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.runstate.v1.resume_run"
         },
         {
           "approval_required": false,
@@ -1990,13 +2178,15 @@
           "method": "UpdateItemState",
           "method_implemented": true,
           "name": "runstate_UpdateItemState",
+          "owner": "runstate",
           "proto_rpc_exists": true,
           "request": "quark.runstate.v1.UpdateItemStateRequest",
           "response": "quark.runstate.v1.UpdateItemStateResponse",
           "risk_level": "write",
           "service": "quark.runstate.v1.RunStateService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.runstate.v1.update_item_state"
         },
         {
           "approval_required": false,
@@ -2004,13 +2194,15 @@
           "method": "AppendArtifact",
           "method_implemented": true,
           "name": "runstate_AppendArtifact",
+          "owner": "runstate",
           "proto_rpc_exists": true,
           "request": "quark.runstate.v1.AppendArtifactRequest",
           "response": "quark.runstate.v1.AppendArtifactResponse",
           "risk_level": "write",
           "service": "quark.runstate.v1.RunStateService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.runstate.v1.append_artifact"
         },
         {
           "approval_required": false,
@@ -2018,13 +2210,15 @@
           "method": "AppendReference",
           "method_implemented": true,
           "name": "runstate_AppendReference",
+          "owner": "runstate",
           "proto_rpc_exists": true,
           "request": "quark.runstate.v1.AppendReferenceRequest",
           "response": "quark.runstate.v1.AppendReferenceResponse",
           "risk_level": "write",
           "service": "quark.runstate.v1.RunStateService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.runstate.v1.append_reference"
         },
         {
           "approval_required": false,
@@ -2032,13 +2226,15 @@
           "method": "MarkFailed",
           "method_implemented": true,
           "name": "runstate_MarkFailed",
+          "owner": "runstate",
           "proto_rpc_exists": true,
           "request": "quark.runstate.v1.MarkFailedRequest",
           "response": "quark.runstate.v1.MarkFailedResponse",
           "risk_level": "write",
           "service": "quark.runstate.v1.RunStateService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.runstate.v1.mark_failed"
         },
         {
           "approval_required": false,
@@ -2046,13 +2242,15 @@
           "method": "MarkComplete",
           "method_implemented": true,
           "name": "runstate_MarkComplete",
+          "owner": "runstate",
           "proto_rpc_exists": true,
           "request": "quark.runstate.v1.MarkCompleteRequest",
           "response": "quark.runstate.v1.MarkCompleteResponse",
           "risk_level": "write",
           "service": "quark.runstate.v1.RunStateService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.runstate.v1.mark_complete"
         },
         {
           "approval_required": false,
@@ -2060,13 +2258,15 @@
           "method": "CancelRun",
           "method_implemented": true,
           "name": "runstate_CancelRun",
+          "owner": "runstate",
           "proto_rpc_exists": true,
           "request": "quark.runstate.v1.CancelRunRequest",
           "response": "quark.runstate.v1.CancelRunResponse",
           "risk_level": "write",
           "service": "quark.runstate.v1.RunStateService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.runstate.v1.cancel_run"
         },
         {
           "approval_required": false,
@@ -2074,13 +2274,15 @@
           "method": "ListIncompleteItems",
           "method_implemented": true,
           "name": "runstate_ListIncompleteItems",
+          "owner": "runstate",
           "proto_rpc_exists": true,
           "request": "quark.runstate.v1.ListIncompleteItemsRequest",
           "response": "quark.runstate.v1.ListIncompleteItemsResponse",
           "risk_level": "read",
           "service": "quark.runstate.v1.RunStateService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.runstate.v1.list_incomplete_items"
         },
         {
           "approval_required": false,
@@ -2088,13 +2290,15 @@
           "method": "ListArtifacts",
           "method_implemented": true,
           "name": "runstate_ListArtifacts",
+          "owner": "runstate",
           "proto_rpc_exists": true,
           "request": "quark.runstate.v1.ListArtifactsRequest",
           "response": "quark.runstate.v1.ListArtifactsResponse",
           "risk_level": "read",
           "service": "quark.runstate.v1.RunStateService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.runstate.v1.list_artifacts"
         },
         {
           "approval_required": false,
@@ -2102,13 +2306,15 @@
           "method": "AcquireLease",
           "method_implemented": true,
           "name": "runstate_AcquireLease",
+          "owner": "runstate",
           "proto_rpc_exists": true,
           "request": "quark.runstate.v1.AcquireLeaseRequest",
           "response": "quark.runstate.v1.AcquireLeaseResponse",
           "risk_level": "write",
           "service": "quark.runstate.v1.RunStateService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.runstate.v1.acquire_lease"
         },
         {
           "approval_required": false,
@@ -2116,13 +2322,15 @@
           "method": "RenewLease",
           "method_implemented": true,
           "name": "runstate_RenewLease",
+          "owner": "runstate",
           "proto_rpc_exists": true,
           "request": "quark.runstate.v1.RenewLeaseRequest",
           "response": "quark.runstate.v1.RenewLeaseResponse",
           "risk_level": "write",
           "service": "quark.runstate.v1.RunStateService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.runstate.v1.renew_lease"
         },
         {
           "approval_required": false,
@@ -2130,13 +2338,15 @@
           "method": "ReleaseLease",
           "method_implemented": true,
           "name": "runstate_ReleaseLease",
+          "owner": "runstate",
           "proto_rpc_exists": true,
           "request": "quark.runstate.v1.ReleaseLeaseRequest",
           "response": "quark.runstate.v1.ReleaseLeaseResponse",
           "risk_level": "write",
           "service": "quark.runstate.v1.RunStateService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.runstate.v1.release_lease"
         }
       ],
       "health_service": "quark.runstate.v1.RunStateService",
@@ -2163,13 +2373,15 @@
           "method": "ResolveRef",
           "method_implemented": true,
           "name": "secrets_ResolveRef",
+          "owner": "secrets",
           "proto_rpc_exists": true,
           "request": "quark.secrets.v1.ResolveRefRequest",
           "response": "quark.secrets.v1.ResolveRefResponse",
           "risk_level": "admin",
           "service": "quark.secrets.v1.SecretsService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.secrets.v1.resolve_ref"
         },
         {
           "approval_required": true,
@@ -2177,13 +2389,15 @@
           "method": "IssueScopedSecret",
           "method_implemented": true,
           "name": "secrets_IssueScopedSecret",
+          "owner": "secrets",
           "proto_rpc_exists": true,
           "request": "quark.secrets.v1.IssueScopedSecretRequest",
           "response": "quark.secrets.v1.IssueScopedSecretResponse",
           "risk_level": "admin",
           "service": "quark.secrets.v1.SecretsService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.secrets.v1.issue_scoped_secret"
         },
         {
           "approval_required": false,
@@ -2191,13 +2405,15 @@
           "method": "RenewLease",
           "method_implemented": true,
           "name": "secrets_RenewLease",
+          "owner": "secrets",
           "proto_rpc_exists": true,
           "request": "quark.secrets.v1.RenewLeaseRequest",
           "response": "quark.secrets.v1.RenewLeaseResponse",
           "risk_level": "write",
           "service": "quark.secrets.v1.SecretsService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.secrets.v1.renew_lease"
         },
         {
           "approval_required": true,
@@ -2205,13 +2421,15 @@
           "method": "RevokeLease",
           "method_implemented": true,
           "name": "secrets_RevokeLease",
+          "owner": "secrets",
           "proto_rpc_exists": true,
           "request": "quark.secrets.v1.RevokeLeaseRequest",
           "response": "quark.secrets.v1.RevokeLeaseResponse",
           "risk_level": "write",
           "service": "quark.secrets.v1.SecretsService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.secrets.v1.revoke_lease"
         },
         {
           "approval_required": true,
@@ -2219,13 +2437,15 @@
           "method": "RotateSecret",
           "method_implemented": true,
           "name": "secrets_RotateSecret",
+          "owner": "secrets",
           "proto_rpc_exists": true,
           "request": "quark.secrets.v1.RotateSecretRequest",
           "response": "quark.secrets.v1.RotateSecretResponse",
           "risk_level": "admin",
           "service": "quark.secrets.v1.SecretsService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.secrets.v1.rotate_secret"
         },
         {
           "approval_required": false,
@@ -2233,13 +2453,15 @@
           "method": "AuditAccess",
           "method_implemented": true,
           "name": "secrets_AuditAccess",
+          "owner": "secrets",
           "proto_rpc_exists": true,
           "request": "quark.secrets.v1.AuditAccessRequest",
           "response": "quark.secrets.v1.AuditAccessResponse",
           "risk_level": "write",
           "service": "quark.secrets.v1.SecretsService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.secrets.v1.audit_access"
         }
       ],
       "health_service": "quark.secrets.v1.SecretsService",
@@ -2266,13 +2488,15 @@
           "method": "CreateSpace",
           "method_implemented": true,
           "name": "space_CreateSpace",
+          "owner": "space",
           "proto_rpc_exists": true,
           "request": "quark.space.v1.CreateSpaceRequest",
           "response": "quark.space.v1.Space",
           "risk_level": "write",
           "service": "quark.space.v1.SpaceService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.space.v1.create_space"
         },
         {
           "approval_required": true,
@@ -2280,13 +2504,15 @@
           "method": "UpdateQuarkfile",
           "method_implemented": true,
           "name": "space_UpdateQuarkfile",
+          "owner": "space",
           "proto_rpc_exists": true,
           "request": "quark.space.v1.UpdateQuarkfileRequest",
           "response": "quark.space.v1.Space",
           "risk_level": "write",
           "service": "quark.space.v1.SpaceService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.space.v1.update_quarkfile"
         },
         {
           "approval_required": false,
@@ -2294,13 +2520,15 @@
           "method": "GetSpace",
           "method_implemented": true,
           "name": "space_GetSpace",
+          "owner": "space",
           "proto_rpc_exists": true,
           "request": "quark.space.v1.GetSpaceRequest",
           "response": "quark.space.v1.Space",
           "risk_level": "read",
           "service": "quark.space.v1.SpaceService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.space.v1.get_space"
         },
         {
           "approval_required": false,
@@ -2308,13 +2536,15 @@
           "method": "ListSpaces",
           "method_implemented": true,
           "name": "space_ListSpaces",
+          "owner": "space",
           "proto_rpc_exists": true,
           "request": "google.protobuf.Empty",
           "response": "quark.space.v1.ListSpacesResponse",
           "risk_level": "read",
           "service": "quark.space.v1.SpaceService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.space.v1.list_spaces"
         },
         {
           "approval_required": true,
@@ -2322,13 +2552,15 @@
           "method": "DeleteSpace",
           "method_implemented": true,
           "name": "space_DeleteSpace",
+          "owner": "space",
           "proto_rpc_exists": true,
           "request": "quark.space.v1.DeleteSpaceRequest",
           "response": "google.protobuf.Empty",
           "risk_level": "admin",
           "service": "quark.space.v1.SpaceService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.space.v1.delete_space"
         },
         {
           "approval_required": false,
@@ -2336,13 +2568,15 @@
           "method": "GetQuarkfile",
           "method_implemented": true,
           "name": "space_GetQuarkfile",
+          "owner": "space",
           "proto_rpc_exists": true,
           "request": "quark.space.v1.GetQuarkfileRequest",
           "response": "quark.space.v1.QuarkfileResponse",
           "risk_level": "read",
           "service": "quark.space.v1.SpaceService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.space.v1.get_quarkfile"
         },
         {
           "approval_required": false,
@@ -2350,13 +2584,15 @@
           "method": "GetAgentEnvironment",
           "method_implemented": true,
           "name": "space_GetAgentEnvironment",
+          "owner": "space",
           "proto_rpc_exists": true,
           "request": "quark.space.v1.GetAgentEnvironmentRequest",
           "response": "quark.space.v1.AgentEnvironmentResponse",
           "risk_level": "admin",
           "service": "quark.space.v1.SpaceService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.space.v1.get_agent_environment"
         },
         {
           "approval_required": false,
@@ -2364,13 +2600,15 @@
           "method": "GetSpacePaths",
           "method_implemented": true,
           "name": "space_GetSpacePaths",
+          "owner": "space",
           "proto_rpc_exists": true,
           "request": "quark.space.v1.GetSpacePathsRequest",
           "response": "quark.space.v1.SpacePaths",
           "risk_level": "read",
           "service": "quark.space.v1.SpaceService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.space.v1.get_space_paths"
         },
         {
           "approval_required": false,
@@ -2378,13 +2616,15 @@
           "method": "Doctor",
           "method_implemented": true,
           "name": "space_Doctor",
+          "owner": "space",
           "proto_rpc_exists": true,
           "request": "quark.space.v1.DoctorRequest",
           "response": "quark.space.v1.DoctorResponse",
           "risk_level": "read",
           "service": "quark.space.v1.SpaceService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.space.v1.doctor"
         }
       ],
       "health_service": "quark.space.v1.SpaceService",
@@ -2411,13 +2651,15 @@
           "method": "Snapshot",
           "method_implemented": true,
           "name": "system_Snapshot",
+          "owner": "system",
           "proto_rpc_exists": true,
           "request": "quark.system.v1.SnapshotRequest",
           "response": "quark.system.v1.SnapshotResponse",
           "risk_level": "read",
           "service": "quark.system.v1.SystemService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.system.v1.snapshot"
         },
         {
           "approval_required": false,
@@ -2425,13 +2667,15 @@
           "method": "GetOSInfo",
           "method_implemented": true,
           "name": "system_GetOSInfo",
+          "owner": "system",
           "proto_rpc_exists": true,
           "request": "quark.system.v1.GetOSInfoRequest",
           "response": "quark.system.v1.GetOSInfoResponse",
           "risk_level": "read",
           "service": "quark.system.v1.SystemService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.system.v1.get_osinfo"
         },
         {
           "approval_required": false,
@@ -2439,13 +2683,15 @@
           "method": "GetKernelInfo",
           "method_implemented": true,
           "name": "system_GetKernelInfo",
+          "owner": "system",
           "proto_rpc_exists": true,
           "request": "quark.system.v1.GetKernelInfoRequest",
           "response": "quark.system.v1.GetKernelInfoResponse",
           "risk_level": "read",
           "service": "quark.system.v1.SystemService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.system.v1.get_kernel_info"
         },
         {
           "approval_required": false,
@@ -2453,13 +2699,15 @@
           "method": "GetUptime",
           "method_implemented": true,
           "name": "system_GetUptime",
+          "owner": "system",
           "proto_rpc_exists": true,
           "request": "quark.system.v1.GetUptimeRequest",
           "response": "quark.system.v1.GetUptimeResponse",
           "risk_level": "read",
           "service": "quark.system.v1.SystemService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.system.v1.get_uptime"
         },
         {
           "approval_required": false,
@@ -2467,13 +2715,15 @@
           "method": "ListPackages",
           "method_implemented": true,
           "name": "system_ListPackages",
+          "owner": "system",
           "proto_rpc_exists": true,
           "request": "quark.system.v1.ListPackagesRequest",
           "response": "quark.system.v1.ListPackagesResponse",
           "risk_level": "read",
           "service": "quark.system.v1.SystemService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.system.v1.list_packages"
         },
         {
           "approval_required": false,
@@ -2481,13 +2731,15 @@
           "method": "ListServices",
           "method_implemented": true,
           "name": "system_ListServices",
+          "owner": "system",
           "proto_rpc_exists": true,
           "request": "quark.system.v1.ListServicesRequest",
           "response": "quark.system.v1.ListServicesResponse",
           "risk_level": "read",
           "service": "quark.system.v1.SystemService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.system.v1.list_services"
         },
         {
           "approval_required": false,
@@ -2495,13 +2747,15 @@
           "method": "ListUsers",
           "method_implemented": true,
           "name": "system_ListUsers",
+          "owner": "system",
           "proto_rpc_exists": true,
           "request": "quark.system.v1.ListUsersRequest",
           "response": "quark.system.v1.ListUsersResponse",
           "risk_level": "read",
           "service": "quark.system.v1.SystemService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.system.v1.list_users"
         },
         {
           "approval_required": false,
@@ -2509,13 +2763,15 @@
           "method": "ListMounts",
           "method_implemented": true,
           "name": "system_ListMounts",
+          "owner": "system",
           "proto_rpc_exists": true,
           "request": "quark.system.v1.ListMountsRequest",
           "response": "quark.system.v1.ListMountsResponse",
           "risk_level": "read",
           "service": "quark.system.v1.SystemService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.system.v1.list_mounts"
         },
         {
           "approval_required": false,
@@ -2523,13 +2779,15 @@
           "method": "GetDiskUsage",
           "method_implemented": true,
           "name": "system_GetDiskUsage",
+          "owner": "system",
           "proto_rpc_exists": true,
           "request": "quark.system.v1.GetDiskUsageRequest",
           "response": "quark.system.v1.GetDiskUsageResponse",
           "risk_level": "read",
           "service": "quark.system.v1.SystemService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.system.v1.get_disk_usage"
         },
         {
           "approval_required": false,
@@ -2537,13 +2795,15 @@
           "method": "ListProcesses",
           "method_implemented": true,
           "name": "system_ListProcesses",
+          "owner": "system",
           "proto_rpc_exists": true,
           "request": "quark.system.v1.ListProcessesRequest",
           "response": "quark.system.v1.ListProcessesResponse",
           "risk_level": "read",
           "service": "quark.system.v1.SystemService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.system.v1.list_processes"
         },
         {
           "approval_required": false,
@@ -2551,13 +2811,15 @@
           "method": "ListPorts",
           "method_implemented": true,
           "name": "system_ListPorts",
+          "owner": "system",
           "proto_rpc_exists": true,
           "request": "quark.system.v1.ListPortsRequest",
           "response": "quark.system.v1.ListPortsResponse",
           "risk_level": "read",
           "service": "quark.system.v1.SystemService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.system.v1.list_ports"
         },
         {
           "approval_required": false,
@@ -2565,13 +2827,15 @@
           "method": "ListNetworkConnections",
           "method_implemented": true,
           "name": "system_ListNetworkConnections",
+          "owner": "system",
           "proto_rpc_exists": true,
           "request": "quark.system.v1.ListNetworkConnectionsRequest",
           "response": "quark.system.v1.ListNetworkConnectionsResponse",
           "risk_level": "read",
           "service": "quark.system.v1.SystemService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.system.v1.list_network_connections"
         },
         {
           "approval_required": false,
@@ -2579,13 +2843,15 @@
           "method": "ReadLogs",
           "method_implemented": true,
           "name": "system_ReadLogs",
+          "owner": "system",
           "proto_rpc_exists": true,
           "request": "quark.system.v1.ReadLogsRequest",
           "response": "quark.system.v1.ReadLogsResponse",
           "risk_level": "read",
           "service": "quark.system.v1.SystemService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.system.v1.read_logs"
         },
         {
           "approval_required": false,
@@ -2593,13 +2859,15 @@
           "method": "GetMetrics",
           "method_implemented": true,
           "name": "system_GetMetrics",
+          "owner": "system",
           "proto_rpc_exists": true,
           "request": "quark.system.v1.GetMetricsRequest",
           "response": "quark.system.v1.GetMetricsResponse",
           "risk_level": "read",
           "service": "quark.system.v1.SystemService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.system.v1.get_metrics"
         },
         {
           "approval_required": true,
@@ -2607,13 +2875,15 @@
           "method": "KillProcess",
           "method_implemented": true,
           "name": "system_KillProcess",
+          "owner": "system",
           "proto_rpc_exists": true,
           "request": "quark.system.v1.KillProcessRequest",
           "response": "quark.system.v1.KillProcessResponse",
           "risk_level": "admin",
           "service": "quark.system.v1.SystemService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.system.v1.kill_process"
         },
         {
           "approval_required": true,
@@ -2621,13 +2891,15 @@
           "method": "RestartService",
           "method_implemented": true,
           "name": "system_RestartService",
+          "owner": "system",
           "proto_rpc_exists": true,
           "request": "quark.system.v1.RestartServiceRequest",
           "response": "quark.system.v1.RestartServiceResponse",
           "risk_level": "admin",
           "service": "quark.system.v1.SystemService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.system.v1.restart_service"
         }
       ],
       "health_service": "quark.system.v1.SystemService",
@@ -2654,13 +2926,15 @@
           "method": "Start",
           "method_implemented": true,
           "name": "workflow_Start",
+          "owner": "workflow",
           "proto_rpc_exists": true,
           "request": "quark.workflow.v1.StartWorkflowRequest",
           "response": "quark.workflow.v1.StartWorkflowResponse",
           "risk_level": "write",
           "service": "quark.workflow.v1.WorkflowService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.workflow.v1.start"
         },
         {
           "approval_required": false,
@@ -2668,13 +2942,15 @@
           "method": "Signal",
           "method_implemented": true,
           "name": "workflow_Signal",
+          "owner": "workflow",
           "proto_rpc_exists": true,
           "request": "quark.workflow.v1.SignalWorkflowRequest",
           "response": "quark.workflow.v1.SignalWorkflowResponse",
           "risk_level": "write",
           "service": "quark.workflow.v1.WorkflowService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.workflow.v1.signal"
         },
         {
           "approval_required": false,
@@ -2682,13 +2958,15 @@
           "method": "Query",
           "method_implemented": true,
           "name": "workflow_Query",
+          "owner": "workflow",
           "proto_rpc_exists": true,
           "request": "quark.workflow.v1.QueryWorkflowRequest",
           "response": "quark.workflow.v1.QueryWorkflowResponse",
           "risk_level": "read",
           "service": "quark.workflow.v1.WorkflowService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.workflow.v1.query"
         },
         {
           "approval_required": true,
@@ -2696,13 +2974,15 @@
           "method": "Cancel",
           "method_implemented": true,
           "name": "workflow_Cancel",
+          "owner": "workflow",
           "proto_rpc_exists": true,
           "request": "quark.workflow.v1.CancelWorkflowRequest",
           "response": "quark.workflow.v1.CancelWorkflowResponse",
           "risk_level": "write",
           "service": "quark.workflow.v1.WorkflowService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.workflow.v1.cancel"
         },
         {
           "approval_required": false,
@@ -2710,13 +2990,15 @@
           "method": "Describe",
           "method_implemented": true,
           "name": "workflow_Describe",
+          "owner": "workflow",
           "proto_rpc_exists": true,
           "request": "quark.workflow.v1.DescribeWorkflowRequest",
           "response": "quark.workflow.v1.DescribeWorkflowResponse",
           "risk_level": "read",
           "service": "quark.workflow.v1.WorkflowService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.workflow.v1.describe"
         },
         {
           "approval_required": false,
@@ -2724,13 +3006,15 @@
           "method": "List",
           "method_implemented": true,
           "name": "workflow_List",
+          "owner": "workflow",
           "proto_rpc_exists": true,
           "request": "quark.workflow.v1.ListWorkflowsRequest",
           "response": "quark.workflow.v1.ListWorkflowsResponse",
           "risk_level": "read",
           "service": "quark.workflow.v1.WorkflowService",
           "status": "implemented_end_to_end",
-          "streaming": false
+          "streaming": false,
+          "subject": "svc.workflow.v1.list"
         },
         {
           "approval_required": false,
@@ -2738,13 +3022,15 @@
           "method": "StreamEvents",
           "method_implemented": false,
           "name": "workflow_StreamEvents",
+          "owner": "workflow",
           "proto_rpc_exists": true,
           "request": "quark.workflow.v1.StreamWorkflowEventsRequest",
           "response": "quark.workflow.v1.WorkflowEvent",
           "risk_level": "read",
           "service": "quark.workflow.v1.WorkflowService",
           "status": "declared_only",
-          "streaming": true
+          "streaming": true,
+          "subject": "svc.workflow.v1.stream_events"
         }
       ],
       "health_service": "quark.workflow.v1.WorkflowService",

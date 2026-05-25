@@ -32,7 +32,7 @@ func TestRequestEnvelopeDoesNotDuplicateOperationRoute(t *testing.T) {
 
 func TestHostCallUsesSubjectAndResponderOwnedQueue(t *testing.T) {
 	server := startNATS(t, false)
-	host, err := NewHost(context.Background(), Config{URL: server.ClientURL(), Name: "host-test"}, "q.echo.v1")
+	host, err := newHost(context.Background(), Config{URL: server.ClientURL(), Name: "host-test"}, "q.echo.v1")
 	if err != nil {
 		t.Fatalf("new host: %v", err)
 	}
@@ -66,7 +66,7 @@ func TestHostCallUsesSubjectAndResponderOwnedQueue(t *testing.T) {
 
 func TestOperationRejectsMetadataThatDisagreesWithSubject(t *testing.T) {
 	server := startNATS(t, false)
-	host, err := NewHost(context.Background(), Config{URL: server.ClientURL(), Name: "metadata-host"}, "q.echo.v1")
+	host, err := newHost(context.Background(), Config{URL: server.ClientURL(), Name: "metadata-host"}, "q.echo.v1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,6 +90,31 @@ func TestRPCDescriptorSubjectIsTheRegistrationAuthority(t *testing.T) {
 	}
 	if operation.Subject != "svc.gateway.v1.embed" || operation.Owner != "gateway" || operation.Function != "embed" {
 		t.Fatalf("operation = %+v", operation)
+	}
+}
+
+func TestMustServiceRPCUsesCanonicalOperationAuthority(t *testing.T) {
+	rpc := MustServiceRPC("devops", "repo_Status", "quark.devops.v1.RepoService", "Status", "request", "response", "description")
+	if rpc.GetOwner() != "devops" || rpc.GetFunctionName() != "repo_Status" || rpc.GetSubject() != "svc.devops.v1.repo_status" {
+		t.Fatalf("rpc descriptor = %+v", rpc)
+	}
+	stream := MustStreamingServiceRPC("workflow", "workflow_StreamEvents", "quark.workflow.v1.WorkflowService", "StreamEvents", "request", "response", "description")
+	if !stream.GetStreaming() || stream.GetSubject() != "svc.workflow.v1.stream_events" {
+		t.Fatalf("stream descriptor = %+v", stream)
+	}
+	queue, err := ServiceQueueGroup("workflow")
+	if err != nil || queue != "q.service.v1.workflow" {
+		t.Fatalf("service queue = %q, err = %v", queue, err)
+	}
+}
+
+func TestServiceHostRejectsMixedOwnerBindings(t *testing.T) {
+	_, err := serviceQueueForBindings([]Binding{
+		{Descriptor: &servicev1.ServiceDescriptor{Rpcs: []*servicev1.RpcDescriptor{MustServiceRPC("gateway", "gateway_Embed", "gateway", "Embed", "request", "response", "description")}}},
+		{Descriptor: &servicev1.ServiceDescriptor{Rpcs: []*servicev1.RpcDescriptor{MustServiceRPC("indexer", "indexer_QueryContext", "indexer", "QueryContext", "request", "response", "description")}}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "cannot register operations") {
+		t.Fatalf("mixed owners error = %v", err)
 	}
 }
 
@@ -286,7 +311,7 @@ func TestApplicationHostRestoresResponderAfterReconnect(t *testing.T) {
 
 func TestHostReturnsStructuredErrorForMalformedRequest(t *testing.T) {
 	server := startNATS(t, false)
-	host, err := NewHost(context.Background(), Config{URL: server.ClientURL(), Name: "malformed-host"}, "q.malformed.v1")
+	host, err := newHost(context.Background(), Config{URL: server.ClientURL(), Name: "malformed-host"}, "q.malformed.v1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -348,7 +373,7 @@ func TestCorePublishSubscribeDoesNotReplayMessagesBeforeSubscription(t *testing.
 
 func TestStreamingServiceMarksOnlyTerminalResponseFinal(t *testing.T) {
 	server := startNATS(t, false)
-	host, err := NewHost(context.Background(), Config{URL: server.ClientURL(), Name: "stream-host"}, "q.stream.v1")
+	host, err := newHost(context.Background(), Config{URL: server.ClientURL(), Name: "stream-host"}, "q.stream.v1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -394,7 +419,7 @@ func TestAuditWritesAcknowledgedRecordWithoutContent(t *testing.T) {
 	if _, err := js.AddStream(&natsgo.StreamConfig{Name: "AUDIT", Subjects: []string{"audit.>"}}); err != nil {
 		t.Fatal(err)
 	}
-	host, err := NewHost(context.Background(), Config{
+	host, err := newHost(context.Background(), Config{
 		URL:         server.ClientURL(),
 		Name:        "audit-host",
 		AuditPrefix: "audit",

@@ -914,36 +914,30 @@ func startServicesNATSServer(t *testing.T) *natsserver.Server {
 
 func subscribeGatewayEmbeddingFunction(t *testing.T, url string, handler func(*gatewayv1.EmbedRequest) (*gatewayv1.EmbedResponse, error)) {
 	t.Helper()
-	host, err := natskit.NewHost(context.Background(), natskit.Config{URL: url, Name: "gateway-test-host"}, "q.gateway.test")
+	host, err := natskit.StartRPCService(context.Background(), natskit.Config{URL: url, Name: "gateway-test-host"}, natskit.Binding{
+		Descriptor: &servicev1.ServiceDescriptor{
+			Name: "gateway",
+			Rpcs: []*servicev1.RpcDescriptor{
+				natskit.MustServiceRPC("gateway", "gateway_Embed", "quark.gateway.v1.GatewayService", "Embed", "quark.gateway.v1.EmbedRequest", "quark.gateway.v1.EmbedResponse", "Embed content."),
+			},
+		},
+		Services: []natskit.RPCService{{
+			Service:        "quark.gateway.v1.GatewayService",
+			Implementation: testGatewayEmbeddingService{handle: handler},
+		}},
+	})
 	if err != nil {
 		t.Fatalf("open nats service host: %v", err)
 	}
 	t.Cleanup(host.Close)
-	operation, err := natskit.ServiceOperation("gateway", "embed")
-	if err != nil {
-		t.Fatalf("operation: %v", err)
-	}
-	err = host.RegisterUnary(operation, time.Second, func(_ context.Context, envelope natskit.RequestEnvelope) (natskit.ResponseEnvelope, error) {
-		var req gatewayv1.EmbedRequest
-		if err := protojson.Unmarshal(envelope.Payload, &req); err != nil {
-			return natskit.ResponseEnvelope{}, err
-		}
-		resp, err := handler(&req)
-		if err != nil {
-			return natskit.ResponseEnvelope{}, err
-		}
-		payload, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(resp)
-		if err != nil {
-			return natskit.ResponseEnvelope{}, err
-		}
-		return natskit.OKResponse(envelope.ServiceCallID, payload), nil
-	})
-	if err != nil {
-		t.Fatalf("subscribe Gateway embedding function: %v", err)
-	}
-	if err := host.Ready(context.Background()); err != nil {
-		t.Fatalf("flush subscription: %v", err)
-	}
+}
+
+type testGatewayEmbeddingService struct {
+	handle func(*gatewayv1.EmbedRequest) (*gatewayv1.EmbedResponse, error)
+}
+
+func (s testGatewayEmbeddingService) Embed(_ context.Context, req *gatewayv1.EmbedRequest) (*gatewayv1.EmbedResponse, error) {
+	return s.handle(req)
 }
 
 func sameStrings(raw any, want []string) bool {

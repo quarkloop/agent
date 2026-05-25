@@ -16,7 +16,6 @@ type Config struct {
 	SkillDir  string
 	PDFToText string
 	NATS      natskit.Config
-	Queue     string
 	Logger    *slog.Logger
 }
 
@@ -43,7 +42,7 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	descriptor := iosvc.Descriptor(cfg.Address, skill)
 	cfg.NATS.Logger = cfg.Logger
-	return natskit.RunRPCService(ctx, cfg.NATS, cfg.Queue, natskit.Binding{
+	return natskit.RunRPCService(ctx, cfg.NATS, natskit.Binding{
 		Descriptor: descriptor,
 		Services: []natskit.RPCService{{
 			Service:        "quark.io.v1.IOService",

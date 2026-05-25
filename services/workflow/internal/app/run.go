@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 
 	"github.com/quarkloop/pkg/natskit"
+	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/services/workflow/internal/workflowsvc"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/worker"
@@ -18,12 +21,22 @@ type Config struct {
 	TemporalNamespace string
 	TaskQueue         string
 	NATS              natskit.Config
-	Queue             string
 	Logger            *slog.Logger
 }
 
 func Run(ctx context.Context, cfg Config) error {
 	cfg = normalizeConfig(cfg)
+	if cfg.NATS.URL == "" {
+		return fmt.Errorf("nats url is required")
+	}
+	skillPath, err := resolveSkillPath(cfg.SkillDir)
+	if err != nil {
+		return err
+	}
+	skill, err := servicekit.SkillFromFile("service-workflow", "1.0.0", skillPath)
+	if err != nil {
+		return err
+	}
 	events := workflowsvc.NewEventLog()
 
 	temporalClient, err := client.Dial(client.Options{
@@ -78,18 +91,25 @@ func Run(ctx context.Context, cfg Config) error {
 		}
 	}()
 
-	if cfg.NATS.URL == "" {
-		return fmt.Errorf("nats url is required")
-	}
 	cfg.NATS.Logger = cfg.Logger
-	host, err := startWorkflowHost(ctx, cfg.NATS, cfg.Queue, server)
-	if err != nil {
-		return err
-	}
-	defer host.Close()
 	cfg.Logger.Info("workflow service listening", "temporal", cfg.TemporalAddress, "task_queue", cfg.TaskQueue)
-	<-ctx.Done()
-	return nil
+	return natskit.RunRPCService(ctx, cfg.NATS, workflowBinding(cfg.Address, skill, server))
+}
+
+func resolveSkillPath(skillDir string) (string, error) {
+	if skillDir != "" {
+		path := filepath.Join(skillDir, "SKILL.md")
+		if _, err := os.Stat(path); err != nil {
+			return "", fmt.Errorf("find workflow skill at %s: %w", path, err)
+		}
+		return path, nil
+	}
+	for _, path := range []string{"SKILL.md", filepath.Join("plugins", "services", "workflow", "SKILL.md"), filepath.Join("services", "workflow", "SKILL.md")} {
+		if _, err := os.Stat(path); err == nil {
+			return path, nil
+		}
+	}
+	return "", fmt.Errorf("workflow service SKILL.md not found; pass --skill-dir")
 }
 
 func normalizeConfig(cfg Config) Config {
@@ -107,9 +127,6 @@ func normalizeConfig(cfg Config) Config {
 	}
 	if cfg.NATS.Username == "" {
 		cfg.NATS.Username = natskit.DefaultUser
-	}
-	if cfg.Queue == "" {
-		cfg.Queue = "q.workflow.v1"
 	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
