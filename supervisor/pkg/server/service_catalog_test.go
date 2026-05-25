@@ -184,7 +184,7 @@ func TestApplyServiceFunctionMetadata(t *testing.T) {
 		Name: "indexer",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:  "quark.indexer.v1.IndexerService",
-			Method:   "GetContext",
+			Method:   "QueryContext",
 			Request:  "old.Request",
 			Response: "old.Response",
 		}},
@@ -194,15 +194,15 @@ func TestApplyServiceFunctionMetadata(t *testing.T) {
 		Type: plugin.TypeService,
 		Service: &plugin.ServiceConfig{
 			Functions: []plugin.ServiceFunctionConfig{{
-				Name:        "indexer_GetContext",
+				Name:        "indexer_QueryContext",
 				Service:     "quark.indexer.v1.IndexerService",
-				Method:      "GetContext",
+				Method:      "QueryContext",
 				Request:     "quark.indexer.v1.QueryRequest",
 				Response:    "quark.indexer.v1.ContextResponse",
 				Description: "Retrieve context using a query embedding.",
 				RiskLevel:   "read",
 				Idempotent:  true,
-				Subject:     "svc.indexer.v1.get_context",
+				Subject:     "svc.indexer.v1.query_context",
 			}},
 		},
 	}
@@ -217,10 +217,10 @@ func TestApplyServiceFunctionMetadata(t *testing.T) {
 	if rpc.GetDescription() != "Retrieve context using a query embedding." {
 		t.Fatalf("description = %q", rpc.GetDescription())
 	}
-	if rpc.GetOwner() != "indexer" || rpc.GetFunctionName() != "indexer_GetContext" || rpc.GetRiskLevel() != "read" {
+	if rpc.GetOwner() != "indexer" || rpc.GetFunctionName() != "indexer_QueryContext" || rpc.GetRiskLevel() != "read" {
 		t.Fatalf("function contract metadata missing: %+v", rpc)
 	}
-	if rpc.GetSubject() != "svc.indexer.v1.get_context" {
+	if rpc.GetSubject() != "svc.indexer.v1.query_context" {
 		t.Fatalf("canonical NATS subject missing: %+v", rpc)
 	}
 	if !rpc.GetIdempotent() || rpc.GetTimeoutMillis() != 30000 {
@@ -233,7 +233,7 @@ func TestApplyServiceFunctionMetadataRequiresEveryRPC(t *testing.T) {
 		Name: "indexer",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service: "quark.indexer.v1.IndexerService",
-			Method:  "GetContext",
+			Method:  "QueryContext",
 		}},
 	}
 	manifest := &plugin.Manifest{
@@ -241,10 +241,10 @@ func TestApplyServiceFunctionMetadataRequiresEveryRPC(t *testing.T) {
 		Type: plugin.TypeService,
 		Service: &plugin.ServiceConfig{
 			Functions: []plugin.ServiceFunctionConfig{{
-				Name:        "indexer_IndexDocument",
+				Name:        "indexer_UpsertChunk",
 				Service:     "quark.indexer.v1.IndexerService",
-				Method:      "IndexDocument",
-				Request:     "quark.indexer.v1.IndexRequest",
+				Method:      "UpsertChunk",
+				Request:     "quark.indexer.v1.UpsertChunkRequest",
 				Response:    "quark.indexer.v1.IndexStatus",
 				Description: "Persist one canonical index record.",
 			}},
@@ -263,23 +263,23 @@ func TestValidateServicePluginDescriptorsRejectsMissingRPC(t *testing.T) {
 		Address: "127.0.0.1:7301",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:       "quark.indexer.v1.IndexerService",
-			Method:        "GetContext",
+			Method:        "QueryContext",
 			Request:       "quark.indexer.v1.QueryRequest",
 			Response:      "quark.indexer.v1.ContextResponse",
 			Description:   "Retrieve context.",
 			Owner:         "indexer",
-			FunctionName:  "indexer_GetContext",
-			Subject:       "svc.indexer.v1.get_context",
+			FunctionName:  "indexer_QueryContext",
+			Subject:       "svc.indexer.v1.query_context",
 			RiskLevel:     "read",
 			TimeoutMillis: 30000,
 		}},
 	}
 	manifest := serviceManifest("indexer", "quark.indexer.v1.IndexerService")
 	manifest.Service.Functions = append(manifest.Service.Functions, plugin.ServiceFunctionConfig{
-		Name:        "indexer_IndexDocument",
+		Name:        "indexer_UpsertChunk",
 		Service:     "quark.indexer.v1.IndexerService",
-		Method:      "IndexDocument",
-		Request:     "quark.indexer.v1.IndexRequest",
+		Method:      "UpsertChunk",
+		Request:     "quark.indexer.v1.UpsertChunkRequest",
 		Response:    "quark.indexer.v1.IndexStatus",
 		Description: "Persist index records.",
 	})
@@ -297,7 +297,7 @@ func TestValidateServicePluginDescriptorsRejectsVersionMismatch(t *testing.T) {
 		Address: "127.0.0.1:7301",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:     "quark.indexer.v1.IndexerService",
-			Method:      "GetContext",
+			Method:      "QueryContext",
 			Request:     "quark.indexer.v1.QueryRequest",
 			Response:    "quark.indexer.v1.ContextResponse",
 			Description: "Retrieve context.",
@@ -561,7 +561,7 @@ service:
   functions:
     - name: %s
       service: %s
-      method: GetContext
+      method: QueryContext
       request: quark.indexer.v1.QueryRequest
       response: quark.indexer.v1.ContextResponse
       description: Retrieve context.
@@ -596,10 +596,10 @@ func serviceManifest(name, protoService string) *plugin.Manifest {
 			},
 			ProtoServices: []string{protoService},
 			Functions: []plugin.ServiceFunctionConfig{{
-				Name:        "indexer_GetContext",
+				Name:        "indexer_QueryContext",
 				Service:     protoService,
-				Method:      "GetContext",
-				Subject:     "svc." + strings.ReplaceAll(name, "-", "_") + ".v1.get_context",
+				Method:      "QueryContext",
+				Subject:     "svc." + strings.ReplaceAll(name, "-", "_") + ".v1.query_context",
 				Request:     "quark.indexer.v1.QueryRequest",
 				Response:    "quark.indexer.v1.ContextResponse",
 				Description: "Retrieve context.",

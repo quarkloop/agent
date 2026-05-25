@@ -48,7 +48,7 @@ func TestRecorderPersistsActivityEventsAndAudits(t *testing.T) {
 		SessionID: "session-1",
 		Type:      "tool_result",
 		Timestamp: time.Now().UTC(),
-		Data:      []byte(`{"name":"indexer_GetContext"}`),
+		Data:      []byte(`{"name":"indexer_QueryContext"}`),
 	})
 
 	deadline := time.After(2 * time.Second)

@@ -76,13 +76,13 @@ func TestLoadServiceCatalogPrefersNATSSnapshot(t *testing.T) {
 		Address: "127.0.0.1:7301",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:      "quark.indexer.v1.IndexerService",
-			Method:       "GetContext",
+			Method:       "QueryContext",
 			Request:      "quark.indexer.v1.QueryRequest",
 			Response:     "quark.indexer.v1.ContextResponse",
 			Description:  "Retrieve context.",
 			Owner:        "indexer",
-			FunctionName: "indexer_GetContext",
-			Subject:      "svc.indexer.v1.get_context",
+			FunctionName: "indexer_QueryContext",
+			Subject:      "svc.indexer.v1.query_context",
 			RiskLevel:    "read",
 		}},
 	}})
@@ -111,10 +111,10 @@ func TestRegisterServiceFunctionsUsesRuntimeToolPath(t *testing.T) {
 		Address: "127.0.0.1:7301",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:     "quark.indexer.v1.IndexerService",
-			Method:      "GetContext",
+			Method:      "QueryContext",
 			Request:     "quark.indexer.v1.QueryRequest",
 			Response:    "quark.indexer.v1.ContextResponse",
-			Subject:     "svc.indexer.v1.get_context",
+			Subject:     "svc.indexer.v1.query_context",
 			Description: "Retrieve context.",
 		}},
 	}})
@@ -122,10 +122,10 @@ func TestRegisterServiceFunctionsUsesRuntimeToolPath(t *testing.T) {
 	RegisterServiceFunctions(a, catalog)
 
 	tools := a.Plugins.GetTools()
-	if len(tools) != 1 || tools[0].Name != "indexer_GetContext" {
+	if len(tools) != 1 || tools[0].Name != "indexer_QueryContext" {
 		t.Fatalf("runtime tools = %+v", tools)
 	}
-	if !a.Plugins.IsLoaded("indexer_GetContext") {
+	if !a.Plugins.IsLoaded("indexer_QueryContext") {
 		t.Fatalf("service function was not registered as a runtime tool")
 	}
 }

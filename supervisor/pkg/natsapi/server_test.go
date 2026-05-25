@@ -206,7 +206,7 @@ func TestAuditContractsUseSupervisorOwnedStore(t *testing.T) {
 	event := natskit.ServiceCallEvent{
 		Type: "service_call", ServiceCallID: "ref-1", ReferenceID: "ref-1", AuditRef: "ref-1",
 		SpaceID: "docs", SessionID: "session-1", RunID: "run-1", Service: "indexer",
-		Function: "get_context", Subject: "svc.indexer.v1.get_context", Status: "ok",
+		Function: "query_context", Subject: "svc.indexer.v1.query_context", Status: "ok",
 	}
 	data, err := json.Marshal(event)
 	if err != nil {
@@ -221,7 +221,7 @@ func TestAuditContractsUseSupervisorOwnedStore(t *testing.T) {
 		t.Fatalf("record = %+v", record)
 	}
 	page := requestPayload[clientcontract.AuditListResponse](t, fixture.client, clientcontract.SubjectAuditList, clientcontract.AuditListRequest{SpaceID: "docs", RunID: "run-1", Limit: 10})
-	if len(page.Records) != 1 || page.Records[0].Function != "get_context" {
+	if len(page.Records) != 1 || page.Records[0].Function != "query_context" {
 		t.Fatalf("page = %+v", page)
 	}
 	retention := requestPayload[clientcontract.AuditRetentionResponse](t, fixture.client, clientcontract.SubjectAuditRetention, struct{}{})

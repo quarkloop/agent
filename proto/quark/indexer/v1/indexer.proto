@@ -15,25 +15,9 @@ service IndexerService {
   rpc UpsertEntity(UpsertEntityRequest) returns (IndexStatus);
   rpc UpsertRelation(UpsertRelationRequest) returns (IndexStatus);
   rpc UpsertCitation(UpsertCitationRequest) returns (IndexStatus);
-  rpc IndexDocument(IndexRequest) returns (IndexStatus);
   rpc QueryContext(QueryRequest) returns (ContextResponse);
-  rpc GetContext(QueryRequest) returns (ContextResponse);
   rpc DeleteDocument(DeleteDocumentRequest) returns (DeleteDocumentResponse);
   rpc DeleteChunk(DeleteChunkRequest) returns (DeleteChunkResponse);
-}
-
-message IndexRequest {
-  string chunk_id = 1;
-  string text_content = 2;
-  repeated float embedding = 3;
-  repeated Entity entities = 4;
-  repeated Relation relations = 5;
-  map<string, string> source_metadata = 6;
-  Document document = 7;
-  EmbeddingMetadata embedding_metadata = 8;
-  repeated Fact facts = 9;
-  repeated Citation citations = 10;
-  Provenance provenance = 11;
 }
 
 message UpsertDocumentRequest {

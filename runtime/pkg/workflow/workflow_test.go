@@ -90,7 +90,7 @@ func TestDetectKnowledgeQueryDoesNotTreatCatalogAsIndexingVerb(t *testing.T) {
 		"runstate_StartRun",
 		"document_ExtractText",
 		"gateway_Embed",
-		"indexer_GetContext",
+		"indexer_QueryContext",
 		"citation_RenderReferences",
 	))
 	if len(intents) != 1 || intents[0].Kind != KindKnowledgeQuery {
@@ -746,7 +746,7 @@ func TestTrackerEmitsCorrelatedTransitionEvents(t *testing.T) {
 	var events []Event
 	tracker := NewTracker("session-1", "Search the indexed PDFs for evidence.", toolSchemas(
 		"gateway_Embed",
-		"indexer_GetContext",
+		"indexer_QueryContext",
 	), NewStore(), func(event Event) {
 		events = append(events, event)
 	})
@@ -775,7 +775,7 @@ func TestTrackerCancellationDoesNotAdvanceState(t *testing.T) {
 	store := NewStore()
 	tracker := NewTracker("session-1", "Search the indexed PDFs for evidence.", toolSchemas(
 		"gateway_Embed",
-		"indexer_GetContext",
+		"indexer_QueryContext",
 	), store, nil)
 	if tracker == nil {
 		t.Fatal("expected tracker")

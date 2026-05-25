@@ -85,7 +85,7 @@ handoff rules, and evaluation requirements. Everything agent-callable flows
 through the runtime tool-call surface. Tool plugins own their schema,
 implementation, and `SKILL.md`. Service plugins describe NATS service functions; runtime
 turns their RPC descriptors into generated service functions such as
-`gateway_Embed` and `indexer_GetContext`.
+`gateway_Embed` and `indexer_QueryContext`.
 
 `quark-main` is the required root coordinator agent plugin. Supervisor resolves
 its allowed service functions from installed services and any Quarkfile

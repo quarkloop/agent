@@ -7,7 +7,7 @@ import (
 )
 
 func TestToolRequirementTrackerBlocksUntilDeclaredSuccessfulResults(t *testing.T) {
-	tracker := NewToolRequirementTracker("Do not send a final answer until there are 2 successful indexer_IndexDocument results.")
+	tracker := NewToolRequirementTracker("Do not send a final answer until there are 2 successful indexer_UpsertChunk results.")
 	if tracker == nil {
 		t.Fatal("tracker was not created")
 	}
@@ -19,14 +19,14 @@ func TestToolRequirementTrackerBlocksUntilDeclaredSuccessfulResults(t *testing.T
 	wrapped := tracker.WrapToolHandler(func(context.Context, string, string) (string, error) {
 		return `{"success": true}`, nil
 	})
-	if _, err := wrapped(context.Background(), "indexer_IndexDocument", "{}"); err != nil {
+	if _, err := wrapped(context.Background(), "indexer_UpsertChunk", "{}"); err != nil {
 		t.Fatalf("wrapped tool: %v", err)
 	}
 	if instruction, retry := tracker.FinalGuard(""); !retry || !strings.Contains(instruction, "1 successful") {
 		t.Fatalf("guard after one success = %q retry=%t", instruction, retry)
 	}
 
-	if _, err := wrapped(context.Background(), "indexer_IndexDocument", "{}"); err != nil {
+	if _, err := wrapped(context.Background(), "indexer_UpsertChunk", "{}"); err != nil {
 		t.Fatalf("wrapped tool: %v", err)
 	}
 	if instruction, retry := tracker.FinalGuard(""); retry || instruction != "" {
@@ -35,7 +35,7 @@ func TestToolRequirementTrackerBlocksUntilDeclaredSuccessfulResults(t *testing.T
 }
 
 func TestToolRequirementTrackerIgnoresFailedResults(t *testing.T) {
-	tracker := NewToolRequirementTracker("until there are 1 successful indexer_IndexDocument result")
+	tracker := NewToolRequirementTracker("until there are 1 successful indexer_UpsertChunk result")
 	if tracker == nil {
 		t.Fatal("tracker was not created")
 	}
@@ -52,7 +52,7 @@ func TestToolRequirementTrackerIgnoresFailedResults(t *testing.T) {
 		wrapped := tracker.WrapToolHandler(func(context.Context, string, string) (string, error) {
 			return failure.result, failure.err
 		})
-		_, _ = wrapped(context.Background(), "indexer_IndexDocument", "{}")
+		_, _ = wrapped(context.Background(), "indexer_UpsertChunk", "{}")
 	}
 
 	if instruction, retry := tracker.FinalGuard(""); !retry || !strings.Contains(instruction, "0 successful") {

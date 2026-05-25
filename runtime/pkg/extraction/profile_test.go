@@ -47,8 +47,8 @@ func TestPromptBlockDescribesCanonicalMappingAndValidation(t *testing.T) {
 	for _, want := range []string{
 		"Runtime Extraction Profiles",
 		"`generic-open`",
-		"IndexRequest.facts",
-		"IndexRequest.citations",
+		"UpsertChunkRequest.facts",
+		"UpsertChunkRequest.citations",
 		"validate",
 		"Parser output is raw source evidence",
 		"document classification",

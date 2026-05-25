@@ -21,130 +21,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type IndexRequest struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	ChunkId           string                 `protobuf:"bytes,1,opt,name=chunk_id,json=chunkId,proto3" json:"chunk_id,omitempty"`
-	TextContent       string                 `protobuf:"bytes,2,opt,name=text_content,json=textContent,proto3" json:"text_content,omitempty"`
-	Embedding         []float32              `protobuf:"fixed32,3,rep,packed,name=embedding,proto3" json:"embedding,omitempty"`
-	Entities          []*Entity              `protobuf:"bytes,4,rep,name=entities,proto3" json:"entities,omitempty"`
-	Relations         []*Relation            `protobuf:"bytes,5,rep,name=relations,proto3" json:"relations,omitempty"`
-	SourceMetadata    map[string]string      `protobuf:"bytes,6,rep,name=source_metadata,json=sourceMetadata,proto3" json:"source_metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Document          *Document              `protobuf:"bytes,7,opt,name=document,proto3" json:"document,omitempty"`
-	EmbeddingMetadata *EmbeddingMetadata     `protobuf:"bytes,8,opt,name=embedding_metadata,json=embeddingMetadata,proto3" json:"embedding_metadata,omitempty"`
-	Facts             []*Fact                `protobuf:"bytes,9,rep,name=facts,proto3" json:"facts,omitempty"`
-	Citations         []*Citation            `protobuf:"bytes,10,rep,name=citations,proto3" json:"citations,omitempty"`
-	Provenance        *Provenance            `protobuf:"bytes,11,opt,name=provenance,proto3" json:"provenance,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
-}
-
-func (x *IndexRequest) Reset() {
-	*x = IndexRequest{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *IndexRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*IndexRequest) ProtoMessage() {}
-
-func (x *IndexRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use IndexRequest.ProtoReflect.Descriptor instead.
-func (*IndexRequest) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *IndexRequest) GetChunkId() string {
-	if x != nil {
-		return x.ChunkId
-	}
-	return ""
-}
-
-func (x *IndexRequest) GetTextContent() string {
-	if x != nil {
-		return x.TextContent
-	}
-	return ""
-}
-
-func (x *IndexRequest) GetEmbedding() []float32 {
-	if x != nil {
-		return x.Embedding
-	}
-	return nil
-}
-
-func (x *IndexRequest) GetEntities() []*Entity {
-	if x != nil {
-		return x.Entities
-	}
-	return nil
-}
-
-func (x *IndexRequest) GetRelations() []*Relation {
-	if x != nil {
-		return x.Relations
-	}
-	return nil
-}
-
-func (x *IndexRequest) GetSourceMetadata() map[string]string {
-	if x != nil {
-		return x.SourceMetadata
-	}
-	return nil
-}
-
-func (x *IndexRequest) GetDocument() *Document {
-	if x != nil {
-		return x.Document
-	}
-	return nil
-}
-
-func (x *IndexRequest) GetEmbeddingMetadata() *EmbeddingMetadata {
-	if x != nil {
-		return x.EmbeddingMetadata
-	}
-	return nil
-}
-
-func (x *IndexRequest) GetFacts() []*Fact {
-	if x != nil {
-		return x.Facts
-	}
-	return nil
-}
-
-func (x *IndexRequest) GetCitations() []*Citation {
-	if x != nil {
-		return x.Citations
-	}
-	return nil
-}
-
-func (x *IndexRequest) GetProvenance() *Provenance {
-	if x != nil {
-		return x.Provenance
-	}
-	return nil
-}
-
 type UpsertDocumentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Document      *Document              `protobuf:"bytes,1,opt,name=document,proto3" json:"document,omitempty"`
@@ -154,7 +30,7 @@ type UpsertDocumentRequest struct {
 
 func (x *UpsertDocumentRequest) Reset() {
 	*x = UpsertDocumentRequest{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[1]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -166,7 +42,7 @@ func (x *UpsertDocumentRequest) String() string {
 func (*UpsertDocumentRequest) ProtoMessage() {}
 
 func (x *UpsertDocumentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[1]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -179,7 +55,7 @@ func (x *UpsertDocumentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpsertDocumentRequest.ProtoReflect.Descriptor instead.
 func (*UpsertDocumentRequest) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{1}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *UpsertDocumentRequest) GetDocument() *Document {
@@ -208,7 +84,7 @@ type UpsertChunkRequest struct {
 
 func (x *UpsertChunkRequest) Reset() {
 	*x = UpsertChunkRequest{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[2]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -220,7 +96,7 @@ func (x *UpsertChunkRequest) String() string {
 func (*UpsertChunkRequest) ProtoMessage() {}
 
 func (x *UpsertChunkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[2]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -233,7 +109,7 @@ func (x *UpsertChunkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpsertChunkRequest.ProtoReflect.Descriptor instead.
 func (*UpsertChunkRequest) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{2}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *UpsertChunkRequest) GetChunkId() string {
@@ -323,7 +199,7 @@ type UpsertFactRequest struct {
 
 func (x *UpsertFactRequest) Reset() {
 	*x = UpsertFactRequest{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[3]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -335,7 +211,7 @@ func (x *UpsertFactRequest) String() string {
 func (*UpsertFactRequest) ProtoMessage() {}
 
 func (x *UpsertFactRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[3]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -348,7 +224,7 @@ func (x *UpsertFactRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpsertFactRequest.ProtoReflect.Descriptor instead.
 func (*UpsertFactRequest) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{3}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *UpsertFactRequest) GetFact() *Fact {
@@ -374,7 +250,7 @@ type UpsertEntityRequest struct {
 
 func (x *UpsertEntityRequest) Reset() {
 	*x = UpsertEntityRequest{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[4]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -386,7 +262,7 @@ func (x *UpsertEntityRequest) String() string {
 func (*UpsertEntityRequest) ProtoMessage() {}
 
 func (x *UpsertEntityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[4]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -399,7 +275,7 @@ func (x *UpsertEntityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpsertEntityRequest.ProtoReflect.Descriptor instead.
 func (*UpsertEntityRequest) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{4}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *UpsertEntityRequest) GetEntity() *Entity {
@@ -419,7 +295,7 @@ type UpsertRelationRequest struct {
 
 func (x *UpsertRelationRequest) Reset() {
 	*x = UpsertRelationRequest{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[5]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -431,7 +307,7 @@ func (x *UpsertRelationRequest) String() string {
 func (*UpsertRelationRequest) ProtoMessage() {}
 
 func (x *UpsertRelationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[5]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -444,7 +320,7 @@ func (x *UpsertRelationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpsertRelationRequest.ProtoReflect.Descriptor instead.
 func (*UpsertRelationRequest) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{5}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *UpsertRelationRequest) GetRelation() *Relation {
@@ -471,7 +347,7 @@ type UpsertCitationRequest struct {
 
 func (x *UpsertCitationRequest) Reset() {
 	*x = UpsertCitationRequest{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[6]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -483,7 +359,7 @@ func (x *UpsertCitationRequest) String() string {
 func (*UpsertCitationRequest) ProtoMessage() {}
 
 func (x *UpsertCitationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[6]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -496,7 +372,7 @@ func (x *UpsertCitationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpsertCitationRequest.ProtoReflect.Descriptor instead.
 func (*UpsertCitationRequest) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{6}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *UpsertCitationRequest) GetCitation() *Citation {
@@ -527,7 +403,7 @@ type Document struct {
 
 func (x *Document) Reset() {
 	*x = Document{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[7]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -539,7 +415,7 @@ func (x *Document) String() string {
 func (*Document) ProtoMessage() {}
 
 func (x *Document) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[7]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -552,7 +428,7 @@ func (x *Document) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Document.ProtoReflect.Descriptor instead.
 func (*Document) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{7}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Document) GetId() string {
@@ -611,7 +487,7 @@ type EmbeddingMetadata struct {
 
 func (x *EmbeddingMetadata) Reset() {
 	*x = EmbeddingMetadata{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[8]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -623,7 +499,7 @@ func (x *EmbeddingMetadata) String() string {
 func (*EmbeddingMetadata) ProtoMessage() {}
 
 func (x *EmbeddingMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[8]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -636,7 +512,7 @@ func (x *EmbeddingMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmbeddingMetadata.ProtoReflect.Descriptor instead.
 func (*EmbeddingMetadata) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{8}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *EmbeddingMetadata) GetProvider() string {
@@ -692,7 +568,7 @@ type Entity struct {
 
 func (x *Entity) Reset() {
 	*x = Entity{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[9]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -704,7 +580,7 @@ func (x *Entity) String() string {
 func (*Entity) ProtoMessage() {}
 
 func (x *Entity) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[9]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -717,7 +593,7 @@ func (x *Entity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Entity.ProtoReflect.Descriptor instead.
 func (*Entity) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{9}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Entity) GetId() string {
@@ -752,7 +628,7 @@ type Relation struct {
 
 func (x *Relation) Reset() {
 	*x = Relation{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[10]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -764,7 +640,7 @@ func (x *Relation) String() string {
 func (*Relation) ProtoMessage() {}
 
 func (x *Relation) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[10]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -777,7 +653,7 @@ func (x *Relation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Relation.ProtoReflect.Descriptor instead.
 func (*Relation) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{10}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Relation) GetFromId() string {
@@ -816,7 +692,7 @@ type Fact struct {
 
 func (x *Fact) Reset() {
 	*x = Fact{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[11]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -828,7 +704,7 @@ func (x *Fact) String() string {
 func (*Fact) ProtoMessage() {}
 
 func (x *Fact) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[11]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -841,7 +717,7 @@ func (x *Fact) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Fact.ProtoReflect.Descriptor instead.
 func (*Fact) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{11}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Fact) GetId() string {
@@ -911,7 +787,7 @@ type Citation struct {
 
 func (x *Citation) Reset() {
 	*x = Citation{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[12]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -923,7 +799,7 @@ func (x *Citation) String() string {
 func (*Citation) ProtoMessage() {}
 
 func (x *Citation) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[12]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -936,7 +812,7 @@ func (x *Citation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Citation.ProtoReflect.Descriptor instead.
 func (*Citation) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{12}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Citation) GetId() string {
@@ -1024,7 +900,7 @@ type Provenance struct {
 
 func (x *Provenance) Reset() {
 	*x = Provenance{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[13]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1036,7 +912,7 @@ func (x *Provenance) String() string {
 func (*Provenance) ProtoMessage() {}
 
 func (x *Provenance) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[13]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1049,7 +925,7 @@ func (x *Provenance) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Provenance.ProtoReflect.Descriptor instead.
 func (*Provenance) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{13}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *Provenance) GetSourceUri() string {
@@ -1117,7 +993,7 @@ type SourceReference struct {
 
 func (x *SourceReference) Reset() {
 	*x = SourceReference{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[14]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1129,7 +1005,7 @@ func (x *SourceReference) String() string {
 func (*SourceReference) ProtoMessage() {}
 
 func (x *SourceReference) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[14]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1142,7 +1018,7 @@ func (x *SourceReference) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SourceReference.ProtoReflect.Descriptor instead.
 func (*SourceReference) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{14}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *SourceReference) GetModality() string {
@@ -1211,7 +1087,7 @@ type IndexStatus struct {
 
 func (x *IndexStatus) Reset() {
 	*x = IndexStatus{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[15]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1223,7 +1099,7 @@ func (x *IndexStatus) String() string {
 func (*IndexStatus) ProtoMessage() {}
 
 func (x *IndexStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[15]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1236,7 +1112,7 @@ func (x *IndexStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IndexStatus.ProtoReflect.Descriptor instead.
 func (*IndexStatus) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{15}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *IndexStatus) GetSuccess() bool {
@@ -1265,7 +1141,7 @@ type QueryRequest struct {
 
 func (x *QueryRequest) Reset() {
 	*x = QueryRequest{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[16]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1277,7 +1153,7 @@ func (x *QueryRequest) String() string {
 func (*QueryRequest) ProtoMessage() {}
 
 func (x *QueryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[16]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1290,7 +1166,7 @@ func (x *QueryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueryRequest.ProtoReflect.Descriptor instead.
 func (*QueryRequest) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{16}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *QueryRequest) GetQueryVector() []float32 {
@@ -1334,7 +1210,7 @@ type ContextResponse struct {
 
 func (x *ContextResponse) Reset() {
 	*x = ContextResponse{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[17]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1346,7 +1222,7 @@ func (x *ContextResponse) String() string {
 func (*ContextResponse) ProtoMessage() {}
 
 func (x *ContextResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[17]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1359,7 +1235,7 @@ func (x *ContextResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContextResponse.ProtoReflect.Descriptor instead.
 func (*ContextResponse) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{17}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ContextResponse) GetReasoningContext() string {
@@ -1414,7 +1290,7 @@ type Chunk struct {
 
 func (x *Chunk) Reset() {
 	*x = Chunk{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[18]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1426,7 +1302,7 @@ func (x *Chunk) String() string {
 func (*Chunk) ProtoMessage() {}
 
 func (x *Chunk) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[18]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1439,7 +1315,7 @@ func (x *Chunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Chunk.ProtoReflect.Descriptor instead.
 func (*Chunk) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{18}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *Chunk) GetId() string {
@@ -1516,7 +1392,7 @@ type GraphNode struct {
 
 func (x *GraphNode) Reset() {
 	*x = GraphNode{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[19]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1528,7 +1404,7 @@ func (x *GraphNode) String() string {
 func (*GraphNode) ProtoMessage() {}
 
 func (x *GraphNode) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[19]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1541,7 +1417,7 @@ func (x *GraphNode) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GraphNode.ProtoReflect.Descriptor instead.
 func (*GraphNode) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{19}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GraphNode) GetId() string {
@@ -1576,7 +1452,7 @@ type GraphEdge struct {
 
 func (x *GraphEdge) Reset() {
 	*x = GraphEdge{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[20]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1588,7 +1464,7 @@ func (x *GraphEdge) String() string {
 func (*GraphEdge) ProtoMessage() {}
 
 func (x *GraphEdge) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[20]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1601,7 +1477,7 @@ func (x *GraphEdge) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GraphEdge.ProtoReflect.Descriptor instead.
 func (*GraphEdge) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{20}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GraphEdge) GetFromId() string {
@@ -1635,7 +1511,7 @@ type GraphFragment struct {
 
 func (x *GraphFragment) Reset() {
 	*x = GraphFragment{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[21]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1647,7 +1523,7 @@ func (x *GraphFragment) String() string {
 func (*GraphFragment) ProtoMessage() {}
 
 func (x *GraphFragment) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[21]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1660,7 +1536,7 @@ func (x *GraphFragment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GraphFragment.ProtoReflect.Descriptor instead.
 func (*GraphFragment) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{21}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GraphFragment) GetNodes() []*GraphNode {
@@ -1691,7 +1567,7 @@ type ContextPackage struct {
 
 func (x *ContextPackage) Reset() {
 	*x = ContextPackage{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[22]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1703,7 +1579,7 @@ func (x *ContextPackage) String() string {
 func (*ContextPackage) ProtoMessage() {}
 
 func (x *ContextPackage) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[22]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1716,7 +1592,7 @@ func (x *ContextPackage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContextPackage.ProtoReflect.Descriptor instead.
 func (*ContextPackage) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{22}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ContextPackage) GetChunks() []*Chunk {
@@ -1770,7 +1646,7 @@ type DeleteChunkRequest struct {
 
 func (x *DeleteChunkRequest) Reset() {
 	*x = DeleteChunkRequest{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[23]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1782,7 +1658,7 @@ func (x *DeleteChunkRequest) String() string {
 func (*DeleteChunkRequest) ProtoMessage() {}
 
 func (x *DeleteChunkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[23]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1795,7 +1671,7 @@ func (x *DeleteChunkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteChunkRequest.ProtoReflect.Descriptor instead.
 func (*DeleteChunkRequest) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{23}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *DeleteChunkRequest) GetChunkId() string {
@@ -1814,7 +1690,7 @@ type DeleteChunkResponse struct {
 
 func (x *DeleteChunkResponse) Reset() {
 	*x = DeleteChunkResponse{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[24]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1826,7 +1702,7 @@ func (x *DeleteChunkResponse) String() string {
 func (*DeleteChunkResponse) ProtoMessage() {}
 
 func (x *DeleteChunkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[24]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1839,7 +1715,7 @@ func (x *DeleteChunkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteChunkResponse.ProtoReflect.Descriptor instead.
 func (*DeleteChunkResponse) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{24}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *DeleteChunkResponse) GetDeleted() bool {
@@ -1858,7 +1734,7 @@ type DeleteDocumentRequest struct {
 
 func (x *DeleteDocumentRequest) Reset() {
 	*x = DeleteDocumentRequest{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[25]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1870,7 +1746,7 @@ func (x *DeleteDocumentRequest) String() string {
 func (*DeleteDocumentRequest) ProtoMessage() {}
 
 func (x *DeleteDocumentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[25]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1883,7 +1759,7 @@ func (x *DeleteDocumentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteDocumentRequest.ProtoReflect.Descriptor instead.
 func (*DeleteDocumentRequest) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{25}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *DeleteDocumentRequest) GetDocumentId() string {
@@ -1902,7 +1778,7 @@ type DeleteDocumentResponse struct {
 
 func (x *DeleteDocumentResponse) Reset() {
 	*x = DeleteDocumentResponse{}
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[26]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1914,7 +1790,7 @@ func (x *DeleteDocumentResponse) String() string {
 func (*DeleteDocumentResponse) ProtoMessage() {}
 
 func (x *DeleteDocumentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[26]
+	mi := &file_quark_indexer_v1_indexer_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1927,7 +1803,7 @@ func (x *DeleteDocumentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteDocumentResponse.ProtoReflect.Descriptor instead.
 func (*DeleteDocumentResponse) Descriptor() ([]byte, []int) {
-	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{26}
+	return file_quark_indexer_v1_indexer_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *DeleteDocumentResponse) GetDeleted() bool {
@@ -1941,25 +1817,7 @@ var File_quark_indexer_v1_indexer_proto protoreflect.FileDescriptor
 
 const file_quark_indexer_v1_indexer_proto_rawDesc = "" +
 	"\n" +
-	"\x1equark/indexer/v1/indexer.proto\x12\x10quark.indexer.v1\"\xac\x05\n" +
-	"\fIndexRequest\x12\x19\n" +
-	"\bchunk_id\x18\x01 \x01(\tR\achunkId\x12!\n" +
-	"\ftext_content\x18\x02 \x01(\tR\vtextContent\x12\x1c\n" +
-	"\tembedding\x18\x03 \x03(\x02R\tembedding\x124\n" +
-	"\bentities\x18\x04 \x03(\v2\x18.quark.indexer.v1.EntityR\bentities\x128\n" +
-	"\trelations\x18\x05 \x03(\v2\x1a.quark.indexer.v1.RelationR\trelations\x12[\n" +
-	"\x0fsource_metadata\x18\x06 \x03(\v22.quark.indexer.v1.IndexRequest.SourceMetadataEntryR\x0esourceMetadata\x126\n" +
-	"\bdocument\x18\a \x01(\v2\x1a.quark.indexer.v1.DocumentR\bdocument\x12R\n" +
-	"\x12embedding_metadata\x18\b \x01(\v2#.quark.indexer.v1.EmbeddingMetadataR\x11embeddingMetadata\x12,\n" +
-	"\x05facts\x18\t \x03(\v2\x16.quark.indexer.v1.FactR\x05facts\x128\n" +
-	"\tcitations\x18\n" +
-	" \x03(\v2\x1a.quark.indexer.v1.CitationR\tcitations\x12<\n" +
-	"\n" +
-	"provenance\x18\v \x01(\v2\x1c.quark.indexer.v1.ProvenanceR\n" +
-	"provenance\x1aA\n" +
-	"\x13SourceMetadataEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"O\n" +
+	"\x1equark/indexer/v1/indexer.proto\x12\x10quark.indexer.v1\"O\n" +
 	"\x15UpsertDocumentRequest\x126\n" +
 	"\bdocument\x18\x01 \x01(\v2\x1a.quark.indexer.v1.DocumentR\bdocument\"\xb8\x05\n" +
 	"\x12UpsertChunkRequest\x12\x19\n" +
@@ -2144,7 +2002,7 @@ const file_quark_indexer_v1_indexer_proto_rawDesc = "" +
 	"\vdocument_id\x18\x01 \x01(\tR\n" +
 	"documentId\"2\n" +
 	"\x16DeleteDocumentResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted2\xcf\a\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted2\xae\x06\n" +
 	"\x0eIndexerService\x12X\n" +
 	"\x0eUpsertDocument\x12'.quark.indexer.v1.UpsertDocumentRequest\x1a\x1d.quark.indexer.v1.IndexStatus\x12R\n" +
 	"\vUpsertChunk\x12$.quark.indexer.v1.UpsertChunkRequest\x1a\x1d.quark.indexer.v1.IndexStatus\x12P\n" +
@@ -2152,11 +2010,8 @@ const file_quark_indexer_v1_indexer_proto_rawDesc = "" +
 	"UpsertFact\x12#.quark.indexer.v1.UpsertFactRequest\x1a\x1d.quark.indexer.v1.IndexStatus\x12T\n" +
 	"\fUpsertEntity\x12%.quark.indexer.v1.UpsertEntityRequest\x1a\x1d.quark.indexer.v1.IndexStatus\x12X\n" +
 	"\x0eUpsertRelation\x12'.quark.indexer.v1.UpsertRelationRequest\x1a\x1d.quark.indexer.v1.IndexStatus\x12X\n" +
-	"\x0eUpsertCitation\x12'.quark.indexer.v1.UpsertCitationRequest\x1a\x1d.quark.indexer.v1.IndexStatus\x12N\n" +
-	"\rIndexDocument\x12\x1e.quark.indexer.v1.IndexRequest\x1a\x1d.quark.indexer.v1.IndexStatus\x12Q\n" +
-	"\fQueryContext\x12\x1e.quark.indexer.v1.QueryRequest\x1a!.quark.indexer.v1.ContextResponse\x12O\n" +
-	"\n" +
-	"GetContext\x12\x1e.quark.indexer.v1.QueryRequest\x1a!.quark.indexer.v1.ContextResponse\x12c\n" +
+	"\x0eUpsertCitation\x12'.quark.indexer.v1.UpsertCitationRequest\x1a\x1d.quark.indexer.v1.IndexStatus\x12Q\n" +
+	"\fQueryContext\x12\x1e.quark.indexer.v1.QueryRequest\x1a!.quark.indexer.v1.ContextResponse\x12c\n" +
 	"\x0eDeleteDocument\x12'.quark.indexer.v1.DeleteDocumentRequest\x1a(.quark.indexer.v1.DeleteDocumentResponse\x12Z\n" +
 	"\vDeleteChunk\x12$.quark.indexer.v1.DeleteChunkRequest\x1a%.quark.indexer.v1.DeleteChunkResponseBDZBgithub.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1;indexerv1b\x06proto3"
 
@@ -2172,117 +2027,103 @@ func file_quark_indexer_v1_indexer_proto_rawDescGZIP() []byte {
 	return file_quark_indexer_v1_indexer_proto_rawDescData
 }
 
-var file_quark_indexer_v1_indexer_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
+var file_quark_indexer_v1_indexer_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
 var file_quark_indexer_v1_indexer_proto_goTypes = []any{
-	(*IndexRequest)(nil),           // 0: quark.indexer.v1.IndexRequest
-	(*UpsertDocumentRequest)(nil),  // 1: quark.indexer.v1.UpsertDocumentRequest
-	(*UpsertChunkRequest)(nil),     // 2: quark.indexer.v1.UpsertChunkRequest
-	(*UpsertFactRequest)(nil),      // 3: quark.indexer.v1.UpsertFactRequest
-	(*UpsertEntityRequest)(nil),    // 4: quark.indexer.v1.UpsertEntityRequest
-	(*UpsertRelationRequest)(nil),  // 5: quark.indexer.v1.UpsertRelationRequest
-	(*UpsertCitationRequest)(nil),  // 6: quark.indexer.v1.UpsertCitationRequest
-	(*Document)(nil),               // 7: quark.indexer.v1.Document
-	(*EmbeddingMetadata)(nil),      // 8: quark.indexer.v1.EmbeddingMetadata
-	(*Entity)(nil),                 // 9: quark.indexer.v1.Entity
-	(*Relation)(nil),               // 10: quark.indexer.v1.Relation
-	(*Fact)(nil),                   // 11: quark.indexer.v1.Fact
-	(*Citation)(nil),               // 12: quark.indexer.v1.Citation
-	(*Provenance)(nil),             // 13: quark.indexer.v1.Provenance
-	(*SourceReference)(nil),        // 14: quark.indexer.v1.SourceReference
-	(*IndexStatus)(nil),            // 15: quark.indexer.v1.IndexStatus
-	(*QueryRequest)(nil),           // 16: quark.indexer.v1.QueryRequest
-	(*ContextResponse)(nil),        // 17: quark.indexer.v1.ContextResponse
-	(*Chunk)(nil),                  // 18: quark.indexer.v1.Chunk
-	(*GraphNode)(nil),              // 19: quark.indexer.v1.GraphNode
-	(*GraphEdge)(nil),              // 20: quark.indexer.v1.GraphEdge
-	(*GraphFragment)(nil),          // 21: quark.indexer.v1.GraphFragment
-	(*ContextPackage)(nil),         // 22: quark.indexer.v1.ContextPackage
-	(*DeleteChunkRequest)(nil),     // 23: quark.indexer.v1.DeleteChunkRequest
-	(*DeleteChunkResponse)(nil),    // 24: quark.indexer.v1.DeleteChunkResponse
-	(*DeleteDocumentRequest)(nil),  // 25: quark.indexer.v1.DeleteDocumentRequest
-	(*DeleteDocumentResponse)(nil), // 26: quark.indexer.v1.DeleteDocumentResponse
-	nil,                            // 27: quark.indexer.v1.IndexRequest.SourceMetadataEntry
-	nil,                            // 28: quark.indexer.v1.UpsertChunkRequest.SourceMetadataEntry
-	nil,                            // 29: quark.indexer.v1.Document.MetadataEntry
-	nil,                            // 30: quark.indexer.v1.Fact.MetadataEntry
-	nil,                            // 31: quark.indexer.v1.Provenance.MetadataEntry
-	nil,                            // 32: quark.indexer.v1.SourceReference.MetadataEntry
-	nil,                            // 33: quark.indexer.v1.QueryRequest.FiltersEntry
-	nil,                            // 34: quark.indexer.v1.Chunk.MetadataEntry
+	(*UpsertDocumentRequest)(nil),  // 0: quark.indexer.v1.UpsertDocumentRequest
+	(*UpsertChunkRequest)(nil),     // 1: quark.indexer.v1.UpsertChunkRequest
+	(*UpsertFactRequest)(nil),      // 2: quark.indexer.v1.UpsertFactRequest
+	(*UpsertEntityRequest)(nil),    // 3: quark.indexer.v1.UpsertEntityRequest
+	(*UpsertRelationRequest)(nil),  // 4: quark.indexer.v1.UpsertRelationRequest
+	(*UpsertCitationRequest)(nil),  // 5: quark.indexer.v1.UpsertCitationRequest
+	(*Document)(nil),               // 6: quark.indexer.v1.Document
+	(*EmbeddingMetadata)(nil),      // 7: quark.indexer.v1.EmbeddingMetadata
+	(*Entity)(nil),                 // 8: quark.indexer.v1.Entity
+	(*Relation)(nil),               // 9: quark.indexer.v1.Relation
+	(*Fact)(nil),                   // 10: quark.indexer.v1.Fact
+	(*Citation)(nil),               // 11: quark.indexer.v1.Citation
+	(*Provenance)(nil),             // 12: quark.indexer.v1.Provenance
+	(*SourceReference)(nil),        // 13: quark.indexer.v1.SourceReference
+	(*IndexStatus)(nil),            // 14: quark.indexer.v1.IndexStatus
+	(*QueryRequest)(nil),           // 15: quark.indexer.v1.QueryRequest
+	(*ContextResponse)(nil),        // 16: quark.indexer.v1.ContextResponse
+	(*Chunk)(nil),                  // 17: quark.indexer.v1.Chunk
+	(*GraphNode)(nil),              // 18: quark.indexer.v1.GraphNode
+	(*GraphEdge)(nil),              // 19: quark.indexer.v1.GraphEdge
+	(*GraphFragment)(nil),          // 20: quark.indexer.v1.GraphFragment
+	(*ContextPackage)(nil),         // 21: quark.indexer.v1.ContextPackage
+	(*DeleteChunkRequest)(nil),     // 22: quark.indexer.v1.DeleteChunkRequest
+	(*DeleteChunkResponse)(nil),    // 23: quark.indexer.v1.DeleteChunkResponse
+	(*DeleteDocumentRequest)(nil),  // 24: quark.indexer.v1.DeleteDocumentRequest
+	(*DeleteDocumentResponse)(nil), // 25: quark.indexer.v1.DeleteDocumentResponse
+	nil,                            // 26: quark.indexer.v1.UpsertChunkRequest.SourceMetadataEntry
+	nil,                            // 27: quark.indexer.v1.Document.MetadataEntry
+	nil,                            // 28: quark.indexer.v1.Fact.MetadataEntry
+	nil,                            // 29: quark.indexer.v1.Provenance.MetadataEntry
+	nil,                            // 30: quark.indexer.v1.SourceReference.MetadataEntry
+	nil,                            // 31: quark.indexer.v1.QueryRequest.FiltersEntry
+	nil,                            // 32: quark.indexer.v1.Chunk.MetadataEntry
 }
 var file_quark_indexer_v1_indexer_proto_depIdxs = []int32{
-	9,  // 0: quark.indexer.v1.IndexRequest.entities:type_name -> quark.indexer.v1.Entity
-	10, // 1: quark.indexer.v1.IndexRequest.relations:type_name -> quark.indexer.v1.Relation
-	27, // 2: quark.indexer.v1.IndexRequest.source_metadata:type_name -> quark.indexer.v1.IndexRequest.SourceMetadataEntry
-	7,  // 3: quark.indexer.v1.IndexRequest.document:type_name -> quark.indexer.v1.Document
-	8,  // 4: quark.indexer.v1.IndexRequest.embedding_metadata:type_name -> quark.indexer.v1.EmbeddingMetadata
-	11, // 5: quark.indexer.v1.IndexRequest.facts:type_name -> quark.indexer.v1.Fact
-	12, // 6: quark.indexer.v1.IndexRequest.citations:type_name -> quark.indexer.v1.Citation
-	13, // 7: quark.indexer.v1.IndexRequest.provenance:type_name -> quark.indexer.v1.Provenance
-	7,  // 8: quark.indexer.v1.UpsertDocumentRequest.document:type_name -> quark.indexer.v1.Document
-	28, // 9: quark.indexer.v1.UpsertChunkRequest.source_metadata:type_name -> quark.indexer.v1.UpsertChunkRequest.SourceMetadataEntry
-	7,  // 10: quark.indexer.v1.UpsertChunkRequest.document:type_name -> quark.indexer.v1.Document
-	8,  // 11: quark.indexer.v1.UpsertChunkRequest.embedding_metadata:type_name -> quark.indexer.v1.EmbeddingMetadata
-	11, // 12: quark.indexer.v1.UpsertChunkRequest.facts:type_name -> quark.indexer.v1.Fact
-	12, // 13: quark.indexer.v1.UpsertChunkRequest.citations:type_name -> quark.indexer.v1.Citation
-	13, // 14: quark.indexer.v1.UpsertChunkRequest.provenance:type_name -> quark.indexer.v1.Provenance
-	9,  // 15: quark.indexer.v1.UpsertChunkRequest.entities:type_name -> quark.indexer.v1.Entity
-	10, // 16: quark.indexer.v1.UpsertChunkRequest.relations:type_name -> quark.indexer.v1.Relation
-	11, // 17: quark.indexer.v1.UpsertFactRequest.fact:type_name -> quark.indexer.v1.Fact
-	9,  // 18: quark.indexer.v1.UpsertEntityRequest.entity:type_name -> quark.indexer.v1.Entity
-	10, // 19: quark.indexer.v1.UpsertRelationRequest.relation:type_name -> quark.indexer.v1.Relation
-	12, // 20: quark.indexer.v1.UpsertCitationRequest.citation:type_name -> quark.indexer.v1.Citation
-	29, // 21: quark.indexer.v1.Document.metadata:type_name -> quark.indexer.v1.Document.MetadataEntry
-	14, // 22: quark.indexer.v1.Document.sources:type_name -> quark.indexer.v1.SourceReference
-	12, // 23: quark.indexer.v1.Fact.citations:type_name -> quark.indexer.v1.Citation
-	30, // 24: quark.indexer.v1.Fact.metadata:type_name -> quark.indexer.v1.Fact.MetadataEntry
-	31, // 25: quark.indexer.v1.Provenance.metadata:type_name -> quark.indexer.v1.Provenance.MetadataEntry
-	14, // 26: quark.indexer.v1.Provenance.sources:type_name -> quark.indexer.v1.SourceReference
-	32, // 27: quark.indexer.v1.SourceReference.metadata:type_name -> quark.indexer.v1.SourceReference.MetadataEntry
-	33, // 28: quark.indexer.v1.QueryRequest.filters:type_name -> quark.indexer.v1.QueryRequest.FiltersEntry
-	18, // 29: quark.indexer.v1.ContextResponse.chunks:type_name -> quark.indexer.v1.Chunk
-	21, // 30: quark.indexer.v1.ContextResponse.graph:type_name -> quark.indexer.v1.GraphFragment
-	22, // 31: quark.indexer.v1.ContextResponse.context_package:type_name -> quark.indexer.v1.ContextPackage
-	34, // 32: quark.indexer.v1.Chunk.metadata:type_name -> quark.indexer.v1.Chunk.MetadataEntry
-	7,  // 33: quark.indexer.v1.Chunk.document:type_name -> quark.indexer.v1.Document
-	8,  // 34: quark.indexer.v1.Chunk.embedding_metadata:type_name -> quark.indexer.v1.EmbeddingMetadata
-	11, // 35: quark.indexer.v1.Chunk.facts:type_name -> quark.indexer.v1.Fact
-	12, // 36: quark.indexer.v1.Chunk.citations:type_name -> quark.indexer.v1.Citation
-	13, // 37: quark.indexer.v1.Chunk.provenance:type_name -> quark.indexer.v1.Provenance
-	19, // 38: quark.indexer.v1.GraphFragment.nodes:type_name -> quark.indexer.v1.GraphNode
-	20, // 39: quark.indexer.v1.GraphFragment.edges:type_name -> quark.indexer.v1.GraphEdge
-	18, // 40: quark.indexer.v1.ContextPackage.chunks:type_name -> quark.indexer.v1.Chunk
-	11, // 41: quark.indexer.v1.ContextPackage.facts:type_name -> quark.indexer.v1.Fact
-	12, // 42: quark.indexer.v1.ContextPackage.citations:type_name -> quark.indexer.v1.Citation
-	13, // 43: quark.indexer.v1.ContextPackage.provenance:type_name -> quark.indexer.v1.Provenance
-	21, // 44: quark.indexer.v1.ContextPackage.graph:type_name -> quark.indexer.v1.GraphFragment
-	1,  // 45: quark.indexer.v1.IndexerService.UpsertDocument:input_type -> quark.indexer.v1.UpsertDocumentRequest
-	2,  // 46: quark.indexer.v1.IndexerService.UpsertChunk:input_type -> quark.indexer.v1.UpsertChunkRequest
-	3,  // 47: quark.indexer.v1.IndexerService.UpsertFact:input_type -> quark.indexer.v1.UpsertFactRequest
-	4,  // 48: quark.indexer.v1.IndexerService.UpsertEntity:input_type -> quark.indexer.v1.UpsertEntityRequest
-	5,  // 49: quark.indexer.v1.IndexerService.UpsertRelation:input_type -> quark.indexer.v1.UpsertRelationRequest
-	6,  // 50: quark.indexer.v1.IndexerService.UpsertCitation:input_type -> quark.indexer.v1.UpsertCitationRequest
-	0,  // 51: quark.indexer.v1.IndexerService.IndexDocument:input_type -> quark.indexer.v1.IndexRequest
-	16, // 52: quark.indexer.v1.IndexerService.QueryContext:input_type -> quark.indexer.v1.QueryRequest
-	16, // 53: quark.indexer.v1.IndexerService.GetContext:input_type -> quark.indexer.v1.QueryRequest
-	25, // 54: quark.indexer.v1.IndexerService.DeleteDocument:input_type -> quark.indexer.v1.DeleteDocumentRequest
-	23, // 55: quark.indexer.v1.IndexerService.DeleteChunk:input_type -> quark.indexer.v1.DeleteChunkRequest
-	15, // 56: quark.indexer.v1.IndexerService.UpsertDocument:output_type -> quark.indexer.v1.IndexStatus
-	15, // 57: quark.indexer.v1.IndexerService.UpsertChunk:output_type -> quark.indexer.v1.IndexStatus
-	15, // 58: quark.indexer.v1.IndexerService.UpsertFact:output_type -> quark.indexer.v1.IndexStatus
-	15, // 59: quark.indexer.v1.IndexerService.UpsertEntity:output_type -> quark.indexer.v1.IndexStatus
-	15, // 60: quark.indexer.v1.IndexerService.UpsertRelation:output_type -> quark.indexer.v1.IndexStatus
-	15, // 61: quark.indexer.v1.IndexerService.UpsertCitation:output_type -> quark.indexer.v1.IndexStatus
-	15, // 62: quark.indexer.v1.IndexerService.IndexDocument:output_type -> quark.indexer.v1.IndexStatus
-	17, // 63: quark.indexer.v1.IndexerService.QueryContext:output_type -> quark.indexer.v1.ContextResponse
-	17, // 64: quark.indexer.v1.IndexerService.GetContext:output_type -> quark.indexer.v1.ContextResponse
-	26, // 65: quark.indexer.v1.IndexerService.DeleteDocument:output_type -> quark.indexer.v1.DeleteDocumentResponse
-	24, // 66: quark.indexer.v1.IndexerService.DeleteChunk:output_type -> quark.indexer.v1.DeleteChunkResponse
-	56, // [56:67] is the sub-list for method output_type
-	45, // [45:56] is the sub-list for method input_type
-	45, // [45:45] is the sub-list for extension type_name
-	45, // [45:45] is the sub-list for extension extendee
-	0,  // [0:45] is the sub-list for field type_name
+	6,  // 0: quark.indexer.v1.UpsertDocumentRequest.document:type_name -> quark.indexer.v1.Document
+	26, // 1: quark.indexer.v1.UpsertChunkRequest.source_metadata:type_name -> quark.indexer.v1.UpsertChunkRequest.SourceMetadataEntry
+	6,  // 2: quark.indexer.v1.UpsertChunkRequest.document:type_name -> quark.indexer.v1.Document
+	7,  // 3: quark.indexer.v1.UpsertChunkRequest.embedding_metadata:type_name -> quark.indexer.v1.EmbeddingMetadata
+	10, // 4: quark.indexer.v1.UpsertChunkRequest.facts:type_name -> quark.indexer.v1.Fact
+	11, // 5: quark.indexer.v1.UpsertChunkRequest.citations:type_name -> quark.indexer.v1.Citation
+	12, // 6: quark.indexer.v1.UpsertChunkRequest.provenance:type_name -> quark.indexer.v1.Provenance
+	8,  // 7: quark.indexer.v1.UpsertChunkRequest.entities:type_name -> quark.indexer.v1.Entity
+	9,  // 8: quark.indexer.v1.UpsertChunkRequest.relations:type_name -> quark.indexer.v1.Relation
+	10, // 9: quark.indexer.v1.UpsertFactRequest.fact:type_name -> quark.indexer.v1.Fact
+	8,  // 10: quark.indexer.v1.UpsertEntityRequest.entity:type_name -> quark.indexer.v1.Entity
+	9,  // 11: quark.indexer.v1.UpsertRelationRequest.relation:type_name -> quark.indexer.v1.Relation
+	11, // 12: quark.indexer.v1.UpsertCitationRequest.citation:type_name -> quark.indexer.v1.Citation
+	27, // 13: quark.indexer.v1.Document.metadata:type_name -> quark.indexer.v1.Document.MetadataEntry
+	13, // 14: quark.indexer.v1.Document.sources:type_name -> quark.indexer.v1.SourceReference
+	11, // 15: quark.indexer.v1.Fact.citations:type_name -> quark.indexer.v1.Citation
+	28, // 16: quark.indexer.v1.Fact.metadata:type_name -> quark.indexer.v1.Fact.MetadataEntry
+	29, // 17: quark.indexer.v1.Provenance.metadata:type_name -> quark.indexer.v1.Provenance.MetadataEntry
+	13, // 18: quark.indexer.v1.Provenance.sources:type_name -> quark.indexer.v1.SourceReference
+	30, // 19: quark.indexer.v1.SourceReference.metadata:type_name -> quark.indexer.v1.SourceReference.MetadataEntry
+	31, // 20: quark.indexer.v1.QueryRequest.filters:type_name -> quark.indexer.v1.QueryRequest.FiltersEntry
+	17, // 21: quark.indexer.v1.ContextResponse.chunks:type_name -> quark.indexer.v1.Chunk
+	20, // 22: quark.indexer.v1.ContextResponse.graph:type_name -> quark.indexer.v1.GraphFragment
+	21, // 23: quark.indexer.v1.ContextResponse.context_package:type_name -> quark.indexer.v1.ContextPackage
+	32, // 24: quark.indexer.v1.Chunk.metadata:type_name -> quark.indexer.v1.Chunk.MetadataEntry
+	6,  // 25: quark.indexer.v1.Chunk.document:type_name -> quark.indexer.v1.Document
+	7,  // 26: quark.indexer.v1.Chunk.embedding_metadata:type_name -> quark.indexer.v1.EmbeddingMetadata
+	10, // 27: quark.indexer.v1.Chunk.facts:type_name -> quark.indexer.v1.Fact
+	11, // 28: quark.indexer.v1.Chunk.citations:type_name -> quark.indexer.v1.Citation
+	12, // 29: quark.indexer.v1.Chunk.provenance:type_name -> quark.indexer.v1.Provenance
+	18, // 30: quark.indexer.v1.GraphFragment.nodes:type_name -> quark.indexer.v1.GraphNode
+	19, // 31: quark.indexer.v1.GraphFragment.edges:type_name -> quark.indexer.v1.GraphEdge
+	17, // 32: quark.indexer.v1.ContextPackage.chunks:type_name -> quark.indexer.v1.Chunk
+	10, // 33: quark.indexer.v1.ContextPackage.facts:type_name -> quark.indexer.v1.Fact
+	11, // 34: quark.indexer.v1.ContextPackage.citations:type_name -> quark.indexer.v1.Citation
+	12, // 35: quark.indexer.v1.ContextPackage.provenance:type_name -> quark.indexer.v1.Provenance
+	20, // 36: quark.indexer.v1.ContextPackage.graph:type_name -> quark.indexer.v1.GraphFragment
+	0,  // 37: quark.indexer.v1.IndexerService.UpsertDocument:input_type -> quark.indexer.v1.UpsertDocumentRequest
+	1,  // 38: quark.indexer.v1.IndexerService.UpsertChunk:input_type -> quark.indexer.v1.UpsertChunkRequest
+	2,  // 39: quark.indexer.v1.IndexerService.UpsertFact:input_type -> quark.indexer.v1.UpsertFactRequest
+	3,  // 40: quark.indexer.v1.IndexerService.UpsertEntity:input_type -> quark.indexer.v1.UpsertEntityRequest
+	4,  // 41: quark.indexer.v1.IndexerService.UpsertRelation:input_type -> quark.indexer.v1.UpsertRelationRequest
+	5,  // 42: quark.indexer.v1.IndexerService.UpsertCitation:input_type -> quark.indexer.v1.UpsertCitationRequest
+	15, // 43: quark.indexer.v1.IndexerService.QueryContext:input_type -> quark.indexer.v1.QueryRequest
+	24, // 44: quark.indexer.v1.IndexerService.DeleteDocument:input_type -> quark.indexer.v1.DeleteDocumentRequest
+	22, // 45: quark.indexer.v1.IndexerService.DeleteChunk:input_type -> quark.indexer.v1.DeleteChunkRequest
+	14, // 46: quark.indexer.v1.IndexerService.UpsertDocument:output_type -> quark.indexer.v1.IndexStatus
+	14, // 47: quark.indexer.v1.IndexerService.UpsertChunk:output_type -> quark.indexer.v1.IndexStatus
+	14, // 48: quark.indexer.v1.IndexerService.UpsertFact:output_type -> quark.indexer.v1.IndexStatus
+	14, // 49: quark.indexer.v1.IndexerService.UpsertEntity:output_type -> quark.indexer.v1.IndexStatus
+	14, // 50: quark.indexer.v1.IndexerService.UpsertRelation:output_type -> quark.indexer.v1.IndexStatus
+	14, // 51: quark.indexer.v1.IndexerService.UpsertCitation:output_type -> quark.indexer.v1.IndexStatus
+	16, // 52: quark.indexer.v1.IndexerService.QueryContext:output_type -> quark.indexer.v1.ContextResponse
+	25, // 53: quark.indexer.v1.IndexerService.DeleteDocument:output_type -> quark.indexer.v1.DeleteDocumentResponse
+	23, // 54: quark.indexer.v1.IndexerService.DeleteChunk:output_type -> quark.indexer.v1.DeleteChunkResponse
+	46, // [46:55] is the sub-list for method output_type
+	37, // [37:46] is the sub-list for method input_type
+	37, // [37:37] is the sub-list for extension type_name
+	37, // [37:37] is the sub-list for extension extendee
+	0,  // [0:37] is the sub-list for field type_name
 }
 
 func init() { file_quark_indexer_v1_indexer_proto_init() }
@@ -2296,7 +2137,7 @@ func file_quark_indexer_v1_indexer_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_quark_indexer_v1_indexer_proto_rawDesc), len(file_quark_indexer_v1_indexer_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   35,
+			NumMessages:   33,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

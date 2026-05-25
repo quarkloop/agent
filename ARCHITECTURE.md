@@ -77,7 +77,7 @@ The agent-owned document indexing flow is:
 5. call canonical indexer upsert functions for documents, chunks, facts,
    entities, relations, and citations,
 6. query with `gateway_Embed` and `indexer_QueryContext` or
-   `indexer_GetContext`,
+   `indexer_QueryContext`,
 7. verify grounding with citation functions,
 8. answer from returned context and citations.
 

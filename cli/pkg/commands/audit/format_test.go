@@ -10,7 +10,7 @@ import (
 
 func TestWriteAuditRecordHumanOutputDoesNotRenderSnapshots(t *testing.T) {
 	record := clientcontract.AuditRecord{
-		ReferenceID: "ref-1", SpaceID: "docs", Service: "indexer", Function: "get_context",
+		ReferenceID: "ref-1", SpaceID: "docs", Service: "indexer", Function: "query_context",
 		Status: "ok",
 	}
 	var out bytes.Buffer

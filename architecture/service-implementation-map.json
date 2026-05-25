@@ -71,8 +71,6 @@
         "gateway_Embed",
         "indexer_DeleteChunk",
         "indexer_DeleteDocument",
-        "indexer_GetContext",
-        "indexer_IndexDocument",
         "indexer_QueryContext",
         "indexer_UpsertChunk",
         "indexer_UpsertCitation",
@@ -109,7 +107,7 @@
       "missing_permissions": [],
       "name": "Quark Knowledge",
       "path": "plugins/agents/quark-knowledge/PROFILE.yaml",
-      "service_permission_count": 57
+      "service_permission_count": 55
     },
     "quark-main": {
       "area": "",
@@ -183,7 +181,7 @@
     },
     "Indexer": {
       "declared_only_function_count": 0,
-      "implemented_function_count": 11,
+      "implemented_function_count": 9,
       "profile_count": 0,
       "proto_mismatch_count": 0,
       "runnable_service_count": 1,
@@ -194,7 +192,7 @@
     },
     "Knowledge": {
       "declared_only_function_count": 4,
-      "implemented_function_count": 48,
+      "implemented_function_count": 46,
       "profile_count": 1,
       "proto_mismatch_count": 0,
       "runnable_service_count": 5,
@@ -242,7 +240,8 @@
         "prompt_shortcut_suspects": [
           "38: ToolStarts: []string{\"gateway_Embed\"},",
           "42: Name:          \"gateway_Embed\",",
-          "51: Name:           \"gateway_Embed\","
+          "51: Name:           \"gateway_Embed\",",
+          "156: Name:          \"indexer_QueryContext\","
         ]
       },
       {
@@ -265,11 +264,22 @@
         "has_process_flow": false,
         "path": "e2e/assertions_test.go",
         "prompt_shortcut_suspects": [
+          "48: Name: \"indexer_QueryContext\",",
+          "60: Name: \"indexer_QueryContext\",",
+          "72: Name: \"indexer_QueryContext\",",
+          "151: if event.Name != \"indexer_QueryContext\" || !toolEventSucceeded(event) {",
+          "156: t.Fatalf(\"indexer_QueryContext result missing retrieved chunks: %s\", event.Result)",
+          "159: t.Fatalf(\"indexer_QueryContext result missing source evidence: %s\", event.Result)",
+          "167: t.Fatalf(\"indexer_QueryContext result did not expose structured context evidence: %s\", event.Result)",
+          "169: t.Fatalf(\"indexer_QueryContext had no successful structured result: %+v\", trace.ToolResultEvents)",
           "190: if event.Name != \"gateway_Embed\" {",
           "210: t.Fatalf(\"gateway_Embed tool results missing provider=%q model=%q dimensions=%d: %+v\", provider, model, dimensions, trace.ToolResultEvents)",
           "290: if event.Name != \"gateway_Embed\" {",
           "301: t.Fatalf(\"gateway_Embed successful results = %d, want at least %d: %+v\", count, want, trace.ToolResultEvents)",
-          "336: t.Fatalf(\"UpsertChunk payload %d missing embeddingRef from gateway_Embed: %+v\", i, payload)"
+          "324: t.Fatalf(\"indexer_UpsertChunk payload count = %d, want at least %d\", len(payloads), len(documents))",
+          "336: t.Fatalf(\"UpsertChunk payload %d missing embeddingRef from gateway_Embed: %+v\", i, payload)",
+          "376: if event.Name != \"indexer_UpsertChunk\" {",
+          "381: t.Fatalf(\"decode indexer_UpsertChunk arguments: %v\\n%s\", err, event.Arguments)"
         ]
       },
       {
@@ -316,7 +326,11 @@
         "path": "e2e/indexer_markdown_agent_test.go",
         "prompt_shortcut_suspects": [
           "67: assertToolStarted(t, indexTrace, \"gateway_Embed\")",
+          "68: assertToolStarted(t, indexTrace, \"indexer_UpsertChunk\")",
+          "70: assertNoToolErrors(t, indexTrace, \"indexer_UpsertChunk\")",
+          "72: assertToolSuccessCount(t, indexTrace, \"indexer_UpsertChunk\", len(documents))",
           "89: assertToolStarted(t, queryTrace, \"gateway_Embed\")",
+          "90: assertToolStarted(t, queryTrace, \"indexer_QueryContext\")",
           "92: assertNoToolErrors(t, queryTrace, \"gateway_Embed\", \"indexer_QueryContext\", \"citation_VerifyGrounding\", \"citation_RenderReferences\")"
         ]
       },
@@ -326,7 +340,11 @@
         "path": "e2e/indexer_pdf_agent_test.go",
         "prompt_shortcut_suspects": [
           "74: assertToolStarted(t, indexTrace, \"gateway_Embed\")",
+          "75: assertToolStarted(t, indexTrace, \"indexer_UpsertChunk\")",
+          "79: assertNoToolErrors(t, indexTrace, \"indexer_UpsertChunk\")",
+          "81: assertToolSuccessCount(t, indexTrace, \"indexer_UpsertChunk\", len(documents))",
           "115: assertToolStarted(t, queryTrace, \"gateway_Embed\")",
+          "116: assertToolStarted(t, queryTrace, \"indexer_QueryContext\")",
           "118: assertNoToolErrors(t, queryTrace, \"gateway_Embed\", \"indexer_QueryContext\", \"citation_VerifyGrounding\", \"citation_RenderReferences\")"
         ]
       },
@@ -374,18 +392,18 @@
         "path": "e2e/prompt_builders_test.go",
         "prompt_shortcut_suspects": [
           "40: \"gateway_Embed\",",
-          "41: \"indexer_IndexDocument\",",
-          "47: \"service function\",",
-          "62: \"gateway_Embed\",",
-          "63: \"indexer_GetContext\",",
-          "85: \"gateway_Embed\",",
-          "86: \"indexer_IndexDocument\",",
-          "92: \"service function\",",
-          "107: \"gateway_Embed\",",
-          "108: \"indexer_GetContext\",",
-          "129: \"service function\",",
-          "148: \"service function\",",
-          "168: \"service function\","
+          "41: \"indexer_UpsertChunk\",",
+          "46: \"service function\",",
+          "61: \"gateway_Embed\",",
+          "62: \"indexer_QueryContext\",",
+          "83: \"gateway_Embed\",",
+          "84: \"indexer_UpsertChunk\",",
+          "89: \"service function\",",
+          "104: \"gateway_Embed\",",
+          "105: \"indexer_QueryContext\",",
+          "125: \"service function\",",
+          "144: \"service function\",",
+          "164: \"service function\","
         ]
       },
       {
@@ -415,11 +433,13 @@
         "path": "e2e/service_processes_test.go",
         "prompt_shortcut_suspects": [
           "443: \"gateway_Embed\",",
-          "449: \"indexer_IndexDocument\",",
-          "451: \"indexer_GetContext\",",
+          "444: \"indexer_UpsertChunk\",",
+          "449: \"indexer_UpsertChunk\",",
+          "450: \"indexer_QueryContext\",",
+          "451: \"indexer_QueryContext\",",
           "453: \"indexer_DeleteChunk\",",
           "482: \"gateway_Embed\",",
-          "483: \"indexer_IndexDocument\",",
+          "483: \"indexer_UpsertChunk\",",
           "496: t.Fatalf(\"standard knowledge e2e stack missing required service function %s\", function)"
         ]
       },
@@ -483,7 +503,7 @@
         "prompt_shortcut_suspects": []
       }
     ],
-    "prompt_shortcut_suspect_count": 44
+    "prompt_shortcut_suspect_count": 66
   },
   "services": {
     "citation": {
@@ -1499,7 +1519,7 @@
     "indexer": {
       "address_env": "QUARK_INDEXER_ADDR",
       "declared_only_function_count": 0,
-      "function_count": 11,
+      "function_count": 9,
       "functions": [
         {
           "approval_required": false,
@@ -1588,37 +1608,9 @@
         {
           "approval_required": false,
           "idempotent": true,
-          "method": "IndexDocument",
-          "method_implemented": true,
-          "name": "indexer_IndexDocument",
-          "proto_rpc_exists": true,
-          "request": "quark.indexer.v1.IndexRequest",
-          "response": "quark.indexer.v1.IndexStatus",
-          "risk_level": "write",
-          "service": "quark.indexer.v1.IndexerService",
-          "status": "implemented_end_to_end",
-          "streaming": false
-        },
-        {
-          "approval_required": false,
-          "idempotent": true,
           "method": "QueryContext",
           "method_implemented": true,
           "name": "indexer_QueryContext",
-          "proto_rpc_exists": true,
-          "request": "quark.indexer.v1.QueryRequest",
-          "response": "quark.indexer.v1.ContextResponse",
-          "risk_level": "read",
-          "service": "quark.indexer.v1.IndexerService",
-          "status": "implemented_end_to_end",
-          "streaming": false
-        },
-        {
-          "approval_required": false,
-          "idempotent": true,
-          "method": "GetContext",
-          "method_implemented": true,
-          "name": "indexer_GetContext",
           "proto_rpc_exists": true,
           "request": "quark.indexer.v1.QueryRequest",
           "response": "quark.indexer.v1.ContextResponse",
@@ -1657,7 +1649,7 @@
         }
       ],
       "health_service": "quark.indexer.v1.IndexerService",
-      "implemented_function_count": 11,
+      "implemented_function_count": 9,
       "manifest_path": "plugins/services/indexer/manifest.yaml",
       "module_exists": true,
       "module_path": "services/indexer",
@@ -2773,9 +2765,9 @@
     "agent_profile_count": 4,
     "declared_only_or_mismatched_function_count": 5,
     "e2e_test_file_count": 32,
-    "implemented_service_function_count": 140,
+    "implemented_service_function_count": 138,
     "runnable_service_module_count": 12,
-    "service_function_count": 145,
+    "service_function_count": 143,
     "service_plugin_count": 13
   },
   "version": 1

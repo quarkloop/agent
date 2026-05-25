@@ -8,7 +8,7 @@ import (
 	"github.com/quarkloop/services/indexer/pkg/indexer"
 )
 
-func TestGetContextReturnsOwnedCopies(t *testing.T) {
+func TestQueryContextReturnsOwnedCopies(t *testing.T) {
 	store := &fakeStore{
 		chunks: []indexer.Chunk{{
 			ID:                "chunk-1",
@@ -32,7 +32,7 @@ func TestGetContextReturnsOwnedCopies(t *testing.T) {
 		t.Fatalf("new service: %v", err)
 	}
 
-	result, err := svc.GetContext(context.Background(), ContextQuery{Vector: []float32{0.1}, Limit: 1, Depth: 1})
+	result, err := svc.QueryContext(context.Background(), ContextQuery{Vector: []float32{0.1}, Limit: 1, Depth: 1})
 	if err != nil {
 		t.Fatalf("get context: %v", err)
 	}
@@ -85,14 +85,14 @@ func TestGetContextReturnsOwnedCopies(t *testing.T) {
 	}
 }
 
-func TestIndexDocumentNormalizesCanonicalRecord(t *testing.T) {
+func TestUpsertChunkNormalizesCanonicalRecord(t *testing.T) {
 	store := &fakeStore{}
 	svc, err := New(store)
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
 
-	err = svc.IndexDocument(context.Background(), IndexCommand{
+	err = svc.UpsertChunk(context.Background(), IndexCommand{
 		ChunkID: "chunk-1",
 		Text:    "Quark indexes agent-produced records.",
 		Vector:  []float32{0.1, 0.2, 0.3},
@@ -144,12 +144,12 @@ func TestIndexDocumentNormalizesCanonicalRecord(t *testing.T) {
 	}
 }
 
-func TestIndexDocumentRejectsEmbeddingDimensionMismatch(t *testing.T) {
+func TestUpsertChunkRejectsEmbeddingDimensionMismatch(t *testing.T) {
 	svc, err := New(&fakeStore{})
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
-	err = svc.IndexDocument(context.Background(), IndexCommand{
+	err = svc.UpsertChunk(context.Background(), IndexCommand{
 		ChunkID:           "chunk-1",
 		Text:              "hello",
 		Vector:            []float32{0.1, 0.2},
@@ -160,7 +160,7 @@ func TestIndexDocumentRejectsEmbeddingDimensionMismatch(t *testing.T) {
 	}
 }
 
-func TestIndexDocumentDerivesSearchMetadataFromCanonicalSourceFields(t *testing.T) {
+func TestUpsertChunkDerivesSearchMetadataFromCanonicalSourceFields(t *testing.T) {
 	store := &fakeStore{}
 	svc, err := New(store)
 	if err != nil {
@@ -211,12 +211,12 @@ func TestIndexDocumentDerivesSearchMetadataFromCanonicalSourceFields(t *testing.
 	}
 }
 
-func TestIndexDocumentRejectsMixedEmbeddingDimensions(t *testing.T) {
+func TestUpsertChunkRejectsMixedEmbeddingDimensions(t *testing.T) {
 	svc, err := New(&fakeStore{})
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
-	if err := svc.IndexDocument(context.Background(), IndexCommand{
+	if err := svc.UpsertChunk(context.Background(), IndexCommand{
 		ChunkID:           "chunk-1",
 		Text:              "hello",
 		Vector:            []float32{0.1, 0.2},
@@ -225,7 +225,7 @@ func TestIndexDocumentRejectsMixedEmbeddingDimensions(t *testing.T) {
 		t.Fatalf("first index document: %v", err)
 	}
 
-	err = svc.IndexDocument(context.Background(), IndexCommand{
+	err = svc.UpsertChunk(context.Background(), IndexCommand{
 		ChunkID:           "chunk-2",
 		Text:              "goodbye",
 		Vector:            []float32{0.1, 0.2, 0.3},
@@ -236,12 +236,12 @@ func TestIndexDocumentRejectsMixedEmbeddingDimensions(t *testing.T) {
 	}
 }
 
-func TestGetContextRejectsQueryDimensionMismatch(t *testing.T) {
+func TestQueryContextRejectsQueryDimensionMismatch(t *testing.T) {
 	svc, err := New(&fakeStore{})
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
-	if err := svc.IndexDocument(context.Background(), IndexCommand{
+	if err := svc.UpsertChunk(context.Background(), IndexCommand{
 		ChunkID:           "chunk-1",
 		Text:              "hello",
 		Vector:            []float32{0.1, 0.2},
@@ -250,20 +250,20 @@ func TestGetContextRejectsQueryDimensionMismatch(t *testing.T) {
 		t.Fatalf("index document: %v", err)
 	}
 
-	_, err = svc.GetContext(context.Background(), ContextQuery{Vector: []float32{0.1, 0.2, 0.3}})
+	_, err = svc.QueryContext(context.Background(), ContextQuery{Vector: []float32{0.1, 0.2, 0.3}})
 	if err == nil || !strings.Contains(err.Error(), "2-dimensional embeddings") {
 		t.Fatalf("expected query dimension validation error, got %v", err)
 	}
 }
 
-func TestIndexDocumentDeduplicatesPrimaryGraphWrites(t *testing.T) {
+func TestUpsertChunkDeduplicatesPrimaryGraphWrites(t *testing.T) {
 	store := &fakeStore{}
 	svc, err := New(store)
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
 
-	err = svc.IndexDocument(context.Background(), IndexCommand{
+	err = svc.UpsertChunk(context.Background(), IndexCommand{
 		ChunkID: "chunk-1",
 		Text:    "Productivity apps include calendar planning.",
 		Vector:  []float32{0.1, 0.2},
@@ -293,7 +293,7 @@ func TestIndexDocumentDeduplicatesPrimaryGraphWrites(t *testing.T) {
 	}
 }
 
-func TestIndexDocumentUpsertsDuplicateChunkAsOneCanonicalRecord(t *testing.T) {
+func TestUpsertChunkUpsertsDuplicateChunkAsOneCanonicalRecord(t *testing.T) {
 	store := &fakeStore{}
 	svc, err := New(store)
 	if err != nil {
@@ -301,7 +301,7 @@ func TestIndexDocumentUpsertsDuplicateChunkAsOneCanonicalRecord(t *testing.T) {
 	}
 
 	for _, text := range []string{"first", "updated"} {
-		if err := svc.IndexDocument(context.Background(), IndexCommand{
+		if err := svc.UpsertChunk(context.Background(), IndexCommand{
 			ChunkID: "chunk-1",
 			Text:    text,
 			Vector:  []float32{0.1, 0.2},
@@ -408,7 +408,7 @@ func TestCanonicalStorageFunctionsValidateAndUseStoreBoundary(t *testing.T) {
 	}
 }
 
-func TestIndexDocumentPreservesGraphVectorConsistencyInOneStoreRecord(t *testing.T) {
+func TestUpsertChunkPreservesGraphVectorConsistencyInOneStoreRecord(t *testing.T) {
 	store := &fakeStore{}
 	svc, err := New(store)
 	if err != nil {
@@ -416,7 +416,7 @@ func TestIndexDocumentPreservesGraphVectorConsistencyInOneStoreRecord(t *testing
 	}
 
 	vector := []float32{0.4, 0.6}
-	err = svc.IndexDocument(context.Background(), IndexCommand{
+	err = svc.UpsertChunk(context.Background(), IndexCommand{
 		ChunkID: "chunk-graph",
 		Text:    "Transformer uses attention.",
 		Vector:  vector,

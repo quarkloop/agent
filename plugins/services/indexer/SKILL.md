@@ -99,14 +99,6 @@ when the indexer service is available.
     `contextPackage`, and a flattened `reasoningContext` string suitable for an
     LLM context window.
 
-- `GetContext(QueryRequest) -> ContextResponse`
-  - Generated service function: `indexer_GetContext`
-  - Compatibility alias for `QueryContext`.
-
-- `IndexDocument(IndexRequest) -> IndexStatus`
-  - Generated service function: `indexer_IndexDocument`
-  - Compatibility alias for `UpsertChunk`.
-
 - `DeleteDocument(DeleteDocumentRequest) -> DeleteDocumentResponse`
   - Generated service function: `indexer_DeleteDocument`
   - Required JSON fields: `documentId`
@@ -127,9 +119,7 @@ when the indexer service is available.
 - `UpsertChunk` receives agent-produced chunks, facts, entities, relations,
   citations, embedding references/metadata, and provenance. It must not receive
   raw PDFs or prompt-only payloads as a substitute for extracted knowledge.
-- `IndexDocument` is a compatibility alias for the canonical chunk upsert path.
-  Prefer `UpsertDocument` and `UpsertChunk` in new workflows. Re-indexing the
-  same chunk replaces previous chunk-owned metadata predicates, entity links,
+- Re-indexing the same chunk replaces previous chunk-owned metadata predicates, entity links,
   document links, and relation nodes before writing the new canonical record.
 - Preserve typed source/page/media references and embedding modalities in
   canonical records when the evidence or Gateway result provides them.
@@ -138,7 +128,7 @@ when the indexer service is available.
   still reference them.
 - `DeleteChunk` removes the chunk and chunk-owned relation nodes. Shared entity
   nodes remain available for other chunks that still reference them.
-- Query text must be embedded by the agent before `GetContext`.
+- Query text must be embedded by the agent before `QueryContext`.
 - Use `embeddingRef` and `queryVectorRef` from `gateway_Embed` instead of
   manually copying vectors through the LLM.
 - Use the same embedding dimensions for document chunks and query text.

@@ -41,8 +41,8 @@ PROMPT_SHORTCUT_TERMS = {
     "approval_required",
     "gateway_Embed",
     "indexer_DeleteChunk",
-    "indexer_GetContext",
-    "indexer_IndexDocument",
+    "indexer_QueryContext",
+    "indexer_UpsertChunk",
     "service function",
     "tool call",
 }
@@ -50,8 +50,8 @@ PROMPT_SHORTCUT_TERMS = {
 DIRECT_SHORTCUT_TERMS = {
     ".DeleteChunk(",
     ".Embed(",
-    ".GetContext(",
-    ".IndexDocument(",
+    ".QueryContext(",
+    ".UpsertChunk(",
 }
 
 

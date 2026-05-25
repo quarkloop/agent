@@ -119,7 +119,7 @@ func TestInferStreamsTraceableToolEvents(t *testing.T) {
 					ID:    "call-1",
 					Type:  "function",
 					Function: plugin.ToolCallFunction{
-						Name:      "indexer_IndexDocument",
+						Name:      "indexer_UpsertChunk",
 						Arguments: `{"chunkId":"chunk-1"}`,
 					},
 				}},
@@ -136,7 +136,7 @@ func TestInferStreamsTraceableToolEvents(t *testing.T) {
 	_, err := client.Infer(
 		ctx,
 		[]plugin.Message{{Role: "user", Content: "index"}},
-		[]plugin.ToolSchema{{Name: "indexer_IndexDocument"}},
+		[]plugin.ToolSchema{{Name: "indexer_UpsertChunk"}},
 		func(context.Context, string, string) (string, error) { return "", fmt.Errorf("write failed") },
 		func(kind string, data any) {
 			payload, ok := data.(map[string]any)
@@ -154,7 +154,7 @@ func TestInferStreamsTraceableToolEvents(t *testing.T) {
 	if len(events) != 2 {
 		t.Fatalf("events = %+v, want start and result", events)
 	}
-	if events[0]["kind"] != "tool_start" || events[0]["id"] != "call-1" || events[0]["name"] != "indexer_IndexDocument" {
+	if events[0]["kind"] != "tool_start" || events[0]["id"] != "call-1" || events[0]["name"] != "indexer_UpsertChunk" {
 		t.Fatalf("tool start event not traceable: %+v", events[0])
 	}
 	if events[0]["session_id"] != "session-1" || events[0]["run_id"] != "run-1" || events[0]["tool_call_id"] != "call-1" || events[0]["service_call_id"] != nil || events[0]["observed_at"] == "" {
@@ -486,7 +486,7 @@ func TestInferNormalizesToolCallsBeforeExecutionAndHistory(t *testing.T) {
 							{
 								Index: 0,
 								Function: plugin.ToolCallFunction{
-									Name:      " indexer_IndexDocument ",
+									Name:      " indexer_UpsertChunk ",
 									Arguments: `{"chunkId":"chunk-1"}`,
 								},
 							},
@@ -503,7 +503,7 @@ func TestInferNormalizesToolCallsBeforeExecutionAndHistory(t *testing.T) {
 								ID:    "bad-args",
 								Type:  "function",
 								Function: plugin.ToolCallFunction{
-									Name:      "indexer_IndexDocument",
+									Name:      "indexer_UpsertChunk",
 									Arguments: `{"chunkId":`,
 								},
 							},
@@ -528,7 +528,7 @@ func TestInferNormalizesToolCallsBeforeExecutionAndHistory(t *testing.T) {
 	result, err := client.Infer(
 		context.Background(),
 		[]plugin.Message{{Role: "user", Content: "index"}},
-		[]plugin.ToolSchema{{Name: "indexer_IndexDocument"}},
+		[]plugin.ToolSchema{{Name: "indexer_UpsertChunk"}},
 		func(_ context.Context, name, arguments string) (string, error) {
 			calledNames = append(calledNames, name)
 			if arguments != `{"chunkId":"chunk-1"}` {
@@ -548,7 +548,7 @@ func TestInferNormalizesToolCallsBeforeExecutionAndHistory(t *testing.T) {
 	if result != "indexed" {
 		t.Fatalf("result = %q", result)
 	}
-	if len(calledNames) != 1 || calledNames[0] != "indexer_IndexDocument" {
+	if len(calledNames) != 1 || calledNames[0] != "indexer_UpsertChunk" {
 		t.Fatalf("calledNames = %v", calledNames)
 	}
 }
@@ -672,7 +672,7 @@ func TestInferRetriesAfterOnlyMalformedToolCalls(t *testing.T) {
 	result, err := client.Infer(
 		context.Background(),
 		[]plugin.Message{{Role: "user", Content: "start"}},
-		[]plugin.ToolSchema{{Name: "indexer_IndexDocument"}},
+		[]plugin.ToolSchema{{Name: "indexer_UpsertChunk"}},
 		func(context.Context, string, string) (string, error) {
 			t.Fatal("malformed tool call should not execute")
 			return "", nil
@@ -773,7 +773,7 @@ func assertSingleValidToolCallHistory(messages []plugin.Message) error {
 	if call.Index != 0 {
 		return fmt.Errorf("normalized tool call index = %d", call.Index)
 	}
-	if call.Function.Name != "indexer_IndexDocument" {
+	if call.Function.Name != "indexer_UpsertChunk" {
 		return fmt.Errorf("normalized tool call name = %q", call.Function.Name)
 	}
 

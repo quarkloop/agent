@@ -26,9 +26,9 @@ service:
   proto_services:
     - quark.indexer.v1.IndexerService
   functions:
-    - name: indexer_GetContext
+    - name: indexer_QueryContext
       service: quark.indexer.v1.IndexerService
-      method: GetContext
+      method: QueryContext
       request: quark.indexer.v1.QueryRequest
       response: quark.indexer.v1.ContextResponse
       description: Retrieve context for an agent-provided query embedding.
@@ -51,10 +51,10 @@ service:
 	if manifest.Service.Transport != "nats" || manifest.Service.SubjectPrefix != "svc.indexer.v1" || manifest.Service.QueueGroup != "q.service.v1.indexer" {
 		t.Fatalf("service nats config = %+v", manifest.Service)
 	}
-	if len(manifest.Service.Functions) != 1 || manifest.Service.Functions[0].Name != "indexer_GetContext" {
+	if len(manifest.Service.Functions) != 1 || manifest.Service.Functions[0].Name != "indexer_QueryContext" {
 		t.Fatalf("service functions = %+v", manifest.Service.Functions)
 	}
-	if manifest.Service.Functions[0].Subject != "svc.indexer.v1.get_context" {
+	if manifest.Service.Functions[0].Subject != "svc.indexer.v1.query_context" {
 		t.Fatalf("service function subject = %q", manifest.Service.Functions[0].Subject)
 	}
 }
@@ -367,8 +367,8 @@ func TestQuarkKnowledgeProfileDeclaresConcreteServiceFunctions(t *testing.T) {
 		"runstate_ListIncompleteItems",
 		"runstate_ListArtifacts",
 		"gateway_Embed",
-		"indexer_IndexDocument",
-		"indexer_GetContext",
+		"indexer_UpsertChunk",
+		"indexer_QueryContext",
 		"indexer_DeleteChunk",
 		"citation_ResolveSpans",
 		"citation_VerifyGrounding",

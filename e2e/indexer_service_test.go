@@ -44,7 +44,7 @@ func TestIndexerServiceWithRealDgraph(t *testing.T) {
 	defer cancel()
 
 	var indexResp indexerv1.IndexStatus
-	requestServiceFunction(t, ctx, conn, env.Space, "indexer", "index_document", &indexerv1.IndexRequest{
+	requestServiceFunction(t, ctx, conn, env.Space, "indexer", "upsert_chunk", &indexerv1.UpsertChunkRequest{
 		ChunkId:     "e2e-chunk-1",
 		TextContent: "Quark service extraction uses NATS service functions and Dgraph vector indexes.",
 		Embedding:   []float32{1, 0, 0},
@@ -62,7 +62,7 @@ func TestIndexerServiceWithRealDgraph(t *testing.T) {
 	}
 
 	var contextResp indexerv1.ContextResponse
-	queryCall := requestServiceFunction(t, ctx, conn, env.Space, "indexer", "get_context", &indexerv1.QueryRequest{
+	queryCall := requestServiceFunction(t, ctx, conn, env.Space, "indexer", "query_context", &indexerv1.QueryRequest{
 		QueryVector: []float32{1, 0, 0},
 		Limit:       5,
 		Depth:       2,
@@ -78,7 +78,7 @@ func TestIndexerServiceWithRealDgraph(t *testing.T) {
 		t.Fatalf("context missing graph relation: %q", contextResp.GetReasoningContext())
 	}
 	audit := utils.GetAuditRecord(t, env, queryCall.ReferenceID)
-	if audit.ReferenceID != queryCall.ReferenceID || audit.Service != "indexer" || audit.Function != "get_context" || audit.Status != "ok" {
+	if audit.ReferenceID != queryCall.ReferenceID || audit.Service != "indexer" || audit.Function != "query_context" || audit.Status != "ok" {
 		t.Fatalf("query audit record = %+v", audit)
 	}
 }

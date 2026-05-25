@@ -313,7 +313,7 @@ func TestIndexerWithDgraph(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.IndexDocument(ctx, indexing.IndexCommand{
+	if err := svc.UpsertChunk(ctx, indexing.IndexCommand{
 		ChunkID: "chunk-1",
 		Text:    "Quark extracts services behind gRPC contracts.",
 		Vector:  []float32{1, 0},
@@ -328,7 +328,7 @@ func TestIndexerWithDgraph(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	resp, err := svc.GetContext(ctx, indexing.ContextQuery{
+	resp, err := svc.QueryContext(ctx, indexing.ContextQuery{
 		Vector:  []float32{1, 0},
 		Limit:   3,
 		Depth:   2,

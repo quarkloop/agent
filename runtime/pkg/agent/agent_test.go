@@ -70,7 +70,7 @@ func TestSystemPromptIncludesRuntimeExtractionProfiles(t *testing.T) {
 	a := newTestAgent(t)
 
 	got := a.systemPrompt()
-	for _, want := range []string{"Runtime Extraction Profiles", "`generic-open`", "IndexRequest.facts"} {
+	for _, want := range []string{"Runtime Extraction Profiles", "`generic-open`", "UpsertChunkRequest.facts"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("system prompt missing extraction profile content %q:\n%s", want, got)
 		}
@@ -404,7 +404,7 @@ func TestInstrumentResponseRecordsToolActivity(t *testing.T) {
 	a := newTestAgent(t)
 	downstream := make(chan message.StreamMessage, 1)
 	instrumented, stop := a.instrumentResponse(context.Background(), "s1", downstream)
-	instrumented <- message.StreamMessage{Type: "tool_start", Data: map[string]any{"name": "indexer_GetContext"}}
+	instrumented <- message.StreamMessage{Type: "tool_start", Data: map[string]any{"name": "indexer_QueryContext"}}
 	stop()
 
 	records := a.Activity.List(10)

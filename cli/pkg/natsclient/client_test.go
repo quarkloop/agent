@@ -526,7 +526,7 @@ func registerTypedControlResponders(t *testing.T, responder *nats.Conn, hub *nat
 			if err := req.DecodePayload(&payload); err != nil {
 				t.Errorf("decode audit get: %v", err)
 			}
-			return clientcontract.AuditRecord{ReferenceID: payload.ReferenceID, SpaceID: payload.SpaceID, Service: "indexer", Function: "get_context", Status: "ok"}
+			return clientcontract.AuditRecord{ReferenceID: payload.ReferenceID, SpaceID: payload.SpaceID, Service: "indexer", Function: "query_context", Status: "ok"}
 		},
 		clientcontract.SubjectAuditList: func(req clientcontract.RequestEnvelope) any {
 			var payload clientcontract.AuditListRequest

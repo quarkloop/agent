@@ -3,15 +3,15 @@ package app
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
+
 	"github.com/quarkloop/pkg/natskit"
-	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"github.com/quarkloop/services/indexer/internal/indexing"
 	"github.com/quarkloop/services/indexer/internal/server"
 	"github.com/quarkloop/services/indexer/pkg/indexer"
-	"log/slog"
-	"os"
-	"path/filepath"
 )
 
 type Config struct {
@@ -47,26 +47,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return err
 	}
-	descriptor := &servicev1.ServiceDescriptor{
-		Name:    "indexer",
-		Type:    "indexer",
-		Version: "1.0.0",
-		Address: cfg.Address,
-		Rpcs: []*servicev1.RpcDescriptor{
-			{Service: "quark.indexer.v1.IndexerService", Method: "UpsertDocument", Request: "quark.indexer.v1.UpsertDocumentRequest", Response: "quark.indexer.v1.IndexStatus", Description: "Upsert one canonical source document record."},
-			{Service: "quark.indexer.v1.IndexerService", Method: "UpsertChunk", Request: "quark.indexer.v1.UpsertChunkRequest", Response: "quark.indexer.v1.IndexStatus", Description: "Upsert one canonical chunk with embedding metadata and provenance."},
-			{Service: "quark.indexer.v1.IndexerService", Method: "UpsertFact", Request: "quark.indexer.v1.UpsertFactRequest", Response: "quark.indexer.v1.IndexStatus", Description: "Upsert one canonical fact record."},
-			{Service: "quark.indexer.v1.IndexerService", Method: "UpsertEntity", Request: "quark.indexer.v1.UpsertEntityRequest", Response: "quark.indexer.v1.IndexStatus", Description: "Upsert one canonical entity record."},
-			{Service: "quark.indexer.v1.IndexerService", Method: "UpsertRelation", Request: "quark.indexer.v1.UpsertRelationRequest", Response: "quark.indexer.v1.IndexStatus", Description: "Upsert one canonical relation record."},
-			{Service: "quark.indexer.v1.IndexerService", Method: "UpsertCitation", Request: "quark.indexer.v1.UpsertCitationRequest", Response: "quark.indexer.v1.IndexStatus", Description: "Upsert one canonical citation record."},
-			{Service: "quark.indexer.v1.IndexerService", Method: "IndexDocument", Request: "quark.indexer.v1.IndexRequest", Response: "quark.indexer.v1.IndexStatus", Description: "Persist one canonical index record: document, chunk, embedding metadata, graph data, facts, citations, and provenance."},
-			{Service: "quark.indexer.v1.IndexerService", Method: "QueryContext", Request: "quark.indexer.v1.QueryRequest", Response: "quark.indexer.v1.ContextResponse", Description: "Retrieve vector and graph context for an agent-provided query embedding."},
-			{Service: "quark.indexer.v1.IndexerService", Method: "GetContext", Request: "quark.indexer.v1.QueryRequest", Response: "quark.indexer.v1.ContextResponse", Description: "Retrieve vector and graph context for an agent-provided query embedding."},
-			{Service: "quark.indexer.v1.IndexerService", Method: "DeleteDocument", Request: "quark.indexer.v1.DeleteDocumentRequest", Response: "quark.indexer.v1.DeleteDocumentResponse", Description: "Delete one indexed document and document-owned chunks."},
-			{Service: "quark.indexer.v1.IndexerService", Method: "DeleteChunk", Request: "quark.indexer.v1.DeleteChunkRequest", Response: "quark.indexer.v1.DeleteChunkResponse", Description: "Delete one indexed chunk and its chunk-owned edges by canonical chunk ID."},
-		},
-		Skills: []*servicev1.SkillDescriptor{skill},
-	}
+	descriptor := server.Descriptor(cfg.Address, skill)
 	defer cfg.Driver.Close()
 	cfg.NATS.Logger = cfg.Logger
 	return natskit.RunRPCService(ctx, cfg.NATS, cfg.Queue, natskit.Binding{

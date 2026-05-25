@@ -21,13 +21,6 @@ func (e *Executor) expandRuntimeReferences(typeName, arguments string) (string, 
 		return stripEmbeddingRequestOverrides(expanded), nil
 	case "quark.gateway.v1.GenerateRequest", "quark.gateway.v1.StreamGenerateRequest":
 		return e.expandGatewayMessageReferences(arguments)
-	case "quark.indexer.v1.IndexRequest":
-		arguments = e.promoteContentReference(arguments, "textContent", "textContentRef")
-		expanded, err := e.expandVectorReference(arguments, "embeddingRef", "embedding")
-		if err != nil {
-			return "", err
-		}
-		return e.expandContentReference(expanded, "textContentRef", "textContent")
 	case "quark.indexer.v1.UpsertChunkRequest":
 		arguments = e.promoteContentReference(arguments, "textContent", "textContentRef")
 		expanded, err := e.expandVectorReference(arguments, "embeddingRef", "embedding")
@@ -182,7 +175,7 @@ func stripEmbeddingRequestOverrides(arguments string) string {
 
 func requireRuntimeReferenceArguments(typeName, arguments string) error {
 	switch typeName {
-	case "quark.indexer.v1.IndexRequest", "quark.indexer.v1.UpsertChunkRequest":
+	case "quark.indexer.v1.UpsertChunkRequest":
 		return requireReferenceField(typeName, arguments, "embeddingRef", "embedding")
 	case "quark.indexer.v1.QueryRequest":
 		return requireReferenceField(typeName, arguments, "queryVectorRef", "queryVector")

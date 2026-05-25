@@ -18,11 +18,11 @@ func TestPromptBlockIncludesServiceSkillsAndRPCs(t *testing.T) {
 		Address: "127.0.0.1:7301",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:       "quark.indexer.v1.IndexerService",
-			Method:        "GetContext",
+			Method:        "QueryContext",
 			Request:       "quark.indexer.v1.QueryRequest",
 			Response:      "quark.indexer.v1.ContextResponse",
-			FunctionName:  "indexer_GetContext",
-			Subject:       "svc.indexer.v1.get_context",
+			FunctionName:  "indexer_QueryContext",
+			Subject:       "svc.indexer.v1.query_context",
 			RiskLevel:     "read",
 			TimeoutMillis: 30000,
 		}},
@@ -32,7 +32,7 @@ func TestPromptBlockIncludesServiceSkillsAndRPCs(t *testing.T) {
 		}},
 	}})
 
-	for _, want := range []string{"Available Service Plugins", "indexer_GetContext", "indexer", "service-indexer", "Use query vectors."} {
+	for _, want := range []string{"Available Service Plugins", "indexer_QueryContext", "indexer", "service-indexer", "Use query vectors."} {
 		if !strings.Contains(block, want) {
 			t.Fatalf("prompt block missing %q:\n%s", want, block)
 		}
@@ -47,15 +47,15 @@ func TestCatalogExposesServiceFunctions(t *testing.T) {
 		Address: "127.0.0.1:7301",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:      "quark.indexer.v1.IndexerService",
-			Method:       "GetContext",
+			Method:       "QueryContext",
 			Request:      "quark.indexer.v1.QueryRequest",
 			Response:     "quark.indexer.v1.ContextResponse",
-			FunctionName: "indexer_GetContext",
-			Subject:      "svc.indexer.v1.get_context",
+			FunctionName: "indexer_QueryContext",
+			Subject:      "svc.indexer.v1.query_context",
 		}},
 	}})
 	tools := catalog.ToolSchemas()
-	if len(tools) != 1 || tools[0].Name != "indexer_GetContext" {
+	if len(tools) != 1 || tools[0].Name != "indexer_QueryContext" {
 		t.Fatalf("tools = %+v", tools)
 	}
 	if catalog.Prompt() == "" {
@@ -74,20 +74,20 @@ func TestServiceFunctionOperationUsesCatalogSubjectAsRouteAuthority(t *testing.T
 
 	operation, err := serviceFunctionOperation(resolvedRPC{rpc: &servicev1.RpcDescriptor{
 		Service:      "quark.indexer.v1.IndexerService",
-		Method:       "GetContext",
+		Method:       "QueryContext",
 		Owner:        "wrong-owner",
 		FunctionName: "wrong_Function",
-		Subject:      "svc.indexer.v1.get_context",
+		Subject:      "svc.indexer.v1.query_context",
 	}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if operation.Subject != "svc.indexer.v1.get_context" || operation.Owner != "indexer" || operation.Function != "get_context" {
+	if operation.Subject != "svc.indexer.v1.query_context" || operation.Owner != "indexer" || operation.Function != "query_context" {
 		t.Fatalf("operation = %+v", operation)
 	}
 	if _, err := serviceFunctionOperation(resolvedRPC{rpc: &servicev1.RpcDescriptor{
 		Service: "quark.indexer.v1.IndexerService",
-		Method:  "GetContext",
+		Method:  "QueryContext",
 	}}); err == nil {
 		t.Fatal("catalog RPC without a concrete subject was accepted")
 	}
@@ -110,7 +110,7 @@ func TestServiceFunctionSchemaUsesRuntimeEmbeddingReferences(t *testing.T) {
 		t.Fatalf("embedding inputs should be replaceable by runtime references, required=%+v", required)
 	}
 
-	params := requestParameters("quark.indexer.v1.IndexRequest")
+	params := requestParameters("quark.indexer.v1.UpsertChunkRequest")
 	properties, ok := params["properties"].(map[string]any)
 	if !ok {
 		t.Fatalf("properties missing: %+v", params)
@@ -215,7 +215,7 @@ func TestExecutorExpandsEmbeddingReferences(t *testing.T) {
 		"contentHash": "abc123",
 	}
 
-	expanded, err := executor.expandRuntimeReferences("quark.indexer.v1.IndexRequest", `{"chunkId":"chunk","textContent":"text","embeddingRef":"ref-1"}`)
+	expanded, err := executor.expandRuntimeReferences("quark.indexer.v1.UpsertChunkRequest", `{"chunkId":"chunk","textContent":"text","embeddingRef":"ref-1"}`)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -108,7 +108,7 @@ type ServiceFunctionConfig struct {
 	// Owner is the service-function owner. It defaults to the service plugin
 	// name when omitted.
 	Owner string `yaml:"owner,omitempty"`
-	// Name is the generated runtime tool-call name, such as indexer_GetContext.
+	// Name is the generated runtime tool-call name, such as indexer_QueryContext.
 	Name string `yaml:"name"`
 	// Subject is the NATS service-function request subject.
 	Subject string `yaml:"subject,omitempty"`

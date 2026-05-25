@@ -46,9 +46,7 @@ agent:
     - indexer_UpsertEntity
     - indexer_UpsertRelation
     - indexer_UpsertCitation
-    - indexer_IndexDocument
     - indexer_QueryContext
-    - indexer_GetContext
     - indexer_DeleteDocument
     - indexer_DeleteChunk
     - citation_ResolveSpans

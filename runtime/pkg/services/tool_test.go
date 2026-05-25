@@ -35,7 +35,7 @@ func TestNormalizeStringMapArgumentsCoercesNestedMetadataValues(t *testing.T) {
 		"provenance": {"metadata": {"page": 1}}
 	}`
 
-	normalized, err := normalizeStringMapArguments("quark.indexer.v1.IndexRequest", raw)
+	normalized, err := normalizeStringMapArguments("quark.indexer.v1.UpsertChunkRequest", raw)
 	if err != nil {
 		t.Fatalf("normalize: %v", err)
 	}
@@ -51,7 +51,7 @@ func TestNormalizeStringMapArgumentsCoercesNestedMetadataValues(t *testing.T) {
 		}
 	}
 
-	msgType, err := protoregistry.GlobalTypes.FindMessageByName(protoreflect.FullName("quark.indexer.v1.IndexRequest"))
+	msgType, err := protoregistry.GlobalTypes.FindMessageByName(protoreflect.FullName("quark.indexer.v1.UpsertChunkRequest"))
 	if err != nil {
 		t.Fatalf("find message: %v", err)
 	}
@@ -205,7 +205,7 @@ func TestExecutorCapturesFilesystemContentRefsForIndexRequests(t *testing.T) {
 		t.Fatalf("contentRef missing from tool result: %+v", toolPayload)
 	}
 
-	expanded, err := executor.expandRuntimeReferences("quark.indexer.v1.IndexRequest", `{"chunkId":"invoice","textContentRef":"`+ref+`"}`)
+	expanded, err := executor.expandRuntimeReferences("quark.indexer.v1.UpsertChunkRequest", `{"chunkId":"invoice","textContentRef":"`+ref+`"}`)
 	if err != nil {
 		t.Fatalf("expand refs: %v", err)
 	}

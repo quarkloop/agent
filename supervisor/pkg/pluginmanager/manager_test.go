@@ -24,9 +24,9 @@ service:
   skill: SKILL.md
   readme: README.md
   functions:
-    - name: indexer_GetContext
+    - name: indexer_QueryContext
       service: quark.indexer.v1.IndexerService
-      method: GetContext
+      method: QueryContext
       request: quark.indexer.v1.QueryRequest
       response: quark.indexer.v1.ContextResponse
       description: Retrieve context.

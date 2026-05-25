@@ -74,13 +74,13 @@ func DefaultRegistry() Registry {
 			"document_type_guess", "summary", "key_facts", "entities", "relations", "citations", "uncertainties",
 		},
 		CanonicalMapping: []string{
-			"document -> IndexRequest.document",
-			"summary/key sections -> IndexRequest.textContent",
-			"key_facts -> IndexRequest.facts",
-			"entities -> IndexRequest.entities",
-			"relations -> IndexRequest.relations",
-			"citations -> IndexRequest.citations",
-			"source evidence -> IndexRequest.provenance and sourceMetadata",
+			"document -> UpsertChunkRequest.document",
+			"summary/key sections -> UpsertChunkRequest.textContent",
+			"key_facts -> UpsertChunkRequest.facts",
+			"entities -> UpsertChunkRequest.entities",
+			"relations -> UpsertChunkRequest.relations",
+			"citations -> UpsertChunkRequest.citations",
+			"source evidence -> UpsertChunkRequest.provenance and sourceMetadata",
 		},
 	}
 	return Registry{

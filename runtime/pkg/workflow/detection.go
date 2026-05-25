@@ -29,7 +29,7 @@ func Detect(prompt string, tools []plugin.ToolSchema) []Intent {
 	if looksLikeKnowledgeQuery(text) {
 		if steps := requiredSteps(available,
 			step("embed-query", "query embedding", "gateway_Embed", "gateway_Embed"),
-			step("retrieve", "context retrieval", "indexer_QueryContext", "indexer_GetContext"),
+			step("retrieve", "context retrieval", "indexer_QueryContext"),
 			step("ground", "grounding or citation verification", "citation_VerifyGrounding", "citation_RenderReferences"),
 		); len(steps) > 0 {
 			intents = append(intents, Intent{Kind: KindKnowledgeQuery, Steps: steps})

@@ -16,13 +16,14 @@ metadata, and provenance after semantic extraction in the runtime/model path.
 | `indexer_UpsertRelation` | `quark.indexer.v1.IndexerService/UpsertRelation` | write | no | yes | Persist one canonical relation record. |
 | `indexer_UpsertCitation` | `quark.indexer.v1.IndexerService/UpsertCitation` | write | no | yes | Persist one canonical citation record. |
 | `indexer_QueryContext` | `quark.indexer.v1.IndexerService/QueryContext` | read | no | yes | Retrieve vector and graph context for an agent-provided query embedding. |
-| `indexer_IndexDocument` | `quark.indexer.v1.IndexerService/IndexDocument` | write | no | yes | Compatibility alias for the canonical chunk upsert path. |
-| `indexer_GetContext` | `quark.indexer.v1.IndexerService/GetContext` | read | no | yes | Compatibility alias for `QueryContext`. |
 | `indexer_DeleteDocument` | `quark.indexer.v1.IndexerService/DeleteDocument` | admin | yes | no | Delete one indexed document and document-owned chunks by canonical document ID. |
 | `indexer_DeleteChunk` | `quark.indexer.v1.IndexerService/DeleteChunk` | admin | yes | no | Delete one indexed chunk and its chunk-owned relation nodes by canonical chunk ID. |
 
 Runtime exposes these functions through the shared tool-call path using the
 supervisor-resolved service catalog.
+Canonical request/reply subjects are owned by this plugin under
+`svc.indexer.v1.*`, including `svc.indexer.v1.upsert_chunk` and
+`svc.indexer.v1.query_context`.
 
 ## Health And Readiness
 

@@ -16,13 +16,13 @@ func TestRuntimeServiceCatalogRoundTrip(t *testing.T) {
 		Address: "127.0.0.1:7301",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:       "quark.indexer.v1.IndexerService",
-			Method:        "GetContext",
+			Method:        "QueryContext",
 			Request:       "quark.indexer.v1.QueryRequest",
 			Response:      "quark.indexer.v1.ContextResponse",
 			Description:   "Retrieve context.",
 			Owner:         "indexer",
-			FunctionName:  "indexer_GetContext",
-			Subject:       "svc.indexer.v1.get_context",
+			FunctionName:  "indexer_QueryContext",
+			Subject:       "svc.indexer.v1.query_context",
 			RiskLevel:     "read",
 			Idempotent:    true,
 			TimeoutMillis: 30000,
@@ -46,7 +46,7 @@ func TestRuntimeServiceCatalogRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unmarshal catalog: %v", err)
 	}
-	if len(got) != 1 || got[0].GetName() != "indexer" || got[0].GetRpcs()[0].GetMethod() != "GetContext" {
+	if len(got) != 1 || got[0].GetName() != "indexer" || got[0].GetRpcs()[0].GetMethod() != "QueryContext" {
 		t.Fatalf("decoded descriptors = %+v", got)
 	}
 }
@@ -65,7 +65,7 @@ func TestRuntimeServiceCatalogValidatesDescriptors(t *testing.T) {
 		Address: "127.0.0.1:7301",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:  "quark.indexer.v1.IndexerService",
-			Method:   "GetContext",
+			Method:   "QueryContext",
 			Request:  "quark.indexer.v1.QueryRequest",
 			Response: "quark.indexer.v1.ContextResponse",
 		}},
@@ -82,13 +82,13 @@ func TestRuntimeServiceCatalogValidatesResolvedFunctionMetadata(t *testing.T) {
 		Address: "127.0.0.1:7301",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:     "quark.indexer.v1.IndexerService",
-			Method:      "GetContext",
+			Method:      "QueryContext",
 			Request:     "quark.indexer.v1.QueryRequest",
 			Response:    "quark.indexer.v1.ContextResponse",
 			Description: "Retrieve context.",
 			Owner:       "indexer",
 			RiskLevel:   "read",
-			Subject:     "svc.indexer.v1.get_context",
+			Subject:     "svc.indexer.v1.query_context",
 		}},
 	}})
 	if err == nil || !strings.Contains(err.Error(), "missing function name") {
@@ -103,12 +103,12 @@ func TestRuntimeServiceCatalogRequiresCanonicalSubject(t *testing.T) {
 		Address: "svc.indexer.v1",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:      "quark.indexer.v1.IndexerService",
-			Method:       "GetContext",
+			Method:       "QueryContext",
 			Request:      "quark.indexer.v1.QueryRequest",
 			Response:     "quark.indexer.v1.ContextResponse",
 			Description:  "Retrieve context.",
 			Owner:        "indexer",
-			FunctionName: "indexer_GetContext",
+			FunctionName: "indexer_QueryContext",
 			RiskLevel:    "read",
 		}},
 	}})

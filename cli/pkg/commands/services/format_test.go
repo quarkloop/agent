@@ -31,13 +31,13 @@ func TestFormatServiceInspectIncludesDiagnostics(t *testing.T) {
 		Description: "Indexer",
 		StartedAt:   &started,
 		Functions: []clientcontract.ServiceFunctionInfo{{
-			Name:    "indexer_GetContext",
+			Name:    "indexer_QueryContext",
 			Service: "quark.indexer.v1.IndexerService",
-			Method:  "GetContext",
+			Method:  "QueryContext",
 		}},
 		Diagnostics: []string{"health status is NOT_SERVING"},
 	})
-	for _, want := range []string{"indexer_GetContext", "Diagnostics", "NOT_SERVING", "2026-05-17T10:00:00Z"} {
+	for _, want := range []string{"indexer_QueryContext", "Diagnostics", "NOT_SERVING", "2026-05-17T10:00:00Z"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("inspect missing %q:\n%s", want, out)
 		}

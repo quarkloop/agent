@@ -6,22 +6,6 @@ import (
 	"github.com/quarkloop/services/indexer/pkg/indexer"
 )
 
-func indexCommand(req *indexerv1.IndexRequest) indexing.IndexCommand {
-	return indexing.IndexCommand{
-		ChunkID:           req.GetChunkId(),
-		Text:              req.GetTextContent(),
-		Vector:            cloneVector(req.GetEmbedding()),
-		Metadata:          cloneMap(req.GetSourceMetadata()),
-		Document:          protoDocument(req.GetDocument()),
-		EmbeddingMetadata: protoEmbeddingMetadata(req.GetEmbeddingMetadata()),
-		Entities:          protoEntities(req.GetEntities()),
-		Relations:         protoRelations(req.GetRelations()),
-		Facts:             protoFacts(req.GetFacts()),
-		Citations:         protoCitations(req.GetCitations()),
-		Provenance:        protoProvenance(req.GetProvenance()),
-	}
-}
-
 func chunkCommand(req *indexerv1.UpsertChunkRequest) indexing.IndexCommand {
 	return indexing.IndexCommand{
 		ChunkID:           req.GetChunkId(),

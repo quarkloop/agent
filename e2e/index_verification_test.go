@@ -29,7 +29,7 @@ func verifyPersistedPDFIndexState(t *testing.T, ctx context.Context, artifactDir
 		}
 		vector := embedding.GetEmbeddings()[0]
 		var resp indexerv1.ContextResponse
-		requestServiceFunction(t, ctx, conn, env.Space, "indexer", "get_context", &indexerv1.QueryRequest{
+		requestServiceFunction(t, ctx, conn, env.Space, "indexer", "query_context", &indexerv1.QueryRequest{
 			QueryVector: vector.GetVector(),
 			Limit:       1,
 			Depth:       1,
@@ -75,7 +75,7 @@ func verifyPersistedMarkdownIndexState(t *testing.T, ctx context.Context, artifa
 		}
 		vector := embedding.GetEmbeddings()[0]
 		var resp indexerv1.ContextResponse
-		requestServiceFunction(t, ctx, conn, env.Space, "indexer", "get_context", &indexerv1.QueryRequest{
+		requestServiceFunction(t, ctx, conn, env.Space, "indexer", "query_context", &indexerv1.QueryRequest{
 			QueryVector: vector.GetVector(),
 			Limit:       1,
 			Depth:       1,

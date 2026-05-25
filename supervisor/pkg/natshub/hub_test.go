@@ -221,7 +221,7 @@ func TestHubRetrievesAndFiltersAuditRecords(t *testing.T) {
 		t.Fatalf("jetstream: %v", err)
 	}
 	for _, event := range []natskit.ServiceCallEvent{
-		{Type: "service_call", ReferenceID: "ref-one", AuditRef: "ref-one", ServiceCallID: "ref-one", SpaceID: "docs", SessionID: "chat-1", RunID: "run-1", Service: "indexer", Function: "get_context", Status: "ok"},
+		{Type: "service_call", ReferenceID: "ref-one", AuditRef: "ref-one", ServiceCallID: "ref-one", SpaceID: "docs", SessionID: "chat-1", RunID: "run-1", Service: "indexer", Function: "query_context", Status: "ok"},
 		{Type: "service_call", ReferenceID: "ref-two", AuditRef: "ref-two", ServiceCallID: "ref-two", SpaceID: "docs", SessionID: "chat-2", RunID: "run-2", Service: "gateway", Function: "generate", Status: "ok"},
 	} {
 		data, err := json.Marshal(event)

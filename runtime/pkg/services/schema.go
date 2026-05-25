@@ -62,19 +62,6 @@ func applyRuntimeReferenceFields(typeName string, schema map[string]any) {
 			schema["description"] = description + " Use typed message content and opaque runtime references for extracted text/pages/media. Do not inline binary media bytes."
 		}
 		removeGatewayMessageInlineImageBytes(properties)
-	case "quark.indexer.v1.IndexRequest":
-		if description, ok := schema["description"].(string); ok {
-			schema["description"] = description + " Runtime tool calls must use embeddingRef returned from gateway_Embed; direct embedding vectors are not accepted. For textContent, prefer textContentRef returned from io_Read or document_ExtractText results when indexing source files; otherwise provide explicit textContent."
-		}
-		delete(properties, "embedding")
-		properties["embeddingRef"] = map[string]any{
-			"type":        "string",
-			"description": "Required reference returned by gateway_Embed. Do not copy embedding vectors manually.",
-		}
-		properties["textContentRef"] = map[string]any{
-			"type":        "string",
-			"description": "Reference returned by io_Read or document_ExtractText. Prefer this over copying source text into textContent.",
-		}
 	case "quark.indexer.v1.UpsertChunkRequest":
 		if description, ok := schema["description"].(string); ok {
 			schema["description"] = description + " Runtime tool calls must use embeddingRef returned from gateway_Embed; direct embedding vectors are not accepted. For textContent, prefer textContentRef returned from io_Read or document_ExtractText results when indexing source files; otherwise provide explicit textContent. For document indexing, provide a complete canonical knowledge record: document, sourceMetadata, provenance, facts, entities, relations, and citations. Use an empty relations array only when no supported relation exists."
@@ -241,8 +228,6 @@ func requiredJSONFields(typeName string) []string {
 	switch typeName {
 	case "quark.gateway.v1.EmbedRequest":
 		return nil
-	case "quark.indexer.v1.IndexRequest":
-		return []string{"chunkId", "embeddingRef"}
 	case "quark.indexer.v1.UpsertChunkRequest":
 		return []string{
 			"chunkId",

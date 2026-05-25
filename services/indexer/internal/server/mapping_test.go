@@ -7,8 +7,8 @@ import (
 	"github.com/quarkloop/services/indexer/pkg/indexer"
 )
 
-func TestIndexCommandMapsProtoToOwnedDomainCommand(t *testing.T) {
-	req := &indexerv1.IndexRequest{
+func TestChunkCommandMapsFullProtoToOwnedDomainCommand(t *testing.T) {
+	req := &indexerv1.UpsertChunkRequest{
 		ChunkId:     "chunk-1",
 		TextContent: "Quark indexes knowledge.",
 		Embedding:   []float32{0.1, 0.2},
@@ -24,7 +24,7 @@ func TestIndexCommandMapsProtoToOwnedDomainCommand(t *testing.T) {
 		Provenance:        &indexerv1.Provenance{SourceUri: "file:///source.pdf", SourceHash: "sha256:abc", TraceId: "trace-1", Metadata: map[string]string{"agent": "knowledge"}, Sources: []*indexerv1.SourceReference{{Modality: "text", ContentRef: "content-1", Metadata: map[string]string{"page": "1"}}}},
 	}
 
-	cmd := indexCommand(req)
+	cmd := chunkCommand(req)
 	req.Embedding[0] = 9
 	req.SourceMetadata["filename"] = "mutated"
 	req.Document.Metadata["kind"] = "mutated"
