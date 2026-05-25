@@ -6,11 +6,6 @@ import (
 	"fmt"
 )
 
-func contentHash(input string) string {
-	sum := sha256.Sum256([]byte(input))
-	return fmt.Sprintf("%x", sum[:])
-}
-
 func multimodalInputHash(input multimodalInput) string {
 	type hashPart struct {
 		Kind      contentKind       `json:"kind"`
