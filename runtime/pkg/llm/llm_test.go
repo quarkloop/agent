@@ -157,14 +157,24 @@ func TestInferStreamsTraceableToolEvents(t *testing.T) {
 	if events[0]["kind"] != "tool_start" || events[0]["id"] != "call-1" || events[0]["name"] != "indexer_IndexDocument" {
 		t.Fatalf("tool start event not traceable: %+v", events[0])
 	}
-	if events[0]["session_id"] != "session-1" || events[0]["run_id"] != "run-1" || events[0]["service_call_id"] != "call-1" || events[0]["observed_at"] == "" {
+	if events[0]["session_id"] != "session-1" || events[0]["run_id"] != "run-1" || events[0]["tool_call_id"] != "call-1" || events[0]["service_call_id"] != nil || events[0]["observed_at"] == "" {
 		t.Fatalf("tool start event missing correlation fields: %+v", events[0])
 	}
 	if events[1]["kind"] != "tool_result" || events[1]["id"] != "call-1" || events[1]["error"] != true {
 		t.Fatalf("tool result event not traceable: %+v", events[1])
 	}
-	if events[1]["session_id"] != "session-1" || events[1]["run_id"] != "run-1" || events[1]["service_call_id"] != "call-1" || events[1]["observed_at"] == "" {
+	if events[1]["session_id"] != "session-1" || events[1]["run_id"] != "run-1" || events[1]["tool_call_id"] != "call-1" || events[1]["service_call_id"] != nil || events[1]["observed_at"] == "" {
 		t.Fatalf("tool result event missing correlation fields: %+v", events[1])
+	}
+}
+
+func TestServiceCallFieldsFromResultUsesServiceEnvelopeReferences(t *testing.T) {
+	fields := serviceCallFieldsFromResult(`{"_serviceCall":{"serviceCallId":"svc-call-1","referenceId":"svc-ref-1","auditRef":"urn:quark:audit:service-call:svc-ref-1","traceId":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}`)
+	if fields["service_call_id"] != "svc-call-1" || fields["reference_id"] != "svc-ref-1" || fields["audit_ref"] == "" || fields["trace_id"] == "" {
+		t.Fatalf("service call fields = %+v", fields)
+	}
+	if fields := serviceCallFieldsFromResult(`{"answer":"ordinary tool result"}`); fields != nil {
+		t.Fatalf("ordinary tool result produced service fields: %+v", fields)
 	}
 }
 

@@ -12,6 +12,7 @@ import (
 	natsserver "github.com/nats-io/nats-server/v2/server"
 	natsgo "github.com/nats-io/nats.go"
 	gatewayv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/gateway/v1"
+	"github.com/quarkloop/pkg/serviceapi/observability"
 	"github.com/quarkloop/pkg/serviceapi/servicefunction"
 	"github.com/quarkloop/services/gateway/internal/gatewaysvc"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -91,7 +92,10 @@ func TestGatewayNATSReloadConfig(t *testing.T) {
 func TestGatewayNATSStreamGenerate(t *testing.T) {
 	ns := startTestNATS(t)
 	srv := newConfiguredGatewayServer(t)
-	gateway := New(Config{URL: ns.ClientURL(), Username: "quark-control", Password: "secret", Queue: "q.gateway.test"}, srv)
+	gateway := New(Config{
+		URL: ns.ClientURL(), Username: "quark-control", Password: "secret", Queue: "q.gateway.test",
+		Audit: observability.RecorderConfig{AuditPrefix: "audit", Policy: observability.DefaultAuditPolicy()},
+	}, srv)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	if err := gateway.Start(ctx); err != nil {
@@ -101,6 +105,20 @@ func TestGatewayNATSStreamGenerate(t *testing.T) {
 
 	conn := connectTestNATS(t, ns.ClientURL())
 	defer conn.Close()
+	js, err := conn.JetStream()
+	if err != nil {
+		t.Fatalf("jetstream: %v", err)
+	}
+	if _, err := js.AddStream(&natsgo.StreamConfig{Name: "AUDIT", Subjects: []string{"audit.>"}}); err != nil {
+		t.Fatalf("add audit stream: %v", err)
+	}
+	audit, err := conn.SubscribeSync("audit.space_1.service_calls.>")
+	if err != nil {
+		t.Fatalf("subscribe audit: %v", err)
+	}
+	if err := conn.FlushTimeout(time.Second); err != nil {
+		t.Fatalf("flush audit subscription: %v", err)
+	}
 	subject := subjectFor(t, "stream_generate")
 	inbox := natsgo.NewInbox()
 	sub, err := conn.SubscribeSync(inbox)
@@ -134,6 +152,9 @@ func TestGatewayNATSStreamGenerate(t *testing.T) {
 		if envelope.Status != servicefunction.StatusOK {
 			t.Fatalf("stream error = %+v", envelope.Error)
 		}
+		if envelope.ReferenceID != servicefunction.ReferenceIDForServiceCall(req.ServiceCallID) {
+			t.Fatalf("stream envelope reference = %+v", envelope)
+		}
 		var chunk gatewayv1.StreamGenerateResponse
 		if err := protojson.Unmarshal(envelope.Payload, &chunk); err != nil {
 			t.Fatalf("decode chunk: %v", err)
@@ -148,6 +169,17 @@ func TestGatewayNATSStreamGenerate(t *testing.T) {
 	}
 	if !sawDone {
 		t.Fatal("stream did not finish")
+	}
+	msg, err := audit.NextMsg(time.Second)
+	if err != nil {
+		t.Fatalf("next audit record: %v", err)
+	}
+	var event observability.ServiceCallEvent
+	if err := json.Unmarshal(msg.Data, &event); err != nil {
+		t.Fatalf("decode audit record: %v", err)
+	}
+	if event.ReferenceID != servicefunction.ReferenceIDForServiceCall(req.ServiceCallID) || event.Function != "stream_generate" {
+		t.Fatalf("audit record = %+v", event)
 	}
 }
 
@@ -192,12 +224,14 @@ func gatewayTextMessage(role, text string) *gatewayv1.ModelMessage {
 func startTestNATS(t *testing.T) *natsserver.Server {
 	t.Helper()
 	ns, err := natsserver.NewServer(&natsserver.Options{
-		Host:     "127.0.0.1",
-		Port:     -1,
-		Username: "quark-control",
-		Password: "secret",
-		NoLog:    true,
-		NoSigs:   true,
+		Host:      "127.0.0.1",
+		Port:      -1,
+		Username:  "quark-control",
+		Password:  "secret",
+		JetStream: true,
+		StoreDir:  t.TempDir(),
+		NoLog:     true,
+		NoSigs:    true,
 	})
 	if err != nil {
 		t.Fatalf("new nats server: %v", err)

@@ -11,6 +11,7 @@ import (
 	natsgo "github.com/nats-io/nats.go"
 	"github.com/quarkloop/pkg/boundary"
 	gatewayv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/gateway/v1"
+	"github.com/quarkloop/pkg/serviceapi/observability"
 	"github.com/quarkloop/pkg/serviceapi/servicefunction"
 	"github.com/quarkloop/services/gateway/internal/gatewaysvc"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -45,13 +46,15 @@ type Config struct {
 	ReconnectWait time.Duration
 	MaxReconnects int
 	Logger        *slog.Logger
+	Audit         observability.RecorderConfig
 }
 
 type Server struct {
-	cfg     Config
-	gateway *gatewaysvc.Server
-	conn    *natsgo.Conn
-	subs    []*natsgo.Subscription
+	cfg      Config
+	gateway  *gatewaysvc.Server
+	conn     *natsgo.Conn
+	recorder *observability.Recorder
+	subs     []*natsgo.Subscription
 }
 
 func New(cfg Config, gateway *gatewaysvc.Server) *Server {
@@ -74,6 +77,12 @@ func (s *Server) Start(ctx context.Context) error {
 		return fmt.Errorf("connect nats: %w", err)
 	}
 	s.conn = conn
+	recorder, err := observability.NewRecorder(conn, s.cfg.Audit)
+	if err != nil {
+		s.Close()
+		return fmt.Errorf("configure gateway audit recorder: %w", err)
+	}
+	s.recorder = recorder
 	for _, fn := range []string{
 		functionGenerate,
 		functionStreamGenerate,
@@ -122,9 +131,11 @@ func (s *Server) Close() {
 		s.conn.Close()
 		s.conn = nil
 	}
+	s.recorder = nil
 }
 
 func (s *Server) handle(msg *natsgo.Msg) {
+	started := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 	defer cancel()
 
@@ -134,92 +145,91 @@ func (s *Server) handle(msg *natsgo.Msg) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		s.respond(msg, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, req.Subject))
+		s.respondAndRecord(msg, req, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, req.Subject), started)
 		return
 	}
 	switch req.Function {
 	case functionGenerate:
-		s.handleUnary(ctx, msg, req, &gatewayv1.GenerateRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, *gatewayv1.ModelUsage, error) {
+		s.handleUnary(ctx, msg, req, started, &gatewayv1.GenerateRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, *gatewayv1.ModelUsage, error) {
 			resp, err := s.gateway.Generate(ctx, request.(*gatewayv1.GenerateRequest))
 			return resp, resp.GetUsage(), err
 		})
 	case functionEmbed:
-		s.handleUnary(ctx, msg, req, &gatewayv1.EmbedRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, *gatewayv1.ModelUsage, error) {
+		s.handleUnary(ctx, msg, req, started, &gatewayv1.EmbedRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, *gatewayv1.ModelUsage, error) {
 			resp, err := s.gateway.Embed(ctx, request.(*gatewayv1.EmbedRequest))
 			return resp, resp.GetUsage(), err
 		})
 	case functionRerank:
-		s.handleUnary(ctx, msg, req, &gatewayv1.RerankRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, *gatewayv1.ModelUsage, error) {
+		s.handleUnary(ctx, msg, req, started, &gatewayv1.RerankRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, *gatewayv1.ModelUsage, error) {
 			resp, err := s.gateway.Rerank(ctx, request.(*gatewayv1.RerankRequest))
 			return resp, resp.GetUsage(), err
 		})
 	case functionCountTokens:
-		s.handleUnary(ctx, msg, req, &gatewayv1.CountTokensRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, *gatewayv1.ModelUsage, error) {
+		s.handleUnary(ctx, msg, req, started, &gatewayv1.CountTokensRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, *gatewayv1.ModelUsage, error) {
 			resp, err := s.gateway.CountTokens(ctx, request.(*gatewayv1.CountTokensRequest))
 			return resp, resp.GetUsage(), err
 		})
 	case functionListModels:
-		s.handleUnary(ctx, msg, req, &gatewayv1.ListModelsRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, *gatewayv1.ModelUsage, error) {
+		s.handleUnary(ctx, msg, req, started, &gatewayv1.ListModelsRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, *gatewayv1.ModelUsage, error) {
 			resp, err := s.gateway.ListModels(ctx, request.(*gatewayv1.ListModelsRequest))
 			return resp, nil, err
 		})
 	case functionProviderHealth:
-		s.handleUnary(ctx, msg, req, &gatewayv1.ProviderHealthRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, *gatewayv1.ModelUsage, error) {
+		s.handleUnary(ctx, msg, req, started, &gatewayv1.ProviderHealthRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, *gatewayv1.ModelUsage, error) {
 			resp, err := s.gateway.ProviderHealth(ctx, request.(*gatewayv1.ProviderHealthRequest))
 			return resp, nil, err
 		})
 	case functionStreamGenerate:
-		s.handleStreamGenerate(ctx, msg, req)
+		s.handleStreamGenerate(ctx, msg, req, started)
 	case functionUsageSummary:
-		s.handleUnary(ctx, msg, req, &gatewayv1.UsageSummaryRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, *gatewayv1.ModelUsage, error) {
+		s.handleUnary(ctx, msg, req, started, &gatewayv1.UsageSummaryRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, *gatewayv1.ModelUsage, error) {
 			resp, err := s.gateway.UsageSummary(ctx, request.(*gatewayv1.UsageSummaryRequest))
 			return resp, nil, err
 		})
 	case functionReloadConfig:
-		s.handleUnary(ctx, msg, req, &gatewayv1.ReloadConfigRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, *gatewayv1.ModelUsage, error) {
+		s.handleUnary(ctx, msg, req, started, &gatewayv1.ReloadConfigRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, *gatewayv1.ModelUsage, error) {
 			resp, err := s.gateway.ReloadConfig(ctx, request.(*gatewayv1.ReloadConfigRequest))
 			return resp, nil, err
 		})
 	default:
-		s.respond(msg, servicefunction.ErrorResponse(req.CallID, fmt.Errorf("unknown gateway function %q", req.Function), boundary.Service, req.Subject))
+		s.respondAndRecord(msg, req, servicefunction.ErrorResponse(req.ServiceCallID, fmt.Errorf("unknown gateway function %q", req.Function), boundary.Service, req.Subject), started)
 	}
 }
 
 type unaryHandler func(context.Context, proto.Message) (proto.Message, *gatewayv1.ModelUsage, error)
 
-func (s *Server) handleUnary(ctx context.Context, msg *natsgo.Msg, req servicefunction.RequestEnvelope, request proto.Message, handler unaryHandler) {
+func (s *Server) handleUnary(ctx context.Context, msg *natsgo.Msg, req servicefunction.RequestEnvelope, started time.Time, request proto.Message, handler unaryHandler) {
 	if err := protojson.Unmarshal(req.Payload, request); err != nil {
-		s.respond(msg, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, req.Subject))
+		s.respondAndRecord(msg, req, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, req.Subject), started)
 		return
 	}
 	resp, usage, err := handler(ctx, request)
 	if err != nil {
-		s.respond(msg, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, req.Subject))
+		s.respondAndRecord(msg, req, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, req.Subject), started)
 		return
 	}
 	payload, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(resp)
 	if err != nil {
-		s.respond(msg, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, req.Subject))
+		s.respondAndRecord(msg, req, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, req.Subject), started)
 		return
 	}
-	envelope := servicefunction.OKResponse(req.CallID, payload)
+	envelope := servicefunction.OKResponse(req.ServiceCallID, payload)
 	envelope.Usage = usageEnvelope(usage)
-	s.respond(msg, envelope)
+	s.respondAndRecord(msg, req, envelope, started)
 }
 
-func (s *Server) handleStreamGenerate(ctx context.Context, msg *natsgo.Msg, req servicefunction.RequestEnvelope) {
+func (s *Server) handleStreamGenerate(ctx context.Context, msg *natsgo.Msg, req servicefunction.RequestEnvelope, started time.Time) {
 	if msg.Reply == "" {
 		return
 	}
-	started := time.Now()
 	var request gatewayv1.StreamGenerateRequest
 	if err := protojson.Unmarshal(req.Payload, &request); err != nil {
-		s.cfg.Logger.Error("gateway stream request decode failed", "call_id", req.CallID, "error", err)
-		s.publish(msg.Reply, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, req.Subject))
+		s.cfg.Logger.Error("gateway stream request decode failed", "service_call_id", req.ServiceCallID, "error", err)
+		s.publishAndRecordTerminal(msg.Reply, req, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, req.Subject), started)
 		return
 	}
 	logAttrs := []any{
-		"call_id", req.CallID,
+		"service_call_id", req.ServiceCallID,
 		"session_id", req.SessionID,
 		"run_id", req.RunID,
 		"provider", request.GetProvider(),
@@ -229,7 +239,7 @@ func (s *Server) handleStreamGenerate(ctx context.Context, msg *natsgo.Msg, req 
 	events, err := s.gateway.StreamGenerateEvents(ctx, &request)
 	if err != nil {
 		s.cfg.Logger.Error("gateway stream request failed", append(logAttrs, "duration", time.Since(started), "error", err)...)
-		s.publish(msg.Reply, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, req.Subject))
+		s.publishAndRecordTerminal(msg.Reply, req, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, req.Subject), started)
 		s.flushStream(logAttrs)
 		return
 	}
@@ -237,22 +247,24 @@ func (s *Server) handleStreamGenerate(ctx context.Context, msg *natsgo.Msg, req 
 	for event := range events {
 		if event.Err != nil {
 			s.cfg.Logger.Error("gateway stream event failed", append(logAttrs, "duration", time.Since(started), "events", count, "error", event.Err)...)
-			s.publish(msg.Reply, servicefunction.ErrorResponse(req.CallID, event.Err, boundary.Service, req.Subject))
+			s.publishAndRecordTerminal(msg.Reply, req, servicefunction.ErrorResponse(req.ServiceCallID, event.Err, boundary.Service, req.Subject), started)
 			s.flushStream(logAttrs)
 			return
 		}
 		payload, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(event.Response)
 		if err != nil {
 			s.cfg.Logger.Error("gateway stream marshal failed", append(logAttrs, "duration", time.Since(started), "events", count, "error", err)...)
-			s.publish(msg.Reply, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, req.Subject))
+			s.publishAndRecordTerminal(msg.Reply, req, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, req.Subject), started)
 			s.flushStream(logAttrs)
 			return
 		}
-		envelope := servicefunction.OKResponse(req.CallID, payload)
+		envelope := servicefunction.OKResponse(req.ServiceCallID, payload)
 		envelope.Usage = usageEnvelope(event.Response.GetUsage())
+		envelope = envelope.WithTraceParent(req.TraceParent)
 		s.publish(msg.Reply, envelope)
 		count++
 		if event.Response.GetDone() {
+			s.record(req, envelope, time.Since(started))
 			s.flushStream(logAttrs)
 			s.cfg.Logger.Info("gateway stream request completed", append(logAttrs, "duration", time.Since(started), "events", count)...)
 			return
@@ -260,6 +272,28 @@ func (s *Server) handleStreamGenerate(ctx context.Context, msg *natsgo.Msg, req 
 	}
 	s.flushStream(logAttrs)
 	s.cfg.Logger.Warn("gateway stream closed without done event", append(logAttrs, "duration", time.Since(started), "events", count)...)
+	s.publishAndRecordTerminal(msg.Reply, req, servicefunction.ErrorResponse(req.ServiceCallID, fmt.Errorf("gateway stream closed without completion"), boundary.Service, req.Subject), started)
+}
+
+func (s *Server) respondAndRecord(msg *natsgo.Msg, req servicefunction.RequestEnvelope, resp servicefunction.ResponseEnvelope, started time.Time) {
+	resp = resp.WithTraceParent(req.TraceParent)
+	s.respond(msg, resp)
+	s.record(req, resp, time.Since(started))
+}
+
+func (s *Server) publishAndRecordTerminal(reply string, req servicefunction.RequestEnvelope, resp servicefunction.ResponseEnvelope, started time.Time) {
+	resp = resp.WithTraceParent(req.TraceParent)
+	s.publish(reply, resp)
+	s.record(req, resp, time.Since(started))
+}
+
+func (s *Server) record(req servicefunction.RequestEnvelope, resp servicefunction.ResponseEnvelope, duration time.Duration) {
+	if s.recorder == nil {
+		return
+	}
+	if err := s.recorder.Record(req, observability.Endpoint{Service: serviceName, Function: req.Function, Subject: req.Subject}, resp, duration); err != nil {
+		s.cfg.Logger.Error("record gateway service call", "reference_id", resp.ReferenceID, "error", err)
+	}
 }
 
 func (s *Server) flushStream(logAttrs []any) {

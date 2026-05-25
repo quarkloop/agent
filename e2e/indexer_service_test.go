@@ -91,14 +91,14 @@ func requestServiceFunction(t *testing.T, ctx context.Context, conn *nats.Conn, 
 		t.Fatalf("marshal service request: %v", err)
 	}
 	envelope := servicefunction.RequestEnvelope{
-		Version:  servicefunction.EnvelopeVersion,
-		CallID:   fmt.Sprintf("e2e-%s-%d", function, time.Now().UnixNano()),
-		SpaceID:  spaceID,
-		Actor:    servicefunction.ActorRuntime,
-		Service:  service,
-		Function: function,
-		Subject:  subject,
-		Payload:  payload,
+		Version:       servicefunction.EnvelopeVersion,
+		ServiceCallID: fmt.Sprintf("e2e-%s-%d", function, time.Now().UnixNano()),
+		SpaceID:       spaceID,
+		Actor:         servicefunction.ActorRuntime,
+		Service:       service,
+		Function:      function,
+		Subject:       subject,
+		Payload:       payload,
 	}
 	if err := envelope.Validate(); err != nil {
 		t.Fatalf("validate service request: %v", err)
@@ -115,8 +115,16 @@ func requestServiceFunction(t *testing.T, ctx context.Context, conn *nats.Conn, 
 	if err := json.Unmarshal(reply.Data, &out); err != nil {
 		t.Fatalf("decode service response: %v", err)
 	}
+	if err := out.Validate(); err != nil {
+		t.Fatalf("validate service response envelope: %v", err)
+	}
 	if out.Status != servicefunction.StatusOK {
 		t.Fatalf("service response failed: %+v", out.Error)
+	}
+	if out.ServiceCallID != envelope.ServiceCallID ||
+		out.ReferenceID != servicefunction.ReferenceIDForServiceCall(envelope.ServiceCallID) ||
+		out.AuditRef != servicefunction.AuditRefForReference(out.ReferenceID) {
+		t.Fatalf("service response audit references are inconsistent: %+v", out)
 	}
 	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(out.Payload, resp); err != nil {
 		t.Fatalf("decode service payload: %v", err)

@@ -3,6 +3,7 @@ package servicebridge
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -52,14 +53,14 @@ func TestNATSServiceDispatchesUnaryServiceFunction(t *testing.T) {
 		t.Fatal(err)
 	}
 	request := servicefunction.RequestEnvelope{
-		Version:  servicefunction.EnvelopeVersion,
-		CallID:   "call-1",
-		SpaceID:  "space-1",
-		Actor:    servicefunction.ActorRuntime,
-		Service:  "gateway",
-		Function: "embed",
-		Subject:  "svc.gateway.v1.embed",
-		Payload:  payload,
+		Version:       servicefunction.EnvelopeVersion,
+		ServiceCallID: "call-1",
+		SpaceID:       "space-1",
+		Actor:         servicefunction.ActorRuntime,
+		Service:       "gateway",
+		Function:      "embed",
+		Subject:       "svc.gateway.v1.embed",
+		Payload:       payload,
 	}
 	data, err := json.Marshal(request)
 	if err != nil {
@@ -76,6 +77,9 @@ func TestNATSServiceDispatchesUnaryServiceFunction(t *testing.T) {
 	if response.Status != servicefunction.StatusOK {
 		t.Fatalf("response = %+v", response)
 	}
+	if response.ReferenceID != servicefunction.ReferenceIDForServiceCall("call-1") || response.AuditRef == "" {
+		t.Fatalf("response references = %+v", response)
+	}
 	var embed gatewayv1.EmbedResponse
 	if err := protojson.Unmarshal(response.Payload, &embed); err != nil {
 		t.Fatalf("decode payload: %v", err)
@@ -86,13 +90,18 @@ func TestNATSServiceDispatchesUnaryServiceFunction(t *testing.T) {
 }
 
 func TestNATSServicePublishesRedactedAuditAndTelemetryEvents(t *testing.T) {
-	ns := startBridgeNATS(t)
+	ns := startBridgeJetStreamNATS(t)
 	server := NewNATSService(NATSConfig{
 		URL:             ns.ClientURL(),
 		Queue:           "q.gateway.events.test",
 		Name:            "gateway-events-test",
 		AuditPrefix:     "audit",
 		TelemetryPrefix: "telemetry",
+		AuditPolicy: observability.AuditPolicy{
+			Retention:        time.Hour,
+			SnapshotPolicy:   observability.SnapshotPolicyRedacted,
+			MaxSnapshotBytes: 1024,
+		},
 	})
 	impl := embeddingBridgeServer{}
 	desc := &servicev1.ServiceDescriptor{
@@ -122,11 +131,18 @@ func TestNATSServicePublishesRedactedAuditAndTelemetryEvents(t *testing.T) {
 		t.Fatalf("connect client: %v", err)
 	}
 	defer conn.Close()
-	auditSub, err := conn.SubscribeSync("audit.space_1.service_calls")
+	js, err := conn.JetStream()
+	if err != nil {
+		t.Fatalf("jetstream: %v", err)
+	}
+	if _, err := js.AddStream(&natsgo.StreamConfig{Name: "AUDIT", Subjects: []string{"audit.>"}}); err != nil {
+		t.Fatalf("add audit stream: %v", err)
+	}
+	auditSub, err := conn.SubscribeSync("audit.space_1.service_calls.>")
 	if err != nil {
 		t.Fatalf("subscribe audit: %v", err)
 	}
-	telemetrySub, err := conn.SubscribeSync("telemetry.space_1.service_calls")
+	telemetrySub, err := conn.SubscribeSync("telemetry.space_1.service_calls.>")
 	if err != nil {
 		t.Fatalf("subscribe telemetry: %v", err)
 	}
@@ -134,23 +150,23 @@ func TestNATSServicePublishesRedactedAuditAndTelemetryEvents(t *testing.T) {
 		t.Fatalf("flush subscriptions: %v", err)
 	}
 
-	payload, err := protojson.Marshal(textEmbeddingRequest("secret text"))
+	payload, err := protojson.Marshal(textEmbeddingRequest("private document body authorization: Bearer secret-token-value"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	request := servicefunction.RequestEnvelope{
-		Version:     servicefunction.EnvelopeVersion,
-		CallID:      "call-2",
-		SpaceID:     "space-1",
-		SessionID:   "session-1",
-		RunID:       "run-1",
-		Actor:       servicefunction.ActorRuntime,
-		Service:     "gateway",
-		Function:    "embed",
-		Subject:     "svc.gateway.v1.embed",
-		Payload:     payload,
-		TraceParent: "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01",
-		TraceState:  "vendor=value",
+		Version:       servicefunction.EnvelopeVersion,
+		ServiceCallID: "call-2",
+		SpaceID:       "space-1",
+		SessionID:     "session-1",
+		RunID:         "run-1",
+		Actor:         servicefunction.ActorRuntime,
+		Service:       "gateway",
+		Function:      "embed",
+		Subject:       "svc.gateway.v1.embed",
+		Payload:       payload,
+		TraceParent:   "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01",
+		TraceState:    "vendor=value",
 	}
 	data, err := json.Marshal(request)
 	if err != nil {
@@ -200,7 +216,22 @@ func startBridgeNATS(t *testing.T) *natsserver.Server {
 	return ns
 }
 
-func assertServiceCallEvent(t *testing.T, sub *natsgo.Subscription, callID string) {
+func startBridgeJetStreamNATS(t *testing.T) *natsserver.Server {
+	t.Helper()
+	ns, err := natsserver.NewServer(&natsserver.Options{Host: "127.0.0.1", Port: -1, JetStream: true, StoreDir: t.TempDir(), NoLog: true, NoSigs: true})
+	if err != nil {
+		t.Fatalf("new nats server: %v", err)
+	}
+	go ns.Start()
+	if !ns.ReadyForConnections(time.Second) {
+		ns.Shutdown()
+		t.Fatal("nats server did not become ready")
+	}
+	t.Cleanup(ns.Shutdown)
+	return ns
+}
+
+func assertServiceCallEvent(t *testing.T, sub *natsgo.Subscription, serviceCallID string) {
 	t.Helper()
 	msg, err := sub.NextMsg(time.Second)
 	if err != nil {
@@ -210,16 +241,20 @@ func assertServiceCallEvent(t *testing.T, sub *natsgo.Subscription, callID strin
 	if err := json.Unmarshal(msg.Data, &event); err != nil {
 		t.Fatalf("decode event: %v", err)
 	}
-	if event.CallID != callID || event.Service != "gateway" || event.Function != "embed" || event.Subject != "svc.gateway.v1.embed" {
+	if event.ServiceCallID != serviceCallID || event.ReferenceID != servicefunction.ReferenceIDForServiceCall(serviceCallID) ||
+		event.AuditRef == "" || event.Service != "gateway" || event.Function != "embed" || event.Subject != "svc.gateway.v1.embed" {
 		t.Fatalf("event = %+v", event)
 	}
 	if event.Status != string(servicefunction.StatusOK) {
 		t.Fatalf("event status = %q", event.Status)
 	}
-	if event.TraceParent == "" || event.TraceState == "" {
-		t.Fatalf("event trace fields missing: %+v", event)
+	if event.TraceID != "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" || event.RetentionExpiresAt == "" {
+		t.Fatalf("event audit fields missing: %+v", event)
 	}
-	if string(msg.Data) == "secret text" {
-		t.Fatalf("event leaked request payload: %s", msg.Data)
+	if strings.Contains(string(msg.Data), "secret-token-value") ||
+		strings.Contains(string(msg.Data), "private document body") ||
+		!strings.Contains(string(event.RequestSnapshot), `"content_stored":false`) ||
+		!strings.Contains(string(event.ResponseSnapshot), `"content_stored":false`) {
+		t.Fatalf("event snapshot policy failed: %s", msg.Data)
 	}
 }

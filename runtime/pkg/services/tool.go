@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -10,6 +11,7 @@ import (
 	"github.com/quarkloop/pkg/boundary"
 	"github.com/quarkloop/pkg/plugin"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
+	"github.com/quarkloop/pkg/serviceapi/servicefunction"
 	"github.com/quarkloop/pkg/serviceapi/servicekit"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -160,34 +162,58 @@ func (e *Executor) Execute(ctx context.Context, functionName, arguments string) 
 	if err != nil {
 		return "", boundary.Wrap(boundary.Runtime, boundary.InvalidArgument, "encode "+rpc.GetRequest(), err)
 	}
-	out, err := e.invokeNATSServiceFunction(callCtx, resolved, payload, respType.Descriptor())
+	out, envelope, err := e.invokeNATSServiceFunction(callCtx, resolved, payload, respType.Descriptor())
 	if err != nil {
 		return "", err
 	}
+	var result string
 	if rpc.GetResponse() == "quark.gateway.v1.EmbedResponse" {
-		return e.embeddingToolResult(out)
+		result, err = e.embeddingToolResult(out)
+	} else if rpc.GetResponse() == "quark.document.v1.ExtractTextResponse" {
+		result, err = e.documentExtractTextToolResult(out, arguments)
+	} else if rpc.GetResponse() == "quark.document.v1.ExtractImagesResponse" || rpc.GetResponse() == "quark.document.v1.GetPagesResponse" {
+		result, err = e.documentMediaToolResult(out, arguments)
+	} else if rpc.GetResponse() == "quark.io.v1.ReadResponse" {
+		result, err = e.ioReadToolResult(out, arguments)
+	} else if rpc.GetResponse() == "quark.io.v1.ReadMediaResponse" {
+		result, err = e.ioReadMediaToolResult(out, arguments)
+	} else {
+		data, marshalErr := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(out)
+		if marshalErr != nil {
+			return "", fmt.Errorf("encode response: %w", marshalErr)
+		}
+		result, err = e.attachResultReference(functionName, rpc.GetResponse(), data)
 	}
-	if rpc.GetResponse() == "quark.document.v1.ExtractTextResponse" {
-		return e.documentExtractTextToolResult(out, arguments)
-	}
-	if rpc.GetResponse() == "quark.document.v1.ExtractImagesResponse" || rpc.GetResponse() == "quark.document.v1.GetPagesResponse" {
-		return e.documentMediaToolResult(out, arguments)
-	}
-	if rpc.GetResponse() == "quark.io.v1.ReadResponse" {
-		return e.ioReadToolResult(out, arguments)
-	}
-	if rpc.GetResponse() == "quark.io.v1.ReadMediaResponse" {
-		return e.ioReadMediaToolResult(out, arguments)
-	}
-	data, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(out)
 	if err != nil {
-		return "", fmt.Errorf("encode response: %w", err)
+		return "", err
 	}
-	return e.attachResultReference(functionName, rpc.GetResponse(), data)
+	return attachServiceCallReferences(result, envelope)
 }
 
 func (e *Executor) CaptureToolResult(toolName, arguments, result string) (string, error) {
 	return result, nil
+}
+
+func attachServiceCallReferences(result string, envelope servicefunction.ResponseEnvelope) (string, error) {
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		return result, nil
+	}
+	references, err := json.Marshal(map[string]string{
+		"serviceCallId": envelope.ServiceCallID,
+		"referenceId":   envelope.ReferenceID,
+		"auditRef":      envelope.AuditRef,
+		"traceId":       envelope.TraceID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("encode service call references: %w", err)
+	}
+	payload["_serviceCall"] = references
+	data, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("encode service result: %w", err)
+	}
+	return string(data), nil
 }
 
 func (e *Executor) resolve(functionName string) (resolvedRPC, error) {

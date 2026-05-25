@@ -55,6 +55,8 @@ type JetStreamConfig struct {
 	MaxStore                int64
 	Domain                  string
 	ArtifactHandoffMaxBytes int64
+	AuditRetention          time.Duration
+	AuditMaxMessages        int64
 }
 
 type PermissionConfig struct {
@@ -110,6 +112,8 @@ func DefaultConfig(stateDir string) Config {
 			Enabled:                 true,
 			StoreDir:                filepath.Join(stateDir, "jetstream"),
 			ArtifactHandoffMaxBytes: defaultArtifactHandoffMaxBytes,
+			AuditRetention:          90 * 24 * time.Hour,
+			AuditMaxMessages:        10_000_000,
 		},
 		SystemAccount: SystemAccountName,
 		Accounts:      DefaultAccounts(),
@@ -173,6 +177,12 @@ func Normalize(cfg Config) (Config, error) {
 		}
 		if cfg.JetStream.Enabled && cfg.JetStream.ArtifactHandoffMaxBytes <= 0 {
 			cfg.JetStream.ArtifactHandoffMaxBytes = defaultArtifactHandoffMaxBytes
+		}
+		if cfg.JetStream.Enabled && cfg.JetStream.AuditRetention <= 0 {
+			cfg.JetStream.AuditRetention = 90 * 24 * time.Hour
+		}
+		if cfg.JetStream.Enabled && cfg.JetStream.AuditMaxMessages <= 0 {
+			cfg.JetStream.AuditMaxMessages = 10_000_000
 		}
 	case ModeExternal:
 		if strings.TrimSpace(cfg.ExternalURL) == "" {

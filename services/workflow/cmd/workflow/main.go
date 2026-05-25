@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/quarkloop/pkg/serviceapi/observability"
 	"github.com/quarkloop/services/workflow/internal/app"
 )
 
@@ -24,6 +25,11 @@ func main() {
 	flag.StringVar(&cfg.NATSPassword, "nats-password", os.Getenv("QUARK_NATS_PASSWORD"), "NATS password")
 	flag.StringVar(&cfg.NATSQueue, "nats-queue", os.Getenv("QUARK_WORKFLOW_NATS_QUEUE"), "NATS queue group")
 	flag.Parse()
+	cfg.Audit = observability.RecorderConfig{
+		AuditPrefix:     os.Getenv("QUARK_NATS_AUDIT_PREFIX"),
+		TelemetryPrefix: os.Getenv("QUARK_NATS_TELEMETRY_PREFIX"),
+		Policy:          observability.DefaultAuditPolicy(),
+	}
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil).WithAttrs([]slog.Attr{
 		slog.String("process", "service"),

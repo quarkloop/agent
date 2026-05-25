@@ -9,12 +9,14 @@ import (
 	"time"
 
 	natsgo "github.com/nats-io/nats.go"
-	"github.com/quarkloop/pkg/boundary"
-	workflowv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/workflow/v1"
-	"github.com/quarkloop/pkg/serviceapi/servicefunction"
-	"github.com/quarkloop/services/workflow/internal/workflowsvc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/quarkloop/pkg/boundary"
+	workflowv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/workflow/v1"
+	"github.com/quarkloop/pkg/serviceapi/observability"
+	"github.com/quarkloop/pkg/serviceapi/servicefunction"
+	"github.com/quarkloop/services/workflow/internal/workflowsvc"
 )
 
 const (
@@ -43,12 +45,14 @@ type Config struct {
 	ReconnectWait time.Duration
 	MaxReconnects int
 	Logger        *slog.Logger
+	Audit         observability.RecorderConfig
 }
 
 type Server struct {
 	cfg       Config
 	workflows *workflowsvc.Server
 	conn      *natsgo.Conn
+	recorder  *observability.Recorder
 	subs      []*natsgo.Subscription
 }
 
@@ -72,6 +76,12 @@ func (s *Server) Start(ctx context.Context) error {
 		return fmt.Errorf("connect nats: %w", err)
 	}
 	s.conn = conn
+	recorder, err := observability.NewRecorder(conn, s.cfg.Audit)
+	if err != nil {
+		s.Close()
+		return fmt.Errorf("configure workflow audit recorder: %w", err)
+	}
+	s.recorder = recorder
 	for _, fn := range []string{
 		functionStart,
 		functionSignal,
@@ -118,9 +128,11 @@ func (s *Server) Close() {
 		s.conn.Close()
 		s.conn = nil
 	}
+	s.recorder = nil
 }
 
 func (s *Server) handle(msg *natsgo.Msg) {
+	started := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 	defer cancel()
 
@@ -130,82 +142,104 @@ func (s *Server) handle(msg *natsgo.Msg) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		s.respond(msg, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, req.Subject))
+		s.respondAndRecord(msg, req, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, req.Subject), started)
 		return
 	}
 	switch req.Function {
 	case functionStart:
-		s.handleUnary(ctx, msg, req, &workflowv1.StartWorkflowRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
+		s.handleUnary(ctx, msg, req, started, &workflowv1.StartWorkflowRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
 			return s.workflows.Start(ctx, request.(*workflowv1.StartWorkflowRequest))
 		})
 	case functionSignal:
-		s.handleUnary(ctx, msg, req, &workflowv1.SignalWorkflowRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
+		s.handleUnary(ctx, msg, req, started, &workflowv1.SignalWorkflowRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
 			return s.workflows.Signal(ctx, request.(*workflowv1.SignalWorkflowRequest))
 		})
 	case functionQuery:
-		s.handleUnary(ctx, msg, req, &workflowv1.QueryWorkflowRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
+		s.handleUnary(ctx, msg, req, started, &workflowv1.QueryWorkflowRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
 			return s.workflows.Query(ctx, request.(*workflowv1.QueryWorkflowRequest))
 		})
 	case functionCancel:
-		s.handleUnary(ctx, msg, req, &workflowv1.CancelWorkflowRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
+		s.handleUnary(ctx, msg, req, started, &workflowv1.CancelWorkflowRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
 			return s.workflows.Cancel(ctx, request.(*workflowv1.CancelWorkflowRequest))
 		})
 	case functionDescribe:
-		s.handleUnary(ctx, msg, req, &workflowv1.DescribeWorkflowRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
+		s.handleUnary(ctx, msg, req, started, &workflowv1.DescribeWorkflowRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
 			return s.workflows.Describe(ctx, request.(*workflowv1.DescribeWorkflowRequest))
 		})
 	case functionList:
-		s.handleUnary(ctx, msg, req, &workflowv1.ListWorkflowsRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
+		s.handleUnary(ctx, msg, req, started, &workflowv1.ListWorkflowsRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
 			return s.workflows.List(ctx, request.(*workflowv1.ListWorkflowsRequest))
 		})
 	case functionStreamEvents:
-		s.handleStreamEvents(ctx, msg, req)
+		s.handleStreamEvents(ctx, msg, req, started)
 	default:
-		s.respond(msg, servicefunction.ErrorResponse(req.CallID, fmt.Errorf("unknown workflow function %q", req.Function), boundary.Service, req.Subject))
+		s.respondAndRecord(msg, req, servicefunction.ErrorResponse(req.ServiceCallID, fmt.Errorf("unknown workflow function %q", req.Function), boundary.Service, req.Subject), started)
 	}
 }
 
 type unaryHandler func(context.Context, proto.Message) (proto.Message, error)
 
-func (s *Server) handleUnary(ctx context.Context, msg *natsgo.Msg, req servicefunction.RequestEnvelope, request proto.Message, handler unaryHandler) {
+func (s *Server) handleUnary(ctx context.Context, msg *natsgo.Msg, req servicefunction.RequestEnvelope, started time.Time, request proto.Message, handler unaryHandler) {
 	if err := protojson.Unmarshal(req.Payload, request); err != nil {
-		s.respond(msg, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, req.Subject))
+		s.respondAndRecord(msg, req, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, req.Subject), started)
 		return
 	}
 	resp, err := handler(ctx, request)
 	if err != nil {
-		s.respond(msg, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, req.Subject))
+		s.respondAndRecord(msg, req, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, req.Subject), started)
 		return
 	}
 	payload, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(resp)
 	if err != nil {
-		s.respond(msg, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, req.Subject))
+		s.respondAndRecord(msg, req, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, req.Subject), started)
 		return
 	}
-	s.respond(msg, servicefunction.OKResponse(req.CallID, payload))
+	s.respondAndRecord(msg, req, servicefunction.OKResponse(req.ServiceCallID, payload), started)
 }
 
-func (s *Server) handleStreamEvents(ctx context.Context, msg *natsgo.Msg, req servicefunction.RequestEnvelope) {
+func (s *Server) handleStreamEvents(ctx context.Context, msg *natsgo.Msg, req servicefunction.RequestEnvelope, started time.Time) {
 	if msg.Reply == "" {
 		return
 	}
 	var request workflowv1.StreamWorkflowEventsRequest
 	if err := protojson.Unmarshal(req.Payload, &request); err != nil {
-		s.publish(msg.Reply, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, req.Subject))
+		s.publishAndRecordTerminal(msg.Reply, req, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, req.Subject), started)
 		return
 	}
 	events, err := s.workflows.EngineEvents(ctx, &request)
 	if err != nil {
-		s.publish(msg.Reply, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, req.Subject))
+		s.publishAndRecordTerminal(msg.Reply, req, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, req.Subject), started)
 		return
 	}
 	for event := range events {
 		payload, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(event)
 		if err != nil {
-			s.publish(msg.Reply, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, req.Subject))
+			s.publishAndRecordTerminal(msg.Reply, req, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, req.Subject), started)
 			return
 		}
-		s.publish(msg.Reply, servicefunction.OKResponse(req.CallID, payload))
+		s.publish(msg.Reply, servicefunction.OKResponse(req.ServiceCallID, payload).WithTraceParent(req.TraceParent))
+	}
+	s.record(req, servicefunction.OKResponse(req.ServiceCallID, json.RawMessage(`{}`)).WithTraceParent(req.TraceParent), time.Since(started))
+}
+
+func (s *Server) respondAndRecord(msg *natsgo.Msg, req servicefunction.RequestEnvelope, resp servicefunction.ResponseEnvelope, started time.Time) {
+	resp = resp.WithTraceParent(req.TraceParent)
+	s.respond(msg, resp)
+	s.record(req, resp, time.Since(started))
+}
+
+func (s *Server) publishAndRecordTerminal(reply string, req servicefunction.RequestEnvelope, resp servicefunction.ResponseEnvelope, started time.Time) {
+	resp = resp.WithTraceParent(req.TraceParent)
+	s.publish(reply, resp)
+	s.record(req, resp, time.Since(started))
+}
+
+func (s *Server) record(req servicefunction.RequestEnvelope, resp servicefunction.ResponseEnvelope, duration time.Duration) {
+	if s.recorder == nil {
+		return
+	}
+	if err := s.recorder.Record(req, observability.Endpoint{Service: serviceName, Function: req.Function, Subject: req.Subject}, resp, duration); err != nil {
+		s.cfg.Logger.Error("record workflow service call", "reference_id", resp.ReferenceID, "error", err)
 	}
 }
 

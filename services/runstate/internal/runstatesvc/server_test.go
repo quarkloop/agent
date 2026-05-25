@@ -42,7 +42,7 @@ func TestUpdateItemArtifactsReferencesIncompleteAndResume(t *testing.T) {
 	updated, err := srv.UpdateItemState(context.Background(), &runstatev1.UpdateItemStateRequest{
 		RunId: run.GetId(), ItemId: itemID, Phase: "extract",
 		Status: runstatev1.RunStatus_RUN_STATUS_SUCCEEDED, ArtifactRef: "artifact://document/text",
-		Metadata: map[string]string{"parser": "document"}, ServiceCallRefs: []string{"call-extract-1"},
+		Metadata: map[string]string{"parser": "document"}, ServiceCallRefs: []string{"svc-ref-extract-1"},
 	})
 	if err != nil || len(updated.GetItem().GetPhases()) != 1 {
 		t.Fatalf("update item = %#v, %v", updated, err)
@@ -56,9 +56,9 @@ func TestUpdateItemArtifactsReferencesIncompleteAndResume(t *testing.T) {
 	}
 	ref, err := srv.AppendReference(context.Background(), &runstatev1.AppendReferenceRequest{
 		RunId: run.GetId(), ItemId: itemID,
-		Reference: &runstatev1.Reference{Ref: "svc-call-2", Kind: "service_call"},
+		Reference: &runstatev1.Reference{Ref: "svc-ref-index-2", Kind: "service_call"},
 	})
-	if err != nil || ref.GetReference().GetItemId() != itemID {
+	if err != nil || ref.GetReference().GetItemId() != itemID || ref.GetReference().GetRef() != "svc-ref-index-2" {
 		t.Fatalf("append reference = %#v, %v", ref, err)
 	}
 	failed, err := srv.MarkFailed(context.Background(), &runstatev1.MarkFailedRequest{
@@ -99,7 +99,7 @@ func TestCompletionCancellationAndLeaseOwnership(t *testing.T) {
 	if _, err := srv.ReleaseLease(context.Background(), &runstatev1.ReleaseLeaseRequest{Key: renewed.GetLease().GetKey(), OwnerId: "runtime-1", Revision: renewed.GetLease().GetRevision()}); err != nil {
 		t.Fatalf("release lease: %v", err)
 	}
-	completed, err := srv.MarkComplete(context.Background(), &runstatev1.MarkCompleteRequest{RunId: run.GetId(), ServiceCallRefs: []string{"call-complete"}})
+	completed, err := srv.MarkComplete(context.Background(), &runstatev1.MarkCompleteRequest{RunId: run.GetId(), ServiceCallRefs: []string{"svc-ref-complete"}})
 	if err != nil || completed.GetRun().GetStatus() != runstatev1.RunStatus_RUN_STATUS_SUCCEEDED {
 		t.Fatalf("complete = %#v, %v", completed, err)
 	}

@@ -24,7 +24,7 @@ func TestRequestEnvelopeValidationHeadersCloneAndRedaction(t *testing.T) {
 	req.Artifacts = []ArtifactRef{{ID: "artifact-1", URI: "file:///tmp/doc.pdf"}}
 
 	headers := req.CorrelationHeaders()
-	if headers[HeaderCallID] != "call-1" ||
+	if headers[HeaderServiceCallID] != "call-1" ||
 		headers[HeaderSessionID] != "session-1" ||
 		headers[HeaderTraceParent] != "00-trace" ||
 		headers[HeaderTraceState] != "vendor=value" {
@@ -59,6 +59,9 @@ func TestResponseEnvelopeValidationCloneRedactionAndErrorMapping(t *testing.T) {
 	if err := resp.Validate(); err != nil {
 		t.Fatalf("validate ok response: %v", err)
 	}
+	if resp.ReferenceID != ReferenceIDForServiceCall("call-1") || resp.AuditRef != AuditRefForReference(resp.ReferenceID) {
+		t.Fatalf("response references = %+v", resp)
+	}
 
 	clone := resp.Clone()
 	clone.Payload[0] = '['
@@ -86,6 +89,37 @@ func TestResponseEnvelopeValidationCloneRedactionAndErrorMapping(t *testing.T) {
 	unknown := ErrorPayloadFromError(errors.New("no responders available for request"), boundary.Runtime, "svc.io.v1.missing")
 	if unknown.Boundary != boundary.Service || unknown.Category != boundary.Unavailable {
 		t.Fatalf("no responders mapping = %+v", unknown)
+	}
+}
+
+func TestResponseTraceReferenceAndGeneratedErrorCallID(t *testing.T) {
+	resp := OKResponse("call-trace", json.RawMessage(`{}`)).WithTraceParent("00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01")
+	if resp.TraceID != "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
+		t.Fatalf("trace id = %q", resp.TraceID)
+	}
+	if err := resp.Validate(); err != nil {
+		t.Fatalf("validate traced response: %v", err)
+	}
+	errResp := ErrorResponse("", errors.New("invalid input"), boundary.Service, "decode")
+	if errResp.ServiceCallID == "" || errResp.ReferenceID == "" || errResp.AuditRef == "" {
+		t.Fatalf("generated error references = %+v", errResp)
+	}
+	if err := errResp.Validate(); err != nil {
+		t.Fatalf("validate generated error response: %v", err)
+	}
+}
+
+func TestTraceIDFromTraceParentRejectsInvalidW3CContext(t *testing.T) {
+	for _, input := range []string{
+		"01-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01",
+		"00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-0000000000000000-01",
+		"00-00000000000000000000000000000000-bbbbbbbbbbbbbbbb-01",
+		"00-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA-bbbbbbbbbbbbbbbb-01",
+		"00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb",
+	} {
+		if got := TraceIDFromTraceParent(input); got != "" {
+			t.Fatalf("TraceIDFromTraceParent(%q) = %q", input, got)
+		}
 	}
 }
 

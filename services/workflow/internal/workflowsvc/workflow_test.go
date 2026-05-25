@@ -111,7 +111,7 @@ type recordingDispatcher struct {
 
 func (d *recordingDispatcher) Dispatch(_ context.Context, req servicefunction.RequestEnvelope) (servicefunction.ResponseEnvelope, error) {
 	d.request = req.Clone()
-	return servicefunction.OKResponse(req.CallID, []byte(`{"ok":true}`)), nil
+	return servicefunction.OKResponse(req.ServiceCallID, []byte(`{"ok":true}`)), nil
 }
 
 type workflowTestEnv interface {

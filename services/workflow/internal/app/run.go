@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	natsgo "github.com/nats-io/nats.go"
+	"github.com/quarkloop/pkg/serviceapi/observability"
 	"github.com/quarkloop/services/workflow/internal/workflownats"
 	"github.com/quarkloop/services/workflow/internal/workflowsvc"
 	"go.temporal.io/sdk/client"
@@ -22,6 +23,7 @@ type Config struct {
 	NATSUser          string
 	NATSPassword      string
 	NATSQueue         string
+	Audit             observability.RecorderConfig
 	Logger            *slog.Logger
 }
 
@@ -89,6 +91,7 @@ func Run(ctx context.Context, cfg Config) error {
 		Password: cfg.NATSPassword,
 		Queue:    cfg.NATSQueue,
 		Logger:   cfg.Logger,
+		Audit:    cfg.Audit,
 	}, server)
 	if err := natsServer.Start(ctx); err != nil {
 		return err

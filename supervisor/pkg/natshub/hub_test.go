@@ -111,10 +111,10 @@ func TestHubProvisionsControlStreamsAndCoordinationBuckets(t *testing.T) {
 	if _, err := objects.PutBytes("probe", []byte("large-payload-ref")); err != nil {
 		t.Fatalf("write artifact handoff object: %v", err)
 	}
-	if _, err := js.Publish("audit.space_1.service_calls", []byte(`{"type":"service_call"}`)); err != nil {
+	if _, err := js.Publish("audit.space_1.service_calls.svc_ref_probe", []byte(`{"type":"service_call"}`)); err != nil {
 		t.Fatalf("publish audit event: %v", err)
 	}
-	replay, err := js.SubscribeSync("audit.space_1.service_calls", nats.BindStream(StreamAudit), nats.DeliverAll())
+	replay, err := js.SubscribeSync("audit.space_1.service_calls.>", nats.BindStream(StreamAudit), nats.DeliverAll())
 	if err != nil {
 		t.Fatalf("subscribe audit replay: %v", err)
 	}

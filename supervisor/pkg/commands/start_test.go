@@ -3,6 +3,7 @@ package commands
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/quarkloop/supervisor/pkg/natshub"
 )
@@ -17,6 +18,8 @@ func TestStartNATSConfigBuildsEmbeddedConfig(t *testing.T) {
 	natsWebSocketPort = 19222
 	natsMonitorPort = 18222
 	natsArtifactHandoffMaxBytes = 64 * 1024 * 1024
+	natsAuditRetention = 48 * time.Hour
+	natsAuditMaxMessages = 2048
 
 	cfg, err := startNATSConfig()
 	if err != nil {
@@ -33,6 +36,9 @@ func TestStartNATSConfigBuildsEmbeddedConfig(t *testing.T) {
 	}
 	if cfg.JetStream.ArtifactHandoffMaxBytes != natsArtifactHandoffMaxBytes {
 		t.Fatalf("artifact handoff max bytes = %d", cfg.JetStream.ArtifactHandoffMaxBytes)
+	}
+	if cfg.JetStream.AuditRetention != natsAuditRetention || cfg.JetStream.AuditMaxMessages != natsAuditMaxMessages {
+		t.Fatalf("audit retention config = duration:%s messages:%d", cfg.JetStream.AuditRetention, cfg.JetStream.AuditMaxMessages)
 	}
 }
 
@@ -70,6 +76,8 @@ func captureStartNATSFlags() func() {
 	oldWebSocketPort := natsWebSocketPort
 	oldMonitorPort := natsMonitorPort
 	oldArtifactHandoffMaxBytes := natsArtifactHandoffMaxBytes
+	oldAuditRetention := natsAuditRetention
+	oldAuditMaxMessages := natsAuditMaxMessages
 	oldBundledPluginsDir := bundledPluginsDir
 	return func() {
 		natsMode = oldMode
@@ -79,6 +87,8 @@ func captureStartNATSFlags() func() {
 		natsWebSocketPort = oldWebSocketPort
 		natsMonitorPort = oldMonitorPort
 		natsArtifactHandoffMaxBytes = oldArtifactHandoffMaxBytes
+		natsAuditRetention = oldAuditRetention
+		natsAuditMaxMessages = oldAuditMaxMessages
 		bundledPluginsDir = oldBundledPluginsDir
 	}
 }

@@ -42,8 +42,8 @@ func TestProviderStreamsGatewayResponsesAndUsage(t *testing.T) {
 			t.Errorf("max_output_tokens option = %q", payload.GetOptions()["max_output_tokens"])
 			return
 		}
-		publishProviderChunk(t, conn, msg.Reply, req.CallID, &gatewayv1.StreamGenerateResponse{Delta: "hello"})
-		publishProviderChunk(t, conn, msg.Reply, req.CallID, &gatewayv1.StreamGenerateResponse{
+		publishProviderChunk(t, conn, msg.Reply, req.ServiceCallID, &gatewayv1.StreamGenerateResponse{Delta: "hello"})
+		publishProviderChunk(t, conn, msg.Reply, req.ServiceCallID, &gatewayv1.StreamGenerateResponse{
 			Done: true,
 			Usage: &gatewayv1.ModelUsage{
 				Provider:      "openrouter",

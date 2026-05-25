@@ -11,6 +11,7 @@ import (
 	natsgo "github.com/nats-io/nats.go"
 	"github.com/quarkloop/pkg/boundary"
 	secretsv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/secrets/v1"
+	"github.com/quarkloop/pkg/serviceapi/observability"
 	"github.com/quarkloop/pkg/serviceapi/servicefunction"
 	"github.com/quarkloop/services/secrets/internal/secretssvc"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -42,13 +43,15 @@ type Config struct {
 	ReconnectWait time.Duration
 	MaxReconnects int
 	Logger        *slog.Logger
+	Audit         observability.RecorderConfig
 }
 
 type Server struct {
-	cfg     Config
-	secrets *secretssvc.Server
-	conn    *natsgo.Conn
-	subs    []*natsgo.Subscription
+	cfg      Config
+	secrets  *secretssvc.Server
+	conn     *natsgo.Conn
+	recorder *observability.Recorder
+	subs     []*natsgo.Subscription
 }
 
 func New(cfg Config, secrets *secretssvc.Server) *Server {
@@ -71,6 +74,12 @@ func (s *Server) Start(ctx context.Context) error {
 		return fmt.Errorf("connect nats: %w", err)
 	}
 	s.conn = conn
+	recorder, err := observability.NewRecorder(conn, s.cfg.Audit)
+	if err != nil {
+		s.Close()
+		return fmt.Errorf("configure secrets audit recorder: %w", err)
+	}
+	s.recorder = recorder
 	for _, fn := range []string{
 		functionResolveRef,
 		functionIssueScopedSecret,
@@ -116,9 +125,11 @@ func (s *Server) Close() {
 		s.conn.Close()
 		s.conn = nil
 	}
+	s.recorder = nil
 }
 
 func (s *Server) handle(msg *natsgo.Msg) {
+	started := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 	defer cancel()
 
@@ -128,57 +139,68 @@ func (s *Server) handle(msg *natsgo.Msg) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		s.respond(msg, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, req.Subject))
+		s.respondAndRecord(msg, req, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, req.Subject), started)
 		return
 	}
 	switch req.Function {
 	case functionResolveRef:
-		s.handleUnary(ctx, msg, req, &secretsv1.ResolveRefRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
+		s.handleUnary(ctx, msg, req, started, &secretsv1.ResolveRefRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
 			return s.secrets.ResolveRef(ctx, request.(*secretsv1.ResolveRefRequest))
 		})
 	case functionIssueScopedSecret:
-		s.handleUnary(ctx, msg, req, &secretsv1.IssueScopedSecretRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
+		s.handleUnary(ctx, msg, req, started, &secretsv1.IssueScopedSecretRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
 			return s.secrets.IssueScopedSecret(ctx, request.(*secretsv1.IssueScopedSecretRequest))
 		})
 	case functionRenewLease:
-		s.handleUnary(ctx, msg, req, &secretsv1.RenewLeaseRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
+		s.handleUnary(ctx, msg, req, started, &secretsv1.RenewLeaseRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
 			return s.secrets.RenewLease(ctx, request.(*secretsv1.RenewLeaseRequest))
 		})
 	case functionRevokeLease:
-		s.handleUnary(ctx, msg, req, &secretsv1.RevokeLeaseRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
+		s.handleUnary(ctx, msg, req, started, &secretsv1.RevokeLeaseRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
 			return s.secrets.RevokeLease(ctx, request.(*secretsv1.RevokeLeaseRequest))
 		})
 	case functionRotateSecret:
-		s.handleUnary(ctx, msg, req, &secretsv1.RotateSecretRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
+		s.handleUnary(ctx, msg, req, started, &secretsv1.RotateSecretRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
 			return s.secrets.RotateSecret(ctx, request.(*secretsv1.RotateSecretRequest))
 		})
 	case functionAuditAccess:
-		s.handleUnary(ctx, msg, req, &secretsv1.AuditAccessRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
+		s.handleUnary(ctx, msg, req, started, &secretsv1.AuditAccessRequest{}, func(ctx context.Context, request proto.Message) (proto.Message, error) {
 			return s.secrets.AuditAccess(ctx, request.(*secretsv1.AuditAccessRequest))
 		})
 	default:
-		s.respond(msg, servicefunction.ErrorResponse(req.CallID, fmt.Errorf("unknown secrets function %q", req.Function), boundary.Service, req.Subject))
+		s.respondAndRecord(msg, req, servicefunction.ErrorResponse(req.ServiceCallID, fmt.Errorf("unknown secrets function %q", req.Function), boundary.Service, req.Subject), started)
 	}
 }
 
 type unaryHandler func(context.Context, proto.Message) (proto.Message, error)
 
-func (s *Server) handleUnary(ctx context.Context, msg *natsgo.Msg, req servicefunction.RequestEnvelope, request proto.Message, handler unaryHandler) {
+func (s *Server) handleUnary(ctx context.Context, msg *natsgo.Msg, req servicefunction.RequestEnvelope, started time.Time, request proto.Message, handler unaryHandler) {
 	if err := protojson.Unmarshal(req.Payload, request); err != nil {
-		s.respond(msg, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, req.Subject))
+		s.respondAndRecord(msg, req, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, req.Subject), started)
 		return
 	}
 	resp, err := handler(ctx, request)
 	if err != nil {
-		s.respond(msg, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, req.Subject))
+		s.respondAndRecord(msg, req, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, req.Subject), started)
 		return
 	}
 	payload, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(resp)
 	if err != nil {
-		s.respond(msg, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, req.Subject))
+		s.respondAndRecord(msg, req, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, req.Subject), started)
 		return
 	}
-	s.respond(msg, servicefunction.OKResponse(req.CallID, payload))
+	s.respondAndRecord(msg, req, servicefunction.OKResponse(req.ServiceCallID, payload), started)
+}
+
+func (s *Server) respondAndRecord(msg *natsgo.Msg, req servicefunction.RequestEnvelope, resp servicefunction.ResponseEnvelope, started time.Time) {
+	resp = resp.WithTraceParent(req.TraceParent)
+	s.respond(msg, resp)
+	if s.recorder == nil {
+		return
+	}
+	if err := s.recorder.Record(req, observability.Endpoint{Service: serviceName, Function: req.Function, Subject: req.Subject}, resp, time.Since(started)); err != nil {
+		s.cfg.Logger.Error("record secrets service call", "reference_id", resp.ReferenceID, "error", err)
+	}
 }
 
 func (s *Server) respond(msg *natsgo.Msg, resp servicefunction.ResponseEnvelope) {

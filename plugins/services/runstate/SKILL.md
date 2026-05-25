@@ -8,8 +8,9 @@ agent-coordinated operation. It does not perform the work being tracked.
 1. Call `runstate_StartRun` when multi-step work needs durable progress.
 2. Use generic `items` and a workflow `kind`; a Knowledge document is an item,
    not a special service concept.
-3. Record item phases with `runstate_UpdateItemState` and attach service call
-   or artifact references as results are obtained.
+3. Record item phases with `runstate_UpdateItemState` and attach artifact
+   references or the `referenceId` returned by completed service calls. Store
+   that audit lookup reference, not an internal tool-call or service-call ID.
 4. Use `runstate_GetRun`, `runstate_ListRuns`, or
    `runstate_ListIncompleteItems` to resume interrupted work.
 5. Close terminal state using `runstate_MarkComplete`,

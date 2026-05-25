@@ -18,7 +18,7 @@ embeddings, index data, or call another service.
 | `runstate_ResumeRun` | `RunStateService/ResumeRun` | Re-open incomplete items for coordination. |
 | `runstate_UpdateItemState` | `RunStateService/UpdateItemState` | Record an arbitrary item phase and service references. |
 | `runstate_AppendArtifact` | `RunStateService/AppendArtifact` | Attach an artifact reference. |
-| `runstate_AppendReference` | `RunStateService/AppendReference` | Attach an audit or service-call reference. |
+| `runstate_AppendReference` | `RunStateService/AppendReference` | Attach an audit lookup `reference_id` returned by a service function. |
 | `runstate_MarkFailed` | `RunStateService/MarkFailed` | Record failed run or item state. |
 | `runstate_MarkComplete` | `RunStateService/MarkComplete` | Record completed run or item state. |
 | `runstate_CancelRun` | `RunStateService/CancelRun` | Cancel a run while retaining its history. |
@@ -32,6 +32,8 @@ embeddings, index data, or call another service.
 
 - `runstate-records.json` is the durable record ledger and includes retention
   timestamps for later cleanup policy enforcement.
+- `service_call_refs` and `Reference{kind: "service_call"}` contain response
+  `reference_id` values, not internal invocation IDs or raw payload data.
 - `runstate_leases` is ephemeral coordination state; lease expiry or deletion
   cannot remove durable history.
 - On first startup, an existing `ingestion-state.json` is imported into the

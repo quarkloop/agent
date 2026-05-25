@@ -64,6 +64,7 @@ message UpdateItemStateRequest {
   string artifact_ref = 5;
   string error = 6;
   map<string, string> metadata = 7;
+  // Audit lookup reference_id values returned by service-function responses.
   repeated string service_call_refs = 8;
 }
 
@@ -85,6 +86,7 @@ message MarkFailedRequest {
   string phase = 3;
   string error = 4;
   map<string, string> metadata = 5;
+  // Audit lookup reference_id values returned by service-function responses.
   repeated string service_call_refs = 6;
 }
 
@@ -94,6 +96,7 @@ message MarkCompleteRequest {
   string phase = 3;
   string artifact_ref = 4;
   map<string, string> metadata = 5;
+  // Audit lookup reference_id values returned by service-function responses.
   repeated string service_call_refs = 6;
 }
 
@@ -138,6 +141,7 @@ message Run {
   string kind = 9;
   string actor_ref = 10;
   string retention_expires_at = 11;
+  // Audit lookup reference_id values associated with this run.
   repeated string service_call_refs = 12;
   repeated Reference references = 13;
 }
@@ -155,6 +159,7 @@ message ItemState {
   map<string, string> metadata = 10;
   repeated PhaseState phases = 11;
   int32 retry_count = 12;
+  // Audit lookup reference_id values associated with this item.
   repeated string service_call_refs = 13;
 }
 
@@ -167,6 +172,7 @@ message Artifact {
 }
 
 message Reference {
+  // For kind "service_call", ref is the service response reference_id.
   string ref = 1;
   string kind = 2;
   string item_id = 3;
@@ -181,6 +187,7 @@ message PhaseState {
   string error = 4;
   string updated_at = 5;
   map<string, string> metadata = 6;
+  // Audit lookup reference_id values associated with this phase.
   repeated string service_call_refs = 7;
 }
 

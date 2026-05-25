@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/quarkloop/pkg/serviceapi/observability"
 	"github.com/quarkloop/services/secrets/internal/secretsnats"
 	"github.com/quarkloop/services/secrets/internal/secretssvc"
 )
@@ -19,6 +20,7 @@ type Config struct {
 	NATSUser       string
 	NATSPassword   string
 	NATSQueue      string
+	Audit          observability.RecorderConfig
 	Logger         *slog.Logger
 }
 
@@ -46,6 +48,7 @@ func Run(ctx context.Context, cfg Config) error {
 		Password: cfg.NATSPassword,
 		Queue:    cfg.NATSQueue,
 		Logger:   cfg.Logger,
+		Audit:    cfg.Audit,
 	}, server)
 	if err := natsServer.Start(ctx); err != nil {
 		return err

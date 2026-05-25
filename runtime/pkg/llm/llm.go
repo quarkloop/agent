@@ -277,13 +277,13 @@ func (c *Client) InferWithToolCallPolicyAndContinuation(ctx context.Context, mes
 			startedAt := time.Now().UTC()
 			if onMessage != nil {
 				onMessage("tool_start", map[string]any{
-					"id":              callID,
-					"service_call_id": callID,
-					"name":            tc.Function.Name,
-					"arguments":       tc.Function.Arguments,
-					"session_id":      sessionID,
-					"run_id":          runID,
-					"observed_at":     startedAt.Format(time.RFC3339Nano),
+					"id":           callID,
+					"tool_call_id": callID,
+					"name":         tc.Function.Name,
+					"arguments":    tc.Function.Arguments,
+					"session_id":   sessionID,
+					"run_id":       runID,
+					"observed_at":  startedAt.Format(time.RFC3339Nano),
 				})
 			}
 
@@ -296,9 +296,9 @@ func (c *Client) InferWithToolCallPolicyAndContinuation(ctx context.Context, mes
 				result = fmt.Sprintf("error: %v", err)
 			}
 			if onMessage != nil {
-				onMessage("tool_result", map[string]any{
+				event := map[string]any{
 					"id":              callID,
-					"service_call_id": callID,
+					"tool_call_id":    callID,
 					"name":            tc.Function.Name,
 					"result":          preview(result, 2000),
 					"error":           toolErr,
@@ -306,7 +306,11 @@ func (c *Client) InferWithToolCallPolicyAndContinuation(ctx context.Context, mes
 					"session_id":      sessionID,
 					"run_id":          runID,
 					"observed_at":     finishedAt.Format(time.RFC3339Nano),
-				})
+				}
+				for key, value := range serviceCallFieldsFromResult(result) {
+					event[key] = value
+				}
+				onMessage("tool_result", event)
 			}
 			messages = append(messages, plugin.Message{
 				Role:       "tool",
@@ -340,6 +344,29 @@ func (c *Client) InferWithToolCallPolicyAndContinuation(ctx context.Context, mes
 		// Reset for next LLM call
 		fullContent = ""
 	}
+}
+
+func serviceCallFieldsFromResult(result string) map[string]string {
+	var payload struct {
+		ServiceCall struct {
+			ServiceCallID string `json:"serviceCallId"`
+			ReferenceID   string `json:"referenceId"`
+			AuditRef      string `json:"auditRef"`
+			TraceID       string `json:"traceId"`
+		} `json:"_serviceCall"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil || payload.ServiceCall.ServiceCallID == "" {
+		return nil
+	}
+	out := map[string]string{
+		"service_call_id": payload.ServiceCall.ServiceCallID,
+		"reference_id":    payload.ServiceCall.ReferenceID,
+		"audit_ref":       payload.ServiceCall.AuditRef,
+	}
+	if payload.ServiceCall.TraceID != "" {
+		out["trace_id"] = payload.ServiceCall.TraceID
+	}
+	return out
 }
 
 func normalizeToolCallArgumentsFromContext(ctx context.Context, calls []plugin.ToolCall) ([]plugin.ToolCall, error) {

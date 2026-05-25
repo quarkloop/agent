@@ -17,7 +17,7 @@ func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.Ser
 			rpc(serviceName, "ResumeRun", "quark.runstate.v1.ResumeRunRequest", "quark.runstate.v1.ResumeRunResponse", "Make incomplete items resumable."),
 			rpc(serviceName, "UpdateItemState", "quark.runstate.v1.UpdateItemStateRequest", "quark.runstate.v1.UpdateItemStateResponse", "Update an item phase and status."),
 			rpc(serviceName, "AppendArtifact", "quark.runstate.v1.AppendArtifactRequest", "quark.runstate.v1.AppendArtifactResponse", "Attach an artifact reference."),
-			rpc(serviceName, "AppendReference", "quark.runstate.v1.AppendReferenceRequest", "quark.runstate.v1.AppendReferenceResponse", "Attach an audit or service-call reference."),
+			rpc(serviceName, "AppendReference", "quark.runstate.v1.AppendReferenceRequest", "quark.runstate.v1.AppendReferenceResponse", "Attach an audit lookup reference_id returned by a service function."),
 			rpc(serviceName, "MarkFailed", "quark.runstate.v1.MarkFailedRequest", "quark.runstate.v1.MarkFailedResponse", "Mark an execution run or item failed."),
 			rpc(serviceName, "MarkComplete", "quark.runstate.v1.MarkCompleteRequest", "quark.runstate.v1.MarkCompleteResponse", "Mark an execution run or item complete."),
 			rpc(serviceName, "CancelRun", "quark.runstate.v1.CancelRunRequest", "quark.runstate.v1.CancelRunResponse", "Cancel an execution run."),

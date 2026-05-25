@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/quarkloop/pkg/serviceapi/observability"
 	"github.com/quarkloop/services/gateway/internal/app"
 )
 
@@ -24,6 +25,7 @@ func main() {
 	var natsPassword string
 	var natsQueue string
 	var natsTimeout time.Duration
+
 	flag.StringVar(&addr, "addr", "127.0.0.1:7306", "service descriptor address")
 	flag.StringVar(&skillDir, "skill-dir", "", "directory containing the service SKILL.md")
 	flag.StringVar(&fallbackSpec, "fallbacks", os.Getenv("QUARK_GATEWAY_FALLBACKS"), "fallbacks as provider=fallback1,fallback2;provider2=fallback")
@@ -52,6 +54,11 @@ func main() {
 			Password: natsPassword,
 			Queue:    natsQueue,
 			Timeout:  natsTimeout,
+			Audit: observability.RecorderConfig{
+				AuditPrefix:     os.Getenv("QUARK_NATS_AUDIT_PREFIX"),
+				TelemetryPrefix: os.Getenv("QUARK_NATS_TELEMETRY_PREFIX"),
+				Policy:          observability.DefaultAuditPolicy(),
+			},
 		},
 		Providers:         providerConfigsFromEnv(),
 		Fallbacks:         fallbacks,

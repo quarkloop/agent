@@ -49,15 +49,15 @@ type objectStoreSpec struct {
 	MaxBytes    int64
 }
 
-func controlStreams() []streamSpec {
+func controlStreams(cfg JetStreamConfig) []streamSpec {
 	return []streamSpec{
 		{
 			Name:        StreamAudit,
 			Description: "Redacted append-only audit events.",
 			Subjects:    []string{"audit.>"},
 			Retention:   nats.LimitsPolicy,
-			MaxAge:      90 * 24 * time.Hour,
-			MaxMsgs:     10_000_000,
+			MaxAge:      cfg.AuditRetention,
+			MaxMsgs:     cfg.AuditMaxMessages,
 		},
 		{
 			Name:        StreamTelemetry,
@@ -198,7 +198,7 @@ func (h *Hub) provisionJetStreamLocked(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("open jetstream context: %w", err)
 	}
-	for _, spec := range controlStreams() {
+	for _, spec := range controlStreams(h.cfg.JetStream) {
 		if err := ensureStream(js, spec); err != nil {
 			return err
 		}

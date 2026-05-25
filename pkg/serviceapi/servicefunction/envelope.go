@@ -1,16 +1,21 @@
 package servicefunction
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
+	"time"
 
 	"github.com/quarkloop/pkg/boundary"
 	"github.com/quarkloop/pkg/boundary/redaction"
 )
 
-const EnvelopeVersion = 1
+const EnvelopeVersion = 2
 
 type Actor string
 
@@ -30,14 +35,14 @@ const (
 )
 
 const (
-	HeaderCallID      = "Quark-Call-Id"
-	HeaderSpaceID     = "Quark-Space-Id"
-	HeaderSessionID   = "Quark-Session-Id"
-	HeaderAgentID     = "Quark-Agent-Id"
-	HeaderRunID       = "Quark-Run-Id"
-	HeaderWorkflowID  = "Quark-Workflow-Id"
-	HeaderTraceParent = "traceparent"
-	HeaderTraceState  = "tracestate"
+	HeaderServiceCallID = "Quark-Service-Call-Id"
+	HeaderSpaceID       = "Quark-Space-Id"
+	HeaderSessionID     = "Quark-Session-Id"
+	HeaderAgentID       = "Quark-Agent-Id"
+	HeaderRunID         = "Quark-Run-Id"
+	HeaderWorkflowID    = "Quark-Workflow-Id"
+	HeaderTraceParent   = "traceparent"
+	HeaderTraceState    = "tracestate"
 )
 
 type ArtifactRef struct {
@@ -59,7 +64,7 @@ type Usage struct {
 
 type RequestEnvelope struct {
 	Version       int             `json:"version"`
-	CallID        string          `json:"call_id"`
+	ServiceCallID string          `json:"service_call_id"`
 	SpaceID       string          `json:"space_id"`
 	SessionID     string          `json:"session_id,omitempty"`
 	AgentID       string          `json:"agent_id,omitempty"`
@@ -77,14 +82,17 @@ type RequestEnvelope struct {
 }
 
 type ResponseEnvelope struct {
-	Version     int                   `json:"version"`
-	CallID      string                `json:"call_id"`
-	Status      ResponseStatus        `json:"status"`
-	Payload     json.RawMessage       `json:"payload,omitempty"`
-	Artifacts   []ArtifactRef         `json:"artifacts,omitempty"`
-	Usage       *Usage                `json:"usage,omitempty"`
-	Diagnostics []boundary.Diagnostic `json:"diagnostics,omitempty"`
-	Error       *ErrorPayload         `json:"error,omitempty"`
+	Version       int                   `json:"version"`
+	ServiceCallID string                `json:"service_call_id"`
+	ReferenceID   string                `json:"reference_id"`
+	AuditRef      string                `json:"audit_ref"`
+	TraceID       string                `json:"trace_id,omitempty"`
+	Status        ResponseStatus        `json:"status"`
+	Payload       json.RawMessage       `json:"payload,omitempty"`
+	Artifacts     []ArtifactRef         `json:"artifacts,omitempty"`
+	Usage         *Usage                `json:"usage,omitempty"`
+	Diagnostics   []boundary.Diagnostic `json:"diagnostics,omitempty"`
+	Error         *ErrorPayload         `json:"error,omitempty"`
 }
 
 type ErrorPayload struct {
@@ -94,16 +102,16 @@ type ErrorPayload struct {
 	Message   string            `json:"message"`
 }
 
-func NewRequest(callID, spaceID string, actor Actor, descriptor Descriptor, payload json.RawMessage) (RequestEnvelope, error) {
+func NewRequest(serviceCallID, spaceID string, actor Actor, descriptor Descriptor, payload json.RawMessage) (RequestEnvelope, error) {
 	req := RequestEnvelope{
-		Version:  EnvelopeVersion,
-		CallID:   strings.TrimSpace(callID),
-		SpaceID:  strings.TrimSpace(spaceID),
-		Actor:    actor,
-		Service:  descriptor.Service,
-		Function: descriptor.Function,
-		Subject:  descriptor.Subject,
-		Payload:  cloneRawMessage(payload),
+		Version:       EnvelopeVersion,
+		ServiceCallID: strings.TrimSpace(serviceCallID),
+		SpaceID:       strings.TrimSpace(spaceID),
+		Actor:         actor,
+		Service:       descriptor.Service,
+		Function:      descriptor.Function,
+		Subject:       descriptor.Subject,
+		Payload:       cloneRawMessage(payload),
 	}
 	if err := req.Validate(); err != nil {
 		return RequestEnvelope{}, err
@@ -116,11 +124,11 @@ func (e RequestEnvelope) Validate() error {
 		return fmt.Errorf("unsupported request envelope version %d", e.Version)
 	}
 	for name, value := range map[string]string{
-		"call_id":  e.CallID,
-		"space_id": e.SpaceID,
-		"service":  e.Service,
-		"function": e.Function,
-		"subject":  e.Subject,
+		"service_call_id": e.ServiceCallID,
+		"space_id":        e.SpaceID,
+		"service":         e.Service,
+		"function":        e.Function,
+		"subject":         e.Subject,
 	} {
 		if err := requireNonEmpty(name, value); err != nil {
 			return err
@@ -167,7 +175,7 @@ func (e RequestEnvelope) RedactedClone() RequestEnvelope {
 
 func (e RequestEnvelope) CorrelationHeaders() map[string]string {
 	headers := make(map[string]string)
-	addHeader(headers, HeaderCallID, e.CallID)
+	addHeader(headers, HeaderServiceCallID, e.ServiceCallID)
 	addHeader(headers, HeaderSpaceID, e.SpaceID)
 	addHeader(headers, HeaderSessionID, e.SessionID)
 	addHeader(headers, HeaderAgentID, e.AgentID)
@@ -182,8 +190,23 @@ func (e ResponseEnvelope) Validate() error {
 	if e.Version != EnvelopeVersion {
 		return fmt.Errorf("unsupported response envelope version %d", e.Version)
 	}
-	if err := requireNonEmpty("call_id", e.CallID); err != nil {
-		return err
+	for name, value := range map[string]string{
+		"service_call_id": e.ServiceCallID,
+		"reference_id":    e.ReferenceID,
+		"audit_ref":       e.AuditRef,
+	} {
+		if err := requireNonEmpty(name, value); err != nil {
+			return err
+		}
+	}
+	if e.TraceID != "" && !validTraceID.MatchString(e.TraceID) {
+		return fmt.Errorf("trace_id must be a W3C trace identifier")
+	}
+	if e.ReferenceID != ReferenceIDForServiceCall(e.ServiceCallID) {
+		return fmt.Errorf("reference_id does not match service_call_id")
+	}
+	if e.AuditRef != AuditRefForReference(e.ReferenceID) {
+		return fmt.Errorf("audit_ref does not match reference_id")
 	}
 	switch e.Status {
 	case StatusOK:
@@ -244,26 +267,32 @@ func (e ResponseEnvelope) RedactedClone() ResponseEnvelope {
 	return out
 }
 
-func OKResponse(callID string, payload json.RawMessage) ResponseEnvelope {
+func OKResponse(serviceCallID string, payload json.RawMessage) ResponseEnvelope {
+	refs := NewReferences(serviceCallID, "")
 	return ResponseEnvelope{
-		Version: EnvelopeVersion,
-		CallID:  strings.TrimSpace(callID),
-		Status:  StatusOK,
-		Payload: cloneRawMessage(payload),
+		Version:       EnvelopeVersion,
+		ServiceCallID: refs.ServiceCallID,
+		ReferenceID:   refs.ReferenceID,
+		AuditRef:      refs.AuditRef,
+		Status:        StatusOK,
+		Payload:       cloneRawMessage(payload),
 	}
 }
 
-func ErrorResponse(callID string, err error, defaultBoundary boundary.Boundary, operation string) ResponseEnvelope {
+func ErrorResponse(serviceCallID string, err error, defaultBoundary boundary.Boundary, operation string) ResponseEnvelope {
 	boundaryErr := BoundaryError(err, defaultBoundary, operation)
 	if boundaryErr == nil {
 		boundaryErr = boundary.New(defaultBoundary, boundary.Unknown, operation, "unknown service function error")
 	}
 	diag := boundary.DiagnosticFromError(boundaryErr, defaultBoundary, operation)
+	refs := NewReferences(serviceCallID, "")
 	return ResponseEnvelope{
-		Version:     EnvelopeVersion,
-		CallID:      strings.TrimSpace(callID),
-		Status:      StatusError,
-		Diagnostics: []boundary.Diagnostic{diag},
+		Version:       EnvelopeVersion,
+		ServiceCallID: refs.ServiceCallID,
+		ReferenceID:   refs.ReferenceID,
+		AuditRef:      refs.AuditRef,
+		Status:        StatusError,
+		Diagnostics:   []boundary.Diagnostic{diag},
 		Error: &ErrorPayload{
 			Boundary:  boundaryErr.Boundary,
 			Category:  boundaryErr.Category,
@@ -271,6 +300,63 @@ func ErrorResponse(callID string, err error, defaultBoundary boundary.Boundary, 
 			Message:   boundaryErr.Message,
 		},
 	}
+}
+
+type References struct {
+	ServiceCallID string
+	ReferenceID   string
+	AuditRef      string
+	TraceID       string
+}
+
+var (
+	validTraceID     = regexp.MustCompile(`^[0-9a-f]{32}$`)
+	validTraceParent = regexp.MustCompile(`^00-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$`)
+)
+
+func NewServiceCallID() string {
+	var buf [16]byte
+	if _, err := rand.Read(buf[:]); err == nil {
+		return "svc-call-" + hex.EncodeToString(buf[:])
+	}
+	return fmt.Sprintf("svc-call-%d", time.Now().UnixNano())
+}
+
+func NewReferences(serviceCallID, traceParent string) References {
+	serviceCallID = strings.TrimSpace(serviceCallID)
+	if serviceCallID == "" {
+		serviceCallID = NewServiceCallID()
+	}
+	referenceID := ReferenceIDForServiceCall(serviceCallID)
+	return References{
+		ServiceCallID: serviceCallID,
+		ReferenceID:   referenceID,
+		AuditRef:      AuditRefForReference(referenceID),
+		TraceID:       TraceIDFromTraceParent(traceParent),
+	}
+}
+
+func ReferenceIDForServiceCall(serviceCallID string) string {
+	digest := sha256.Sum256([]byte(strings.TrimSpace(serviceCallID)))
+	return "svc-ref-" + hex.EncodeToString(digest[:16])
+}
+
+func AuditRefForReference(referenceID string) string {
+	return "urn:quark:audit:service-call:" + strings.TrimSpace(referenceID)
+}
+
+func TraceIDFromTraceParent(traceParent string) string {
+	parts := validTraceParent.FindStringSubmatch(strings.TrimSpace(traceParent))
+	if len(parts) != 4 || parts[1] == strings.Repeat("0", 32) || parts[2] == strings.Repeat("0", 16) {
+		return ""
+	}
+	return parts[1]
+}
+
+func (e ResponseEnvelope) WithTraceParent(traceParent string) ResponseEnvelope {
+	out := e.Clone()
+	out.TraceID = TraceIDFromTraceParent(traceParent)
+	return out
 }
 
 func addHeader(headers map[string]string, key, value string) {

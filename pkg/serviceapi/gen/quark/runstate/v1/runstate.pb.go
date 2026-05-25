@@ -415,15 +415,16 @@ func (x *ResumeRunRequest) GetRunId() string {
 }
 
 type UpdateItemStateRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	RunId           string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	ItemId          string                 `protobuf:"bytes,2,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
-	Phase           string                 `protobuf:"bytes,3,opt,name=phase,proto3" json:"phase,omitempty"`
-	Status          RunStatus              `protobuf:"varint,4,opt,name=status,proto3,enum=quark.runstate.v1.RunStatus" json:"status,omitempty"`
-	ArtifactRef     string                 `protobuf:"bytes,5,opt,name=artifact_ref,json=artifactRef,proto3" json:"artifact_ref,omitempty"`
-	Error           string                 `protobuf:"bytes,6,opt,name=error,proto3" json:"error,omitempty"`
-	Metadata        map[string]string      `protobuf:"bytes,7,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	ServiceCallRefs []string               `protobuf:"bytes,8,rep,name=service_call_refs,json=serviceCallRefs,proto3" json:"service_call_refs,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	RunId       string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	ItemId      string                 `protobuf:"bytes,2,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
+	Phase       string                 `protobuf:"bytes,3,opt,name=phase,proto3" json:"phase,omitempty"`
+	Status      RunStatus              `protobuf:"varint,4,opt,name=status,proto3,enum=quark.runstate.v1.RunStatus" json:"status,omitempty"`
+	ArtifactRef string                 `protobuf:"bytes,5,opt,name=artifact_ref,json=artifactRef,proto3" json:"artifact_ref,omitempty"`
+	Error       string                 `protobuf:"bytes,6,opt,name=error,proto3" json:"error,omitempty"`
+	Metadata    map[string]string      `protobuf:"bytes,7,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Audit lookup reference_id values returned by service-function responses.
+	ServiceCallRefs []string `protobuf:"bytes,8,rep,name=service_call_refs,json=serviceCallRefs,proto3" json:"service_call_refs,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -635,13 +636,14 @@ func (x *AppendReferenceRequest) GetReference() *Reference {
 }
 
 type MarkFailedRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	RunId           string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	ItemId          string                 `protobuf:"bytes,2,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
-	Phase           string                 `protobuf:"bytes,3,opt,name=phase,proto3" json:"phase,omitempty"`
-	Error           string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
-	Metadata        map[string]string      `protobuf:"bytes,5,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	ServiceCallRefs []string               `protobuf:"bytes,6,rep,name=service_call_refs,json=serviceCallRefs,proto3" json:"service_call_refs,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	RunId    string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	ItemId   string                 `protobuf:"bytes,2,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
+	Phase    string                 `protobuf:"bytes,3,opt,name=phase,proto3" json:"phase,omitempty"`
+	Error    string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	Metadata map[string]string      `protobuf:"bytes,5,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Audit lookup reference_id values returned by service-function responses.
+	ServiceCallRefs []string `protobuf:"bytes,6,rep,name=service_call_refs,json=serviceCallRefs,proto3" json:"service_call_refs,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -719,13 +721,14 @@ func (x *MarkFailedRequest) GetServiceCallRefs() []string {
 }
 
 type MarkCompleteRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	RunId           string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	ItemId          string                 `protobuf:"bytes,2,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
-	Phase           string                 `protobuf:"bytes,3,opt,name=phase,proto3" json:"phase,omitempty"`
-	ArtifactRef     string                 `protobuf:"bytes,4,opt,name=artifact_ref,json=artifactRef,proto3" json:"artifact_ref,omitempty"`
-	Metadata        map[string]string      `protobuf:"bytes,5,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	ServiceCallRefs []string               `protobuf:"bytes,6,rep,name=service_call_refs,json=serviceCallRefs,proto3" json:"service_call_refs,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	RunId       string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	ItemId      string                 `protobuf:"bytes,2,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
+	Phase       string                 `protobuf:"bytes,3,opt,name=phase,proto3" json:"phase,omitempty"`
+	ArtifactRef string                 `protobuf:"bytes,4,opt,name=artifact_ref,json=artifactRef,proto3" json:"artifact_ref,omitempty"`
+	Metadata    map[string]string      `protobuf:"bytes,5,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Audit lookup reference_id values returned by service-function responses.
+	ServiceCallRefs []string `protobuf:"bytes,6,rep,name=service_call_refs,json=serviceCallRefs,proto3" json:"service_call_refs,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -1507,10 +1510,11 @@ type Run struct {
 	Kind               string                 `protobuf:"bytes,9,opt,name=kind,proto3" json:"kind,omitempty"`
 	ActorRef           string                 `protobuf:"bytes,10,opt,name=actor_ref,json=actorRef,proto3" json:"actor_ref,omitempty"`
 	RetentionExpiresAt string                 `protobuf:"bytes,11,opt,name=retention_expires_at,json=retentionExpiresAt,proto3" json:"retention_expires_at,omitempty"`
-	ServiceCallRefs    []string               `protobuf:"bytes,12,rep,name=service_call_refs,json=serviceCallRefs,proto3" json:"service_call_refs,omitempty"`
-	References         []*Reference           `protobuf:"bytes,13,rep,name=references,proto3" json:"references,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Audit lookup reference_id values associated with this run.
+	ServiceCallRefs []string     `protobuf:"bytes,12,rep,name=service_call_refs,json=serviceCallRefs,proto3" json:"service_call_refs,omitempty"`
+	References      []*Reference `protobuf:"bytes,13,rep,name=references,proto3" json:"references,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Run) Reset() {
@@ -1635,20 +1639,21 @@ func (x *Run) GetReferences() []*Reference {
 }
 
 type ItemState struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Kind            string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
-	ResourceUri     string                 `protobuf:"bytes,3,opt,name=resource_uri,json=resourceUri,proto3" json:"resource_uri,omitempty"`
-	Name            string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
-	ContentHash     string                 `protobuf:"bytes,5,opt,name=content_hash,json=contentHash,proto3" json:"content_hash,omitempty"`
-	Phase           string                 `protobuf:"bytes,6,opt,name=phase,proto3" json:"phase,omitempty"`
-	Status          RunStatus              `protobuf:"varint,7,opt,name=status,proto3,enum=quark.runstate.v1.RunStatus" json:"status,omitempty"`
-	LastError       string                 `protobuf:"bytes,8,opt,name=last_error,json=lastError,proto3" json:"last_error,omitempty"`
-	Artifacts       []*Artifact            `protobuf:"bytes,9,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
-	Metadata        map[string]string      `protobuf:"bytes,10,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Phases          []*PhaseState          `protobuf:"bytes,11,rep,name=phases,proto3" json:"phases,omitempty"`
-	RetryCount      int32                  `protobuf:"varint,12,opt,name=retry_count,json=retryCount,proto3" json:"retry_count,omitempty"`
-	ServiceCallRefs []string               `protobuf:"bytes,13,rep,name=service_call_refs,json=serviceCallRefs,proto3" json:"service_call_refs,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Kind        string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	ResourceUri string                 `protobuf:"bytes,3,opt,name=resource_uri,json=resourceUri,proto3" json:"resource_uri,omitempty"`
+	Name        string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	ContentHash string                 `protobuf:"bytes,5,opt,name=content_hash,json=contentHash,proto3" json:"content_hash,omitempty"`
+	Phase       string                 `protobuf:"bytes,6,opt,name=phase,proto3" json:"phase,omitempty"`
+	Status      RunStatus              `protobuf:"varint,7,opt,name=status,proto3,enum=quark.runstate.v1.RunStatus" json:"status,omitempty"`
+	LastError   string                 `protobuf:"bytes,8,opt,name=last_error,json=lastError,proto3" json:"last_error,omitempty"`
+	Artifacts   []*Artifact            `protobuf:"bytes,9,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
+	Metadata    map[string]string      `protobuf:"bytes,10,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Phases      []*PhaseState          `protobuf:"bytes,11,rep,name=phases,proto3" json:"phases,omitempty"`
+	RetryCount  int32                  `protobuf:"varint,12,opt,name=retry_count,json=retryCount,proto3" json:"retry_count,omitempty"`
+	// Audit lookup reference_id values associated with this item.
+	ServiceCallRefs []string `protobuf:"bytes,13,rep,name=service_call_refs,json=serviceCallRefs,proto3" json:"service_call_refs,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -1851,12 +1856,13 @@ func (x *Artifact) GetMetadata() map[string]string {
 }
 
 type Reference struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Ref           string                 `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
-	Kind          string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
-	ItemId        string                 `protobuf:"bytes,3,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
-	CreatedAt     string                 `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	Metadata      map[string]string      `protobuf:"bytes,5,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// For kind "service_call", ref is the service response reference_id.
+	Ref           string            `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
+	Kind          string            `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	ItemId        string            `protobuf:"bytes,3,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
+	CreatedAt     string            `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	Metadata      map[string]string `protobuf:"bytes,5,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1927,14 +1933,15 @@ func (x *Reference) GetMetadata() map[string]string {
 }
 
 type PhaseState struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Phase           string                 `protobuf:"bytes,1,opt,name=phase,proto3" json:"phase,omitempty"`
-	Status          RunStatus              `protobuf:"varint,2,opt,name=status,proto3,enum=quark.runstate.v1.RunStatus" json:"status,omitempty"`
-	ArtifactRef     string                 `protobuf:"bytes,3,opt,name=artifact_ref,json=artifactRef,proto3" json:"artifact_ref,omitempty"`
-	Error           string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
-	UpdatedAt       string                 `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	Metadata        map[string]string      `protobuf:"bytes,6,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	ServiceCallRefs []string               `protobuf:"bytes,7,rep,name=service_call_refs,json=serviceCallRefs,proto3" json:"service_call_refs,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Phase       string                 `protobuf:"bytes,1,opt,name=phase,proto3" json:"phase,omitempty"`
+	Status      RunStatus              `protobuf:"varint,2,opt,name=status,proto3,enum=quark.runstate.v1.RunStatus" json:"status,omitempty"`
+	ArtifactRef string                 `protobuf:"bytes,3,opt,name=artifact_ref,json=artifactRef,proto3" json:"artifact_ref,omitempty"`
+	Error       string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	UpdatedAt   string                 `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Metadata    map[string]string      `protobuf:"bytes,6,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Audit lookup reference_id values associated with this phase.
+	ServiceCallRefs []string `protobuf:"bytes,7,rep,name=service_call_refs,json=serviceCallRefs,proto3" json:"service_call_refs,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }

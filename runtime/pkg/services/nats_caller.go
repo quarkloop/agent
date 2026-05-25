@@ -2,8 +2,6 @@ package services
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -100,17 +98,17 @@ func (c *NATSCaller) Call(ctx context.Context, call serviceFunctionCall) (servic
 		return servicefunction.ResponseEnvelope{}, boundary.Wrap(boundary.Service, boundary.Transport, call.Subject, err)
 	}
 	request := servicefunction.RequestEnvelope{
-		Version:     servicefunction.EnvelopeVersion,
-		CallID:      newServiceCallID(),
-		SpaceID:     spaceID,
-		SessionID:   modelservice.SessionID(ctx),
-		RunID:       modelservice.RunID(ctx),
-		Actor:       servicefunction.ActorRuntime,
-		Service:     call.Service,
-		Function:    call.Function,
-		Subject:     call.Subject,
-		Payload:     append(json.RawMessage(nil), call.Payload...),
-		TraceParent: "",
+		Version:       servicefunction.EnvelopeVersion,
+		ServiceCallID: servicefunction.NewServiceCallID(),
+		SpaceID:       spaceID,
+		SessionID:     modelservice.SessionID(ctx),
+		RunID:         modelservice.RunID(ctx),
+		Actor:         servicefunction.ActorRuntime,
+		Service:       call.Service,
+		Function:      call.Function,
+		Subject:       call.Subject,
+		Payload:       append(json.RawMessage(nil), call.Payload...),
+		TraceParent:   "",
 	}
 	if request.RunID != "" {
 		request.AgentID = "main"
@@ -210,12 +208,4 @@ func serviceFunctionTimeout(rpc *servicev1.RpcDescriptor, fallback time.Duration
 		return fallback
 	}
 	return 30 * time.Second
-}
-
-func newServiceCallID() string {
-	var buf [16]byte
-	if _, err := rand.Read(buf[:]); err == nil {
-		return "svc-call-" + hex.EncodeToString(buf[:])
-	}
-	return fmt.Sprintf("svc-call-%d", time.Now().UnixNano())
 }

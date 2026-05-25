@@ -927,20 +927,20 @@ func subscribeGatewayEmbeddingFunction(t *testing.T, url string, handler func(*g
 		}
 		var req gatewayv1.EmbedRequest
 		if err := protojson.Unmarshal(envelope.Payload, &req); err != nil {
-			respondServiceFunction(t, msg, servicefunction.ErrorResponse(envelope.CallID, err, boundary.Service, subject))
+			respondServiceFunction(t, msg, servicefunction.ErrorResponse(envelope.ServiceCallID, err, boundary.Service, subject))
 			return
 		}
 		resp, err := handler(&req)
 		if err != nil {
-			respondServiceFunction(t, msg, servicefunction.ErrorResponse(envelope.CallID, err, boundary.Service, subject))
+			respondServiceFunction(t, msg, servicefunction.ErrorResponse(envelope.ServiceCallID, err, boundary.Service, subject))
 			return
 		}
 		payload, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(resp)
 		if err != nil {
-			respondServiceFunction(t, msg, servicefunction.ErrorResponse(envelope.CallID, err, boundary.Service, subject))
+			respondServiceFunction(t, msg, servicefunction.ErrorResponse(envelope.ServiceCallID, err, boundary.Service, subject))
 			return
 		}
-		respondServiceFunction(t, msg, servicefunction.OKResponse(envelope.CallID, payload))
+		respondServiceFunction(t, msg, servicefunction.OKResponse(envelope.ServiceCallID, payload))
 	})
 	if err != nil {
 		t.Fatalf("subscribe Gateway embedding function: %v", err)

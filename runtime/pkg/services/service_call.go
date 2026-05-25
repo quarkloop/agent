@@ -60,13 +60,13 @@ func serviceFunctionContext(ctx context.Context, rpc *servicev1.RpcDescriptor) (
 	return context.WithTimeout(ctx, timeout)
 }
 
-func (e *Executor) invokeNATSServiceFunction(ctx context.Context, resolved resolvedRPC, payload json.RawMessage, response protoreflect.MessageDescriptor) (*dynamicpb.Message, error) {
+func (e *Executor) invokeNATSServiceFunction(ctx context.Context, resolved resolvedRPC, payload json.RawMessage, response protoreflect.MessageDescriptor) (*dynamicpb.Message, servicefunction.ResponseEnvelope, error) {
 	if e == nil || e.caller == nil {
-		return nil, boundary.New(boundary.Runtime, boundary.Unavailable, "service function", "NATS service function caller is not configured")
+		return nil, servicefunction.ResponseEnvelope{}, boundary.New(boundary.Runtime, boundary.Unavailable, "service function", "NATS service function caller is not configured")
 	}
 	subject, serviceName, functionName, err := serviceFunctionSubject(resolved)
 	if err != nil {
-		return nil, boundary.Wrap(boundary.Service, boundary.InvalidArgument, "service function subject", err)
+		return nil, servicefunction.ResponseEnvelope{}, boundary.Wrap(boundary.Service, boundary.InvalidArgument, "service function subject", err)
 	}
 	attempts := serviceFunctionMaxAttempts(resolved.rpc)
 	var lastErr error
@@ -82,10 +82,10 @@ func (e *Executor) invokeNATSServiceFunction(ctx context.Context, resolved resol
 			out := dynamicpb.NewMessage(response)
 			if len(envelope.Payload) > 0 {
 				if err := protojson.Unmarshal(envelope.Payload, out); err != nil {
-					return nil, boundary.Wrap(boundary.Service, boundary.InvalidArgument, subject, err)
+					return nil, envelope, boundary.Wrap(boundary.Service, boundary.InvalidArgument, subject, err)
 				}
 			}
-			return out, nil
+			return out, envelope, nil
 		}
 		if err == nil && envelope.Error != nil {
 			err = boundary.New(envelope.Error.Boundary, envelope.Error.Category, envelope.Error.Operation, envelope.Error.Message)
@@ -95,13 +95,13 @@ func (e *Executor) invokeNATSServiceFunction(ctx context.Context, resolved resol
 		}
 		lastErr = err
 		if attempt == attempts || !serviceFunctionRetryable(resolved.rpc, err) {
-			return nil, boundary.FromError(boundary.Service, subject, err)
+			return nil, envelope, boundary.FromError(boundary.Service, subject, err)
 		}
 		if err := waitServiceFunctionRetry(ctx, resolved.rpc, attempt); err != nil {
-			return nil, err
+			return nil, envelope, err
 		}
 	}
-	return nil, lastErr
+	return nil, servicefunction.ResponseEnvelope{}, lastErr
 }
 
 func serviceFunctionSubject(resolved resolvedRPC) (subject string, serviceName string, functionName string, err error) {

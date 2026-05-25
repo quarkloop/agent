@@ -37,6 +37,7 @@ type NATSConfig struct {
 	Name            string
 	AuditPrefix     string
 	TelemetryPrefix string
+	AuditPolicy     observability.AuditPolicy
 	Timeout         time.Duration
 	ReconnectWait   time.Duration
 	MaxReconnects   int
@@ -54,9 +55,10 @@ type RPCService struct {
 }
 
 type NATSService struct {
-	cfg  NATSConfig
-	conn *natsgo.Conn
-	subs []*natsgo.Subscription
+	cfg      NATSConfig
+	conn     *natsgo.Conn
+	recorder *observability.Recorder
+	subs     []*natsgo.Subscription
 }
 
 func NewNATSService(cfg NATSConfig) *NATSService {
@@ -95,6 +97,16 @@ func (s *NATSService) Start(ctx context.Context, bindings ...Binding) error {
 	}
 	s.cfg = cfg
 	s.conn = conn
+	recorder, err := observability.NewRecorder(conn, observability.RecorderConfig{
+		AuditPrefix:     cfg.AuditPrefix,
+		TelemetryPrefix: cfg.TelemetryPrefix,
+		Policy:          cfg.AuditPolicy,
+	})
+	if err != nil {
+		s.Close()
+		return fmt.Errorf("configure service call recorder: %w", err)
+	}
+	s.recorder = recorder
 	for _, binding := range bindings {
 		if err := s.registerBinding(binding); err != nil {
 			s.Close()
@@ -126,6 +138,7 @@ func (s *NATSService) Close() {
 		s.conn.Close()
 		s.conn = nil
 	}
+	s.recorder = nil
 }
 
 func (s *NATSService) registerBinding(binding Binding) error {
@@ -192,35 +205,35 @@ func (s *NATSService) handle(ep endpoint) func(*natsgo.Msg) {
 			return
 		}
 		if err := req.Validate(); err != nil {
-			s.respondAndRecord(msg, req, ep, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, ep.subject), started)
+			s.respondAndRecord(msg, req, ep, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, ep.subject), started)
 			return
 		}
 		if req.Subject != ep.subject || req.Service != ep.serviceName || req.Function != ep.functionName {
 			err := fmt.Errorf("request targets %s/%s on %s, endpoint is %s/%s on %s", req.Service, req.Function, req.Subject, ep.serviceName, ep.functionName, ep.subject)
-			s.respondAndRecord(msg, req, ep, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, ep.subject), started)
+			s.respondAndRecord(msg, req, ep, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, ep.subject), started)
 			return
 		}
 		protoReq, err := newRequestMessage(ep.method.Request, req.Payload)
 		if err != nil {
-			s.respondAndRecord(msg, req, ep, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, ep.subject), started)
+			s.respondAndRecord(msg, req, ep, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, ep.subject), started)
 			return
 		}
 		resp, err := callUnaryMethod(ctx, ep.implementation, ep.method.Method, protoReq)
 		if err != nil {
-			s.respondAndRecord(msg, req, ep, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, ep.subject), started)
+			s.respondAndRecord(msg, req, ep, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, ep.subject), started)
 			return
 		}
 		protoResp, ok := resp.(proto.Message)
 		if !ok {
-			s.respondAndRecord(msg, req, ep, servicefunction.ErrorResponse(req.CallID, fmt.Errorf("response is not protobuf message"), boundary.Service, ep.subject), started)
+			s.respondAndRecord(msg, req, ep, servicefunction.ErrorResponse(req.ServiceCallID, fmt.Errorf("response is not protobuf message"), boundary.Service, ep.subject), started)
 			return
 		}
 		payload, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(protoResp)
 		if err != nil {
-			s.respondAndRecord(msg, req, ep, servicefunction.ErrorResponse(req.CallID, err, boundary.Service, ep.subject), started)
+			s.respondAndRecord(msg, req, ep, servicefunction.ErrorResponse(req.ServiceCallID, err, boundary.Service, ep.subject), started)
 			return
 		}
-		s.respondAndRecord(msg, req, ep, servicefunction.OKResponse(req.CallID, payload), started)
+		s.respondAndRecord(msg, req, ep, servicefunction.OKResponse(req.ServiceCallID, payload), started)
 	}
 }
 
@@ -239,48 +252,19 @@ func (s *NATSService) respond(msg *natsgo.Msg, resp servicefunction.ResponseEnve
 }
 
 func (s *NATSService) respondAndRecord(msg *natsgo.Msg, req servicefunction.RequestEnvelope, ep endpoint, resp servicefunction.ResponseEnvelope, started time.Time) {
+	resp = resp.WithTraceParent(req.TraceParent)
 	s.respond(msg, resp)
 	s.publishServiceCallEvents(req, ep, resp, time.Since(started))
 }
 
 func (s *NATSService) publishServiceCallEvents(req servicefunction.RequestEnvelope, ep endpoint, resp servicefunction.ResponseEnvelope, duration time.Duration) {
-	if s == nil || s.conn == nil {
+	if s == nil || s.recorder == nil {
 		return
 	}
-	if strings.TrimSpace(s.cfg.AuditPrefix) == "" && strings.TrimSpace(s.cfg.TelemetryPrefix) == "" {
-		return
-	}
-	event := observability.ServiceCallEvent{
-		CallID:         req.CallID,
-		SpaceID:        req.SpaceID,
-		SessionID:      req.SessionID,
-		RunID:          req.RunID,
-		WorkflowID:     req.WorkflowID,
-		AgentID:        req.AgentID,
-		Service:        ep.serviceName,
-		Function:       ep.functionName,
-		Subject:        ep.subject,
-		Status:         string(resp.Status),
-		DurationMillis: duration.Milliseconds(),
-		TraceParent:    req.TraceParent,
-		TraceState:     req.TraceState,
-	}
-	if resp.Error != nil {
-		event.ErrorCategory = string(resp.Error.Category)
-	}
-	data, err := observability.MarshalServiceCallEvent(event)
-	if err != nil {
-		s.cfg.Logger.Error("encode service call event", "subject", ep.subject, "error", err)
-		return
-	}
-	for _, prefix := range []string{s.cfg.AuditPrefix, s.cfg.TelemetryPrefix} {
-		subject := observability.ServiceCallSubject(prefix, req.SpaceID)
-		if subject == "" {
-			continue
-		}
-		if err := s.conn.Publish(subject, data); err != nil {
-			s.cfg.Logger.Error("publish service call event", "subject", subject, "error", err)
-		}
+	if err := s.recorder.Record(req, observability.Endpoint{
+		Service: ep.serviceName, Function: ep.functionName, Subject: ep.subject,
+	}, resp, duration); err != nil {
+		s.cfg.Logger.Error("record service call event", "subject", ep.subject, "reference_id", resp.ReferenceID, "error", err)
 	}
 }
 
