@@ -100,6 +100,7 @@ func coreServiceDescriptor() *servicev1.ServiceDescriptor {
 				Response:      "quark.core.v1.PublishEventResponse",
 				Owner:         "core",
 				FunctionName:  "core_PublishEvent",
+				Subject:       "svc.core.v1.publish_event",
 				TimeoutMillis: 2000,
 			},
 			{
@@ -109,6 +110,7 @@ func coreServiceDescriptor() *servicev1.ServiceDescriptor {
 				Response:      "quark.core.v1.RecordAuditEventResponse",
 				Owner:         "core",
 				FunctionName:  "core_RecordAuditEvent",
+				Subject:       "svc.core.v1.record_audit_event",
 				TimeoutMillis: 2000,
 			},
 		},

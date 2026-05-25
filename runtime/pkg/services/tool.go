@@ -187,14 +187,14 @@ func (e *Executor) Execute(ctx context.Context, functionName, arguments string) 
 	if err != nil {
 		return "", err
 	}
-	return attachServiceCallReferences(result, envelope)
+	return attachServiceCallReferences(result, envelope, rpc.GetSubject())
 }
 
 func (e *Executor) CaptureToolResult(toolName, arguments, result string) (string, error) {
 	return result, nil
 }
 
-func attachServiceCallReferences(result string, envelope natskit.ResponseEnvelope) (string, error) {
+func attachServiceCallReferences(result string, envelope natskit.ResponseEnvelope, subject string) (string, error) {
 	var payload map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(result), &payload); err != nil {
 		return result, nil
@@ -204,6 +204,7 @@ func attachServiceCallReferences(result string, envelope natskit.ResponseEnvelop
 		"referenceId":   envelope.ReferenceID,
 		"auditRef":      envelope.AuditRef,
 		"traceId":       envelope.TraceID,
+		"subject":       subject,
 	})
 	if err != nil {
 		return "", fmt.Errorf("encode service call references: %w", err)

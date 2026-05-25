@@ -353,6 +353,7 @@ func serviceCallFieldsFromResult(result string) map[string]string {
 			ReferenceID   string `json:"referenceId"`
 			AuditRef      string `json:"auditRef"`
 			TraceID       string `json:"traceId"`
+			Subject       string `json:"subject"`
 		} `json:"_serviceCall"`
 	}
 	if err := json.Unmarshal([]byte(result), &payload); err != nil || payload.ServiceCall.ServiceCallID == "" {
@@ -365,6 +366,9 @@ func serviceCallFieldsFromResult(result string) map[string]string {
 	}
 	if payload.ServiceCall.TraceID != "" {
 		out["trace_id"] = payload.ServiceCall.TraceID
+	}
+	if payload.ServiceCall.Subject != "" {
+		out["subject"] = payload.ServiceCall.Subject
 	}
 	return out
 }

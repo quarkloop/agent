@@ -136,6 +136,9 @@ func methodBindingFor(methods map[string]methodBinding, rpc *servicev1.RpcDescri
 }
 
 func operationForRPC(desc *servicev1.ServiceDescriptor, rpc *servicev1.RpcDescriptor) (Operation, error) {
+	if subject := strings.TrimSpace(rpc.GetSubject()); subject != "" {
+		return ParseServiceOperation(subject)
+	}
 	owner := strings.TrimSpace(rpc.GetOwner())
 	if owner == "" && desc != nil {
 		owner = desc.GetName()

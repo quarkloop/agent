@@ -49,6 +49,7 @@ func TestAgentRunArtifactsAreRedactedAndStructured(t *testing.T) {
 			CallID:         "call-1",
 			ServiceCallID:  "call-1",
 			Name:           "gateway_Embed",
+			Subject:        "svc.gateway.v1.embed",
 			Result:         `{"api_key":"` + secret + `"}`,
 			SessionID:      "session-1",
 			RunID:          "run-1",

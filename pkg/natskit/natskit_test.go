@@ -11,6 +11,7 @@ import (
 
 	natsserver "github.com/nats-io/nats-server/v2/server"
 	natsgo "github.com/nats-io/nats.go"
+	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 )
 
 func TestRequestEnvelopeDoesNotDuplicateOperationRoute(t *testing.T) {
@@ -75,6 +76,20 @@ func TestOperationRejectsMetadataThatDisagreesWithSubject(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("registered operation with duplicated, conflicting route identity")
+	}
+}
+
+func TestRPCDescriptorSubjectIsTheRegistrationAuthority(t *testing.T) {
+	operation, err := operationForRPC(&servicev1.ServiceDescriptor{Name: "wrong-owner"}, &servicev1.RpcDescriptor{
+		Owner:        "wrong-owner",
+		FunctionName: "wrong_Function",
+		Subject:      "svc.gateway.v1.embed",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if operation.Subject != "svc.gateway.v1.embed" || operation.Owner != "gateway" || operation.Function != "embed" {
+		t.Fatalf("operation = %+v", operation)
 	}
 }
 

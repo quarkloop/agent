@@ -169,8 +169,8 @@ func TestInferStreamsTraceableToolEvents(t *testing.T) {
 }
 
 func TestServiceCallFieldsFromResultUsesServiceEnvelopeReferences(t *testing.T) {
-	fields := serviceCallFieldsFromResult(`{"_serviceCall":{"serviceCallId":"svc-call-1","referenceId":"svc-ref-1","auditRef":"urn:quark:audit:service-call:svc-ref-1","traceId":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}`)
-	if fields["service_call_id"] != "svc-call-1" || fields["reference_id"] != "svc-ref-1" || fields["audit_ref"] == "" || fields["trace_id"] == "" {
+	fields := serviceCallFieldsFromResult(`{"_serviceCall":{"serviceCallId":"svc-call-1","referenceId":"svc-ref-1","auditRef":"urn:quark:audit:service-call:svc-ref-1","traceId":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","subject":"svc.gateway.v1.embed"}}`)
+	if fields["service_call_id"] != "svc-call-1" || fields["reference_id"] != "svc-ref-1" || fields["audit_ref"] == "" || fields["trace_id"] == "" || fields["subject"] != "svc.gateway.v1.embed" {
 		t.Fatalf("service call fields = %+v", fields)
 	}
 	if fields := serviceCallFieldsFromResult(`{"answer":"ordinary tool result"}`); fields != nil {

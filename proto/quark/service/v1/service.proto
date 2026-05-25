@@ -45,6 +45,7 @@ message RpcDescriptor {
   int32 timeout_millis = 13;
   RetryPolicy retry_policy = 14;
   repeated ServiceFunctionExample examples = 15;
+  string subject = 16;
 }
 
 message RetryPolicy {

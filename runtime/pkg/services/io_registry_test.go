@@ -16,6 +16,7 @@ func TestExecutorRegistersIOProtobufDescriptorsInProductionPackage(t *testing.T)
 			Service:  "quark.io.v1.IOService",
 			Method:   "Read",
 			Request:  "quark.io.v1.ReadRequest",
+			Subject:  "svc.io.v1.read",
 			Response: "quark.io.v1.ReadResponse",
 		}},
 	}})

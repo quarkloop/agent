@@ -125,7 +125,10 @@ func validateServiceDescriptor(i int, desc *servicev1.ServiceDescriptor) error {
 	return nil
 }
 
-var serviceFunctionNamePattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*$`)
+var (
+	serviceFunctionNamePattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*$`)
+	serviceSubjectPattern      = regexp.MustCompile(`^svc\.[a-z][a-z0-9_]*\.v1\.[a-z][a-z0-9_]*$`)
+)
 
 func validateResolvedRPC(i int, serviceName string, j int, rpc *servicev1.RpcDescriptor) error {
 	if rpc.GetOwner() == "" {
@@ -136,6 +139,12 @@ func validateResolvedRPC(i int, serviceName string, j int, rpc *servicev1.RpcDes
 	}
 	if !serviceFunctionNamePattern.MatchString(rpc.GetFunctionName()) {
 		return fmt.Errorf("services[%d] %q rpcs[%d]: invalid function name %q", i, serviceName, j, rpc.GetFunctionName())
+	}
+	if rpc.GetSubject() == "" {
+		return fmt.Errorf("services[%d] %q rpcs[%d]: missing NATS subject", i, serviceName, j)
+	}
+	if !serviceSubjectPattern.MatchString(rpc.GetSubject()) {
+		return fmt.Errorf("services[%d] %q rpcs[%d]: invalid NATS subject %q", i, serviceName, j, rpc.GetSubject())
 	}
 	switch rpc.GetRiskLevel() {
 	case "read", "write", "admin":

@@ -812,6 +812,7 @@ func TestExecutorRetriesRetryableServiceFunctionFailures(t *testing.T) {
 			Response:      "quark.gateway.v1.EmbedResponse",
 			Description:   "Embed text.",
 			FunctionName:  "gateway_Embed",
+			Subject:       "svc.gateway.v1.embed",
 			TimeoutMillis: 5000,
 			RetryPolicy: &servicev1.RetryPolicy{
 				MaxAttempts:    2,
@@ -829,6 +830,9 @@ func TestExecutorRetriesRetryableServiceFunctionFailures(t *testing.T) {
 	}
 	if !strings.Contains(result, "embeddingRef") {
 		t.Fatalf("expected embedding reference result, got %s", result)
+	}
+	if !strings.Contains(result, `"subject": "svc.gateway.v1.embed"`) {
+		t.Fatalf("expected authoritative operation subject in trace result, got %s", result)
 	}
 }
 
@@ -858,6 +862,7 @@ func TestExecutorMapsServiceInvalidArgumentToDiagnostics(t *testing.T) {
 			Request:      "quark.gateway.v1.EmbedRequest",
 			Response:     "quark.gateway.v1.EmbedResponse",
 			FunctionName: "gateway_Embed",
+			Subject:      "svc.gateway.v1.embed",
 		}},
 	}}, NewNATSCaller(NATSCallerConfig{URL: ns.ClientURL(), SpaceID: "test-space"}))
 

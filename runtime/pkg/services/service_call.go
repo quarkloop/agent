@@ -107,42 +107,11 @@ func serviceFunctionOperation(resolved resolvedRPC) (natskit.Operation, error) {
 	if rpc == nil {
 		return natskit.Operation{}, fmt.Errorf("rpc descriptor is required")
 	}
-	serviceName := strings.TrimSpace(rpc.GetOwner())
-	if serviceName == "" {
-		serviceName = serviceNameFromFunctionName(rpc.GetFunctionName())
+	subject := strings.TrimSpace(rpc.GetSubject())
+	if subject == "" {
+		return natskit.Operation{}, fmt.Errorf("service function subject is required for %s/%s", rpc.GetService(), rpc.GetMethod())
 	}
-	if serviceName == "" {
-		serviceName = serviceNameFromProtoService(rpc.GetService())
-	}
-	if serviceName == "" {
-		return natskit.Operation{}, fmt.Errorf("service owner is required for %s/%s", rpc.GetService(), rpc.GetMethod())
-	}
-	functionSource := strings.TrimSpace(rpc.GetFunctionName())
-	if functionSource == "" {
-		functionSource = strings.TrimSpace(rpc.GetMethod())
-	}
-	return natskit.ServiceOperationFromFunctionName(serviceName, functionSource)
-}
-
-func serviceNameFromFunctionName(functionName string) string {
-	owner, _, ok := strings.Cut(strings.TrimSpace(functionName), "_")
-	if !ok {
-		return ""
-	}
-	return owner
-}
-
-func serviceNameFromProtoService(protoService string) string {
-	protoService = strings.TrimSpace(protoService)
-	if protoService == "" {
-		return ""
-	}
-	parts := strings.Split(protoService, ".")
-	if len(parts) < 2 {
-		return protoService
-	}
-	name := strings.TrimSuffix(parts[len(parts)-1], "Service")
-	return name
+	return natskit.ParseServiceOperation(subject)
 }
 
 func serviceFunctionMaxAttempts(rpc *servicev1.RpcDescriptor) int {

@@ -22,6 +22,7 @@ func TestPromptBlockIncludesServiceSkillsAndRPCs(t *testing.T) {
 			Request:       "quark.indexer.v1.QueryRequest",
 			Response:      "quark.indexer.v1.ContextResponse",
 			FunctionName:  "indexer_GetContext",
+			Subject:       "svc.indexer.v1.get_context",
 			RiskLevel:     "read",
 			TimeoutMillis: 30000,
 		}},
@@ -50,6 +51,7 @@ func TestCatalogExposesServiceFunctions(t *testing.T) {
 			Request:      "quark.indexer.v1.QueryRequest",
 			Response:     "quark.indexer.v1.ContextResponse",
 			FunctionName: "indexer_GetContext",
+			Subject:      "svc.indexer.v1.get_context",
 		}},
 	}})
 	tools := catalog.ToolSchemas()
@@ -64,6 +66,30 @@ func TestCatalogExposesServiceFunctions(t *testing.T) {
 	}
 	if _, err := catalog.Execute(nil, "io_Read", "{}"); err == nil {
 		t.Fatal("non-catalog function unexpectedly executed without descriptor")
+	}
+}
+
+func TestServiceFunctionOperationUsesCatalogSubjectAsRouteAuthority(t *testing.T) {
+	t.Parallel()
+
+	operation, err := serviceFunctionOperation(resolvedRPC{rpc: &servicev1.RpcDescriptor{
+		Service:      "quark.indexer.v1.IndexerService",
+		Method:       "GetContext",
+		Owner:        "wrong-owner",
+		FunctionName: "wrong_Function",
+		Subject:      "svc.indexer.v1.get_context",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if operation.Subject != "svc.indexer.v1.get_context" || operation.Owner != "indexer" || operation.Function != "get_context" {
+		t.Fatalf("operation = %+v", operation)
+	}
+	if _, err := serviceFunctionOperation(resolvedRPC{rpc: &servicev1.RpcDescriptor{
+		Service: "quark.indexer.v1.IndexerService",
+		Method:  "GetContext",
+	}}); err == nil {
+		t.Fatal("catalog RPC without a concrete subject was accepted")
 	}
 }
 

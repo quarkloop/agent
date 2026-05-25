@@ -28,6 +28,7 @@ func serviceInfoToContract(service api.ServiceInfo) clientcontract.ServiceInfo {
 	for _, fn := range service.Functions {
 		functions = append(functions, clientcontract.ServiceFunctionInfo{
 			Name:        fn.Name,
+			Subject:     fn.Subject,
 			Service:     fn.Service,
 			Method:      fn.Method,
 			Request:     fn.Request,

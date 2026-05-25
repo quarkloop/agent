@@ -13,7 +13,6 @@ import (
 
 	"github.com/quarkloop/e2e/utils"
 	"github.com/quarkloop/pkg/boundary/redaction"
-	"github.com/quarkloop/pkg/natskit"
 )
 
 type agentRunArtifacts struct {
@@ -219,6 +218,12 @@ func toolTimeline(trace utils.MessageTrace) []map[string]any {
 
 func serviceTimeline(trace utils.MessageTrace) []map[string]any {
 	timeline := make([]map[string]any, 0)
+	subjectByCall := make(map[string]string)
+	for _, event := range trace.ToolResultEvents {
+		if event.Subject != "" {
+			subjectByCall[firstNonEmpty(event.ServiceCallID, event.CallID)] = event.Subject
+		}
+	}
 	for _, event := range append(append([]utils.ToolEvent(nil), trace.ToolStartEvents...), trace.ToolResultEvents...) {
 		service, ok := serviceNameFromTool(event.Name)
 		if !ok {
@@ -235,7 +240,7 @@ func serviceTimeline(trace utils.MessageTrace) []map[string]any {
 			"run_id":          event.RunID,
 			"observed_at":     event.ObservedAt,
 		}
-		if subject := serviceSubjectFromTool(event.Name); subject != "" {
+		if subject := firstNonEmpty(event.Subject, subjectByCall[firstNonEmpty(event.ServiceCallID, event.CallID)]); subject != "" {
 			entry["subject"] = subject
 		}
 		timeline = append(timeline, entry)
@@ -280,22 +285,6 @@ func serviceNameFromTool(name string) (string, bool) {
 		return "", false
 	}
 	return before, true
-}
-
-func serviceSubjectFromTool(name string) string {
-	service, ok := serviceNameFromTool(name)
-	if !ok {
-		return ""
-	}
-	_, function, ok := strings.Cut(name, "_")
-	if !ok {
-		return ""
-	}
-	operation, err := natskit.ServiceOperation(service, function)
-	if err != nil {
-		return ""
-	}
-	return operation.Subject
 }
 
 func redactValue(value any) any {

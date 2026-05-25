@@ -42,6 +42,19 @@ func NewServiceFunctionRouteFromFunctionName(owner, functionName string) (Servic
 	}, nil
 }
 
+func NewServiceFunctionRouteFromSubject(subject string, streaming bool) (ServiceFunctionRoute, error) {
+	operation, err := natskit.ParseServiceOperation(subject)
+	if err != nil {
+		return ServiceFunctionRoute{}, err
+	}
+	return ServiceFunctionRoute{
+		Name:          strings.ReplaceAll(strings.TrimPrefix(operation.Subject, natskit.ServiceSubjectPrefix+"."), ".", "_"),
+		ExportSubject: operation.Subject,
+		ImportSubject: operation.Subject,
+		Streaming:     streaming,
+	}, nil
+}
+
 func NormalizeServiceFunctionRoutes(routes []ServiceFunctionRoute) ([]ServiceFunctionRoute, error) {
 	if len(routes) == 0 {
 		return nil, errors.New("at least one service function route is required")

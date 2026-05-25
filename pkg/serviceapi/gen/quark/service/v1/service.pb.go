@@ -211,6 +211,7 @@ type RpcDescriptor struct {
 	TimeoutMillis        int32                     `protobuf:"varint,13,opt,name=timeout_millis,json=timeoutMillis,proto3" json:"timeout_millis,omitempty"`
 	RetryPolicy          *RetryPolicy              `protobuf:"bytes,14,opt,name=retry_policy,json=retryPolicy,proto3" json:"retry_policy,omitempty"`
 	Examples             []*ServiceFunctionExample `protobuf:"bytes,15,rep,name=examples,proto3" json:"examples,omitempty"`
+	Subject              string                    `protobuf:"bytes,16,opt,name=subject,proto3" json:"subject,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -348,6 +349,13 @@ func (x *RpcDescriptor) GetExamples() []*ServiceFunctionExample {
 		return x.Examples
 	}
 	return nil
+}
+
+func (x *RpcDescriptor) GetSubject() string {
+	if x != nil {
+		return x.Subject
+	}
+	return ""
 }
 
 type RetryPolicy struct {
@@ -553,7 +561,7 @@ const file_quark_service_v1_service_proto_rawDesc = "" +
 	"\aversion\x18\x03 \x01(\tR\aversion\x12\x18\n" +
 	"\aaddress\x18\x04 \x01(\tR\aaddress\x123\n" +
 	"\x04rpcs\x18\x05 \x03(\v2\x1f.quark.service.v1.RpcDescriptorR\x04rpcs\x129\n" +
-	"\x06skills\x18\x06 \x03(\v2!.quark.service.v1.SkillDescriptorR\x06skills\"\xc2\x04\n" +
+	"\x06skills\x18\x06 \x03(\v2!.quark.service.v1.SkillDescriptorR\x06skills\"\xdc\x04\n" +
 	"\rRpcDescriptor\x12\x18\n" +
 	"\aservice\x18\x01 \x01(\tR\aservice\x12\x16\n" +
 	"\x06method\x18\x02 \x01(\tR\x06method\x12\x18\n" +
@@ -573,7 +581,8 @@ const file_quark_service_v1_service_proto_rawDesc = "" +
 	"idempotent\x12%\n" +
 	"\x0etimeout_millis\x18\r \x01(\x05R\rtimeoutMillis\x12@\n" +
 	"\fretry_policy\x18\x0e \x01(\v2\x1d.quark.service.v1.RetryPolicyR\vretryPolicy\x12D\n" +
-	"\bexamples\x18\x0f \x03(\v2(.quark.service.v1.ServiceFunctionExampleR\bexamples\"\xbd\x01\n" +
+	"\bexamples\x18\x0f \x03(\v2(.quark.service.v1.ServiceFunctionExampleR\bexamples\x12\x18\n" +
+	"\asubject\x18\x10 \x01(\tR\asubject\"\xbd\x01\n" +
 	"\vRetryPolicy\x12!\n" +
 	"\fmax_attempts\x18\x01 \x01(\x05R\vmaxAttempts\x12'\n" +
 	"\x0fretryable_codes\x18\x02 \x03(\tR\x0eretryableCodes\x124\n" +

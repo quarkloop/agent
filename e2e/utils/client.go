@@ -43,6 +43,7 @@ type ToolEvent struct {
 	CallID         string `json:"id,omitempty"`
 	ServiceCallID  string `json:"service_call_id,omitempty"`
 	Name           string `json:"name"`
+	Subject        string `json:"subject,omitempty"`
 	Arguments      string `json:"arguments,omitempty"`
 	Result         string `json:"result,omitempty"`
 	Error          bool   `json:"error,omitempty"`

@@ -34,6 +34,7 @@ func CloneDescriptor(x *servicev1.ServiceDescriptor) *servicev1.ServiceDescripto
 			TimeoutMillis:        r.GetTimeoutMillis(),
 			RetryPolicy:          cloneRetryPolicy(r.GetRetryPolicy()),
 			Examples:             cloneExamples(r.GetExamples()),
+			Subject:              r.GetSubject(),
 		})
 	}
 	for _, s := range x.GetSkills() {

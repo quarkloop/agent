@@ -72,6 +72,21 @@ func TestRunStateStoragePermissionsAreNotGrantedToOtherServices(t *testing.T) {
 	assertNotContains(t, indexer.Permissions.SubscribeAllow, "_INBOX.>")
 }
 
+func TestServiceFunctionRouteFromSubjectPreservesCanonicalAddress(t *testing.T) {
+	route, err := NewServiceFunctionRouteFromSubject("svc.gateway.v1.stream_generate", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if route.ExportSubject != "svc.gateway.v1.stream_generate" ||
+		route.ImportSubject != "svc.gateway.v1.stream_generate" ||
+		!route.Streaming {
+		t.Fatalf("route = %+v", route)
+	}
+	if _, err := NewServiceFunctionRouteFromSubject("gateway.stream_generate", false); err == nil {
+		t.Fatal("invalid service subject accepted")
+	}
+}
+
 func assertContains(t *testing.T, values []string, want string) {
 	t.Helper()
 	for _, value := range values {

@@ -202,6 +202,7 @@ func TestApplyServiceFunctionMetadata(t *testing.T) {
 				Description: "Retrieve context using a query embedding.",
 				RiskLevel:   "read",
 				Idempotent:  true,
+				Subject:     "svc.indexer.v1.get_context",
 			}},
 		},
 	}
@@ -218,6 +219,9 @@ func TestApplyServiceFunctionMetadata(t *testing.T) {
 	}
 	if rpc.GetOwner() != "indexer" || rpc.GetFunctionName() != "indexer_GetContext" || rpc.GetRiskLevel() != "read" {
 		t.Fatalf("function contract metadata missing: %+v", rpc)
+	}
+	if rpc.GetSubject() != "svc.indexer.v1.get_context" {
+		t.Fatalf("canonical NATS subject missing: %+v", rpc)
 	}
 	if !rpc.GetIdempotent() || rpc.GetTimeoutMillis() != 30000 {
 		t.Fatalf("runtime safety metadata missing: %+v", rpc)
@@ -265,6 +269,7 @@ func TestValidateServicePluginDescriptorsRejectsMissingRPC(t *testing.T) {
 			Description:   "Retrieve context.",
 			Owner:         "indexer",
 			FunctionName:  "indexer_GetContext",
+			Subject:       "svc.indexer.v1.get_context",
 			RiskLevel:     "read",
 			TimeoutMillis: 30000,
 		}},
@@ -302,6 +307,20 @@ func TestValidateServicePluginDescriptorsRejectsVersionMismatch(t *testing.T) {
 	err := validateServicePluginDescriptors([]*servicev1.ServiceDescriptor{desc}, serviceManifest("indexer", "quark.indexer.v1.IndexerService"))
 	if err == nil || !strings.Contains(err.Error(), "unsupported version") {
 		t.Fatalf("expected version error, got: %v", err)
+	}
+}
+
+func TestValidateServicePluginDescriptorsRejectsSubjectMismatch(t *testing.T) {
+	manifest := serviceManifest("indexer", "quark.indexer.v1.IndexerService")
+	descriptors, err := descriptorsFromServiceManifest(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	descriptors[0].Rpcs[0].Subject = "svc.gateway.v1.get_context"
+
+	err = validateServicePluginDescriptors(descriptors, manifest)
+	if err == nil || !strings.Contains(err.Error(), "NATS subject mismatch") {
+		t.Fatalf("expected subject mismatch, got: %v", err)
 	}
 }
 
@@ -388,8 +407,9 @@ func TestImportServiceFunctionRoutesMakesControlServiceReachableFromRuntime(t *t
 	err = srv.importServiceFunctionRoutes("docs", []*servicev1.ServiceDescriptor{{
 		Name: "gateway",
 		Rpcs: []*servicev1.RpcDescriptor{{
-			Owner:  "gateway",
-			Method: "Generate",
+			Owner:   "gateway",
+			Method:  "Generate",
+			Subject: "svc.gateway.v1.generate",
 		}},
 	}})
 	if err != nil {
@@ -459,6 +479,7 @@ func TestImportServiceFunctionRoutesPreservesStreamingResponses(t *testing.T) {
 			Owner:     "gateway",
 			Method:    "StreamGenerate",
 			Streaming: true,
+			Subject:   "svc.gateway.v1.stream_generate",
 		}},
 	}})
 	if err != nil {
@@ -578,6 +599,7 @@ func serviceManifest(name, protoService string) *plugin.Manifest {
 				Name:        "indexer_GetContext",
 				Service:     protoService,
 				Method:      "GetContext",
+				Subject:     "svc." + strings.ReplaceAll(name, "-", "_") + ".v1.get_context",
 				Request:     "quark.indexer.v1.QueryRequest",
 				Response:    "quark.indexer.v1.ContextResponse",
 				Description: "Retrieve context.",

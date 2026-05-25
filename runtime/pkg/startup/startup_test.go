@@ -82,6 +82,7 @@ func TestLoadServiceCatalogPrefersNATSSnapshot(t *testing.T) {
 			Description:  "Retrieve context.",
 			Owner:        "indexer",
 			FunctionName: "indexer_GetContext",
+			Subject:      "svc.indexer.v1.get_context",
 			RiskLevel:    "read",
 		}},
 	}})
@@ -113,6 +114,7 @@ func TestRegisterServiceFunctionsUsesRuntimeToolPath(t *testing.T) {
 			Method:      "GetContext",
 			Request:     "quark.indexer.v1.QueryRequest",
 			Response:    "quark.indexer.v1.ContextResponse",
+			Subject:     "svc.indexer.v1.get_context",
 			Description: "Retrieve context.",
 		}},
 	}})
@@ -144,6 +146,7 @@ func TestRegisterServiceFunctionsSkipsStreamingRPCs(t *testing.T) {
 			Response:     "quark.gateway.v1.StreamGenerateResponse",
 			FunctionName: "gateway_StreamGenerate",
 			Streaming:    true,
+			Subject:      "svc.gateway.v1.stream_generate",
 		}},
 	}})
 
