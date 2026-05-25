@@ -6,6 +6,11 @@ it does not expose arbitrary shell execution or raw osquery SQL to agents.
 
 ## Service Functions
 
+All functions below resolve to canonical NATS subjects under
+`svc.system.v1.<snake_case_function>`; for example, `system_Snapshot` uses
+`svc.system.v1.snapshot`. Runtime calls the subject published in the
+descriptor, not a locally reconstructed subject.
+
 | Function | RPC method | Risk | Approval | Idempotent | Purpose |
 | --- | --- | --- | --- | --- | --- |
 | `system_Snapshot` | `quark.system.v1.SystemService/Snapshot` | read | no | yes | Return a scoped snapshot of OS, kernel, uptime, mounts, disks, processes, network, and metrics. |

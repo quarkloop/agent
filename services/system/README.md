@@ -26,12 +26,22 @@ state or prepares explicit mutation plans.
 | `system_KillProcess` | `quark.system.v1.SystemService/KillProcess` | `KillProcessRequest` | `KillProcessResponse` | Prepare an approval-gated process termination plan. |
 | `system_RestartService` | `quark.system.v1.SystemService/RestartService` | `RestartServiceRequest` | `RestartServiceResponse` | Prepare an approval-gated service restart plan. |
 
+## NATS Subjects
+
+Each function is registered by `pkg/natskit` using its canonical subject:
+`svc.system.v1.<snake_case_function>`. For example, `system_Snapshot` is
+`svc.system.v1.snapshot`, `system_GetMetrics` is
+`svc.system.v1.get_metrics`, and `system_RestartService` is
+`svc.system.v1.restart_service`. Descriptor subjects are authoritative.
+
 ## Ownership Boundaries
 
 - Quark System agent decides what to inspect and explains observations.
 - System service reads selected OS state and prepares mutation plans.
 - Core/runtime owns approval state, audit persistence, and execution gating.
 - The service does not call model, indexer, space, or other services.
+- `pkg/natskit` owns NATS registration and response envelopes; System owns
+  typed adapters, observation shaping, and mutation-plan policy.
 
 ## Backend Notes
 

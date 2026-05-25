@@ -2,10 +2,12 @@ package systemsvc
 
 import (
 	"context"
+	"errors"
 	"runtime"
 	"strings"
 	"testing"
 
+	"github.com/quarkloop/pkg/boundary"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	systemv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/system/v1"
 )
@@ -151,6 +153,16 @@ func TestApprovedLogPathAndNetworkParsing(t *testing.T) {
 	}
 }
 
+func TestServiceReportsAdapterFailuresAsUnavailable(t *testing.T) {
+	server := newServer(failingHost{nativeHost{}}, procNetwork{}, failingInventory{}, approvedLogs{}, approvalPlanner{})
+	if _, err := server.GetOSInfo(context.Background(), &systemv1.GetOSInfoRequest{}); !boundary.IsCategory(err, boundary.Unavailable) {
+		t.Fatalf("OS adapter error = %v, want unavailable", err)
+	}
+	if _, err := server.ListPackages(context.Background(), &systemv1.ListPackagesRequest{Manager: "fixture"}); !boundary.IsCategory(err, boundary.Unavailable) {
+		t.Fatalf("inventory adapter error = %v, want unavailable", err)
+	}
+}
+
 func TestMutationFunctionsReturnApprovalPlans(t *testing.T) {
 	t.Parallel()
 	server := NewServer()
@@ -194,6 +206,9 @@ func TestDescriptorMatchesSystemPluginContract(t *testing.T) {
 		if !strings.HasPrefix(rpc.GetFunctionName(), "system_") {
 			t.Fatalf("unexpected function name %q", rpc.GetFunctionName())
 		}
+		if rpc.GetOwner() != "system" || !strings.HasPrefix(rpc.GetSubject(), "svc.system.v1.") {
+			t.Fatalf("rpc has invalid ownership/subject: %+v", rpc)
+		}
 		functions[rpc.GetFunctionName()] = true
 	}
 	for _, name := range []string{"system_Snapshot", "system_GetMetrics", "system_KillProcess", "system_RestartService"} {
@@ -201,4 +216,22 @@ func TestDescriptorMatchesSystemPluginContract(t *testing.T) {
 			t.Fatalf("descriptor missing function %s", name)
 		}
 	}
+}
+
+type failingHost struct{ nativeHost }
+
+func (failingHost) OSInfo() (*systemv1.OSInfo, error) {
+	return nil, errors.New("fixture OS reader failure")
+}
+
+type failingInventory struct{}
+
+func (failingInventory) DefaultPackageManager() string { return "fixture" }
+
+func (failingInventory) Packages(context.Context, string, int) ([]*systemv1.Package, error) {
+	return nil, errors.New("fixture inventory failure")
+}
+
+func (failingInventory) Services(context.Context, string, string, int) ([]*systemv1.Service, error) {
+	return nil, errors.New("fixture inventory failure")
 }
