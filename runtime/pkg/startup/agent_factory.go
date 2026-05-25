@@ -96,10 +96,7 @@ func (r AgentRegistrar) NewAgent(ctx context.Context, spaceConfig SpaceConfig) (
 		ModelListURL:         env.ModelListURL,
 		Profile:              resolvedProfile,
 		SystemPrompt:         agentPlugin.SystemPrompt,
-		PluginsDir:           env.PluginsDir,
 		PluginCatalog:        pluginCatalog,
-		SupervisorURL:        env.SupervisorURL,
-		SpaceID:              spaceConfig.SpaceID,
 		PromptMaterials:      promptMaterials,
 		ContextComposer:      HarnessComposer(spaceConfig.Credential),
 		PendingRefs:          ServiceFunctionPendingRefs(serviceCatalog),
@@ -108,6 +105,7 @@ func (r AgentRegistrar) NewAgent(ctx context.Context, spaceConfig SpaceConfig) (
 		CoreEvents:           coreRecorder,
 		ModelProviderAdapter: modelProviderAdapter,
 		PermissionPolicy:     PermissionPolicy(agentPlugin.AgentProfile),
+		SpaceID:              spaceConfig.SpaceID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create agent for space %q: %w", spaceConfig.SpaceID, err)

@@ -23,19 +23,18 @@ import (
 	"github.com/quarkloop/pkg/plugin"
 )
 
-// Manager loads tool plugins from supervisor-resolved paths and dispatches calls
-// to them. Provider plugins are not loaded in runtime; Gateway owns provider
-// dispatch and is registered through RegisterRuntimeProvider.
+// Manager loads tool plugins from supervisor-resolved paths and dispatches
+// calls to them. Gateway owns model-provider dispatch; runtime registers its
+// Gateway-backed adapter through RegisterRuntimeProvider.
 //
 // Tool plugins run as api-mode HTTP servers or as lib-mode .so files loaded
 // in-process. Provider dispatch is externalized behind Gateway and registered
 // through runtime wiring when needed.
 type Manager struct {
-	mu         sync.RWMutex
-	pluginsDir string
-	binDir     string
-	loader     *plugin.Loader
-	catalog    *Catalog
+	mu      sync.RWMutex
+	binDir  string
+	loader  *plugin.Loader
+	catalog *Catalog
 
 	// API-mode tool plugins
 	processes  map[string]*exec.Cmd
@@ -54,23 +53,16 @@ type Manager struct {
 	// Tool schemas aggregated from all loaded tools
 	tools []plugin.ToolSchema
 
-	// Runtime-registered model providers. These point to Gateway-backed
-	// adapters.
+	// Runtime-registered model adapters. Production adapters call Gateway.
 	providers map[string]plugin.Provider
 }
 
-// NewManager creates a plugin manager rooted at the given plugins directory
-// (typically <space>/.quark/plugins).
-func NewManager(pluginsDir string) *Manager {
-	binDir := filepath.Join(pluginsDir, ".bin")
-	if err := os.MkdirAll(binDir, 0755); err != nil {
-		slog.Error("failed to create bin dir", "path", binDir, "error", err)
-	}
-
+// NewManager creates a runtime plugin manager. It only loads paths contained
+// in the supervisor-resolved catalog and creates a private build directory if
+// an API-mode tool requires local compilation.
+func NewManager() *Manager {
 	return &Manager{
-		pluginsDir:   pluginsDir,
-		binDir:       binDir,
-		loader:       plugin.NewLoader(pluginsDir),
+		loader:       plugin.NewLoader(""),
 		processes:    make(map[string]*exec.Cmd),
 		endpoints:    make(map[string]string),
 		httpClient:   &http.Client{Timeout: 30 * time.Second},
@@ -82,9 +74,8 @@ func NewManager(pluginsDir string) *Manager {
 	}
 }
 
-// Initialize loads tool plugins. When a supervisor-resolved catalog
-// is present, runtime loads exactly that catalog. Standalone runtimes can still
-// register tools explicitly through a provided catalog or RegisterRuntimeTool.
+// Initialize loads only tool plugins in the supervisor-resolved catalog.
+// Service functions are registered separately through RegisterRuntimeTool.
 func (m *Manager) Initialize(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -94,26 +85,6 @@ func (m *Manager) Initialize(ctx context.Context) error {
 	}
 	slog.Info("plugin manager initialized without catalog; local filesystem discovery disabled")
 	return nil
-}
-
-// LoadPluginFromDir loads a single plugin from the given directory. Intended
-// for use when the supervisor notifies the agent that a new plugin has been
-// installed.
-func (m *Manager) LoadPluginFromDir(ctx context.Context, dir string) error {
-	manifest, err := plugin.ParseManifest(filepath.Join(dir, "manifest.yaml"))
-	if err != nil {
-		return fmt.Errorf("parse manifest: %w", err)
-	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	switch manifest.Type {
-	case plugin.TypeTool:
-		return m.loadToolLocked(ctx, manifest, dir)
-	default:
-		return nil
-	}
 }
 
 // UnloadPlugin stops and removes a tool plugin by name.
@@ -252,6 +223,12 @@ func (m *Manager) Shutdown() {
 	}
 	m.processes = make(map[string]*exec.Cmd)
 	m.endpoints = make(map[string]string)
+	if m.binDir != "" {
+		if err := os.RemoveAll(m.binDir); err != nil {
+			slog.Warn("remove runtime tool build directory", "path", m.binDir, "error", err)
+		}
+		m.binDir = ""
+	}
 }
 
 // --- internal helpers (must be called with m.mu held where noted) ---
@@ -297,16 +274,21 @@ func (m *Manager) loadToolBinaryLocked(ctx context.Context, manifest *plugin.Man
 	if manifest.Build != nil && manifest.Build.APITarget != "" {
 		binName = manifest.Build.APITarget
 	}
-	outPath := filepath.Join(m.binDir, binName)
 
 	// Prefer a pre-built binary shipped alongside the manifest. Installers
 	// (including `make build-tools` + plugin install) drop the compiled
 	// binary at <pluginDir>/<api_target>; when present, we skip the
 	// in-process `go build` step entirely.
 	prebuilt := filepath.Join(pluginDir, binName)
+	outPath := prebuilt
 	if info, err := os.Stat(prebuilt); err == nil && !info.IsDir() && info.Mode()&0o111 != 0 {
 		outPath = prebuilt
 	} else {
+		binDir, err := m.runtimeBuildDirLocked()
+		if err != nil {
+			return err
+		}
+		outPath = filepath.Join(binDir, binName)
 		cmdDir := filepath.Join(pluginDir, "cmd", manifest.Name)
 		if _, err := os.Stat(cmdDir); os.IsNotExist(err) {
 			entries, err := os.ReadDir(filepath.Join(pluginDir, "cmd"))
@@ -352,6 +334,18 @@ func (m *Manager) loadToolBinaryLocked(ctx context.Context, manifest *plugin.Man
 
 	fmt.Printf("pluginmanager: loaded tool %s (binary, %s)\n", toolName, addr)
 	return nil
+}
+
+func (m *Manager) runtimeBuildDirLocked() (string, error) {
+	if m.binDir != "" {
+		return m.binDir, nil
+	}
+	dir, err := os.MkdirTemp("", "quark-runtime-tools-")
+	if err != nil {
+		return "", fmt.Errorf("create runtime tool build directory: %w", err)
+	}
+	m.binDir = dir
+	return dir, nil
 }
 
 func (m *Manager) executeLib(ctx context.Context, tool plugin.ToolPlugin, arguments string) (string, error) {

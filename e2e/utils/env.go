@@ -5,22 +5,24 @@ package utils
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
-	"github.com/quarkloop/supervisor/pkg/api"
 )
+
+type RuntimeIdentity struct {
+	ID    string
+	Space string
+}
 
 type E2EEnv struct {
 	Root                string
 	SpacesDir           string
 	Space               string
-	SupURL              string
 	NATS                NATSEndpoints
-	Agent               api.RuntimeInfo
+	Agent               RuntimeIdentity
 	Provider            string
 	Model               string
 	Embedding           GatewayEmbeddingOptions
@@ -51,7 +53,6 @@ type RuntimeSetup struct {
 	Root       string
 	SpacesDir  string
 	Space      string
-	SupURL     string
 	NATS       NATSEndpoints
 	WorkingDir string
 }
@@ -120,7 +121,7 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 	if opt.DisableServiceDiscovery {
 		supervisorEnv["QUARK_DISABLE_SERVICE_DISCOVERY"] = "true"
 	}
-	supURL, spacesDir, natsEndpoints := startSupervisor(t, bins, supervisorEnv)
+	spacesDir, natsEndpoints := startSupervisor(t, bins, supervisorEnv)
 
 	spaceName := fmt.Sprintf("e2e-%d", time.Now().UnixNano())
 	provider := "openrouter"
@@ -147,7 +148,6 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 		Root:                QuarkRoot(t),
 		SpacesDir:           spacesDir,
 		Space:               spaceName,
-		SupURL:              supURL,
 		NATS:                natsEndpoints,
 		Provider:            provider,
 		Model:               model,
@@ -164,7 +164,6 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 			Root:       env.Root,
 			SpacesDir:  env.SpacesDir,
 			Space:      env.Space,
-			SupURL:     env.SupURL,
 			NATS:       env.NATS,
 			WorkingDir: workingDir,
 		}, bins)
@@ -174,9 +173,7 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 	runtimeID := "e2e-runtime-" + spaceName
 	runtimeOverrides := map[string]string{
 		"QUARK_RUNTIME_ID":                runtimeID,
-		"QUARK_SUPERVISOR_URL":            supURL,
 		"QUARK_SPACE":                     spaceName,
-		"QUARK_PLUGINS_DIR":               filepath.Join(spacesDir, spaceName, "plugins"),
 		"QUARK_MODEL_PROVIDER":            provider,
 		"QUARK_MODEL_NAME":                model,
 		"QUARK_GATEWAY_REQUEST_TIMEOUT":   e2eModelGatewayTimeout(),
@@ -195,19 +192,14 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 		"start",
 		"--channel", "nats",
 	}, runtimeEnv)
-	env.Agent = api.RuntimeInfo{
-		ID:     runtimeID,
-		Space:  spaceName,
-		Status: api.RuntimeRunning,
+	env.Agent = RuntimeIdentity{
+		ID:    runtimeID,
+		Space: spaceName,
 	}
 
 	runtimeProc.WaitForLog(t, "nats channel listening", 30*time.Second)
-	// Wait for the agent's event subscription to the supervisor to go live,
-	// otherwise the very first session event can be published before any
-	// subscriber is attached and silently dropped.
-	runtimeProc.WaitForLog(t, "supervisor event stream ready", 10*time.Second)
 	DumpNATSCLIDiagnostics(t, env.NATS, "after-runtime")
-	Logf(t, "supervisor at %s, runtime=%s nats=%s (space=%s)", supURL, runtimeID, natsEndpoints.ClientURL, spaceName)
+	Logf(t, "runtime=%s nats=%s (space=%s)", runtimeID, natsEndpoints.ClientURL, spaceName)
 	return env
 }
 

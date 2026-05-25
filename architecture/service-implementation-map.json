@@ -263,10 +263,10 @@
         "has_process_flow": false,
         "path": "e2e/artifacts_observability_test.go",
         "prompt_shortcut_suspects": [
-          "38: ToolStarts: []string{\"gateway_Embed\"},",
-          "42: Name:          \"gateway_Embed\",",
-          "51: Name:           \"gateway_Embed\",",
-          "156: Name:          \"indexer_QueryContext\","
+          "36: ToolStarts: []string{\"gateway_Embed\"},",
+          "40: Name:          \"gateway_Embed\",",
+          "49: Name:           \"gateway_Embed\",",
+          "153: Name:          \"indexer_QueryContext\","
         ]
       },
       {
@@ -274,8 +274,8 @@
         "has_process_flow": false,
         "path": "e2e/artifacts_test.go",
         "prompt_shortcut_suspects": [
-          "126: \"function\":   \"gateway_Embed\",",
-          "267: \"message\":         \"Tool or service function returned an error.\","
+          "125: \"function\":   \"gateway_Embed\",",
+          "265: \"message\":         \"Tool or service function returned an error.\","
         ]
       },
       {

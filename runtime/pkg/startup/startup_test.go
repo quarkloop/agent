@@ -19,7 +19,6 @@ import (
 )
 
 func TestLoadPluginCatalogUsesEmptyCatalogWithoutEnv(t *testing.T) {
-	t.Setenv("QUARK_SUPERVISOR_URL", "http://127.0.0.1:7200")
 	t.Setenv("QUARK_SPACE", "test-space")
 
 	catalog, err := LoadPluginCatalog(nil)

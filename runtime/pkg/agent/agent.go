@@ -22,7 +22,6 @@ import (
 	"github.com/quarkloop/runtime/pkg/pluginmanager"
 	"github.com/quarkloop/runtime/pkg/session"
 	"github.com/quarkloop/runtime/pkg/workflow"
-	supclient "github.com/quarkloop/supervisor/pkg/client"
 )
 
 // Config holds agent configuration.
@@ -35,7 +34,6 @@ type Config struct {
 	ModelListURL         string
 	Profile              Profile
 	SystemPrompt         string
-	PluginsDir           string
 	PluginCatalog        *pluginmanager.Catalog
 	PromptMaterials      []harnessclient.Material
 	ContextComposer      harnessclient.Composer
@@ -44,6 +42,7 @@ type Config struct {
 	ToolCallArguments    llm.ToolCallArgumentNormalizer
 	CoreEvents           *coreevents.Recorder
 	ModelProviderAdapter plugin.Provider
+	SpaceID              string
 
 	// Execution mode configuration
 	ExecutionMode execution.Mode
@@ -51,15 +50,12 @@ type Config struct {
 
 	// Permission policy
 	PermissionPolicy *permissions.Policy
-
-	// Supervisor configuration (optional - for agents running under supervisor)
-	SupervisorURL string
-	SpaceID       string
 }
 
 // Agent is the main agent instance with a typed message loop.
 type Agent struct {
 	ID        string
+	SpaceID   string
 	loop      *loop.Loop
 	Sessions  *session.Registry
 	Plan      *plan.Plan
@@ -83,12 +79,6 @@ type Agent struct {
 
 	// Permission checker
 	permissions *permissions.Checker
-
-	// Supervisor client for all space-scoped data operations.
-	// Nil only when the agent is running standalone (no supervisor URL).
-	supervisorClient *supclient.Client
-	// Space is the space name this agent serves; empty when standalone.
-	Space string
 }
 
 // NewAgent creates a new Agent from config.
@@ -118,19 +108,14 @@ func NewAgent(cfg Config) (*Agent, error) {
 	profile := cfg.Profile.normalize(cfg.ID, cfg.Name, cfg.Description, cfg.SystemPrompt)
 	handoffPolicy := handoff.NewPolicy(profile.ID, profile.HandoffTargets)
 
-	// Determine plugins directory
-	pluginsDir := cfg.PluginsDir
-	if pluginsDir == "" {
-		pluginsDir = "plugins"
-	}
-
 	a := &Agent{
 		ID:          cfg.ID,
+		SpaceID:     cfg.SpaceID,
 		loop:        l,
 		Sessions:    session.NewRegistry(),
 		Plan:        plan.New(),
 		Models:      llm.NewRegistry(),
-		Plugins:     pluginmanager.NewManager(pluginsDir),
+		Plugins:     pluginmanager.NewManager(),
 		Activity:    activity.NewStore(1000),
 		Workflows:   workflow.NewStore(),
 		core:        cfg.CoreEvents,
@@ -143,12 +128,6 @@ func NewAgent(cfg Config) (*Agent, error) {
 		permissions: permissions.NewChecker(cfg.PermissionPolicy),
 	}
 	a.Plugins.SetCatalog(cfg.PluginCatalog)
-
-	// Create supervisor client if URL is provided
-	if cfg.SupervisorURL != "" {
-		a.supervisorClient = supclient.New(supclient.WithBaseURL(cfg.SupervisorURL))
-		a.Space = cfg.SpaceID
-	}
 
 	// Register as main agent
 	name := profile.Name
@@ -235,11 +214,6 @@ func (a *Agent) Run(ctx context.Context) error {
 
 	// Start work step ticker for plan execution
 	go a.workStepTicker(ctx)
-
-	// Subscribe to supervisor events (session lifecycle, shutdown, etc).
-	// This is the agent's only mechanism for learning about sessions — the
-	// agent no longer exposes its own session CRUD API.
-	go a.subscribeSupervisorEvents(ctx)
 
 	// Run the loop
 	return a.loop.Run(ctx)

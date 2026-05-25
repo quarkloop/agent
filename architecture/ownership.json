@@ -63,12 +63,9 @@
         "user-facing command surface",
         "explicit space selection through CLI input or environment",
         "NATS calls to supervisor",
-        "direct runtime client calls after supervisor resolution"
+        "NATS calls to resolved runtime subjects after supervisor resolution"
       ],
-      "allowed_import_prefixes": [
-        "github.com/quarkloop/supervisor/pkg/client",
-        "github.com/quarkloop/runtime/pkg/client"
-      ],
+      "allowed_import_prefixes": [],
       "forbidden_import_prefixes": [
         "github.com/quarkloop/supervisor/pkg/server",
         "github.com/quarkloop/supervisor/pkg/runtime",
@@ -108,7 +105,7 @@
       "path": "services",
       "module": "github.com/quarkloop/services",
       "owns": [
-        "typed domain execution behind gRPC",
+        "typed domain execution behind protobuf-backed NATS service functions",
         "service-local transport adapters",
         "service-local persistence where the service owns the durable domain"
       ],
@@ -168,20 +165,5 @@
       "separate process lifecycle, fixtures, prompts, assertions, artifacts, and external dependencies"
     ]
   },
-  "known_import_exceptions": [
-    {
-      "area": "runtime",
-      "file": "runtime/pkg/agent/agent.go",
-      "import": "github.com/quarkloop/supervisor/pkg/client",
-      "task": "Task 26",
-      "reason": "Runtime still constructs the legacy supervisor HTTP client for session mirroring. Task 26 replaces this with the NATS-native execution plane."
-    },
-    {
-      "area": "runtime",
-      "file": "runtime/pkg/agent/session_sync.go",
-      "import": "github.com/quarkloop/supervisor/pkg/client",
-      "task": "Task 26",
-      "reason": "Runtime still mirrors legacy supervisor session state through an HTTP client. Task 26 replaces this with the NATS-native execution plane."
-    }
-  ]
+  "known_import_exceptions": []
 }

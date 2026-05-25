@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/quarkloop/pkg/boundary"
-	event "github.com/quarkloop/pkg/event"
 	"github.com/quarkloop/pkg/plugin"
 	"github.com/quarkloop/runtime/pkg/channel"
 	"github.com/quarkloop/runtime/pkg/execution"
@@ -32,8 +31,7 @@ func TestPromptMaterialsIncludeConfiguredPluginMaterial(t *testing.T) {
 
 func TestPromptMaterialsUseResolvedAgentProfilePrompt(t *testing.T) {
 	a := newTestAgentWithConfig(t, Config{
-		ID:         "test-agent",
-		PluginsDir: t.TempDir(),
+		ID: "test-agent",
 		Profile: Profile{
 			ID:           "quark-knowledge",
 			Name:         "Quark Knowledge",
@@ -68,7 +66,6 @@ func TestDefaultToolsComesFromPluginManager(t *testing.T) {
 func TestDefaultToolsFiltersDeniedProfileFunctions(t *testing.T) {
 	a := newTestAgentWithConfig(t, Config{
 		ID:               "test-agent",
-		PluginsDir:       t.TempDir(),
 		PermissionPolicy: &permissions.Policy{RestrictTools: true, AllowedTools: []string{"gateway_Embed"}},
 	})
 	a.Plugins.RegisterRuntimeTool(pluginmanager.RuntimeTool{
@@ -141,19 +138,6 @@ func TestInitializationHandlersOwnModelAndChannelRegistration(t *testing.T) {
 	}
 }
 
-func TestSessionMirrorAppliesCreatedAndDeletedEvents(t *testing.T) {
-	a := newTestAgent(t)
-	a.applyEvent(event.Event{Kind: event.SessionCreated, Payload: []byte(`{"id":"chat-1","type":"chat","title":"Review"}`)})
-	session := a.Sessions.Get("chat-1")
-	if session == nil || session.Title() != "Review" {
-		t.Fatalf("mirrored session = %+v", session)
-	}
-	a.applyEvent(event.Event{Kind: event.SessionDeleted, Payload: []byte(`{"id":"chat-1"}`)})
-	if a.Sessions.Get("chat-1") != nil {
-		t.Fatal("deleted session remained in mirror")
-	}
-}
-
 func TestHandleUserMessageWithoutWorkflowDoesNotPanic(t *testing.T) {
 	a := newTestAgent(t)
 	a.Models.AddModel("test-model", staticProvider{reply: "hello from model"}, 0)
@@ -202,8 +186,7 @@ func TestExecuteToolRoutesThroughPluginManager(t *testing.T) {
 
 func TestExecuteToolAppliesToolResultReferenceHook(t *testing.T) {
 	a := newTestAgentWithConfig(t, Config{
-		ID:         "test-agent",
-		PluginsDir: t.TempDir(),
+		ID: "test-agent",
 		ToolResultRef: func(name, arguments, result string) (string, error) {
 			if name != "runtime_echo" || arguments != `{"value":"hello"}` || result != "hello" {
 				t.Fatalf("unexpected hook input: %s %s %s", name, arguments, result)
@@ -229,8 +212,7 @@ func TestExecuteToolAppliesToolResultReferenceHook(t *testing.T) {
 
 func TestExecuteToolUsesAssistiveApprovalGate(t *testing.T) {
 	a := newTestAgentWithConfig(t, Config{
-		ID:         "test-agent",
-		PluginsDir: t.TempDir(),
+		ID: "test-agent",
 		ExecutionCfg: execution.Config{
 			Mode:            execution.ModeAssistive,
 			ApprovalTimeout: time.Second,
@@ -311,7 +293,6 @@ func TestExecuteToolRequiresRuntimeApprovalForIOMutations(t *testing.T) {
 func TestExecuteToolDeniesUnpermittedServiceFunctionAndRecordsPolicyEvent(t *testing.T) {
 	a := newTestAgentWithConfig(t, Config{
 		ID:               "test-agent",
-		PluginsDir:       t.TempDir(),
 		PermissionPolicy: &permissions.Policy{AllowedTools: []string{"io_Read"}},
 	})
 	executed := false
@@ -346,8 +327,7 @@ func TestExecuteToolDeniesUnpermittedServiceFunctionAndRecordsPolicyEvent(t *tes
 
 func TestSpawnSubAgentEnforcesResolvedHandoffPolicy(t *testing.T) {
 	a := newTestAgentWithConfig(t, Config{
-		ID:         "test-agent",
-		PluginsDir: t.TempDir(),
+		ID: "test-agent",
 		Profile: Profile{
 			ID:             "quark-knowledge",
 			HandoffTargets: []string{"quark-devops"},
@@ -445,7 +425,7 @@ func TestEmitMessageErrorPropagatesBoundaryCategory(t *testing.T) {
 
 func newTestAgent(t *testing.T) *Agent {
 	t.Helper()
-	return newTestAgentWithConfig(t, Config{ID: "test-agent", PluginsDir: t.TempDir()})
+	return newTestAgentWithConfig(t, Config{ID: "test-agent"})
 }
 
 func newTestAgentWithConfig(t *testing.T, cfg Config) *Agent {

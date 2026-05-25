@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 
 	"github.com/spf13/cobra"
 
@@ -50,9 +49,7 @@ func startChannels(cmd *cobra.Command, args []string, flagValues []string) []str
 }
 
 func runStart(channels []string) error {
-	if os.Getenv(startup.EnvSupervisorURL) == "" {
-		loadEnvFiles()
-	}
+	loadEnvFiles()
 
 	validChannels, err := startup.ResolveChannels(channels)
 	if err != nil {

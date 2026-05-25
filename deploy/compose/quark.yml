@@ -59,21 +59,15 @@ services:
       <<: *go-build
       args:
         PACKAGE: ./runtime/cmd/runtime
-    command: ["start", "--port", "8765", "--channel", "nats"]
+    command: ["start", "--channel", "nats"]
     depends_on:
       supervisor:
         condition: service_healthy
-    ports:
-      - "8765:8765"
-    volumes:
-      - spaces:/var/lib/quark/spaces
     environment:
-      QUARK_SUPERVISOR_URL: http://supervisor:7200
       QUARK_NATS_URL: nats://supervisor:4222
       QUARK_NATS_USER: ${QUARK_RUNTIME_NATS_USER:-quark-control}
       QUARK_NATS_PASSWORD: ${QUARK_RUNTIME_NATS_PASSWORD:-quark-control-dev}
       QUARK_SPACE: ${QUARK_SPACE:-default}
-      QUARK_PLUGINS_DIR: /var/lib/quark/spaces/${QUARK_SPACE:-default}/plugins
       QUARK_MODEL_PROVIDER: ${QUARK_MODEL_PROVIDER:-openrouter}
       QUARK_MODEL_NAME: ${QUARK_MODEL_NAME:-openai/gpt-5-mini}
 

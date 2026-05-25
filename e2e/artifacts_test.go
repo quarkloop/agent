@@ -39,7 +39,6 @@ func writeAgentRunArtifacts(t *testing.T, dir, prefix string, env *utils.E2EEnv,
 		"session_id":  trace.SessionID,
 		"run_id":      trace.RunID,
 		"runtime_id":  env.Agent.ID,
-		"supervisor":  env.SupURL,
 		"nats": map[string]any{
 			"client_url":     env.NATS.ClientURL,
 			"websocket_url":  env.NATS.WebSocketURL,
@@ -146,7 +145,6 @@ func catalogSnapshot(env *utils.E2EEnv, trace utils.MessageTrace) map[string]any
 		"services":    serviceSnapshot(env),
 		"tool_names":  uniqueStrings(trace.ToolStarts),
 		"runtime_id":  env.Agent.ID,
-		"supervisor":  env.SupURL,
 		"catalog_ref": "supervisor-resolved-runtime-catalog",
 	}
 }

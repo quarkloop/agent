@@ -25,7 +25,7 @@ func (a *Agent) handleUserMessage(ctx context.Context, msg loop.Message) error {
 	requestCtx, cancel := context.WithCancel(ctx)
 	spaceID := userMsg.SpaceID
 	if spaceID == "" {
-		spaceID = a.Space
+		spaceID = a.SpaceID
 	}
 	requestCtx = modelservice.WithSpaceID(requestCtx, spaceID)
 	requestCtx = modelservice.WithSessionID(requestCtx, userMsg.SessionID)

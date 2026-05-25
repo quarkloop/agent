@@ -9,8 +9,8 @@ import (
 
 // Conversation represents an in-memory agent communication channel with
 // isolated context, message history, and live subscriber notifications.
-// This is distinct from the supervisor's session persistence/wire types
-// (supervisor/pkg/sessions.Session and supervisor/pkg/api.Session).
+// This is distinct from the persisted session records and NATS wire contracts
+// owned at their respective boundaries.
 type Conversation struct {
 	mu          sync.RWMutex
 	id          string

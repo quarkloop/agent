@@ -14,10 +14,10 @@ import (
 func (a *Agent) sendInitMessages() {
 	providers := a.Plugins.GetProviders()
 	if len(providers) == 0 {
-		slog.Warn("no providers loaded from plugins")
+		slog.Warn("no Gateway-backed model adapters registered")
 	}
 	for id := range providers {
-		slog.Info("provider available", "id", id)
+		slog.Info("Gateway model adapter available", "provider", id)
 	}
 	fallback := []plugin.ModelEntry{}
 	if a.config.Model != "" {

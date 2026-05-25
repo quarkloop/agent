@@ -75,9 +75,8 @@ type realClock struct{}
 
 func (realClock) Now() time.Time { return time.Now() }
 
-// Service is the runtime model boundary. Provider plugins are implementation
-// adapters behind this boundary; runtime code asks the service for a provider
-// adapter and receives usage through Sink.
+// Service is the runtime model boundary. Production adapters invoke Gateway;
+// runtime code receives usage through Sink without dispatching providers.
 type Service struct {
 	mu          sync.RWMutex
 	providers   map[string]plugin.Provider

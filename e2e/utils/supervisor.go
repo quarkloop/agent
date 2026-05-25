@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func startSupervisor(t *testing.T, bins BuiltBinaries, extraEnv map[string]string) (string, string, NATSEndpoints) {
+func startSupervisor(t *testing.T, bins BuiltBinaries, extraEnv map[string]string) (string, NATSEndpoints) {
 	t.Helper()
 
 	spacesDir := filepath.Join(t.TempDir(), "spaces")
@@ -46,7 +46,7 @@ func startSupervisor(t *testing.T, bins BuiltBinaries, extraEnv map[string]strin
 	}
 	waitForControlNATS(t, natsEndpoints, 10*time.Second)
 
-	return "", spacesDir, natsEndpoints
+	return spacesDir, natsEndpoints
 }
 
 // StartOptions tunes the fixture StartE2E builds. Zero-valued options yield

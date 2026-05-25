@@ -10,8 +10,6 @@ const (
 	EnvModelProvider = "QUARK_MODEL_PROVIDER"
 	EnvModelName     = "QUARK_MODEL_NAME"
 	EnvModelListURL  = "MODEL_LIST_URL"
-	EnvPluginsDir    = "QUARK_PLUGINS_DIR"
-	EnvSupervisorURL = "QUARK_SUPERVISOR_URL"
 	EnvPrimarySpace  = "QUARK_SPACE"
 	EnvRuntimeSpaces = "QUARK_SPACES"
 )
@@ -21,8 +19,6 @@ type Environment struct {
 	ModelProvider string
 	ModelName     string
 	ModelListURL  string
-	PluginsDir    string
-	SupervisorURL string
 	PrimarySpace  string
 	RuntimeSpaces string
 }
@@ -33,8 +29,6 @@ func EnvironmentFromOS() Environment {
 		ModelProvider: strings.TrimSpace(os.Getenv(EnvModelProvider)),
 		ModelName:     strings.TrimSpace(os.Getenv(EnvModelName)),
 		ModelListURL:  strings.TrimSpace(os.Getenv(EnvModelListURL)),
-		PluginsDir:    strings.TrimSpace(os.Getenv(EnvPluginsDir)),
-		SupervisorURL: strings.TrimSpace(os.Getenv(EnvSupervisorURL)),
 		PrimarySpace:  strings.TrimSpace(os.Getenv(EnvPrimarySpace)),
 		RuntimeSpaces: strings.TrimSpace(os.Getenv(EnvRuntimeSpaces)),
 	}

@@ -30,17 +30,20 @@ tool:
 		t.Fatalf("write manifest: %v", err)
 	}
 
-	m := NewManager(pluginsDir)
+	m := NewManager()
 	if err := m.Initialize(context.Background()); err != nil {
 		t.Fatalf("initialize: %v", err)
 	}
 	if tools := m.GetTools(); len(tools) != 0 {
 		t.Fatalf("expected no filesystem-discovered tools, got %+v", tools)
 	}
+	if m.binDir != "" {
+		t.Fatalf("runtime created tool build storage without loading a binary tool: %s", m.binDir)
+	}
 }
 
 func TestRegisterRuntimeProviderRejectsTypedNilProvider(t *testing.T) {
-	m := NewManager(t.TempDir())
+	m := NewManager()
 	var provider *testProvider
 
 	m.RegisterRuntimeProvider("openrouter", provider)

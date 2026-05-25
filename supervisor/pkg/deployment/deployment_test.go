@@ -46,8 +46,14 @@ func TestComposeDeclaresOperatorManagedProcesses(t *testing.T) {
 	if _, ok := runtimeSvc.DependsOn["supervisor"]; !ok {
 		t.Fatal("runtime does not depend on supervisor health")
 	}
-	if runtimeSvc.Environment["QUARK_SUPERVISOR_URL"] == "" || runtimeSvc.Environment["QUARK_SPACE"] == "" {
+	if runtimeSvc.Environment["QUARK_NATS_URL"] == "" || runtimeSvc.Environment["QUARK_SPACE"] == "" {
 		t.Fatalf("runtime environment incomplete: %+v", runtimeSvc.Environment)
+	}
+	if runtimeSvc.Environment["QUARK_SUPERVISOR_URL"] != "" || runtimeSvc.Environment["QUARK_PLUGINS_DIR"] != "" {
+		t.Fatalf("runtime still contains legacy HTTP or filesystem-discovery environment: %+v", runtimeSvc.Environment)
+	}
+	if contains(runtimeSvc.Command, "--port") {
+		t.Fatalf("runtime still exposes legacy HTTP launch flag: %v", runtimeSvc.Command)
 	}
 	for name, svc := range compose.Services {
 		if name == "dgraph" || name == "vector" || name == "nats-exporter" || name == "vmagent" || name == "victoria-metrics" || name == "openbao" || name == "temporal" {
