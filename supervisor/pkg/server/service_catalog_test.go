@@ -112,16 +112,14 @@ func TestRuntimePluginCatalogUsesVersionedContract(t *testing.T) {
 
 func TestRuntimeCatalogSnapshotReturnsVersionedPayloads(t *testing.T) {
 	srv := serviceTestServer(t)
-	writeInstalledMainAgentPlugin(t, srv, "test-space")
 	writeInstalledServicePlugin(t, srv, "test-space")
 	config := spacemodel.NewConfig("test-space", t.TempDir())
-	config.Plugins = []spacemodel.PluginRef{{Ref: "quark/service-indexer"}}
-	config.Services = []spacemodel.ServiceRef{{
+	config = config.WithPluginSelection(spacemodel.PluginRef{Ref: "quark/service-indexer"}, &spacemodel.ServiceRef{
 		Name:       "indexer",
 		Ref:        "quark/service-indexer",
 		Mode:       "local",
 		AddressEnv: "QUARK_INDEXER_ADDR",
-	}}
+	})
 	data, err := spacemodel.MarshalConfig(config)
 	if err != nil {
 		t.Fatalf("marshal config: %v", err)
@@ -145,38 +143,6 @@ func TestRuntimeCatalogSnapshotReturnsVersionedPayloads(t *testing.T) {
 	}
 	if len(services) != 1 || services[0].GetName() != "indexer" {
 		t.Fatalf("service catalog = %+v", services)
-	}
-}
-
-func writeInstalledMainAgentPlugin(t *testing.T, srv *Server, space string) {
-	t.Helper()
-	mgr, err := srv.store.Plugins(space)
-	if err != nil {
-		t.Fatal(err)
-	}
-	dir := filepath.Join(mgr.PluginsDir(), "agents", "quark-main")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	files := map[string]string{
-		"manifest.yaml": `name: quark-main
-version: "1.0.0"
-type: agent
-mode: api
-description: Main agent
-agent:
-  profile: PROFILE.yaml
-  system: SYSTEM.md
-  skill: SKILL.md
-`,
-		"PROFILE.yaml": "id: quark-main\nname: Quark Main\nrole: main\n",
-		"SYSTEM.md":    "You are Quark Main.\n",
-		"SKILL.md":     "Coordinate installed services.\n",
-	}
-	for name, content := range files {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
-			t.Fatal(err)
-		}
 	}
 }
 
@@ -335,13 +301,13 @@ func TestResolveServicePluginCatalogIgnoresUnboundInstalledServicePlugins(t *tes
 		FunctionName: "citation_VerifyGrounding",
 	})
 	config := spacemodel.NewConfig("test-space", t.TempDir())
-	config.Plugins = []spacemodel.PluginRef{{Ref: "quark/service-indexer"}, {Ref: "quark/service-citation"}}
-	config.Services = []spacemodel.ServiceRef{{
+	config = config.WithPluginSelection(spacemodel.PluginRef{Ref: "quark/service-indexer"}, &spacemodel.ServiceRef{
 		Name:       "indexer",
 		Ref:        "quark/service-indexer",
 		Mode:       "local",
 		AddressEnv: "QUARK_INDEXER_ADDR",
-	}}
+	})
+	config = config.WithPluginSelection(spacemodel.PluginRef{Ref: "quark/service-citation"}, nil)
 	data, err := spacemodel.MarshalConfig(config)
 	if err != nil {
 		t.Fatalf("marshal config: %v", err)
@@ -532,11 +498,7 @@ type servicePluginFixture struct {
 
 func writeInstalledServicePluginNamed(t *testing.T, srv *Server, space string, fixture servicePluginFixture) {
 	t.Helper()
-	mgr, err := srv.store.Plugins(space)
-	if err != nil {
-		t.Fatal(err)
-	}
-	dir := filepath.Join(mgr.PluginsDir(), "services", fixture.Name)
+	dir := filepath.Join(t.TempDir(), fixture.Name)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -546,6 +508,9 @@ type: service
 mode: api
 description: %s service
 service:
+  transport: nats
+  subject_prefix: svc.%s.v1
+  queue_group: q.service.v1.%s
   address_env: %s
   health:
     protocol: nats_service
@@ -567,13 +532,15 @@ service:
       description: Retrieve context.
       risk_level: read
       idempotent: true
-`, fixture.Name, fixture.Name, fixture.AddressEnv, fixture.ProtoService, fixture.ProtoService, fixture.FunctionName, fixture.ProtoService)
+`, fixture.Name, fixture.Name, fixture.Name, fixture.Name, fixture.AddressEnv, fixture.ProtoService, fixture.ProtoService, fixture.FunctionName, fixture.ProtoService)
 	if err := os.WriteFile(filepath.Join(dir, "manifest.yaml"), []byte(manifest), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte("# service-"+fixture.Name+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	installFixturePlugin(t, srv, dir)
+	selectServicePlugin(t, srv, space, fixture.Name)
 }
 
 func serviceManifest(name, protoService string) *plugin.Manifest {

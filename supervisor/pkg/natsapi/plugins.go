@@ -3,9 +3,8 @@ package natsapi
 import (
 	"context"
 
-	plugin "github.com/quarkloop/pkg/plugin"
+	"github.com/quarkloop/pkg/boundary"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
-	"github.com/quarkloop/supervisor/pkg/pluginmanager"
 )
 
 func (s *Server) listPlugins(req clientcontract.RequestEnvelope) (any, error) {
@@ -13,16 +12,10 @@ func (s *Server) listPlugins(req clientcontract.RequestEnvelope) (any, error) {
 	if err := req.DecodePayload(&payload); err != nil {
 		return nil, err
 	}
-	mgr, err := s.store.Plugins(payload.SpaceID)
-	if err != nil {
-		return nil, err
+	if s.pluginController == nil {
+		return nil, boundary.New(boundary.Supervisor, boundary.Unavailable, clientcontract.SubjectPluginList, "plugin catalog is not configured")
 	}
-	var installed []pluginmanager.InstalledPlugin
-	if payload.TypeFilter != "" {
-		installed, err = mgr.ListByType(plugin.PluginType(payload.TypeFilter))
-	} else {
-		installed, err = mgr.List()
-	}
+	installed, err := s.pluginController.ListSpacePlugins(context.Background(), payload.SpaceID, payload.TypeFilter)
 	if err != nil {
 		return nil, err
 	}
@@ -38,11 +31,10 @@ func (s *Server) getPlugin(req clientcontract.RequestEnvelope) (any, error) {
 	if err := req.DecodePayload(&payload); err != nil {
 		return nil, err
 	}
-	mgr, err := s.store.Plugins(payload.SpaceID)
-	if err != nil {
-		return nil, err
+	if s.pluginController == nil {
+		return nil, boundary.New(boundary.Supervisor, boundary.Unavailable, clientcontract.SubjectPluginGet, "plugin catalog is not configured")
 	}
-	item, err := mgr.Get(payload.Plugin)
+	item, err := s.pluginController.GetSpacePlugin(context.Background(), payload.SpaceID, payload.Plugin)
 	if err != nil {
 		return nil, err
 	}
@@ -54,18 +46,17 @@ func (s *Server) installPlugin(req clientcontract.RequestEnvelope) (any, error) 
 	if err := req.DecodePayload(&payload); err != nil {
 		return nil, err
 	}
-	mgr, err := s.store.Plugins(payload.SpaceID)
-	if err != nil {
-		return nil, err
+	if s.pluginController == nil {
+		return nil, boundary.New(boundary.Supervisor, boundary.Unavailable, clientcontract.SubjectPluginInstall, "plugin catalog is not configured")
 	}
-	installed, err := mgr.Install(context.Background(), payload.Ref)
+	installed, err := s.pluginController.InstallSpacePlugin(context.Background(), payload.SpaceID, payload.Ref)
 	if err != nil {
 		return nil, err
 	}
 	if err := s.publishCatalogEvent(payload.SpaceID, "plugin_installed"); err != nil {
 		return nil, err
 	}
-	return clientcontract.InstallPluginResponse{Plugin: toContractPlugin(*installed)}, nil
+	return clientcontract.InstallPluginResponse{Plugin: toContractPlugin(installed)}, nil
 }
 
 func (s *Server) uninstallPlugin(req clientcontract.RequestEnvelope) (any, error) {
@@ -73,11 +64,10 @@ func (s *Server) uninstallPlugin(req clientcontract.RequestEnvelope) (any, error
 	if err := req.DecodePayload(&payload); err != nil {
 		return nil, err
 	}
-	mgr, err := s.store.Plugins(payload.SpaceID)
-	if err != nil {
-		return nil, err
+	if s.pluginController == nil {
+		return nil, boundary.New(boundary.Supervisor, boundary.Unavailable, clientcontract.SubjectPluginUninstall, "plugin catalog is not configured")
 	}
-	if err := mgr.Uninstall(payload.Plugin); err != nil {
+	if err := s.pluginController.UninstallSpacePlugin(context.Background(), payload.SpaceID, payload.Plugin); err != nil {
 		return nil, err
 	}
 	if err := s.publishCatalogEvent(payload.SpaceID, "plugin_uninstalled"); err != nil {
@@ -91,11 +81,10 @@ func (s *Server) searchPlugins(req clientcontract.RequestEnvelope) (any, error) 
 	if err := req.DecodePayload(&payload); err != nil {
 		return nil, err
 	}
-	mgr, err := s.store.Plugins(payload.SpaceID)
-	if err != nil {
-		return nil, err
+	if s.pluginController == nil {
+		return nil, boundary.New(boundary.Supervisor, boundary.Unavailable, clientcontract.SubjectPluginSearch, "plugin catalog is not configured")
 	}
-	results, err := mgr.Search(payload.Query)
+	results, err := s.pluginController.SearchPlugins(context.Background(), payload.Query)
 	if err != nil {
 		return nil, err
 	}
@@ -117,11 +106,10 @@ func (s *Server) hubPluginInfo(req clientcontract.RequestEnvelope) (any, error) 
 	if err := req.DecodePayload(&payload); err != nil {
 		return nil, err
 	}
-	mgr, err := s.store.Plugins(payload.SpaceID)
-	if err != nil {
-		return nil, err
+	if s.pluginController == nil {
+		return nil, boundary.New(boundary.Supervisor, boundary.Unavailable, clientcontract.SubjectPluginHubInfo, "plugin catalog is not configured")
 	}
-	info, err := mgr.GetHubInfo(payload.Plugin)
+	info, err := s.pluginController.HubPluginInfo(context.Background(), payload.Plugin)
 	if err != nil {
 		return nil, err
 	}

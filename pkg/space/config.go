@@ -44,8 +44,90 @@ func NewConfig(name, workingDir string) *Config {
 		WorkingDir: workingDir,
 		CreatedAt:  now,
 		UpdatedAt:  now,
-		Plugins:    []PluginRef{{Ref: "quark/tool-fs"}},
+		Plugins:    []PluginRef{{Ref: "quark-main"}},
 	}
+}
+
+// WithCreatedTimestamps returns a create-ready copy whose persisted lifecycle
+// timestamps are owned by the space persistence boundary.
+func (c *Config) WithCreatedTimestamps(now time.Time) *Config {
+	if c == nil {
+		return nil
+	}
+	next := *c
+	next.CreatedAt = now.UTC()
+	next.UpdatedAt = now.UTC()
+	return &next
+}
+
+// WithUpdatedTimestamp returns an update-ready copy while retaining the
+// original persisted creation time.
+func (c *Config) WithUpdatedTimestamp(createdAt, updatedAt time.Time) *Config {
+	if c == nil {
+		return nil
+	}
+	next := *c
+	next.CreatedAt = createdAt.UTC()
+	next.UpdatedAt = updatedAt.UTC()
+	return &next
+}
+
+// WithPluginSelection returns a copy selecting a plugin and, when supplied,
+// its service binding. The caller supplies canonical manifest identities.
+func (c *Config) WithPluginSelection(pluginRef PluginRef, serviceRef *ServiceRef) *Config {
+	if c == nil {
+		return nil
+	}
+	next := *c
+	next.Plugins = append([]PluginRef(nil), c.Plugins...)
+	next.Services = append([]ServiceRef(nil), c.Services...)
+	if !containsPlugin(next.Plugins, pluginRef.Ref) {
+		next.Plugins = append(next.Plugins, pluginRef)
+	}
+	if serviceRef != nil && !containsService(next.Services, serviceRef.Name) {
+		next.Services = append(next.Services, *serviceRef)
+	}
+	return &next
+}
+
+// WithoutPluginSelection returns a copy without the named plugin or its
+// service binding.
+func (c *Config) WithoutPluginSelection(name string) *Config {
+	if c == nil {
+		return nil
+	}
+	next := *c
+	next.Plugins = make([]PluginRef, 0, len(c.Plugins))
+	for _, ref := range c.Plugins {
+		if ref.Ref != name {
+			next.Plugins = append(next.Plugins, ref)
+		}
+	}
+	next.Services = make([]ServiceRef, 0, len(c.Services))
+	for _, ref := range c.Services {
+		if ref.Name != name && ref.Ref != name {
+			next.Services = append(next.Services, ref)
+		}
+	}
+	return &next
+}
+
+func containsPlugin(refs []PluginRef, name string) bool {
+	for _, ref := range refs {
+		if ref.Ref == name {
+			return true
+		}
+	}
+	return false
+}
+
+func containsService(refs []ServiceRef, name string) bool {
+	for _, ref := range refs {
+		if ref.Name == name || ref.Ref == name {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Config) EnvironmentVariables() []string {

@@ -16,6 +16,16 @@ type Space struct {
 	UpdatedAt  time.Time
 }
 
+type DoctorIssue struct {
+	Severity string
+	Message  string
+}
+
+type DoctorResult struct {
+	OK     bool
+	Issues []DoctorIssue
+}
+
 func FromConfig(cfg spacemodel.Config) *Space {
 	return &Space{
 		Name:       cfg.Name,

@@ -132,8 +132,10 @@ select queue groups.
 | `space` | `q.service.v1.space` | `space_ListSpaces` | `svc.space.v1.list_spaces` |
 | `space` | `q.service.v1.space` | `space_DeleteSpace` | `svc.space.v1.delete_space` |
 | `space` | `q.service.v1.space` | `space_GetConfig` | `svc.space.v1.get_config` |
-| `space` | `q.service.v1.space` | `space_GetAgentEnvironment` | `svc.space.v1.get_agent_environment` |
-| `space` | `q.service.v1.space` | `space_GetSpacePaths` | `svc.space.v1.get_space_paths` |
+| `space` | `q.service.v1.space` | `space_PutRecord` | `svc.space.v1.put_record` |
+| `space` | `q.service.v1.space` | `space_GetRecord` | `svc.space.v1.get_record` |
+| `space` | `q.service.v1.space` | `space_ListRecords` | `svc.space.v1.list_records` |
+| `space` | `q.service.v1.space` | `space_DeleteRecord` | `svc.space.v1.delete_record` |
 | `space` | `q.service.v1.space` | `space_Doctor` | `svc.space.v1.doctor` |
 | `system` | `q.service.v1.system` | `system_Snapshot` | `svc.system.v1.snapshot` |
 | `system` | `q.service.v1.system` | `system_GetOSInfo` | `svc.system.v1.get_osinfo` |

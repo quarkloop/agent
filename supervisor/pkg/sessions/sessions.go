@@ -1,215 +1,147 @@
-// Package sessions is the supervisor-side session store. Sessions are owned
-// by the supervisor and the agent is notified of create/delete events via the
-// supervisor event stream.
+// Package sessions owns supervisor session semantics while delegating opaque
+// bytes to the Space service storage boundary.
 package sessions
 
 import (
-	"bufio"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
+	"sort"
 	"strings"
-	"sync"
 	"time"
+
+	"github.com/quarkloop/supervisor/pkg/space"
 )
 
-// ErrNotFound is returned when a session does not exist.
+const recordNamespace = "sessions"
+
 var ErrNotFound = errors.New("session not found")
 
-// Type is the kind of a session.
 type Type string
 
 const (
 	TypeMain     Type = "main"
 	TypeChat     Type = "chat"
+	TypeTask     Type = "task"
 	TypeSubAgent Type = "subagent"
 	TypeCron     Type = "cron"
 )
 
-// Session is the canonical supervisor-side record for a conversation.
 type Session struct {
 	ID        string    `json:"id"`
 	Space     string    `json:"space"`
 	Type      Type      `json:"type"`
 	Title     string    `json:"title,omitempty"`
-	Status    string    `json:"status"` // active | archived
+	Status    string    `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// Store persists sessions for a single space as one JSONL file per session.
-type Store struct {
-	mu       sync.RWMutex
-	dir      string
-	space    string
-	sessions map[string]*Session
+type Records interface {
+	PutRecord(name, namespace, key string, data []byte) error
+	GetRecord(name, namespace, key string) ([]byte, error)
+	ListRecords(name, namespace string) ([][]byte, error)
+	DeleteRecord(name, namespace, key string) error
 }
 
-// Open opens (or creates) the session store rooted at dir.
-// Space is stamped onto each created session.
-func Open(dir, space string) (*Store, error) {
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return nil, fmt.Errorf("mkdir session dir: %w", err)
-	}
-	s := &Store{dir: dir, space: space, sessions: make(map[string]*Session)}
-	if err := s.load(); err != nil {
-		return nil, err
-	}
-	return s, nil
+type Repository struct {
+	records Records
+	now     func() time.Time
+	id      func() string
 }
 
-func (s *Store) load() error {
-	entries, err := os.ReadDir(s.dir)
-	if err != nil {
-		return fmt.Errorf("read sessions dir: %w", err)
+func NewRepository(records Records) (*Repository, error) {
+	if records == nil {
+		return nil, fmt.Errorf("session record storage is required")
 	}
-	for _, entry := range entries {
-		if entry.IsDir() || filepath.Ext(entry.Name()) != ".jsonl" {
-			continue
-		}
-		if err := s.loadFile(filepath.Join(s.dir, entry.Name())); err != nil {
-			return err
-		}
-	}
-	return nil
+	return &Repository{records: records, now: time.Now, id: newID}, nil
 }
 
-func (s *Store) loadFile(path string) error {
-	f, err := os.Open(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil
+func (r *Repository) Create(space string, t Type, title string) (Session, error) {
+	if strings.TrimSpace(space) == "" {
+		return Session{}, fmt.Errorf("space is required")
 	}
-	if err != nil {
-		return fmt.Errorf("open session %s: %w", filepath.Base(path), err)
-	}
-	defer f.Close()
-	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
-		}
-		var sess Session
-		if err := json.Unmarshal(line, &sess); err != nil {
-			return fmt.Errorf("parse session %s: %w", filepath.Base(path), err)
-		}
-		if sess.Status == "" {
-			sess.Status = "active"
-		}
-		s.sessions[sess.ID] = &sess
-	}
-	return scanner.Err()
-}
-
-func (s *Store) persistSessionLocked(sess *Session) error {
-	path, err := s.sessionPath(sess.ID)
-	if err != nil {
-		return err
-	}
-	tmp := path + ".tmp"
-	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
-	if err != nil {
-		return err
-	}
-	enc := json.NewEncoder(f)
-	if err := enc.Encode(sess); err != nil {
-		f.Close()
-		return err
-	}
-	if err := f.Close(); err != nil {
-		return err
-	}
-	return os.Rename(tmp, path)
-}
-
-func (s *Store) sessionPath(id string) (string, error) {
-	if id == "" || strings.ContainsAny(id, `/\`) || filepath.Base(id) != id {
-		return "", ErrNotFound
-	}
-	return filepath.Join(s.dir, id+".jsonl"), nil
-}
-
-// Create inserts a new session. The ID is generated.
-func (s *Store) Create(t Type, title string) (*Session, error) {
 	if t == "" {
 		t = TypeChat
 	}
-	sess := &Session{
-		ID:        newID(),
-		Space:     s.space,
-		Type:      t,
-		Title:     title,
-		Status:    "active",
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
+	now := r.now().UTC()
+	session := Session{ID: r.id(), Space: space, Type: t, Title: title, Status: "active", CreatedAt: now, UpdatedAt: now}
+	if err := r.write(session); err != nil {
+		return Session{}, err
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.sessions[sess.ID] = sess
-	if err := s.persistSessionLocked(sess); err != nil {
-		delete(s.sessions, sess.ID)
-		return nil, err
-	}
-	return sess, nil
+	return session, nil
 }
 
-// Get returns a session by id.
-func (s *Store) Get(id string) (*Session, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	sess, ok := s.sessions[id]
-	if !ok {
-		return nil, ErrNotFound
-	}
-	cp := *sess
-	return &cp, nil
-}
-
-// List returns all sessions.
-func (s *Store) List() []*Session {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	out := make([]*Session, 0, len(s.sessions))
-	for _, sess := range s.sessions {
-		cp := *sess
-		out = append(out, &cp)
-	}
-	return out
-}
-
-// Delete removes a session.
-func (s *Store) Delete(id string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if _, ok := s.sessions[id]; !ok {
-		return ErrNotFound
-	}
-	delete(s.sessions, id)
-	path, err := s.sessionPath(id)
+func (r *Repository) Get(space, id string) (Session, error) {
+	raw, err := r.records.GetRecord(space, recordNamespace, id)
 	if err != nil {
-		return err
+		return Session{}, mapStorageError(err)
 	}
-	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
+	return decode(raw)
+}
+
+func (r *Repository) List(space string) ([]Session, error) {
+	rawRecords, err := r.records.ListRecords(space, recordNamespace)
+	if err != nil {
+		return nil, mapStorageError(err)
+	}
+	out := make([]Session, 0, len(rawRecords))
+	for _, raw := range rawRecords {
+		session, err := decode(raw)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, session)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].CreatedAt.Before(out[j].CreatedAt) })
+	return out, nil
+}
+
+func (r *Repository) Delete(space, id string) error {
+	if err := r.records.DeleteRecord(space, recordNamespace, id); err != nil {
+		return mapStorageError(err)
 	}
 	return nil
 }
 
-// Touch updates the UpdatedAt timestamp.
-func (s *Store) Touch(id string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	sess, ok := s.sessions[id]
-	if !ok {
+func (r *Repository) Touch(space, id string) error {
+	session, err := r.Get(space, id)
+	if err != nil {
+		return err
+	}
+	session.UpdatedAt = r.now().UTC()
+	return r.write(session)
+}
+
+func (r *Repository) write(session Session) error {
+	raw, err := json.Marshal(session)
+	if err != nil {
+		return fmt.Errorf("marshal session: %w", err)
+	}
+	if err := r.records.PutRecord(session.Space, recordNamespace, session.ID, raw); err != nil {
+		return mapStorageError(err)
+	}
+	return nil
+}
+
+func decode(raw []byte) (Session, error) {
+	var session Session
+	if err := json.Unmarshal(raw, &session); err != nil {
+		return Session{}, fmt.Errorf("decode stored session: %w", err)
+	}
+	if session.ID == "" || session.Space == "" {
+		return Session{}, fmt.Errorf("stored session is missing identity")
+	}
+	return session, nil
+}
+
+func mapStorageError(err error) error {
+	if space.IsNotFound(err) {
 		return ErrNotFound
 	}
-	sess.UpdatedAt = time.Now().UTC()
-	return s.persistSessionLocked(sess)
+	return err
 }
 
 func newID() string {

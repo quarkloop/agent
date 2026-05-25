@@ -13,9 +13,9 @@ import (
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 	"github.com/quarkloop/supervisor/pkg/events"
 	"github.com/quarkloop/supervisor/pkg/natshub"
+	"github.com/quarkloop/supervisor/pkg/pluginmanager"
 	"github.com/quarkloop/supervisor/pkg/sessions"
 	"github.com/quarkloop/supervisor/pkg/space"
-	spacestore "github.com/quarkloop/supervisor/pkg/space/store"
 )
 
 type SpaceProvisioner interface {
@@ -36,8 +36,13 @@ type CatalogResolver interface {
 	RuntimeCatalogSnapshot(ctx context.Context, spaceID string) (clientcontract.RuntimeCatalogResponse, error)
 }
 
-type SpaceBootstrapper interface {
-	BootstrapSpace(ctx context.Context, spaceID string) error
+type PluginController interface {
+	ListSpacePlugins(ctx context.Context, spaceID, typeFilter string) ([]pluginmanager.InstalledPlugin, error)
+	GetSpacePlugin(ctx context.Context, spaceID, name string) (pluginmanager.InstalledPlugin, error)
+	InstallSpacePlugin(ctx context.Context, spaceID, ref string) (pluginmanager.InstalledPlugin, error)
+	UninstallSpacePlugin(ctx context.Context, spaceID, name string) error
+	SearchPlugins(ctx context.Context, query string) ([]pluginmanager.PluginSearchItem, error)
+	HubPluginInfo(ctx context.Context, name string) (*pluginmanager.HubPlugin, error)
 }
 
 type AuditReader interface {
@@ -66,9 +71,9 @@ func WithCredentialIssuer(issuer CredentialIssuer) Option {
 	}
 }
 
-func WithSpaceBootstrapper(bootstrapper SpaceBootstrapper) Option {
+func WithPluginController(controller PluginController) Option {
 	return func(s *Server) {
-		s.spaceBootstrapper = bootstrapper
+		s.pluginController = controller
 	}
 }
 
@@ -79,17 +84,18 @@ func WithAuditReader(reader AuditReader) Option {
 }
 
 type Server struct {
-	client            *natskit.Client
-	url               string
-	store             space.Store
-	events            *events.Bus
-	provisioner       SpaceProvisioner
-	credentialIssuer  CredentialIssuer
-	serviceInspector  ServiceInspector
-	catalogResolver   CatalogResolver
-	spaceBootstrapper SpaceBootstrapper
-	auditReader       AuditReader
-	subs              []*natskit.Subscription
+	client           *natskit.Client
+	url              string
+	store            space.Store
+	sessions         *sessions.Repository
+	events           *events.Bus
+	provisioner      SpaceProvisioner
+	credentialIssuer CredentialIssuer
+	serviceInspector ServiceInspector
+	catalogResolver  CatalogResolver
+	pluginController PluginController
+	auditReader      AuditReader
+	subs             []*natskit.Subscription
 }
 
 type Config struct {
@@ -105,6 +111,10 @@ func Start(ctx context.Context, cfg Config, store space.Store, bus *events.Bus, 
 	if bus == nil {
 		bus = events.NewBus()
 	}
+	sessionRepository, err := sessions.NewRepository(store)
+	if err != nil {
+		return nil, err
+	}
 	client, err := natskit.Connect(ctx, natskit.Config{
 		URL: cfg.URL, Username: cfg.Username, Password: cfg.Password,
 		Name: "quark-supervisor-control-api", Timeout: 5 * time.Second,
@@ -117,6 +127,7 @@ func Start(ctx context.Context, cfg Config, store space.Store, bus *events.Bus, 
 		client:           client,
 		url:              cfg.URL,
 		store:            store,
+		sessions:         sessionRepository,
 		events:           bus,
 		provisioner:      provisioner,
 		credentialIssuer: credentialIssuerFromProvisioner(provisioner),
@@ -219,9 +230,9 @@ func (s *Server) handle(msg natskit.Message, handler func(clientcontract.Request
 
 func errorCategory(operation string, err error) boundary.Category {
 	switch {
-	case spacestore.IsNotFound(err), errors.Is(err, sessions.ErrNotFound), errors.Is(err, natshub.ErrAuditRecordNotFound):
+	case space.IsNotFound(err), errors.Is(err, sessions.ErrNotFound), errors.Is(err, natshub.ErrAuditRecordNotFound):
 		return boundary.NotFound
-	case errors.Is(err, spacestore.ErrAlreadyExists):
+	case errors.Is(err, space.ErrAlreadyExists):
 		return boundary.Conflict
 	case strings.Contains(strings.ToLower(err.Error()), "not found"):
 		return boundary.NotFound

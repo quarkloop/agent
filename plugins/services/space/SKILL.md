@@ -1,9 +1,8 @@
 # service-space
 
 The space service owns the authoritative `space.json` configuration file,
-derived storage paths, environment extraction from that configuration, and
-configuration diagnostics. It does not interpret plugin policy or mutate user
-working directories.
+opaque per-space record persistence, and configuration diagnostics. It does
+not interpret records, plugin policy, or mutate user working directories.
 
 Use `quark.space.v1.SpaceService` service functions for space lifecycle and
 metadata operations. Space business logic lives behind this NATS
@@ -40,15 +39,25 @@ service-function contract.
   - Required: `name`
   - Returns the authoritative space configuration and version.
 
-- `GetAgentEnvironment(GetAgentEnvironmentRequest) -> AgentEnvironmentResponse`
-  - Generated service function: `space_GetAgentEnvironment`
-  - Required: `name`
-  - Resolves model/provider environment entries needed to launch a runtime.
+- `PutRecord(PutRecordRequest) -> Record`
+  - Generated service function: `space_PutRecord`
+  - Required: `name`, `namespace`, `key`, `data`
+  - Persists opaque bytes; the caller owns their meaning.
 
-- `GetSpacePaths(GetSpacePathsRequest) -> SpacePaths`
-  - Generated service function: `space_GetSpacePaths`
-  - Required: `name`
-  - Returns derived storage paths for service-owned state and `space.json`.
+- `GetRecord(GetRecordRequest) -> Record`
+  - Generated service function: `space_GetRecord`
+  - Required: `name`, `namespace`, `key`
+  - Reads opaque bytes without interpreting them.
+
+- `ListRecords(ListRecordsRequest) -> ListRecordsResponse`
+  - Generated service function: `space_ListRecords`
+  - Required: `name`, `namespace`
+  - Lists caller-owned records.
+
+- `DeleteRecord(DeleteRecordRequest) -> Empty`
+  - Generated service function: `space_DeleteRecord`
+  - Required: `name`, `namespace`, `key`
+  - Removes one caller-owned record.
 
 - `Doctor(DoctorRequest) -> DoctorResponse`
   - Generated service function: `space_Doctor`
@@ -61,4 +70,4 @@ service-function contract.
 - Plugin meaning, catalog resolution, and orchestration remain supervisor-owned.
 - The CLI should use supervisor-owned NATS contracts for space operations.
 - Runtime and supervisor callers should use service functions for space
-  metadata and environment operations.
+  persistence operations.

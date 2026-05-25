@@ -1,4 +1,4 @@
-// Package server implements the Supervisor HTTP API.
+// Package server composes the supervisor NATS-native control plane.
 package server
 
 import (
@@ -7,47 +7,40 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/logger"
-	"github.com/gofiber/fiber/v2/middleware/recover"
-
 	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/supervisor/internal/supervisor"
-	"github.com/quarkloop/supervisor/pkg/api"
 	"github.com/quarkloop/supervisor/pkg/events"
 	"github.com/quarkloop/supervisor/pkg/natsapi"
 	"github.com/quarkloop/supervisor/pkg/natshub"
-	"github.com/quarkloop/supervisor/pkg/pluginbootstrap"
+	"github.com/quarkloop/supervisor/pkg/pluginmanager"
 	"github.com/quarkloop/supervisor/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/space/remotestore"
 )
 
-// Config holds supervisor server configuration.
+// Config holds supervisor control-plane configuration.
 type Config struct {
-	// Port is the TCP port to listen on.
-	Port int
-	// SpacesDir is retained for deployment validation while persistence is
-	// delegated to the configured Space service.
-	SpacesDir string
 	// NATS configures the supervisor-owned NATS hub.
 	NATS natshub.Config
-	// BundledPluginsDir is the product plugin bundle root. The supervisor
-	// installs required default plugins from this directory for new spaces.
+	// BundledPluginsDir is the immutable product plugin bundle root. Space
+	// configuration selects entries from this catalog by manifest identity.
 	BundledPluginsDir string
+	// InstalledPluginsDir is supervisor-owned persistence for optional plugin
+	// installations. Space config stores selection only.
+	InstalledPluginsDir string
 	// Store is an injected semantic store for focused tests only. Product
 	// startup always establishes the Space-service-backed store after NATS is
 	// ready.
 	Store space.Store
 }
 
-// Server is the Supervisor HTTP API server.
+// Server is the supervisor NATS control-plane host.
 type Server struct {
 	cfg Config
-	app *fiber.App
 
 	store       space.Store
 	storeCloser interface{ Close() }
@@ -55,14 +48,12 @@ type Server struct {
 	natsHub     *natshub.Hub
 	natsAPI     *natsapi.Server
 
-	pluginBootstrap *pluginbootstrap.Installer
+	pluginRegistry    *pluginmanager.Registry
+	pluginSelectionMu sync.Mutex
 }
 
-// New creates a new Supervisor server.
+// New creates a new supervisor control plane.
 func New(cfg Config) (*Server, error) {
-	if cfg.Port == 0 {
-		cfg.Port = 7200
-	}
 	if cfg.BundledPluginsDir == "" {
 		cfg.BundledPluginsDir = "plugins"
 	}
@@ -77,37 +68,44 @@ func New(cfg Config) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("configure nats hub: %w", err)
 	}
-	bootstrap, err := pluginbootstrap.New(cfg.BundledPluginsDir)
+	if cfg.InstalledPluginsDir == "" {
+		pluginStateDir, err := defaultInstalledPluginsDir(cfg.NATS)
+		if err != nil {
+			return nil, err
+		}
+		cfg.InstalledPluginsDir = pluginStateDir
+	}
+	registry, err := pluginmanager.NewRegistry(cfg.BundledPluginsDir, cfg.InstalledPluginsDir)
 	if err != nil {
-		return nil, fmt.Errorf("configure required plugin bootstrap: %w", err)
+		return nil, fmt.Errorf("configure plugin registry: %w", err)
+	}
+	if _, err := registry.Get("quark-main"); err != nil {
+		return nil, fmt.Errorf("required main agent plugin: %w", err)
 	}
 
 	s := &Server{
-		cfg:             cfg,
-		store:           cfg.Store,
-		events:          events.NewBus(),
-		natsHub:         natsHub,
-		pluginBootstrap: bootstrap,
+		cfg:            cfg,
+		store:          cfg.Store,
+		events:         events.NewBus(),
+		natsHub:        natsHub,
+		pluginRegistry: registry,
 	}
-
-	fiberConfig := fiber.Config{
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		ErrorHandler: s.errorHandler,
-	}
-	s.app = fiber.New(fiberConfig)
-	s.app.Use(recover.New())
-	s.app.Use(logger.New(logger.Config{Format: "${time} ${status} - ${latency} ${method} ${path}\n"}))
-	s.app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowHeaders: "Origin, Content-Type, Accept",
-	}))
-
-	s.routes()
 	return s, nil
 }
 
-// Run starts the HTTP server and blocks until ctx is cancelled.
+func defaultInstalledPluginsDir(cfg natshub.Config) (string, error) {
+	if cfg.StateDir != "" {
+		return filepath.Join(filepath.Dir(cfg.StateDir), "plugins"), nil
+	}
+	stateDir, err := natshub.DefaultStateDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve plugin state dir: %w", err)
+	}
+	return filepath.Join(filepath.Dir(stateDir), "plugins"), nil
+}
+
+// Start starts the NATS-native supervisor control plane and blocks until ctx
+// is cancelled.
 func (s *Server) Start(ctx context.Context) error {
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -162,7 +160,7 @@ func (s *Server) Start(ctx context.Context) error {
 		}, s.store, s.events, s.natsHub,
 			natsapi.WithServiceInspector(natsServiceInspector{server: s}),
 			natsapi.WithCatalogResolver(s),
-			natsapi.WithSpaceBootstrapper(s),
+			natsapi.WithPluginController(s),
 		)
 		if err != nil {
 			return fmt.Errorf("start nats control api: %w", err)
@@ -173,45 +171,12 @@ func (s *Server) Start(ctx context.Context) error {
 			s.natsAPI = nil
 		}()
 	}
-	// Write state before accepting traffic
-	if err := sup.Save(supervisor.State{Port: s.cfg.Port, PID: os.Getpid()}); err != nil {
+	if err := sup.Save(supervisor.State{PID: os.Getpid()}); err != nil {
 		return fmt.Errorf("writing state: %w", err)
 	}
-	defer sup.Clear() // clean up on exit
-
-	errCh := make(chan error, 1)
-	go func() {
-		fmt.Printf("supervisor listening on :%d\n", s.cfg.Port)
-		if err := s.app.Listen(fmt.Sprintf(":%d", s.cfg.Port)); err != nil {
-			errCh <- err
-		}
-	}()
-
-	select {
-	case <-ctx.Done():
-		shutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		defer cancel()
-		return s.app.ShutdownWithContext(shutCtx)
-	case err := <-errCh:
-		return err
-	}
-}
-
-func (s *Server) BootstrapSpace(ctx context.Context, spaceID string) error {
-	plugins, err := s.store.Plugins(spaceID)
-	if err != nil {
-		return fmt.Errorf("open space plugin store: %w", err)
-	}
-	return s.pluginBootstrap.InstallRequired(ctx, plugins)
-}
-
-// errorHandler is the Fiber custom error handler.
-func (s *Server) errorHandler(c *fiber.Ctx, err error) error {
-	code := fiber.StatusInternalServerError
-	if e, ok := err.(*fiber.Error); ok {
-		code = e.Code
-	}
-	return c.Status(code).JSON(api.ErrorResponse{Error: err.Error()})
+	defer sup.Clear()
+	<-ctx.Done()
+	return nil
 }
 
 func Stop() error {
@@ -222,5 +187,5 @@ func Stop() error {
 		return err // "supervisor is not running"
 	}
 
-	return stopSupervisorProcess(state.PID, state.Port)
+	return stopSupervisorProcess(state.PID)
 }

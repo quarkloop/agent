@@ -4,12 +4,21 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	spacev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/space/v1"
 	spacemodel "github.com/quarkloop/pkg/space"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
+
+func TestStoreRequiresInjectedStorageRoot(t *testing.T) {
+	t.Parallel()
+
+	if _, err := NewStore(""); err == nil || !strings.Contains(err.Error(), "root is required") {
+		t.Fatalf("NewStore empty root error = %v", err)
+	}
+}
 
 func TestSpaceServiceLifecycle(t *testing.T) {
 	t.Parallel()
@@ -51,14 +60,6 @@ func TestSpaceServiceLifecycle(t *testing.T) {
 		t.Fatalf("spaces = %d, want 1", got)
 	}
 
-	paths, err := server.GetSpacePaths(ctx, &spacev1.GetSpacePathsRequest{Name: "svc-space"})
-	if err != nil {
-		t.Fatalf("paths: %v", err)
-	}
-	if paths.GetPluginsDir() == "" || paths.GetSessionsDir() == "" {
-		t.Fatalf("incomplete paths: %+v", paths)
-	}
-
 	configResp, err := server.GetConfig(ctx, &spacev1.GetConfigRequest{Name: "svc-space"})
 	if err != nil {
 		t.Fatalf("config: %v", err)
@@ -68,10 +69,10 @@ func TestSpaceServiceLifecycle(t *testing.T) {
 	}
 }
 
-func TestAgentEnvironmentUsesInjectedEnvironmentSnapshot(t *testing.T) {
+func TestOpaqueRecordsAreStoredAndScopedByNamespace(t *testing.T) {
 	t.Parallel()
 
-	store, err := NewStoreWithEnvironment(t.TempDir(), []string{"OPENROUTER_API_KEY=from-snapshot"})
+	store, err := NewStore(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,9 +80,8 @@ func TestAgentEnvironmentUsesInjectedEnvironmentSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	config := spacemodel.NewConfig("env-space", t.TempDir())
-	config.Plugins = []spacemodel.PluginRef{{Ref: "quark/service-io"}}
-	config.Model = spacemodel.Model{Provider: "openrouter", Name: "openai/gpt-5-mini", Env: []string{"OPENROUTER_API_KEY"}}
+	config := spacemodel.NewConfig("record-space", t.TempDir())
+	config = config.WithPluginSelection(spacemodel.PluginRef{Ref: "quark/service-io"}, nil)
 	data, err := spacemodel.MarshalConfig(config)
 	if err != nil {
 		t.Fatal(err)
@@ -92,51 +92,27 @@ func TestAgentEnvironmentUsesInjectedEnvironmentSnapshot(t *testing.T) {
 		t.Fatalf("create: %v", err)
 	}
 
-	env, err := server.GetAgentEnvironment(context.Background(), &spacev1.GetAgentEnvironmentRequest{Name: "env-space"})
+	put, err := server.PutRecord(context.Background(), &spacev1.PutRecordRequest{
+		Name: "record-space", Namespace: "sessions", Key: "session-1", Data: []byte(`{"state":"active"}`),
+	})
 	if err != nil {
-		t.Fatalf("agent environment: %v", err)
+		t.Fatalf("put record: %v", err)
 	}
-	got := env.GetEntries()
-	want := []string{
-		"QUARK_MODEL_PROVIDER=openrouter",
-		"QUARK_MODEL_NAME=openai/gpt-5-mini",
-		"OPENROUTER_API_KEY=from-snapshot",
+	if put.GetUpdatedAt() == nil {
+		t.Fatal("record update timestamp missing")
 	}
-	if len(got) != len(want) {
-		t.Fatalf("env entries = %v, want %v", got, want)
+	got, err := server.GetRecord(context.Background(), &spacev1.GetRecordRequest{Name: "record-space", Namespace: "sessions", Key: "session-1"})
+	if err != nil || string(got.GetData()) != `{"state":"active"}` {
+		t.Fatalf("get record = %q, err=%v", got.GetData(), err)
 	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("env[%d] = %q, want %q", i, got[i], want[i])
-		}
+	listed, err := server.ListRecords(context.Background(), &spacev1.ListRecordsRequest{Name: "record-space", Namespace: "sessions"})
+	if err != nil || len(listed.GetRecords()) != 1 {
+		t.Fatalf("list records = %+v, err=%v", listed, err)
 	}
-}
-
-func TestAgentEnvironmentReportsMissingInjectedVariable(t *testing.T) {
-	t.Parallel()
-
-	store, err := NewStoreWithEnvironment(t.TempDir(), nil)
-	if err != nil {
-		t.Fatal(err)
+	if _, err := server.DeleteRecord(context.Background(), &spacev1.DeleteRecordRequest{Name: "record-space", Namespace: "sessions", Key: "session-1"}); err != nil {
+		t.Fatalf("delete record: %v", err)
 	}
-	server, err := NewServer(store)
-	if err != nil {
-		t.Fatal(err)
-	}
-	config := spacemodel.NewConfig("missing-env-space", t.TempDir())
-	config.Plugins = []spacemodel.PluginRef{{Ref: "quark/service-io"}}
-	config.Model = spacemodel.Model{Provider: "openrouter", Name: "openai/gpt-5-mini", Env: []string{"OPENROUTER_API_KEY"}}
-	data, err := spacemodel.MarshalConfig(config)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := server.CreateSpace(context.Background(), &spacev1.CreateSpaceRequest{
-		Config: data,
-	}); err != nil {
-		t.Fatalf("create: %v", err)
-	}
-
-	if _, err := server.GetAgentEnvironment(context.Background(), &spacev1.GetAgentEnvironmentRequest{Name: "missing-env-space"}); err == nil {
-		t.Fatal("expected missing injected environment error")
+	if _, err := server.GetRecord(context.Background(), &spacev1.GetRecordRequest{Name: "record-space", Namespace: "sessions", Key: "session-1"}); err == nil {
+		t.Fatal("deleted record remained readable")
 	}
 }

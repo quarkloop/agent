@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func stopSupervisorProcess(pid, port int) error {
+func stopSupervisorProcess(pid int) error {
 	proc, err := os.FindProcess(pid)
 	if err != nil {
 		// This primarily catches errors on Windows; on Unix, it always succeeds.
@@ -20,7 +20,7 @@ func stopSupervisorProcess(pid, port int) error {
 		// If the process is already dead, sending a signal returns an error.
 		// syscall.ESRCH means "no such process" on Unix systems.
 		if errors.Is(err, os.ErrProcessDone) || errors.Is(err, syscall.ESRCH) {
-			fmt.Printf("supervisor (pid %d, port %d) is not running\n", pid, port)
+			fmt.Printf("supervisor (pid %d) is not running\n", pid)
 			return nil
 		}
 		return fmt.Errorf("signaling process: %w", err)

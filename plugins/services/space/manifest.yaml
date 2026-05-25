@@ -2,7 +2,7 @@ name: space
 version: "1.0.0"
 type: service
 mode: api
-description: "Authoritative space configuration and derived paths over NATS"
+description: "Authoritative space configuration and opaque record persistence over NATS"
 author: quarkloop
 license: Apache-2.0
 
@@ -86,26 +86,50 @@ service:
       approval_required: false
       streaming: false
       idempotent: true
-    - name: space_GetAgentEnvironment
+    - name: space_PutRecord
       service: quark.space.v1.SpaceService
-      method: GetAgentEnvironment
-      request: quark.space.v1.GetAgentEnvironmentRequest
-      response: quark.space.v1.AgentEnvironmentResponse
-      description: "Resolve model environment entries for runtime launch."
-      risk_level: admin
-      approval_required: false
+      method: PutRecord
+      request: quark.space.v1.PutRecordRequest
+      response: quark.space.v1.Record
+      description: "Persist an opaque record whose semantics remain caller-owned."
+      risk_level: write
+      approval_required: true
+      approval_requirements:
+        - space-record-write
       streaming: false
-      idempotent: true
-    - name: space_GetSpacePaths
+      idempotent: false
+    - name: space_GetRecord
       service: quark.space.v1.SpaceService
-      method: GetSpacePaths
-      request: quark.space.v1.GetSpacePathsRequest
-      response: quark.space.v1.SpacePaths
-      description: "Return derived storage paths for a space."
+      method: GetRecord
+      request: quark.space.v1.GetRecordRequest
+      response: quark.space.v1.Record
+      description: "Read one opaque record by namespace and key."
       risk_level: read
       approval_required: false
       streaming: false
       idempotent: true
+    - name: space_ListRecords
+      service: quark.space.v1.SpaceService
+      method: ListRecords
+      request: quark.space.v1.ListRecordsRequest
+      response: quark.space.v1.ListRecordsResponse
+      description: "List opaque records within one namespace."
+      risk_level: read
+      approval_required: false
+      streaming: false
+      idempotent: true
+    - name: space_DeleteRecord
+      service: quark.space.v1.SpaceService
+      method: DeleteRecord
+      request: quark.space.v1.DeleteRecordRequest
+      response: google.protobuf.Empty
+      description: "Delete one opaque record by namespace and key."
+      risk_level: write
+      approval_required: true
+      approval_requirements:
+        - space-record-delete
+      streaming: false
+      idempotent: false
     - name: space_Doctor
       service: quark.space.v1.SpaceService
       method: Doctor

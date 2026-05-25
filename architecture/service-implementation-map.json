@@ -233,7 +233,7 @@
     },
     "Space": {
       "declared_only_function_count": 0,
-      "implemented_function_count": 9,
+      "implemented_function_count": 11,
       "profile_count": 0,
       "proto_mismatch_count": 0,
       "runnable_service_count": 1,
@@ -2553,7 +2553,7 @@
     "space": {
       "address_env": "QUARK_SPACE_SERVICE_ADDR",
       "declared_only_function_count": 0,
-      "function_count": 9,
+      "function_count": 11,
       "functions": [
         {
           "approval_required": true,
@@ -2652,36 +2652,68 @@
           "subject": "svc.space.v1.get_config"
         },
         {
-          "approval_required": false,
-          "idempotent": true,
-          "method": "GetAgentEnvironment",
+          "approval_required": true,
+          "idempotent": false,
+          "method": "PutRecord",
           "method_implemented": true,
-          "name": "space_GetAgentEnvironment",
+          "name": "space_PutRecord",
           "owner": "space",
           "proto_rpc_exists": true,
-          "request": "quark.space.v1.GetAgentEnvironmentRequest",
-          "response": "quark.space.v1.AgentEnvironmentResponse",
-          "risk_level": "admin",
+          "request": "quark.space.v1.PutRecordRequest",
+          "response": "quark.space.v1.Record",
+          "risk_level": "write",
           "service": "quark.space.v1.SpaceService",
           "status": "implemented_end_to_end",
           "streaming": false,
-          "subject": "svc.space.v1.get_agent_environment"
+          "subject": "svc.space.v1.put_record"
         },
         {
           "approval_required": false,
           "idempotent": true,
-          "method": "GetSpacePaths",
+          "method": "GetRecord",
           "method_implemented": true,
-          "name": "space_GetSpacePaths",
+          "name": "space_GetRecord",
           "owner": "space",
           "proto_rpc_exists": true,
-          "request": "quark.space.v1.GetSpacePathsRequest",
-          "response": "quark.space.v1.SpacePaths",
+          "request": "quark.space.v1.GetRecordRequest",
+          "response": "quark.space.v1.Record",
           "risk_level": "read",
           "service": "quark.space.v1.SpaceService",
           "status": "implemented_end_to_end",
           "streaming": false,
-          "subject": "svc.space.v1.get_space_paths"
+          "subject": "svc.space.v1.get_record"
+        },
+        {
+          "approval_required": false,
+          "idempotent": true,
+          "method": "ListRecords",
+          "method_implemented": true,
+          "name": "space_ListRecords",
+          "owner": "space",
+          "proto_rpc_exists": true,
+          "request": "quark.space.v1.ListRecordsRequest",
+          "response": "quark.space.v1.ListRecordsResponse",
+          "risk_level": "read",
+          "service": "quark.space.v1.SpaceService",
+          "status": "implemented_end_to_end",
+          "streaming": false,
+          "subject": "svc.space.v1.list_records"
+        },
+        {
+          "approval_required": true,
+          "idempotent": false,
+          "method": "DeleteRecord",
+          "method_implemented": true,
+          "name": "space_DeleteRecord",
+          "owner": "space",
+          "proto_rpc_exists": true,
+          "request": "quark.space.v1.DeleteRecordRequest",
+          "response": "google.protobuf.Empty",
+          "risk_level": "write",
+          "service": "quark.space.v1.SpaceService",
+          "status": "implemented_end_to_end",
+          "streaming": false,
+          "subject": "svc.space.v1.delete_record"
         },
         {
           "approval_required": false,
@@ -2701,7 +2733,7 @@
         }
       ],
       "health_service": "quark.space.v1.SpaceService",
-      "implemented_function_count": 9,
+      "implemented_function_count": 11,
       "manifest_path": "plugins/services/space/manifest.yaml",
       "module_exists": true,
       "module_path": "services/space",
@@ -3124,9 +3156,9 @@
     "agent_profile_count": 4,
     "declared_only_or_mismatched_function_count": 1,
     "e2e_test_file_count": 32,
-    "implemented_service_function_count": 145,
+    "implemented_service_function_count": 147,
     "runnable_service_module_count": 13,
-    "service_function_count": 146,
+    "service_function_count": 148,
     "service_plugin_count": 13
   },
   "version": 1

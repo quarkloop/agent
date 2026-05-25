@@ -7,7 +7,8 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/quarkloop/pkg/serviceapi/gen/quark/space/v1;spacev1";
 
-// SpaceService owns the authoritative persisted space config and derived paths.
+// SpaceService owns authoritative persisted space config and low-level
+// per-space opaque records. Callers own record semantics.
 service SpaceService {
   rpc CreateSpace(CreateSpaceRequest) returns (Space);
   rpc UpdateConfig(UpdateConfigRequest) returns (Space);
@@ -15,8 +16,10 @@ service SpaceService {
   rpc ListSpaces(google.protobuf.Empty) returns (ListSpacesResponse);
   rpc DeleteSpace(DeleteSpaceRequest) returns (google.protobuf.Empty);
   rpc GetConfig(GetConfigRequest) returns (ConfigResponse);
-  rpc GetAgentEnvironment(GetAgentEnvironmentRequest) returns (AgentEnvironmentResponse);
-  rpc GetSpacePaths(GetSpacePathsRequest) returns (SpacePaths);
+  rpc PutRecord(PutRecordRequest) returns (Record);
+  rpc GetRecord(GetRecordRequest) returns (Record);
+  rpc ListRecords(ListRecordsRequest) returns (ListRecordsResponse);
+  rpc DeleteRecord(DeleteRecordRequest) returns (google.protobuf.Empty);
   rpc Doctor(DoctorRequest) returns (DoctorResponse);
 }
 
@@ -59,23 +62,39 @@ message ConfigResponse {
   google.protobuf.Timestamp updated_at = 4;
 }
 
-message GetAgentEnvironmentRequest {
+message PutRecordRequest {
   string name = 1;
+  string namespace = 2;
+  string key = 3;
+  bytes data = 4;
 }
 
-message AgentEnvironmentResponse {
-  repeated string entries = 1;
-}
-
-message GetSpacePathsRequest {
+message GetRecordRequest {
   string name = 1;
+  string namespace = 2;
+  string key = 3;
 }
 
-message SpacePaths {
-  string root_dir = 1;
-  string config_path = 2;
-  string plugins_dir = 4;
-  string sessions_dir = 5;
+message ListRecordsRequest {
+  string name = 1;
+  string namespace = 2;
+}
+
+message DeleteRecordRequest {
+  string name = 1;
+  string namespace = 2;
+  string key = 3;
+}
+
+message Record {
+  string namespace = 1;
+  string key = 2;
+  bytes data = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+message ListRecordsResponse {
+  repeated Record records = 1;
 }
 
 message DoctorRequest {

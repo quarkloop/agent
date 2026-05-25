@@ -9,9 +9,8 @@ import (
 )
 
 const (
-	ConfigFile  = "space.json"
-	PluginsDir  = "plugins"
-	SessionsDir = "sessions"
+	ConfigFile = "space.json"
+	RecordsDir = "records"
 )
 
 var namePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
@@ -51,11 +50,10 @@ func ValidateName(name string) error {
 	return nil
 }
 
-func (l Layout) ConfigPath() string   { return filepath.Join(l.Root, ConfigFile) }
-func (l Layout) PluginsPath() string  { return filepath.Join(l.Root, PluginsDir) }
-func (l Layout) SessionsPath() string { return filepath.Join(l.Root, SessionsDir) }
+func (l Layout) ConfigPath() string  { return filepath.Join(l.Root, ConfigFile) }
+func (l Layout) RecordsPath() string { return filepath.Join(l.Root, RecordsDir) }
 
 // RequiredDirs returns the directories that must exist for a usable space.
 func (l Layout) RequiredDirs() []string {
-	return []string{l.Root, l.PluginsPath(), l.SessionsPath()}
+	return []string{l.Root, l.RecordsPath()}
 }

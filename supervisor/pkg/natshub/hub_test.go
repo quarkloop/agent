@@ -177,6 +177,26 @@ func TestHubProvisionsReplayableRuntimeStreamsInsideSpaceAccount(t *testing.T) {
 	}
 }
 
+func TestProvisionedSpaceContainsNoGenericServiceIdentity(t *testing.T) {
+	hub := startTestHub(t)
+	space, err := hub.ProvisionSpace("docs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, account := range hub.Config().Accounts {
+		if account.Name != space.Account {
+			continue
+		}
+		for _, user := range account.Users {
+			if strings.Contains(user.Name, "service") {
+				t.Fatalf("space account received binary-oriented service user %q", user.Name)
+			}
+		}
+		return
+	}
+	t.Fatalf("space account %q missing", space.Account)
+}
+
 func TestRunStateServiceCredentialCanUseItsOwnedControlLeaseBucket(t *testing.T) {
 	hub := startTestHub(t)
 	route, err := NewServiceFunctionRoute("runstate", "v1", "acquire_lease")

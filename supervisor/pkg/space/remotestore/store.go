@@ -12,11 +12,7 @@ import (
 	"github.com/quarkloop/pkg/boundary"
 	"github.com/quarkloop/pkg/natskit"
 	spacev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/space/v1"
-	"github.com/quarkloop/supervisor/pkg/api"
-	"github.com/quarkloop/supervisor/pkg/pluginmanager"
-	"github.com/quarkloop/supervisor/pkg/sessions"
 	"github.com/quarkloop/supervisor/pkg/space"
-	spacestore "github.com/quarkloop/supervisor/pkg/space/store"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -24,9 +20,8 @@ import (
 
 const requestTimeout = 5 * time.Second
 
-// Store delegates authoritative config operations to Space service. The
-// remaining path-scoped stores are transitional control-plane consumers and
-// are removed with their owning supervisor-state migration.
+// Store delegates authoritative config and opaque record persistence to Space
+// service functions. It never accesses space filesystem paths.
 type Store struct {
 	client *natskit.Client
 }
@@ -93,52 +88,46 @@ func (s *Store) Config(name string) ([]byte, error) {
 	return append([]byte(nil), response.GetConfig()...), nil
 }
 
-func (s *Store) AgentEnvironment(name string) ([]string, error) {
-	var response spacev1.AgentEnvironmentResponse
-	if err := s.call(name, "get_agent_environment", &spacev1.GetAgentEnvironmentRequest{Name: name}, &response); err != nil {
+func (s *Store) PutRecord(name, namespace, key string, data []byte) error {
+	return s.call(name, "put_record", &spacev1.PutRecordRequest{
+		Name: name, Namespace: namespace, Key: key, Data: append([]byte(nil), data...),
+	}, &spacev1.Record{})
+}
+
+func (s *Store) GetRecord(name, namespace, key string) ([]byte, error) {
+	var response spacev1.Record
+	if err := s.call(name, "get_record", &spacev1.GetRecordRequest{Name: name, Namespace: namespace, Key: key}, &response); err != nil {
 		return nil, err
 	}
-	return append([]string(nil), response.GetEntries()...), nil
+	return append([]byte(nil), response.GetData()...), nil
 }
 
-func (s *Store) Plugins(name string) (*pluginmanager.Installer, error) {
-	paths, err := s.paths(name)
-	if err != nil {
+func (s *Store) ListRecords(name, namespace string) ([][]byte, error) {
+	var response spacev1.ListRecordsResponse
+	if err := s.call(name, "list_records", &spacev1.ListRecordsRequest{Name: name, Namespace: namespace}, &response); err != nil {
 		return nil, err
 	}
-	return pluginmanager.NewInstaller(paths.GetPluginsDir()), nil
-}
-
-func (s *Store) Sessions(name string) (*sessions.Store, error) {
-	paths, err := s.paths(name)
-	if err != nil {
-		return nil, err
-	}
-	return sessions.Open(paths.GetSessionsDir(), name)
-}
-
-func (s *Store) ServiceStateDir(name, serviceName string) (string, error) {
-	return "", fmt.Errorf("service state directories are no longer supervisor-owned: %s/%s", name, serviceName)
-}
-
-func (s *Store) Doctor(name string) (api.DoctorResponse, error) {
-	var response spacev1.DoctorResponse
-	if err := s.call(name, "doctor", &spacev1.DoctorRequest{Name: name}, &response); err != nil {
-		return api.DoctorResponse{}, err
-	}
-	out := api.DoctorResponse{OK: response.GetOk(), Issues: make([]api.DoctorIssue, 0, len(response.GetIssues()))}
-	for _, issue := range response.GetIssues() {
-		out.Issues = append(out.Issues, api.DoctorIssue{Severity: issue.GetSeverity(), Message: issue.GetMessage()})
+	out := make([][]byte, 0, len(response.GetRecords()))
+	for _, record := range response.GetRecords() {
+		out = append(out, append([]byte(nil), record.GetData()...))
 	}
 	return out, nil
 }
 
-func (s *Store) paths(name string) (*spacev1.SpacePaths, error) {
-	var response spacev1.SpacePaths
-	if err := s.call(name, "get_space_paths", &spacev1.GetSpacePathsRequest{Name: name}, &response); err != nil {
-		return nil, err
+func (s *Store) DeleteRecord(name, namespace, key string) error {
+	return s.call(name, "delete_record", &spacev1.DeleteRecordRequest{Name: name, Namespace: namespace, Key: key}, &emptypb.Empty{})
+}
+
+func (s *Store) Doctor(name string) (space.DoctorResult, error) {
+	var response spacev1.DoctorResponse
+	if err := s.call(name, "doctor", &spacev1.DoctorRequest{Name: name}, &response); err != nil {
+		return space.DoctorResult{}, err
 	}
-	return &response, nil
+	out := space.DoctorResult{OK: response.GetOk(), Issues: make([]space.DoctorIssue, 0, len(response.GetIssues()))}
+	for _, issue := range response.GetIssues() {
+		out.Issues = append(out.Issues, space.DoctorIssue{Severity: issue.GetSeverity(), Message: issue.GetMessage()})
+	}
+	return out, nil
 }
 
 func (s *Store) call(spaceID, function string, request proto.Message, response proto.Message) error {
@@ -181,9 +170,9 @@ func mapError(response natskit.ResponseEnvelope) error {
 	}
 	switch response.Error.Category {
 	case boundary.NotFound:
-		return spacestore.NewNotFoundError(response.Error.Message)
+		return space.NewNotFoundError(response.Error.Message)
 	case boundary.Conflict:
-		return spacestore.ErrAlreadyExists
+		return space.ErrAlreadyExists
 	default:
 		return fmt.Errorf("space service: %s", response.Error.Message)
 	}

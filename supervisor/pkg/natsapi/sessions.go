@@ -13,11 +13,7 @@ func (s *Server) createSession(req clientcontract.RequestEnvelope) (any, error) 
 	if err := req.DecodePayload(&payload); err != nil {
 		return nil, err
 	}
-	store, err := s.store.Sessions(payload.SpaceID)
-	if err != nil {
-		return nil, err
-	}
-	sess, err := store.Create(sessions.Type(payload.Type), payload.Title)
+	sess, err := s.sessions.Create(payload.SpaceID, sessions.Type(payload.Type), payload.Title)
 	if err != nil {
 		return nil, err
 	}
@@ -35,13 +31,12 @@ func (s *Server) listSessions(req clientcontract.RequestEnvelope) (any, error) {
 	if err := req.DecodePayload(&payload); err != nil {
 		return nil, err
 	}
-	store, err := s.store.Sessions(payload.SpaceID)
+	items, err := s.sessions.List(payload.SpaceID)
 	if err != nil {
 		return nil, err
 	}
-	sessions := store.List()
-	out := make([]clientcontract.SessionInfo, 0, len(sessions))
-	for _, sess := range sessions {
+	out := make([]clientcontract.SessionInfo, 0, len(items))
+	for _, sess := range items {
 		out = append(out, toContractSession(sess))
 	}
 	return clientcontract.ListSessionsResponse{Sessions: out}, nil
@@ -52,11 +47,7 @@ func (s *Server) getSession(req clientcontract.RequestEnvelope) (any, error) {
 	if err := req.DecodePayload(&payload); err != nil {
 		return nil, err
 	}
-	store, err := s.store.Sessions(payload.SpaceID)
-	if err != nil {
-		return nil, err
-	}
-	sess, err := store.Get(payload.SessionID)
+	sess, err := s.sessions.Get(payload.SpaceID, payload.SessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -71,11 +62,7 @@ func (s *Server) sessionCredential(req clientcontract.RequestEnvelope) (any, err
 	if s.credentialIssuer == nil {
 		return nil, boundary.New(boundary.Supervisor, boundary.Unavailable, clientcontract.SubjectSessionCredential, "session credential issuer is not configured")
 	}
-	store, err := s.store.Sessions(payload.SpaceID)
-	if err != nil {
-		return nil, err
-	}
-	if _, err := store.Get(payload.SessionID); err != nil {
+	if _, err := s.sessions.Get(payload.SpaceID, payload.SessionID); err != nil {
 		return nil, err
 	}
 	credential, err := s.credentialIssuer.IssueSessionCredential(payload.SpaceID, payload.SessionID)
@@ -92,11 +79,7 @@ func (s *Server) deleteSession(req clientcontract.RequestEnvelope) (any, error) 
 	if err := req.DecodePayload(&payload); err != nil {
 		return nil, err
 	}
-	store, err := s.store.Sessions(payload.SpaceID)
-	if err != nil {
-		return nil, err
-	}
-	if err := store.Delete(payload.SessionID); err != nil {
+	if err := s.sessions.Delete(payload.SpaceID, payload.SessionID); err != nil {
 		return nil, err
 	}
 	s.events.Publish(event.Event{

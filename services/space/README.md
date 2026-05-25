@@ -1,9 +1,8 @@
 # Space Service
 
-`services/space` owns authoritative `space.json` bytes, derived paths,
-environment extraction from space configuration, and configuration diagnostics.
-Supervisor is the primary caller; runtime receives resolved catalogs and should
-not discover local space state directly.
+`services/space` owns authoritative `space.json` bytes and opaque per-space
+record persistence. Supervisor owns the meaning of session/plugin selection
+state and calls this service for storage; runtime receives resolved catalogs.
 
 ## Service Functions
 
@@ -15,8 +14,10 @@ not discover local space state directly.
 | `space_ListSpaces` | `quark.space.v1.SpaceService/ListSpaces` | `Empty` | `ListSpacesResponse` | List registered spaces. |
 | `space_DeleteSpace` | `quark.space.v1.SpaceService/DeleteSpace` | `DeleteSpaceRequest` | `Empty` | Delete service-owned space data. |
 | `space_GetConfig` | `quark.space.v1.SpaceService/GetConfig` | `GetConfigRequest` | `ConfigResponse` | Return authoritative configuration bytes. |
-| `space_GetAgentEnvironment` | `quark.space.v1.SpaceService/GetAgentEnvironment` | `GetAgentEnvironmentRequest` | `AgentEnvironmentResponse` | Resolve model launch environment entries from injected startup environment. |
-| `space_GetSpacePaths` | `quark.space.v1.SpaceService/GetSpacePaths` | `GetSpacePathsRequest` | `SpacePaths` | Return derived storage paths for a space. |
+| `space_PutRecord` | `quark.space.v1.SpaceService/PutRecord` | `PutRecordRequest` | `Record` | Persist an opaque record in a caller-owned namespace. |
+| `space_GetRecord` | `quark.space.v1.SpaceService/GetRecord` | `GetRecordRequest` | `Record` | Read one opaque record. |
+| `space_ListRecords` | `quark.space.v1.SpaceService/ListRecords` | `ListRecordsRequest` | `ListRecordsResponse` | List opaque records within a namespace. |
+| `space_DeleteRecord` | `quark.space.v1.SpaceService/DeleteRecord` | `DeleteRecordRequest` | `Empty` | Delete one opaque record. |
 | `space_Doctor` | `quark.space.v1.SpaceService/Doctor` | `DoctorRequest` | `DoctorResponse` | Validate stored space configuration. |
 
 ## Ownership Boundaries
@@ -27,8 +28,8 @@ not discover local space state directly.
   invokes this service for persisted space configuration operations.
 - Runtime receives resolved launch/config data from supervisor and does not read
   space configuration files or space directories.
-- Environment values are captured at service startup and injected into the
-  store; domain logic does not read process environment variables.
+- Record bytes are uninterpreted by this service; semantic validation remains
+  in the owning supervisor/runtime domain.
 
 ## Configuration
 
@@ -46,7 +47,5 @@ not discover local space state directly.
 
 ## Audit Notes
 
-- Environment lookup was moved out of domain flow into an injected startup
-  snapshot during this audit.
 - Supervisor owns space semantics and catalog policy; this service owns only
-  low-level configuration persistence and derived storage paths.
+  low-level configuration and record persistence.

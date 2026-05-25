@@ -37,7 +37,6 @@ type SpaceCredentials struct {
 	SpaceID       string
 	Account       string
 	Runtime       Credential
-	Service       Credential
 	Observability Credential
 }
 
@@ -146,7 +145,6 @@ func cloneSpaceCredentials(in SpaceCredentials) SpaceCredentials {
 		SpaceID:       in.SpaceID,
 		Account:       in.Account,
 		Runtime:       cloneCredential(in.Runtime),
-		Service:       cloneCredential(in.Service),
 		Observability: cloneCredential(in.Observability),
 	}
 }

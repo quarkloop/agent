@@ -431,27 +431,30 @@ func (x *ConfigResponse) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-type GetAgentEnvironmentRequest struct {
+type PutRecordRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Namespace     string                 `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	Key           string                 `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
+	Data          []byte                 `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetAgentEnvironmentRequest) Reset() {
-	*x = GetAgentEnvironmentRequest{}
+func (x *PutRecordRequest) Reset() {
+	*x = PutRecordRequest{}
 	mi := &file_quark_space_v1_space_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetAgentEnvironmentRequest) String() string {
+func (x *PutRecordRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetAgentEnvironmentRequest) ProtoMessage() {}
+func (*PutRecordRequest) ProtoMessage() {}
 
-func (x *GetAgentEnvironmentRequest) ProtoReflect() protoreflect.Message {
+func (x *PutRecordRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_quark_space_v1_space_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -463,84 +466,63 @@ func (x *GetAgentEnvironmentRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetAgentEnvironmentRequest.ProtoReflect.Descriptor instead.
-func (*GetAgentEnvironmentRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use PutRecordRequest.ProtoReflect.Descriptor instead.
+func (*PutRecordRequest) Descriptor() ([]byte, []int) {
 	return file_quark_space_v1_space_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *GetAgentEnvironmentRequest) GetName() string {
+func (x *PutRecordRequest) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-type AgentEnvironmentResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Entries       []string               `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *AgentEnvironmentResponse) Reset() {
-	*x = AgentEnvironmentResponse{}
-	mi := &file_quark_space_v1_space_proto_msgTypes[9]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *AgentEnvironmentResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*AgentEnvironmentResponse) ProtoMessage() {}
-
-func (x *AgentEnvironmentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_space_v1_space_proto_msgTypes[9]
+func (x *PutRecordRequest) GetNamespace() string {
 	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
+		return x.Namespace
 	}
-	return mi.MessageOf(x)
+	return ""
 }
 
-// Deprecated: Use AgentEnvironmentResponse.ProtoReflect.Descriptor instead.
-func (*AgentEnvironmentResponse) Descriptor() ([]byte, []int) {
-	return file_quark_space_v1_space_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *AgentEnvironmentResponse) GetEntries() []string {
+func (x *PutRecordRequest) GetKey() string {
 	if x != nil {
-		return x.Entries
+		return x.Key
+	}
+	return ""
+}
+
+func (x *PutRecordRequest) GetData() []byte {
+	if x != nil {
+		return x.Data
 	}
 	return nil
 }
 
-type GetSpacePathsRequest struct {
+type GetRecordRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Namespace     string                 `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	Key           string                 `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetSpacePathsRequest) Reset() {
-	*x = GetSpacePathsRequest{}
-	mi := &file_quark_space_v1_space_proto_msgTypes[10]
+func (x *GetRecordRequest) Reset() {
+	*x = GetRecordRequest{}
+	mi := &file_quark_space_v1_space_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetSpacePathsRequest) String() string {
+func (x *GetRecordRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetSpacePathsRequest) ProtoMessage() {}
+func (*GetRecordRequest) ProtoMessage() {}
 
-func (x *GetSpacePathsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_space_v1_space_proto_msgTypes[10]
+func (x *GetRecordRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_space_v1_space_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -551,42 +533,107 @@ func (x *GetSpacePathsRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetSpacePathsRequest.ProtoReflect.Descriptor instead.
-func (*GetSpacePathsRequest) Descriptor() ([]byte, []int) {
-	return file_quark_space_v1_space_proto_rawDescGZIP(), []int{10}
+// Deprecated: Use GetRecordRequest.ProtoReflect.Descriptor instead.
+func (*GetRecordRequest) Descriptor() ([]byte, []int) {
+	return file_quark_space_v1_space_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *GetSpacePathsRequest) GetName() string {
+func (x *GetRecordRequest) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-type SpacePaths struct {
+func (x *GetRecordRequest) GetNamespace() string {
+	if x != nil {
+		return x.Namespace
+	}
+	return ""
+}
+
+func (x *GetRecordRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+type ListRecordsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	RootDir       string                 `protobuf:"bytes,1,opt,name=root_dir,json=rootDir,proto3" json:"root_dir,omitempty"`
-	ConfigPath    string                 `protobuf:"bytes,2,opt,name=config_path,json=configPath,proto3" json:"config_path,omitempty"`
-	PluginsDir    string                 `protobuf:"bytes,4,opt,name=plugins_dir,json=pluginsDir,proto3" json:"plugins_dir,omitempty"`
-	SessionsDir   string                 `protobuf:"bytes,5,opt,name=sessions_dir,json=sessionsDir,proto3" json:"sessions_dir,omitempty"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Namespace     string                 `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SpacePaths) Reset() {
-	*x = SpacePaths{}
+func (x *ListRecordsRequest) Reset() {
+	*x = ListRecordsRequest{}
+	mi := &file_quark_space_v1_space_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRecordsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRecordsRequest) ProtoMessage() {}
+
+func (x *ListRecordsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_space_v1_space_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRecordsRequest.ProtoReflect.Descriptor instead.
+func (*ListRecordsRequest) Descriptor() ([]byte, []int) {
+	return file_quark_space_v1_space_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ListRecordsRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ListRecordsRequest) GetNamespace() string {
+	if x != nil {
+		return x.Namespace
+	}
+	return ""
+}
+
+type DeleteRecordRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Namespace     string                 `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	Key           string                 `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteRecordRequest) Reset() {
+	*x = DeleteRecordRequest{}
 	mi := &file_quark_space_v1_space_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SpacePaths) String() string {
+func (x *DeleteRecordRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SpacePaths) ProtoMessage() {}
+func (*DeleteRecordRequest) ProtoMessage() {}
 
-func (x *SpacePaths) ProtoReflect() protoreflect.Message {
+func (x *DeleteRecordRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_quark_space_v1_space_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -598,37 +645,142 @@ func (x *SpacePaths) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SpacePaths.ProtoReflect.Descriptor instead.
-func (*SpacePaths) Descriptor() ([]byte, []int) {
+// Deprecated: Use DeleteRecordRequest.ProtoReflect.Descriptor instead.
+func (*DeleteRecordRequest) Descriptor() ([]byte, []int) {
 	return file_quark_space_v1_space_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *SpacePaths) GetRootDir() string {
+func (x *DeleteRecordRequest) GetName() string {
 	if x != nil {
-		return x.RootDir
+		return x.Name
 	}
 	return ""
 }
 
-func (x *SpacePaths) GetConfigPath() string {
+func (x *DeleteRecordRequest) GetNamespace() string {
 	if x != nil {
-		return x.ConfigPath
+		return x.Namespace
 	}
 	return ""
 }
 
-func (x *SpacePaths) GetPluginsDir() string {
+func (x *DeleteRecordRequest) GetKey() string {
 	if x != nil {
-		return x.PluginsDir
+		return x.Key
 	}
 	return ""
 }
 
-func (x *SpacePaths) GetSessionsDir() string {
+type Record struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Namespace     string                 `protobuf:"bytes,1,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	Key           string                 `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
+	Data          []byte                 `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Record) Reset() {
+	*x = Record{}
+	mi := &file_quark_space_v1_space_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Record) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Record) ProtoMessage() {}
+
+func (x *Record) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_space_v1_space_proto_msgTypes[12]
 	if x != nil {
-		return x.SessionsDir
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Record.ProtoReflect.Descriptor instead.
+func (*Record) Descriptor() ([]byte, []int) {
+	return file_quark_space_v1_space_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *Record) GetNamespace() string {
+	if x != nil {
+		return x.Namespace
 	}
 	return ""
+}
+
+func (x *Record) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *Record) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *Record) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+type ListRecordsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Records       []*Record              `protobuf:"bytes,1,rep,name=records,proto3" json:"records,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListRecordsResponse) Reset() {
+	*x = ListRecordsResponse{}
+	mi := &file_quark_space_v1_space_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRecordsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRecordsResponse) ProtoMessage() {}
+
+func (x *ListRecordsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_space_v1_space_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRecordsResponse.ProtoReflect.Descriptor instead.
+func (*ListRecordsResponse) Descriptor() ([]byte, []int) {
+	return file_quark_space_v1_space_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ListRecordsResponse) GetRecords() []*Record {
+	if x != nil {
+		return x.Records
+	}
+	return nil
 }
 
 type DoctorRequest struct {
@@ -640,7 +792,7 @@ type DoctorRequest struct {
 
 func (x *DoctorRequest) Reset() {
 	*x = DoctorRequest{}
-	mi := &file_quark_space_v1_space_proto_msgTypes[12]
+	mi := &file_quark_space_v1_space_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -652,7 +804,7 @@ func (x *DoctorRequest) String() string {
 func (*DoctorRequest) ProtoMessage() {}
 
 func (x *DoctorRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_space_v1_space_proto_msgTypes[12]
+	mi := &file_quark_space_v1_space_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -665,7 +817,7 @@ func (x *DoctorRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DoctorRequest.ProtoReflect.Descriptor instead.
 func (*DoctorRequest) Descriptor() ([]byte, []int) {
-	return file_quark_space_v1_space_proto_rawDescGZIP(), []int{12}
+	return file_quark_space_v1_space_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *DoctorRequest) GetName() string {
@@ -685,7 +837,7 @@ type DoctorResponse struct {
 
 func (x *DoctorResponse) Reset() {
 	*x = DoctorResponse{}
-	mi := &file_quark_space_v1_space_proto_msgTypes[13]
+	mi := &file_quark_space_v1_space_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -697,7 +849,7 @@ func (x *DoctorResponse) String() string {
 func (*DoctorResponse) ProtoMessage() {}
 
 func (x *DoctorResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_space_v1_space_proto_msgTypes[13]
+	mi := &file_quark_space_v1_space_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -710,7 +862,7 @@ func (x *DoctorResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DoctorResponse.ProtoReflect.Descriptor instead.
 func (*DoctorResponse) Descriptor() ([]byte, []int) {
-	return file_quark_space_v1_space_proto_rawDescGZIP(), []int{13}
+	return file_quark_space_v1_space_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *DoctorResponse) GetOk() bool {
@@ -737,7 +889,7 @@ type DoctorIssue struct {
 
 func (x *DoctorIssue) Reset() {
 	*x = DoctorIssue{}
-	mi := &file_quark_space_v1_space_proto_msgTypes[14]
+	mi := &file_quark_space_v1_space_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -749,7 +901,7 @@ func (x *DoctorIssue) String() string {
 func (*DoctorIssue) ProtoMessage() {}
 
 func (x *DoctorIssue) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_space_v1_space_proto_msgTypes[14]
+	mi := &file_quark_space_v1_space_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -762,7 +914,7 @@ func (x *DoctorIssue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DoctorIssue.ProtoReflect.Descriptor instead.
 func (*DoctorIssue) Descriptor() ([]byte, []int) {
-	return file_quark_space_v1_space_proto_rawDescGZIP(), []int{14}
+	return file_quark_space_v1_space_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *DoctorIssue) GetSeverity() string {
@@ -810,21 +962,31 @@ const file_quark_space_v1_space_proto_rawDesc = "" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x16\n" +
 	"\x06config\x18\x03 \x01(\fR\x06config\x129\n" +
 	"\n" +
-	"updated_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"0\n" +
-	"\x1aGetAgentEnvironmentRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\"4\n" +
-	"\x18AgentEnvironmentResponse\x12\x18\n" +
-	"\aentries\x18\x01 \x03(\tR\aentries\"*\n" +
-	"\x14GetSpacePathsRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\"\x8c\x01\n" +
+	"updated_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"j\n" +
+	"\x10PutRecordRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1c\n" +
+	"\tnamespace\x18\x02 \x01(\tR\tnamespace\x12\x10\n" +
+	"\x03key\x18\x03 \x01(\tR\x03key\x12\x12\n" +
+	"\x04data\x18\x04 \x01(\fR\x04data\"V\n" +
+	"\x10GetRecordRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1c\n" +
+	"\tnamespace\x18\x02 \x01(\tR\tnamespace\x12\x10\n" +
+	"\x03key\x18\x03 \x01(\tR\x03key\"F\n" +
+	"\x12ListRecordsRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1c\n" +
+	"\tnamespace\x18\x02 \x01(\tR\tnamespace\"Y\n" +
+	"\x13DeleteRecordRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1c\n" +
+	"\tnamespace\x18\x02 \x01(\tR\tnamespace\x12\x10\n" +
+	"\x03key\x18\x03 \x01(\tR\x03key\"\x87\x01\n" +
+	"\x06Record\x12\x1c\n" +
+	"\tnamespace\x18\x01 \x01(\tR\tnamespace\x12\x10\n" +
+	"\x03key\x18\x02 \x01(\tR\x03key\x12\x12\n" +
+	"\x04data\x18\x03 \x01(\fR\x04data\x129\n" +
 	"\n" +
-	"SpacePaths\x12\x19\n" +
-	"\broot_dir\x18\x01 \x01(\tR\arootDir\x12\x1f\n" +
-	"\vconfig_path\x18\x02 \x01(\tR\n" +
-	"configPath\x12\x1f\n" +
-	"\vplugins_dir\x18\x04 \x01(\tR\n" +
-	"pluginsDir\x12!\n" +
-	"\fsessions_dir\x18\x05 \x01(\tR\vsessionsDir\"#\n" +
+	"updated_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"G\n" +
+	"\x13ListRecordsResponse\x120\n" +
+	"\arecords\x18\x01 \x03(\v2\x16.quark.space.v1.RecordR\arecords\"#\n" +
 	"\rDoctorRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"U\n" +
 	"\x0eDoctorResponse\x12\x0e\n" +
@@ -832,7 +994,7 @@ const file_quark_space_v1_space_proto_rawDesc = "" +
 	"\x06issues\x18\x02 \x03(\v2\x1b.quark.space.v1.DoctorIssueR\x06issues\"C\n" +
 	"\vDoctorIssue\x12\x1a\n" +
 	"\bseverity\x18\x01 \x01(\tR\bseverity\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage2\xd5\x05\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage2\xc8\x06\n" +
 	"\fSpaceService\x12H\n" +
 	"\vCreateSpace\x12\".quark.space.v1.CreateSpaceRequest\x1a\x15.quark.space.v1.Space\x12J\n" +
 	"\fUpdateConfig\x12#.quark.space.v1.UpdateConfigRequest\x1a\x15.quark.space.v1.Space\x12B\n" +
@@ -840,9 +1002,11 @@ const file_quark_space_v1_space_proto_rawDesc = "" +
 	"\n" +
 	"ListSpaces\x12\x16.google.protobuf.Empty\x1a\".quark.space.v1.ListSpacesResponse\x12I\n" +
 	"\vDeleteSpace\x12\".quark.space.v1.DeleteSpaceRequest\x1a\x16.google.protobuf.Empty\x12M\n" +
-	"\tGetConfig\x12 .quark.space.v1.GetConfigRequest\x1a\x1e.quark.space.v1.ConfigResponse\x12k\n" +
-	"\x13GetAgentEnvironment\x12*.quark.space.v1.GetAgentEnvironmentRequest\x1a(.quark.space.v1.AgentEnvironmentResponse\x12Q\n" +
-	"\rGetSpacePaths\x12$.quark.space.v1.GetSpacePathsRequest\x1a\x1a.quark.space.v1.SpacePaths\x12G\n" +
+	"\tGetConfig\x12 .quark.space.v1.GetConfigRequest\x1a\x1e.quark.space.v1.ConfigResponse\x12E\n" +
+	"\tPutRecord\x12 .quark.space.v1.PutRecordRequest\x1a\x16.quark.space.v1.Record\x12E\n" +
+	"\tGetRecord\x12 .quark.space.v1.GetRecordRequest\x1a\x16.quark.space.v1.Record\x12V\n" +
+	"\vListRecords\x12\".quark.space.v1.ListRecordsRequest\x1a#.quark.space.v1.ListRecordsResponse\x12K\n" +
+	"\fDeleteRecord\x12#.quark.space.v1.DeleteRecordRequest\x1a\x16.google.protobuf.Empty\x12G\n" +
 	"\x06Doctor\x12\x1d.quark.space.v1.DoctorRequest\x1a\x1e.quark.space.v1.DoctorResponseB@Z>github.com/quarkloop/pkg/serviceapi/gen/quark/space/v1;spacev1b\x06proto3"
 
 var (
@@ -857,55 +1021,63 @@ func file_quark_space_v1_space_proto_rawDescGZIP() []byte {
 	return file_quark_space_v1_space_proto_rawDescData
 }
 
-var file_quark_space_v1_space_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_quark_space_v1_space_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_quark_space_v1_space_proto_goTypes = []any{
-	(*Space)(nil),                      // 0: quark.space.v1.Space
-	(*CreateSpaceRequest)(nil),         // 1: quark.space.v1.CreateSpaceRequest
-	(*UpdateConfigRequest)(nil),        // 2: quark.space.v1.UpdateConfigRequest
-	(*GetSpaceRequest)(nil),            // 3: quark.space.v1.GetSpaceRequest
-	(*ListSpacesResponse)(nil),         // 4: quark.space.v1.ListSpacesResponse
-	(*DeleteSpaceRequest)(nil),         // 5: quark.space.v1.DeleteSpaceRequest
-	(*GetConfigRequest)(nil),           // 6: quark.space.v1.GetConfigRequest
-	(*ConfigResponse)(nil),             // 7: quark.space.v1.ConfigResponse
-	(*GetAgentEnvironmentRequest)(nil), // 8: quark.space.v1.GetAgentEnvironmentRequest
-	(*AgentEnvironmentResponse)(nil),   // 9: quark.space.v1.AgentEnvironmentResponse
-	(*GetSpacePathsRequest)(nil),       // 10: quark.space.v1.GetSpacePathsRequest
-	(*SpacePaths)(nil),                 // 11: quark.space.v1.SpacePaths
-	(*DoctorRequest)(nil),              // 12: quark.space.v1.DoctorRequest
-	(*DoctorResponse)(nil),             // 13: quark.space.v1.DoctorResponse
-	(*DoctorIssue)(nil),                // 14: quark.space.v1.DoctorIssue
-	(*timestamppb.Timestamp)(nil),      // 15: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),              // 16: google.protobuf.Empty
+	(*Space)(nil),                 // 0: quark.space.v1.Space
+	(*CreateSpaceRequest)(nil),    // 1: quark.space.v1.CreateSpaceRequest
+	(*UpdateConfigRequest)(nil),   // 2: quark.space.v1.UpdateConfigRequest
+	(*GetSpaceRequest)(nil),       // 3: quark.space.v1.GetSpaceRequest
+	(*ListSpacesResponse)(nil),    // 4: quark.space.v1.ListSpacesResponse
+	(*DeleteSpaceRequest)(nil),    // 5: quark.space.v1.DeleteSpaceRequest
+	(*GetConfigRequest)(nil),      // 6: quark.space.v1.GetConfigRequest
+	(*ConfigResponse)(nil),        // 7: quark.space.v1.ConfigResponse
+	(*PutRecordRequest)(nil),      // 8: quark.space.v1.PutRecordRequest
+	(*GetRecordRequest)(nil),      // 9: quark.space.v1.GetRecordRequest
+	(*ListRecordsRequest)(nil),    // 10: quark.space.v1.ListRecordsRequest
+	(*DeleteRecordRequest)(nil),   // 11: quark.space.v1.DeleteRecordRequest
+	(*Record)(nil),                // 12: quark.space.v1.Record
+	(*ListRecordsResponse)(nil),   // 13: quark.space.v1.ListRecordsResponse
+	(*DoctorRequest)(nil),         // 14: quark.space.v1.DoctorRequest
+	(*DoctorResponse)(nil),        // 15: quark.space.v1.DoctorResponse
+	(*DoctorIssue)(nil),           // 16: quark.space.v1.DoctorIssue
+	(*timestamppb.Timestamp)(nil), // 17: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),         // 18: google.protobuf.Empty
 }
 var file_quark_space_v1_space_proto_depIdxs = []int32{
-	15, // 0: quark.space.v1.Space.created_at:type_name -> google.protobuf.Timestamp
-	15, // 1: quark.space.v1.Space.updated_at:type_name -> google.protobuf.Timestamp
+	17, // 0: quark.space.v1.Space.created_at:type_name -> google.protobuf.Timestamp
+	17, // 1: quark.space.v1.Space.updated_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: quark.space.v1.ListSpacesResponse.spaces:type_name -> quark.space.v1.Space
-	15, // 3: quark.space.v1.ConfigResponse.updated_at:type_name -> google.protobuf.Timestamp
-	14, // 4: quark.space.v1.DoctorResponse.issues:type_name -> quark.space.v1.DoctorIssue
-	1,  // 5: quark.space.v1.SpaceService.CreateSpace:input_type -> quark.space.v1.CreateSpaceRequest
-	2,  // 6: quark.space.v1.SpaceService.UpdateConfig:input_type -> quark.space.v1.UpdateConfigRequest
-	3,  // 7: quark.space.v1.SpaceService.GetSpace:input_type -> quark.space.v1.GetSpaceRequest
-	16, // 8: quark.space.v1.SpaceService.ListSpaces:input_type -> google.protobuf.Empty
-	5,  // 9: quark.space.v1.SpaceService.DeleteSpace:input_type -> quark.space.v1.DeleteSpaceRequest
-	6,  // 10: quark.space.v1.SpaceService.GetConfig:input_type -> quark.space.v1.GetConfigRequest
-	8,  // 11: quark.space.v1.SpaceService.GetAgentEnvironment:input_type -> quark.space.v1.GetAgentEnvironmentRequest
-	10, // 12: quark.space.v1.SpaceService.GetSpacePaths:input_type -> quark.space.v1.GetSpacePathsRequest
-	12, // 13: quark.space.v1.SpaceService.Doctor:input_type -> quark.space.v1.DoctorRequest
-	0,  // 14: quark.space.v1.SpaceService.CreateSpace:output_type -> quark.space.v1.Space
-	0,  // 15: quark.space.v1.SpaceService.UpdateConfig:output_type -> quark.space.v1.Space
-	0,  // 16: quark.space.v1.SpaceService.GetSpace:output_type -> quark.space.v1.Space
-	4,  // 17: quark.space.v1.SpaceService.ListSpaces:output_type -> quark.space.v1.ListSpacesResponse
-	16, // 18: quark.space.v1.SpaceService.DeleteSpace:output_type -> google.protobuf.Empty
-	7,  // 19: quark.space.v1.SpaceService.GetConfig:output_type -> quark.space.v1.ConfigResponse
-	9,  // 20: quark.space.v1.SpaceService.GetAgentEnvironment:output_type -> quark.space.v1.AgentEnvironmentResponse
-	11, // 21: quark.space.v1.SpaceService.GetSpacePaths:output_type -> quark.space.v1.SpacePaths
-	13, // 22: quark.space.v1.SpaceService.Doctor:output_type -> quark.space.v1.DoctorResponse
-	14, // [14:23] is the sub-list for method output_type
-	5,  // [5:14] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	17, // 3: quark.space.v1.ConfigResponse.updated_at:type_name -> google.protobuf.Timestamp
+	17, // 4: quark.space.v1.Record.updated_at:type_name -> google.protobuf.Timestamp
+	12, // 5: quark.space.v1.ListRecordsResponse.records:type_name -> quark.space.v1.Record
+	16, // 6: quark.space.v1.DoctorResponse.issues:type_name -> quark.space.v1.DoctorIssue
+	1,  // 7: quark.space.v1.SpaceService.CreateSpace:input_type -> quark.space.v1.CreateSpaceRequest
+	2,  // 8: quark.space.v1.SpaceService.UpdateConfig:input_type -> quark.space.v1.UpdateConfigRequest
+	3,  // 9: quark.space.v1.SpaceService.GetSpace:input_type -> quark.space.v1.GetSpaceRequest
+	18, // 10: quark.space.v1.SpaceService.ListSpaces:input_type -> google.protobuf.Empty
+	5,  // 11: quark.space.v1.SpaceService.DeleteSpace:input_type -> quark.space.v1.DeleteSpaceRequest
+	6,  // 12: quark.space.v1.SpaceService.GetConfig:input_type -> quark.space.v1.GetConfigRequest
+	8,  // 13: quark.space.v1.SpaceService.PutRecord:input_type -> quark.space.v1.PutRecordRequest
+	9,  // 14: quark.space.v1.SpaceService.GetRecord:input_type -> quark.space.v1.GetRecordRequest
+	10, // 15: quark.space.v1.SpaceService.ListRecords:input_type -> quark.space.v1.ListRecordsRequest
+	11, // 16: quark.space.v1.SpaceService.DeleteRecord:input_type -> quark.space.v1.DeleteRecordRequest
+	14, // 17: quark.space.v1.SpaceService.Doctor:input_type -> quark.space.v1.DoctorRequest
+	0,  // 18: quark.space.v1.SpaceService.CreateSpace:output_type -> quark.space.v1.Space
+	0,  // 19: quark.space.v1.SpaceService.UpdateConfig:output_type -> quark.space.v1.Space
+	0,  // 20: quark.space.v1.SpaceService.GetSpace:output_type -> quark.space.v1.Space
+	4,  // 21: quark.space.v1.SpaceService.ListSpaces:output_type -> quark.space.v1.ListSpacesResponse
+	18, // 22: quark.space.v1.SpaceService.DeleteSpace:output_type -> google.protobuf.Empty
+	7,  // 23: quark.space.v1.SpaceService.GetConfig:output_type -> quark.space.v1.ConfigResponse
+	12, // 24: quark.space.v1.SpaceService.PutRecord:output_type -> quark.space.v1.Record
+	12, // 25: quark.space.v1.SpaceService.GetRecord:output_type -> quark.space.v1.Record
+	13, // 26: quark.space.v1.SpaceService.ListRecords:output_type -> quark.space.v1.ListRecordsResponse
+	18, // 27: quark.space.v1.SpaceService.DeleteRecord:output_type -> google.protobuf.Empty
+	15, // 28: quark.space.v1.SpaceService.Doctor:output_type -> quark.space.v1.DoctorResponse
+	18, // [18:29] is the sub-list for method output_type
+	7,  // [7:18] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_quark_space_v1_space_proto_init() }
@@ -919,7 +1091,7 @@ func file_quark_space_v1_space_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_quark_space_v1_space_proto_rawDesc), len(file_quark_space_v1_space_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

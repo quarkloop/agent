@@ -169,21 +169,6 @@ func AgentPermissions(agentID string) PermissionConfig {
 	}
 }
 
-func ServicePermissions() PermissionConfig {
-	return PermissionConfig{
-		PublishAllow: []string{
-			"svc.>",
-			"_INBOX.>",
-			"_R_.>",
-		},
-		SubscribeAllow: []string{
-			"svc.>",
-			"_INBOX.>",
-			"_R_.>",
-		},
-	}
-}
-
 // ServiceHostPermissions grants service hosts only their responder routes.
 // Run State is the one current service that additionally owns a control-plane
 // KV lease store and therefore needs JetStream request/reply access.

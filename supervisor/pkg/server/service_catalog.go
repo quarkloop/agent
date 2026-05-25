@@ -10,13 +10,9 @@ import (
 
 func (s *Server) resolveServicePluginCatalog(ctx context.Context, space string) ([]*servicev1.ServiceDescriptor, error) {
 	_ = ctx
-	mgr, err := s.store.Plugins(space)
+	installed, err := s.selectedPlugins(space)
 	if err != nil {
-		return nil, fmt.Errorf("open plugin store: %w", err)
-	}
-	installed, err := mgr.ListByType(plugin.TypeService)
-	if err != nil {
-		return nil, fmt.Errorf("list service plugins: %w", err)
+		return nil, fmt.Errorf("resolve selected plugins: %w", err)
 	}
 	serviceConfig, err := s.serviceConfigByPluginName(space)
 	if err != nil {
@@ -25,6 +21,9 @@ func (s *Server) resolveServicePluginCatalog(ctx context.Context, space string) 
 
 	descriptors := make([]*servicev1.ServiceDescriptor, 0, len(installed))
 	for _, item := range installed {
+		if item.Manifest.Type != plugin.TypeService {
+			continue
+		}
 		_, selected := servicePluginConfig(serviceConfig, item.Manifest)
 		if !selected {
 			continue

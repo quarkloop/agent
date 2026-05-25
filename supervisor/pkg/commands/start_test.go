@@ -74,6 +74,7 @@ func captureStartNATSFlags() func() {
 	oldAuditRetention := natsAuditRetention
 	oldAuditMaxMessages := natsAuditMaxMessages
 	oldBundledPluginsDir := bundledPluginsDir
+	oldInstalledPluginsDir := installedPluginsDir
 	return func() {
 		natsMode = oldMode
 		natsExternalURL = oldURL
@@ -84,5 +85,6 @@ func captureStartNATSFlags() func() {
 		natsAuditRetention = oldAuditRetention
 		natsAuditMaxMessages = oldAuditMaxMessages
 		bundledPluginsDir = oldBundledPluginsDir
+		installedPluginsDir = oldInstalledPluginsDir
 	}
 }

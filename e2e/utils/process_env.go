@@ -9,7 +9,7 @@ import (
 )
 
 func SupervisorProcessEnv(overrides map[string]string) []string {
-	return constrainedProcessEnv(overrides, providerCredentialEnvKeys()...)
+	return constrainedProcessEnv(overrides)
 }
 
 // ServiceProcessEnv returns a constrained service process environment. Service

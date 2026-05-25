@@ -1,7 +1,5 @@
-// Package pluginmanager handles plugin installation, uninstallation, and
-// discovery within a space's plugins directory. The absolute plugins
-// directory is supplied by the caller; the manager has no knowledge of
-// the surrounding space layout.
+// Package pluginmanager handles plugin installation and discovery under an
+// explicit registry root. It has no knowledge of spaces or their persistence.
 package pluginmanager
 
 import (
@@ -14,15 +12,14 @@ import (
 	plugin "github.com/quarkloop/pkg/plugin"
 )
 
-// Installer handles plugin management for a single plugins directory.
+// Installer handles plugin management for one registry directory.
 type Installer struct {
 	mu         sync.RWMutex
 	pluginsDir string
 	hubClient  *HubClient
 }
 
-// NewInstaller creates a plugin installer rooted at pluginsDir. The directory
-// must be the absolute path to the space's plugins directory.
+// NewInstaller creates a plugin installer rooted at pluginsDir.
 func NewInstaller(pluginsDir string) *Installer {
 	return &Installer{
 		pluginsDir: pluginsDir,
@@ -35,14 +32,14 @@ func (m *Installer) PluginsDir() string {
 	return m.pluginsDir
 }
 
-// InstalledPlugin represents an installed plugin with its path.
+// InstalledPlugin represents a registry entry with its path.
 type InstalledPlugin struct {
 	Manifest *plugin.Manifest `json:"manifest"`
 	Path     string           `json:"path"` // Full path to plugin directory
 	Active   bool             `json:"active"`
 }
 
-// List returns all installed plugins in the space.
+// List returns all installed plugins in this registry.
 func (m *Installer) List() ([]InstalledPlugin, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

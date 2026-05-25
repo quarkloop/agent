@@ -26,10 +26,10 @@ services:
         PACKAGE: ./supervisor/cmd/supervisor
     command:
       - start
-      - --port
-      - "7200"
       - --bundled-plugins-dir
       - /plugins
+      - --installed-plugins-dir
+      - /var/lib/quark/plugins
       - --nats-state-dir
       - /var/lib/quark/nats
       - --nats-client-port
@@ -39,18 +39,14 @@ services:
       - --nats-monitor-port
       - "8222"
     ports:
-      - "7200:7200"
       - "4222:4222"
       - "8222:8222"
       - "9222:9222"
     volumes:
       - ../../plugins:/plugins:ro
       - supervisor-state:/var/lib/quark
-      - spaces:/var/lib/quark/spaces
-    environment:
-      QUARK_SPACES_ROOT: /var/lib/quark/spaces
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:7200/v1/health"]
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8222/healthz"]
       interval: 10s
       timeout: 3s
       retries: 12

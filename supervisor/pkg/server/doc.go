@@ -1,6 +1,6 @@
-// Package server implements the supervisor HTTP API using Fiber v2.
+// Package server composes the supervisor NATS-native control plane.
 //
-// It exposes endpoints for space management, agent lifecycle, sessions,
-// plugin operations. Handlers are organized by concern: space_handler,
-// agent_handler, session_handler, plugin_handler, and core utilities.
+// The package resolves supervisor-owned plugin catalogs, delegates physical
+// space persistence to the Space service, and exposes high-level operations
+// through the NATS API host.
 package server

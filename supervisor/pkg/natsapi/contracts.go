@@ -31,10 +31,7 @@ func toContractPlugin(item pluginmanager.InstalledPlugin) clientcontract.PluginI
 	}
 }
 
-func toContractSession(sess *sessions.Session) clientcontract.SessionInfo {
-	if sess == nil {
-		return clientcontract.SessionInfo{}
-	}
+func toContractSession(sess sessions.Session) clientcontract.SessionInfo {
 	return clientcontract.SessionInfo{
 		ID:        sess.ID,
 		Type:      clientcontract.SessionType(sess.Type),

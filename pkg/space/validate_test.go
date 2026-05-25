@@ -132,6 +132,36 @@ func TestMarshalAndParseConfig(t *testing.T) {
 	}
 }
 
+func TestLifecycleTransitionsReturnUpdatedCopies(t *testing.T) {
+	cfg := space.NewConfig("docs", "/work/docs")
+	originalCreated := cfg.CreatedAt
+	now := originalCreated.Add(time.Hour)
+	created := cfg.WithCreatedTimestamps(now)
+	if !cfg.CreatedAt.Equal(originalCreated) || !created.CreatedAt.Equal(now) || !created.UpdatedAt.Equal(now) {
+		t.Fatalf("created transition original=%s copy=%s/%s", cfg.CreatedAt, created.CreatedAt, created.UpdatedAt)
+	}
+	updated := created.WithUpdatedTimestamp(created.CreatedAt, now.Add(time.Hour))
+	if !created.UpdatedAt.Equal(now) || !updated.CreatedAt.Equal(now) || !updated.UpdatedAt.Equal(now.Add(time.Hour)) {
+		t.Fatalf("updated transition source=%s copy=%s/%s", created.UpdatedAt, updated.CreatedAt, updated.UpdatedAt)
+	}
+}
+
+func TestPluginSelectionTransitionsDoNotMutateSource(t *testing.T) {
+	cfg := space.NewConfig("docs", "/work/docs")
+	service := space.ServiceRef{Name: "indexer", Ref: "indexer"}
+	selected := cfg.WithPluginSelection(space.PluginRef{Ref: "indexer"}, &service)
+	if len(cfg.Plugins) != 1 || len(cfg.Services) != 0 {
+		t.Fatalf("source was mutated: %+v", cfg)
+	}
+	if len(selected.Plugins) != 2 || len(selected.Services) != 1 {
+		t.Fatalf("selected config = %+v", selected)
+	}
+	removed := selected.WithoutPluginSelection("indexer")
+	if len(selected.Services) != 1 || len(removed.Plugins) != 1 || len(removed.Services) != 0 {
+		t.Fatalf("removed selection source=%+v output=%+v", selected, removed)
+	}
+}
+
 func TestValidateConfigEnvNames(t *testing.T) {
 	cfg := base()
 	cfg.Model.Env = []string{"1INVALID"}

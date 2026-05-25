@@ -12,12 +12,11 @@ import (
 )
 
 type Config struct {
-	Address     string
-	RootDir     string
-	SkillDir    string
-	Environment []string
-	NATS        natskit.Config
-	Logger      *slog.Logger
+	Address  string
+	RootDir  string
+	SkillDir string
+	NATS     natskit.Config
+	Logger   *slog.Logger
 }
 
 func Run(ctx context.Context, cfg Config) error {
@@ -27,7 +26,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
-	store, err := spacesvc.NewStoreWithEnvironment(cfg.RootDir, cfg.Environment)
+	store, err := spacesvc.NewStore(cfg.RootDir)
 	if err != nil {
 		return err
 	}

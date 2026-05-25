@@ -1,8 +1,8 @@
 # Space Service Plugin
 
-The space service owns authoritative `space.json` bytes, derived paths, and
-configuration diagnostics. Supervisor is the primary caller; runtime receives
-resolved catalog data instead of discovering space state itself.
+The space service owns authoritative `space.json` bytes and opaque record
+persistence. Supervisor remains the semantic owner of sessions and plugin
+selection; runtime consumes resolved catalog data.
 
 ## Service Functions
 
@@ -14,8 +14,10 @@ resolved catalog data instead of discovering space state itself.
 | `space_ListSpaces` | `quark.space.v1.SpaceService/ListSpaces` | read | no | yes | List registered spaces. |
 | `space_DeleteSpace` | `quark.space.v1.SpaceService/DeleteSpace` | admin | yes | no | Delete a space and its service-owned data. |
 | `space_GetConfig` | `quark.space.v1.SpaceService/GetConfig` | read | no | yes | Return authoritative configuration bytes. |
-| `space_GetAgentEnvironment` | `quark.space.v1.SpaceService/GetAgentEnvironment` | admin | no | yes | Resolve model environment entries for runtime launch. |
-| `space_GetSpacePaths` | `quark.space.v1.SpaceService/GetSpacePaths` | read | no | yes | Return derived storage paths for a space. |
+| `space_PutRecord` | `quark.space.v1.SpaceService/PutRecord` | write | yes | no | Persist an opaque record in a caller-owned namespace. |
+| `space_GetRecord` | `quark.space.v1.SpaceService/GetRecord` | read | no | yes | Read an opaque record. |
+| `space_ListRecords` | `quark.space.v1.SpaceService/ListRecords` | read | no | yes | List records in a namespace. |
+| `space_DeleteRecord` | `quark.space.v1.SpaceService/DeleteRecord` | write | yes | no | Delete an opaque record. |
 | `space_Doctor` | `quark.space.v1.SpaceService/Doctor` | read | no | yes | Validate stored space configuration. |
 
 Space mutation functions should stay behind supervisor-owned approval and

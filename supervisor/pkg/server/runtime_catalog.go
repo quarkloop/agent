@@ -28,13 +28,9 @@ func (s *Server) resolveRuntimePluginCatalog(ctx context.Context, space string) 
 	if err != nil {
 		return plugin.RuntimeCatalog{}, "", err
 	}
-	mgr, err := s.store.Plugins(space)
+	installed, err := s.selectedPlugins(space)
 	if err != nil {
-		return plugin.RuntimeCatalog{}, "", fmt.Errorf("open plugin store: %w", err)
-	}
-	installed, err := mgr.List()
-	if err != nil {
-		return plugin.RuntimeCatalog{}, "", fmt.Errorf("list plugins: %w", err)
+		return plugin.RuntimeCatalog{}, "", fmt.Errorf("resolve selected plugins: %w", err)
 	}
 	validationCatalog := newAgentPluginValidationCatalog(installed)
 	catalog := plugin.NewRuntimeCatalog(make([]plugin.RuntimeCatalogPlugin, 0, len(installed)))

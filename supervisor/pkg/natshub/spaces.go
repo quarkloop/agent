@@ -123,10 +123,6 @@ func (h *Hub) provisionSpaceLocked(spaceID string) (SpaceCredentials, error) {
 	if err != nil {
 		return SpaceCredentials{}, err
 	}
-	serviceCred, err := spaceCredential(spaceID, accountName, RoleService, ServicePermissions())
-	if err != nil {
-		return SpaceCredentials{}, err
-	}
 	observabilityCred, err := spaceCredential(spaceID, ObservabilityAccountName, RoleObservability, ObservabilityPermissions(spaceID))
 	if err != nil {
 		return SpaceCredentials{}, err
@@ -135,7 +131,6 @@ func (h *Hub) provisionSpaceLocked(spaceID string) (SpaceCredentials, error) {
 		SpaceID:       spaceID,
 		Account:       accountName,
 		Runtime:       runtimeCred,
-		Service:       serviceCred,
 		Observability: observabilityCred,
 	}
 	if h.started {
@@ -143,9 +138,6 @@ func (h *Hub) provisionSpaceLocked(spaceID string) (SpaceCredentials, error) {
 			return SpaceCredentials{}, err
 		}
 		if err := h.registerCredentialLocked(runtimeCred); err != nil {
-			return SpaceCredentials{}, err
-		}
-		if err := h.registerCredentialLocked(serviceCred); err != nil {
 			return SpaceCredentials{}, err
 		}
 		if err := h.registerCredentialLocked(observabilityCred); err != nil {
@@ -165,7 +157,6 @@ func (h *Hub) provisionSpaceLocked(spaceID string) (SpaceCredentials, error) {
 			Name: accountName,
 			Users: []UserConfig{
 				userConfigFromCredential(runtimeCred),
-				userConfigFromCredential(serviceCred),
 			},
 		})
 		h.cfg.Accounts = appendUserToAccount(h.cfg.Accounts, ObservabilityAccountName, userConfigFromCredential(observabilityCred))

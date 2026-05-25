@@ -28,22 +28,19 @@ func TestServiceProcessEnvDoesNotPropagateUndeclaredSecrets(t *testing.T) {
 	}
 }
 
-func TestSupervisorProcessEnvCarriesOnlyProviderSecretsAndOverrides(t *testing.T) {
+func TestSupervisorProcessEnvExcludesProviderSecretsAndCarriesOverrides(t *testing.T) {
 	t.Setenv("OPENROUTER_API_KEY", "sk-or-v1-process-secret")
 	t.Setenv("UNDECLARED_SECRET", "must-not-leak")
 	t.Setenv("PATH", "/bin")
 
 	env := SupervisorProcessEnv(map[string]string{"QUARK_SPACES_ROOT": "/tmp/spaces"})
 
-	if !slices.Contains(env, "OPENROUTER_API_KEY=sk-or-v1-process-secret") {
-		t.Fatalf("supervisor env missing declared provider credential: %v", env)
-	}
 	if !slices.Contains(env, "QUARK_SPACES_ROOT=/tmp/spaces") {
 		t.Fatalf("supervisor env missing override: %v", env)
 	}
 	for _, entry := range env {
-		if strings.Contains(entry, "must-not-leak") {
-			t.Fatalf("supervisor env leaked unrelated secret: %v", env)
+		if strings.Contains(entry, "sk-or-v1-process-secret") || strings.Contains(entry, "must-not-leak") {
+			t.Fatalf("supervisor env leaked secret: %v", env)
 		}
 	}
 }

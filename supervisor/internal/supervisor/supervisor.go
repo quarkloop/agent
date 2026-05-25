@@ -10,8 +10,7 @@ import (
 const supervisorStateFile = "/tmp/supervisor/supervisor.json"
 
 type State struct {
-	Port int `json:"port"`
-	PID  int `json:"pid"`
+	PID int `json:"pid"`
 }
 
 type Supervisor struct {

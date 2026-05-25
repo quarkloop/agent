@@ -56,12 +56,6 @@ type RuntimeSetup struct {
 	WorkingDir string
 }
 
-// installSpacePlugins populates the space's plugins directory with the
-// plugin manifests and their pre-built artifacts. The agent's api-mode loader
-// detects a co-located binary for tool plugins and runs it directly; there is
-// no runtime `go build`.
-//
-// Pre-built artifacts come from BuildAllOnce.
 type StartOptions struct {
 	// ForceBinaryTools, when true, omits the tool plugin.so files from the
 	// installed space so the agent's pluginmanager must fall back to
@@ -165,7 +159,6 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 		ServiceAddresses: serviceAddressesFromOptions(opt.Services, supervisorEnv),
 	}
 
-	installSpacePlugins(t, env, bins, !opt.DisableKnowledgeServices)
 	if opt.BeforeRuntime != nil {
 		opt.BeforeRuntime(t, RuntimeSetup{
 			Root:       env.Root,

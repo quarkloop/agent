@@ -12,7 +12,6 @@ import (
 	"github.com/quarkloop/supervisor/pkg/server"
 )
 
-var port int
 var natsMode string
 var natsExternalURL string
 var natsStateDir string
@@ -22,20 +21,21 @@ var natsMonitorPort int
 var natsAuditRetention time.Duration
 var natsAuditMaxMessages int64
 var bundledPluginsDir string
+var installedPluginsDir string
 
 // StartCmd creates the "supervisor start" command.
 func StartCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "start [spaces-dir]",
-		Short: "Start the supervisor server",
-		Long: `Start the supervisor HTTP server that manages Spaces.
+		Use:   "start",
+		Short: "Start the supervisor control plane",
+		Long: `Start the NATS-native supervisor control plane.
 
 Example:
-  supervisor start --port 7200`,
+  supervisor start --nats-client-port 4222`,
+		Args: cobra.NoArgs,
 		RunE: runStart,
 	}
 
-	cmd.Flags().IntVarP(&port, "port", "p", 7200, "HTTP listen port")
 	cmd.Flags().StringVar(&natsMode, "nats-mode", string(natshub.ModeEmbedded), "NATS mode: embedded or external")
 	cmd.Flags().StringVar(&natsExternalURL, "nats-url", "", "External NATS URL when --nats-mode=external")
 	cmd.Flags().StringVar(&natsStateDir, "nats-state-dir", "", "Supervisor-owned embedded NATS state directory")
@@ -44,28 +44,21 @@ Example:
 	cmd.Flags().IntVar(&natsMonitorPort, "nats-monitor-port", 8222, "Embedded NATS HTTP monitoring listen port")
 	cmd.Flags().DurationVar(&natsAuditRetention, "nats-audit-retention", 0, "Retain redacted service-call audit records for this duration; 0 uses the supervisor default")
 	cmd.Flags().Int64Var(&natsAuditMaxMessages, "nats-audit-max-messages", 0, "Maximum retained audit records; 0 uses the supervisor default")
-	cmd.Flags().StringVar(&bundledPluginsDir, "bundled-plugins-dir", "plugins", "Product plugin bundle root used to install required default plugins in new spaces")
+	cmd.Flags().StringVar(&bundledPluginsDir, "bundled-plugins-dir", "plugins", "Read-only product plugin bundle root")
+	cmd.Flags().StringVar(&installedPluginsDir, "installed-plugins-dir", "", "Supervisor-owned directory for optional installed plugins")
 
 	return cmd
 }
 
 func runStart(cmd *cobra.Command, args []string) error {
-	// The optional root is forwarded as startup context for space orchestration;
-	// persisted space configuration remains owned by the Space service.
-	var spacesDir string
-	if len(args) > 0 {
-		spacesDir = args[0]
-	}
-
 	natsCfg, err := startNATSConfig()
 	if err != nil {
 		return err
 	}
 	cfg := server.Config{
-		Port:              port,
-		SpacesDir:         spacesDir,
-		NATS:              natsCfg,
-		BundledPluginsDir: bundledPluginsDir,
+		NATS:                natsCfg,
+		BundledPluginsDir:   bundledPluginsDir,
+		InstalledPluginsDir: installedPluginsDir,
 	}
 	srv, err := server.New(cfg)
 	if err != nil {
