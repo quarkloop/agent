@@ -250,8 +250,8 @@
         "has_process_flow": false,
         "path": "e2e/artifacts_test.go",
         "prompt_shortcut_suspects": [
-          "127: \"function\":   \"gateway_Embed\",",
-          "262: \"message\":         \"Tool or service function returned an error.\","
+          "126: \"function\":   \"gateway_Embed\",",
+          "267: \"message\":         \"Tool or service function returned an error.\","
         ]
       },
       {
@@ -335,7 +335,7 @@
         "has_process_flow": false,
         "path": "e2e/indexer_service_test.go",
         "prompt_shortcut_suspects": [
-          "54: TextContent: \"Quark service extraction uses NATS service functions and Dgraph vector indexes.\","
+          "49: TextContent: \"Quark service extraction uses NATS service functions and Dgraph vector indexes.\","
         ]
       },
       {
