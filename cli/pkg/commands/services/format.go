@@ -12,13 +12,13 @@ func formatServiceTable(services []clientcontract.ServiceInfo) string {
 	if len(services) == 0 {
 		return "No services installed.\n"
 	}
-	fmt.Fprintf(&b, "%-24s %-14s %-10s %-22s %s\n", "NAME", "STATUS", "VERSION", "ENDPOINT", "FUNCTIONS")
+	fmt.Fprintf(&b, "%-24s %-14s %-10s %-22s %s\n", "NAME", "STATUS", "VERSION", "SUBJECT PREFIX", "FUNCTIONS")
 	for _, service := range services {
-		endpoint := service.Endpoint
-		if endpoint == "" {
-			endpoint = "-"
+		subjectPrefix := service.SubjectPrefix
+		if subjectPrefix == "" {
+			subjectPrefix = "-"
 		}
-		fmt.Fprintf(&b, "%-24s %-14s %-10s %-22s %d\n", service.Name, service.Status, service.Version, endpoint, service.FunctionCount)
+		fmt.Fprintf(&b, "%-24s %-14s %-10s %-22s %d\n", service.Name, service.Status, service.Version, subjectPrefix, service.FunctionCount)
 	}
 	return b.String()
 }
@@ -33,14 +33,8 @@ func formatServiceInspect(service clientcontract.ServiceInfo) string {
 	if service.Version != "" {
 		fmt.Fprintf(&b, "Version:     %s\n", service.Version)
 	}
-	if service.Endpoint != "" {
-		fmt.Fprintf(&b, "Endpoint:    %s\n", service.Endpoint)
-	}
-	if service.StartedAt != nil {
-		fmt.Fprintf(&b, "Started At:  %s\n", service.StartedAt.Format("2006-01-02T15:04:05Z07:00"))
-	}
-	if service.AddressEnv != "" {
-		fmt.Fprintf(&b, "Address Env: %s\n", service.AddressEnv)
+	if service.SubjectPrefix != "" {
+		fmt.Fprintf(&b, "Subjects:    %s.*\n", service.SubjectPrefix)
 	}
 	if service.HealthService != "" {
 		fmt.Fprintf(&b, "Health:      %s\n", service.HealthService)

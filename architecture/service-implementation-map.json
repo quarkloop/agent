@@ -256,7 +256,7 @@
   },
   "e2e_tests": {
     "direct_service_shortcut_suspect_count": 0,
-    "file_count": 32,
+    "file_count": 24,
     "files": [
       {
         "direct_service_shortcut_suspects": [],
@@ -266,16 +266,7 @@
           "36: ToolStarts: []string{\"gateway_Embed\"},",
           "40: Name:          \"gateway_Embed\",",
           "49: Name:           \"gateway_Embed\",",
-          "153: Name:          \"indexer_QueryContext\","
-        ]
-      },
-      {
-        "direct_service_shortcut_suspects": [],
-        "has_process_flow": false,
-        "path": "e2e/artifacts_test.go",
-        "prompt_shortcut_suspects": [
-          "125: \"function\":   \"gateway_Embed\",",
-          "265: \"message\":         \"Tool or service function returned an error.\","
+          "161: Name:          \"indexer_QueryContext\","
         ]
       },
       {
@@ -289,60 +280,23 @@
         "has_process_flow": false,
         "path": "e2e/assertions_test.go",
         "prompt_shortcut_suspects": [
-          "48: Name: \"indexer_QueryContext\",",
-          "60: Name: \"indexer_QueryContext\",",
-          "72: Name: \"indexer_QueryContext\",",
-          "151: if event.Name != \"indexer_QueryContext\" || !toolEventSucceeded(event) {",
-          "156: t.Fatalf(\"indexer_QueryContext result missing retrieved chunks: %s\", event.Result)",
-          "159: t.Fatalf(\"indexer_QueryContext result missing source evidence: %s\", event.Result)",
-          "167: t.Fatalf(\"indexer_QueryContext result did not expose structured context evidence: %s\", event.Result)",
-          "169: t.Fatalf(\"indexer_QueryContext had no successful structured result: %+v\", trace.ToolResultEvents)",
-          "190: if event.Name != \"gateway_Embed\" {",
-          "210: t.Fatalf(\"gateway_Embed tool results missing provider=%q model=%q dimensions=%d: %+v\", provider, model, dimensions, trace.ToolResultEvents)",
-          "290: if event.Name != \"gateway_Embed\" {",
-          "301: t.Fatalf(\"gateway_Embed successful results = %d, want at least %d: %+v\", count, want, trace.ToolResultEvents)",
-          "324: t.Fatalf(\"indexer_UpsertChunk payload count = %d, want at least %d\", len(payloads), len(documents))",
-          "336: t.Fatalf(\"UpsertChunk payload %d missing embeddingRef from gateway_Embed: %+v\", i, payload)",
-          "376: if event.Name != \"indexer_UpsertChunk\" {",
-          "381: t.Fatalf(\"decode indexer_UpsertChunk arguments: %v\\n%s\", err, event.Arguments)"
+          "20: Name: \"indexer_QueryContext\",",
+          "29: Name: \"indexer_QueryContext\",",
+          "38: Name: \"indexer_QueryContext\","
         ]
-      },
-      {
-        "direct_service_shortcut_suspects": [],
-        "has_process_flow": false,
-        "path": "e2e/chat_flow_test.go",
-        "prompt_shortcut_suspects": []
       },
       {
         "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
         "path": "e2e/devops_release_agent_test.go",
         "prompt_shortcut_suspects": [
-          "33: TraceOptions:   devOpsServiceTraceOptions(\"devops release dry run through service function\"),"
+          "29: TraceOptions:   devOpsServiceTraceOptions(\"devops release dry run through service function\"),"
         ]
       },
       {
         "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
-        "path": "e2e/devops_release_prompts_test.go",
-        "prompt_shortcut_suspects": []
-      },
-      {
-        "direct_service_shortcut_suspects": [],
-        "has_process_flow": false,
         "path": "e2e/devops_trace_options_test.go",
-        "prompt_shortcut_suspects": []
-      },
-      {
-        "direct_service_shortcut_suspects": [],
-        "has_process_flow": false,
-        "path": "e2e/fixture_files_test.go",
-        "prompt_shortcut_suspects": []
-      },
-      {
-        "direct_service_shortcut_suspects": [],
-        "has_process_flow": false,
-        "path": "e2e/index_verification_test.go",
         "prompt_shortcut_suspects": []
       },
       {
@@ -363,22 +317,14 @@
         "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
         "path": "e2e/indexer_pdf_agent_test.go",
-        "prompt_shortcut_suspects": [
-          "74: assertToolStarted(t, indexTrace, \"gateway_Embed\")",
-          "75: assertToolStarted(t, indexTrace, \"indexer_UpsertChunk\")",
-          "79: assertNoToolErrors(t, indexTrace, \"indexer_UpsertChunk\")",
-          "81: assertToolSuccessCount(t, indexTrace, \"indexer_UpsertChunk\", len(documents))",
-          "115: assertToolStarted(t, queryTrace, \"gateway_Embed\")",
-          "116: assertToolStarted(t, queryTrace, \"indexer_QueryContext\")",
-          "118: assertNoToolErrors(t, queryTrace, \"gateway_Embed\", \"indexer_QueryContext\", \"citation_VerifyGrounding\", \"citation_RenderReferences\")"
-        ]
+        "prompt_shortcut_suspects": []
       },
       {
         "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
         "path": "e2e/indexer_service_test.go",
         "prompt_shortcut_suspects": [
-          "49: TextContent: \"Quark service extraction uses NATS service functions and Dgraph vector indexes.\","
+          "41: text := \"Quark service extraction uses NATS service functions and Dgraph vector indexes.\""
         ]
       },
       {
@@ -390,45 +336,21 @@
       {
         "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
-        "path": "e2e/markdown_documents_test.go",
-        "prompt_shortcut_suspects": []
-      },
-      {
-        "direct_service_shortcut_suspects": [],
-        "has_process_flow": false,
-        "path": "e2e/markdown_prompts_test.go",
-        "prompt_shortcut_suspects": []
-      },
-      {
-        "direct_service_shortcut_suspects": [],
-        "has_process_flow": false,
-        "path": "e2e/pdf_documents_test.go",
-        "prompt_shortcut_suspects": []
-      },
-      {
-        "direct_service_shortcut_suspects": [],
-        "has_process_flow": false,
-        "path": "e2e/pdf_prompts_test.go",
-        "prompt_shortcut_suspects": []
-      },
-      {
-        "direct_service_shortcut_suspects": [],
-        "has_process_flow": false,
         "path": "e2e/prompt_builders_test.go",
         "prompt_shortcut_suspects": [
-          "40: \"gateway_Embed\",",
-          "41: \"indexer_UpsertChunk\",",
-          "46: \"service function\",",
-          "61: \"gateway_Embed\",",
-          "62: \"indexer_QueryContext\",",
-          "83: \"gateway_Embed\",",
-          "84: \"indexer_UpsertChunk\",",
-          "89: \"service function\",",
-          "104: \"gateway_Embed\",",
-          "105: \"indexer_QueryContext\",",
-          "125: \"service function\",",
-          "144: \"service function\",",
-          "164: \"service function\","
+          "35: \"gateway_Embed\",",
+          "36: \"indexer_UpsertChunk\",",
+          "41: \"service function\",",
+          "56: \"gateway_Embed\",",
+          "57: \"indexer_QueryContext\",",
+          "78: \"gateway_Embed\",",
+          "79: \"indexer_UpsertChunk\",",
+          "84: \"service function\",",
+          "99: \"gateway_Embed\",",
+          "100: \"indexer_QueryContext\",",
+          "120: \"service function\",",
+          "139: \"service function\",",
+          "159: \"service function\","
         ]
       },
       {
@@ -446,27 +368,18 @@
       {
         "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
-        "path": "e2e/service_plugin_inventory_test.go",
+        "path": "e2e/service_options_test.go",
         "prompt_shortcut_suspects": [
-          "140: t.Fatalf(\"%s README does not document service function %s\", manifest.Name, function.Name)",
-          "143: t.Fatalf(\"%s SKILL does not document service function %s\", manifest.Name, function.Name)"
+          "13: \"io_Read\", \"document_ExtractText\", \"runstate_StartRun\", \"gateway_Embed\",",
+          "14: \"indexer_UpsertChunk\", \"citation_VerifyGrounding\", \"core_RecordAuditEvent\",",
+          "26: t.Fatalf(\"standard knowledge e2e stack missing required service function %s\", function)"
         ]
       },
       {
         "direct_service_shortcut_suspects": [],
-        "has_process_flow": true,
-        "path": "e2e/service_processes_test.go",
-        "prompt_shortcut_suspects": [
-          "459: \"gateway_Embed\",",
-          "460: \"indexer_UpsertChunk\",",
-          "465: \"indexer_UpsertChunk\",",
-          "466: \"indexer_QueryContext\",",
-          "467: \"indexer_QueryContext\",",
-          "469: \"indexer_DeleteChunk\",",
-          "504: \"gateway_Embed\",",
-          "505: \"indexer_UpsertChunk\",",
-          "519: t.Fatalf(\"standard knowledge e2e stack missing required service function %s\", function)"
-        ]
+        "has_process_flow": false,
+        "path": "e2e/service_plugin_inventory_test.go",
+        "prompt_shortcut_suspects": []
       },
       {
         "direct_service_shortcut_suspects": [],
@@ -478,12 +391,6 @@
         "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
         "path": "e2e/system_agent_test.go",
-        "prompt_shortcut_suspects": []
-      },
-      {
-        "direct_service_shortcut_suspects": [],
-        "has_process_flow": false,
-        "path": "e2e/system_prompts_test.go",
         "prompt_shortcut_suspects": []
       },
       {
@@ -512,13 +419,25 @@
       {
         "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
+        "path": "e2e/utils/compose_test.go",
+        "prompt_shortcut_suspects": []
+      },
+      {
+        "direct_service_shortcut_suspects": [],
+        "has_process_flow": false,
         "path": "e2e/utils/dotenv_test.go",
         "prompt_shortcut_suspects": []
       },
       {
         "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
-        "path": "e2e/utils/process_test.go",
+        "path": "e2e/utils/nats_cli_test.go",
+        "prompt_shortcut_suspects": []
+      },
+      {
+        "direct_service_shortcut_suspects": [],
+        "has_process_flow": false,
+        "path": "e2e/utils/usage_test.go",
         "prompt_shortcut_suspects": []
       },
       {
@@ -528,11 +447,10 @@
         "prompt_shortcut_suspects": []
       }
     ],
-    "prompt_shortcut_suspect_count": 66
+    "prompt_shortcut_suspect_count": 36
   },
   "services": {
     "citation": {
-      "address_env": "QUARK_CITATION_ADDR",
       "declared_only_function_count": 0,
       "function_count": 5,
       "functions": [
@@ -631,7 +549,6 @@
       "skill_path": "plugins/services/citation/SKILL.md"
     },
     "core": {
-      "address_env": "QUARK_CORE_ADDR",
       "declared_only_function_count": 0,
       "function_count": 20,
       "functions": [
@@ -970,7 +887,6 @@
       "skill_path": "plugins/services/core/SKILL.md"
     },
     "devops": {
-      "address_env": "QUARK_DEVOPS_ADDR",
       "declared_only_function_count": 0,
       "function_count": 23,
       "functions": [
@@ -1362,7 +1278,6 @@
       "skill_path": "plugins/services/devops/SKILL.md"
     },
     "document": {
-      "address_env": "QUARK_DOCUMENT_ADDR",
       "declared_only_function_count": 0,
       "function_count": 8,
       "functions": [
@@ -1509,7 +1424,6 @@
       "skill_path": "plugins/services/document/SKILL.md"
     },
     "gateway": {
-      "address_env": "QUARK_GATEWAY_SERVICE_ADDR",
       "declared_only_function_count": 0,
       "function_count": 9,
       "functions": [
@@ -1672,7 +1586,6 @@
       "skill_path": "plugins/services/gateway/SKILL.md"
     },
     "harness": {
-      "address_env": "QUARK_HARNESS_ADDR",
       "declared_only_function_count": 0,
       "function_count": 7,
       "functions": [
@@ -1803,7 +1716,6 @@
       "skill_path": "plugins/services/harness/SKILL.md"
     },
     "indexer": {
-      "address_env": "QUARK_INDEXER_ADDR",
       "declared_only_function_count": 0,
       "function_count": 9,
       "functions": [
@@ -1966,7 +1878,6 @@
       "skill_path": "plugins/services/indexer/SKILL.md"
     },
     "io": {
-      "address_env": "QUARK_IO_ADDR",
       "declared_only_function_count": 0,
       "function_count": 12,
       "functions": [
@@ -2177,7 +2088,6 @@
       "skill_path": "plugins/services/io/SKILL.md"
     },
     "runstate": {
-      "address_env": "QUARK_RUNSTATE_ADDR",
       "declared_only_function_count": 0,
       "function_count": 15,
       "functions": [
@@ -2436,7 +2346,6 @@
       "skill_path": "plugins/services/runstate/SKILL.md"
     },
     "secrets": {
-      "address_env": "QUARK_SECRETS_ADDR",
       "declared_only_function_count": 0,
       "function_count": 6,
       "functions": [
@@ -2551,7 +2460,6 @@
       "skill_path": "plugins/services/secrets/SKILL.md"
     },
     "space": {
-      "address_env": "QUARK_SPACE_SERVICE_ADDR",
       "declared_only_function_count": 0,
       "function_count": 11,
       "functions": [
@@ -2746,7 +2654,6 @@
       "skill_path": "plugins/services/space/SKILL.md"
     },
     "system": {
-      "address_env": "QUARK_SYSTEM_ADDR",
       "declared_only_function_count": 0,
       "function_count": 16,
       "functions": [
@@ -3021,7 +2928,6 @@
       "skill_path": "plugins/services/system/SKILL.md"
     },
     "workflow": {
-      "address_env": "QUARK_WORKFLOW_ADDR",
       "declared_only_function_count": 1,
       "function_count": 7,
       "functions": [
@@ -3155,7 +3061,7 @@
   "summary": {
     "agent_profile_count": 4,
     "declared_only_or_mismatched_function_count": 1,
-    "e2e_test_file_count": 32,
+    "e2e_test_file_count": 24,
     "implemented_service_function_count": 147,
     "runnable_service_module_count": 13,
     "service_function_count": 148,

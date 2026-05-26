@@ -13,7 +13,6 @@ import (
 )
 
 type Config struct {
-	Address  string
 	RootDir  string
 	SkillDir string
 	NATS     natskit.Config
@@ -21,9 +20,6 @@ type Config struct {
 }
 
 func Run(ctx context.Context, cfg Config) error {
-	if cfg.Address == "" {
-		cfg.Address = "127.0.0.1:7308"
-	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
@@ -48,7 +44,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return err
 	}
-	descriptor := runstatesvc.Descriptor(cfg.Address, skill)
+	descriptor := runstatesvc.Descriptor(skill)
 	cfg.Logger.Info("runstate service configured", "root", root)
 	cfg.NATS.Logger = cfg.Logger
 	return natskit.RunRPCService(ctx, cfg.NATS, natskit.Binding{

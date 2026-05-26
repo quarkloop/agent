@@ -129,10 +129,8 @@ func serviceSnapshot(env *utils.E2EEnv) []map[string]any {
 	for _, service := range env.Services {
 		service = service.WithDefaults()
 		services = append(services, map[string]any{
-			"name":        service.Name,
-			"plugin":      service.Plugin,
-			"mode":        service.Mode,
-			"address_env": service.AddressEnv,
+			"name":   service.Name,
+			"plugin": service.Plugin,
 		})
 	}
 	return services

@@ -28,6 +28,35 @@ class ImportFinding:
     reason: str
 
 
+def check_services_do_not_call_services() -> list[ImportFinding]:
+    """Reject NATS client service-function invocation from service code.
+
+    Services may host NATS responders and may use their owned JetStream stores,
+    but only runtime/agents coordinate calls across service-function owners.
+    """
+    findings: list[ImportFinding] = []
+    forbidden_tokens = (
+        "ServiceOperation(",
+        ".Call(",
+        "OpenServiceStream(",
+    )
+    for file in go_files(ROOT / "services"):
+        if file.name.endswith("_test.go"):
+            continue
+        source = file.read_text(encoding="utf-8")
+        for token in forbidden_tokens:
+            if token in source:
+                findings.append(
+                    ImportFinding(
+                        "services",
+                        file.relative_to(ROOT),
+                        token,
+                        "service code issues a service-function call; agents/runtime must coordinate",
+                    )
+                )
+    return findings
+
+
 def load_ownership() -> dict:
     with OWNERSHIP_FILE.open("r", encoding="utf-8") as handle:
         return json.load(handle)
@@ -127,6 +156,7 @@ def main() -> int:
     findings: list[ImportFinding] = []
     for area in ownership["ownership"]:
         findings.extend(check_area(area, exceptions))
+    findings.extend(check_services_do_not_call_services())
 
     if findings:
         print("architecture boundary violations:")

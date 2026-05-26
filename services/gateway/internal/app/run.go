@@ -13,7 +13,6 @@ import (
 )
 
 type Config struct {
-	Address           string
 	SkillDir          string
 	NATS              natskit.Config
 	Providers         []ProviderConfig
@@ -33,9 +32,6 @@ type ProviderConfig struct {
 }
 
 func Run(ctx context.Context, cfg Config) error {
-	if cfg.Address == "" {
-		cfg.Address = "127.0.0.1:7306"
-	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
@@ -63,7 +59,7 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	cfg.NATS.Logger = cfg.Logger
 	cfg.Logger.Info("gateway service listening", "providers", server.ProviderIDs())
-	return natskit.RunRPCService(ctx, cfg.NATS, gatewayBinding(cfg.Address, skill, server))
+	return natskit.RunRPCService(ctx, cfg.NATS, gatewayBinding(skill, server))
 }
 
 func providerConfigs(in []ProviderConfig) []gatewaysvc.ProviderConfig {

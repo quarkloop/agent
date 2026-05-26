@@ -1,13 +1,11 @@
 name: document
 version: "1.0.0"
 type: service
-mode: api
 description: "Mechanical document detection, parsing, layout, and OCR over NATS"
 author: quarkloop
 license: Apache-2.0
 
 service:
-  address_env: QUARK_DOCUMENT_ADDR
   health:
     protocol: nats_service
     service: quark.document.v1.DocumentService

@@ -22,7 +22,6 @@ func descriptorsFromServiceManifest(manifest *plugin.Manifest) ([]*servicev1.Ser
 		Name:    manifest.Name,
 		Type:    manifest.Name,
 		Version: manifest.Version,
-		Address: manifest.Service.SubjectPrefix,
 		Rpcs:    make([]*servicev1.RpcDescriptor, 0, len(manifest.Service.Functions)),
 	}
 	for _, function := range manifest.Service.Functions {
@@ -156,9 +155,6 @@ func validateServicePluginDescriptors(descriptors []*servicev1.ServiceDescriptor
 		}
 		if minVersion != "" && desc.GetVersion() != minVersion {
 			return fmt.Errorf("unsupported version %q for %s (required: %s)", desc.GetVersion(), desc.GetName(), minVersion)
-		}
-		if desc.GetAddress() == "" {
-			return fmt.Errorf("descriptor %s missing endpoint address", desc.GetName())
 		}
 		for _, rpc := range desc.GetRpcs() {
 			seenRPC[serviceFunctionKey(rpc.GetService(), rpc.GetMethod())] = true

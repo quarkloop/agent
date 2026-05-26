@@ -15,13 +15,11 @@ import (
 )
 
 func main() {
-	var addr string
 	var dgraphAddr string
 	var skillDir string
 	var natsURL string
 	var natsUser string
 	var natsPassword string
-	flag.StringVar(&addr, "addr", "127.0.0.1:7301", "service descriptor address")
 	flag.StringVar(&dgraphAddr, "dgraph", "127.0.0.1:9080", "Dgraph Alpha gRPC address")
 	flag.StringVar(&skillDir, "skill-dir", "", "directory containing the service SKILL.md")
 	flag.StringVar(&natsURL, "nats-url", os.Getenv("QUARK_NATS_URL"), "NATS URL for service-function endpoints")
@@ -45,7 +43,6 @@ func main() {
 		os.Exit(1)
 	}
 	if err := app.Run(ctx, app.Config{
-		Address:  addr,
 		Driver:   driver,
 		SkillDir: skillDir,
 		NATS: natskit.Config{

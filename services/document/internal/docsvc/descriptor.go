@@ -5,7 +5,7 @@ import (
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 )
 
-func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
+func Descriptor(skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
 	var skills []*servicev1.SkillDescriptor
 	if skill != nil {
 		skills = append(skills, skill)
@@ -15,7 +15,6 @@ func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.Ser
 		Name:    "document",
 		Type:    "document",
 		Version: "1.0.0",
-		Address: address,
 		Rpcs: []*servicev1.RpcDescriptor{
 			rpc(serviceName, "DetectType", "quark.document.v1.DetectTypeRequest", "quark.document.v1.DetectTypeResponse", "Detect MIME type, extension, and coarse document family."),
 			rpc(serviceName, "ParseBytes", "quark.document.v1.ParseBytesRequest", "quark.document.v1.ParseBytesResponse", "Parse bytes into mechanical metadata."),

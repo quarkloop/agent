@@ -32,5 +32,5 @@ references when an agent consumes results.
 - Health service: `quark.document.v1.DocumentService`.
 - Required readiness: yes, before runtime receives this service in the catalog.
 - Minimum descriptor version: `1.0.0`.
-- Startup diagnostics cover missing `QUARK_DOCUMENT_ADDR`, failed health
-  checks, descriptor version mismatch, and missing RPC descriptors.
+- Startup diagnostics cover failed health checks, descriptor version mismatch,
+  and missing RPC descriptors.

@@ -14,12 +14,10 @@ import (
 )
 
 func main() {
-	var addr string
 	var skillDir string
 	var natsURL string
 	var natsUser string
 	var natsPassword string
-	flag.StringVar(&addr, "addr", "127.0.0.1:7309", "service descriptor address")
 	flag.StringVar(&skillDir, "skill-dir", "", "directory containing the service SKILL.md")
 	flag.StringVar(&natsURL, "nats-url", os.Getenv("QUARK_NATS_URL"), "NATS URL for service-function endpoints")
 	flag.StringVar(&natsUser, "nats-user", envOrDefault("QUARK_NATS_SERVICE_USER", os.Getenv("QUARK_NATS_USER")), "NATS username")
@@ -34,7 +32,6 @@ func main() {
 	defer stop()
 
 	if err := app.Run(ctx, app.Config{
-		Address:  addr,
 		SkillDir: skillDir,
 		NATS: natskit.Config{
 			URL:             natsURL,

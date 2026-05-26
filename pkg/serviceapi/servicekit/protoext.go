@@ -13,7 +13,6 @@ func CloneDescriptor(x *servicev1.ServiceDescriptor) *servicev1.ServiceDescripto
 		Name:    x.GetName(),
 		Type:    x.GetType(),
 		Version: x.GetVersion(),
-		Address: x.GetAddress(),
 		Rpcs:    make([]*servicev1.RpcDescriptor, 0, len(x.GetRpcs())),
 		Skills:  make([]*servicev1.SkillDescriptor, 0, len(x.GetSkills())),
 	}

@@ -6,7 +6,7 @@ import (
 )
 
 func TestDescriptorMarksStreamGenerateAsStreaming(t *testing.T) {
-	desc := Descriptor("127.0.0.1:0", nil)
+	desc := Descriptor(nil)
 	for _, rpc := range desc.GetRpcs() {
 		if rpc.GetMethod() == "StreamGenerate" {
 			if !rpc.GetStreaming() {
@@ -19,7 +19,7 @@ func TestDescriptorMarksStreamGenerateAsStreaming(t *testing.T) {
 }
 
 func TestDescriptorPublishesCanonicalSubjectsAndOwnership(t *testing.T) {
-	desc := Descriptor("127.0.0.1:0", nil)
+	desc := Descriptor(nil)
 	if len(desc.GetRpcs()) == 0 {
 		t.Fatal("Gateway descriptor has no service functions")
 	}

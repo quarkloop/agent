@@ -395,7 +395,7 @@ func workflowSupportToolAllowed(kind Kind, currentStepID, tool string) bool {
 }
 
 func knowledgeIndexServiceFunction(name string) bool {
-	for _, prefix := range []string{"citation_", "core_", "document_", "embedding_", "indexer_", "runstate_", "gateway_"} {
+	for _, prefix := range []string{"citation_", "core_", "document_", "indexer_", "runstate_", "gateway_"} {
 		if strings.HasPrefix(name, prefix) {
 			return true
 		}

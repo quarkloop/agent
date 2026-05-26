@@ -20,7 +20,7 @@ type Manifest struct {
 	License     string     `yaml:"license,omitempty"`
 	Repository  string     `yaml:"repository,omitempty"`
 
-	// Plugin loading mode
+	// Plugin loading mode applies only to executable tool plugins.
 	Mode  PluginMode   `yaml:"mode"`
 	Build *BuildConfig `yaml:"build,omitempty"`
 
@@ -71,11 +71,6 @@ type ServiceConfig struct {
 	SubjectPrefix string `yaml:"subject_prefix,omitempty"`
 	// QueueGroup is the queue group used by service workers.
 	QueueGroup string `yaml:"queue_group,omitempty"`
-	// AddressEnv names the environment variable that contains the service
-	// address. The supervisor resolves it before runtime startup.
-	AddressEnv string `yaml:"address_env,omitempty"`
-	// DefaultAddress is used when AddressEnv is empty or unset.
-	DefaultAddress string `yaml:"default_address,omitempty"`
 	// Health declares how supervisor checks service liveness/readiness.
 	Health ServiceHealthConfig `yaml:"health,omitempty"`
 	// Readiness declares startup readiness requirements.
@@ -192,20 +187,18 @@ func (m *Manifest) Validate() error {
 		return fmt.Errorf("invalid type: %s (must be tool, agent, skill, or service)", m.Type)
 	}
 
-	// Validate mode
-	if m.Mode == "" {
-		m.Mode = ModeAPI // default to api mode for backward compatibility
-	}
-	switch m.Mode {
-	case ModeLib, ModeAPI, ModeCLI:
-		// valid
-	default:
-		return fmt.Errorf("invalid mode: %s (must be lib, api, or cli)", m.Mode)
-	}
-
 	// Validate type-specific config is present
 	switch m.Type {
 	case TypeTool:
+		if m.Mode == "" {
+			return fmt.Errorf("mode is required for tool plugins")
+		}
+		switch m.Mode {
+		case ModeLib, ModeAPI, ModeCLI:
+			// valid executable tool modes
+		default:
+			return fmt.Errorf("invalid tool mode: %s (must be lib, api, or cli)", m.Mode)
+		}
 		if m.Tool == nil {
 			return fmt.Errorf("tool config is required for tool plugins")
 		}
@@ -213,6 +206,9 @@ func (m *Manifest) Validate() error {
 			return fmt.Errorf("tool.schema.name is required")
 		}
 	case TypeAgent:
+		if m.Mode != "" {
+			return fmt.Errorf("agent plugins must not declare an execution mode")
+		}
 		if m.Agent == nil {
 			return fmt.Errorf("agent config is required for agent plugins")
 		}
@@ -230,8 +226,14 @@ func (m *Manifest) Validate() error {
 			m.Agent.Skill = "SKILL.md"
 		}
 	case TypeSkill:
+		if m.Mode != "" {
+			return fmt.Errorf("skill plugins must not declare an execution mode")
+		}
 		// Skill config is optional
 	case TypeService:
+		if m.Mode != "" {
+			return fmt.Errorf("service plugins must not declare an execution mode")
+		}
 		if m.Service == nil {
 			return fmt.Errorf("service config is required for service plugins")
 		}

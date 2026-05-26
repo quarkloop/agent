@@ -1,13 +1,11 @@
 name: citation
 version: "1.0.0"
 type: service
-mode: api
 description: "Source span resolution and grounding verification over NATS"
 author: quarkloop
 license: Apache-2.0
 
 service:
-  address_env: QUARK_CITATION_ADDR
   health:
     protocol: nats_service
     service: quark.citation.v1.CitationService

@@ -7,7 +7,8 @@ import (
 	"github.com/quarkloop/pkg/boundary"
 	"github.com/quarkloop/runtime/pkg/activity"
 	"github.com/quarkloop/runtime/pkg/message"
-	"github.com/quarkloop/runtime/pkg/modelservice"
+	"github.com/quarkloop/runtime/pkg/modelusage"
+	"github.com/quarkloop/runtime/pkg/runcontext"
 )
 
 func (a *Agent) instrumentResponse(ctx context.Context, sessionID string, downstream chan message.StreamMessage) (chan message.StreamMessage, func()) {
@@ -42,7 +43,7 @@ func (a *Agent) recordStreamActivity(sessionID string, msg message.StreamMessage
 
 func (a *Agent) emitMessageError(ctx context.Context, sessionID string, response chan message.StreamMessage, err error) {
 	payload := boundary.StreamPayload(err, boundary.Runtime, "message")
-	if runID := modelservice.RunID(ctx); runID != "" {
+	if runID := runcontext.RunID(ctx); runID != "" {
 		payload["run_id"] = runID
 	}
 	if sessionID != "" {
@@ -57,10 +58,10 @@ func (a *Agent) emitMessageError(ctx context.Context, sessionID string, response
 	message.Emit(ctx, response, message.StreamMessage{Type: "error", Data: payload})
 }
 
-func (a *Agent) recordModelUsage(ctx context.Context, usage modelservice.Usage) {
+func (a *Agent) recordModelUsage(ctx context.Context, usage modelusage.Usage) {
 	sessionID := usage.SessionID
 	if sessionID == "" {
-		sessionID = modelservice.SessionID(ctx)
+		sessionID = runcontext.SessionID(ctx)
 		usage.SessionID = sessionID
 	}
 	if a.Activity != nil {

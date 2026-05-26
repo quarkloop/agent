@@ -6,7 +6,7 @@
     "agent_plugin": "Installable definition of an agent role, prompts, skills, default permissions, handoff rules, and evaluation requirements.",
     "agent_profile": "Resolved runtime contract produced from an agent plugin plus space configuration/session overrides.",
     "service_plugin": "Installable descriptor for a protobuf-backed NATS service and its exported service functions.",
-    "service_function": "Agent-facing callable service capability exposed through the runtime tool-call envelope.",
+    "service_function": "Agent-facing callable service operation exposed through the runtime tool-call envelope.",
     "tool_plugin": "Installable tool implementation with schema, execution code, and SKILL.md guidance.",
     "provider_plugin": "Legacy model-provider adapter category removed from runtime; provider dispatch is owned by Gateway.",
     "space": "Isolated workspace identity whose authoritative configuration persistence is owned by the Space service.",

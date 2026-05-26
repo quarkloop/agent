@@ -1,13 +1,11 @@
 name: runstate
 version: "1.0.0"
 type: service
-mode: api
 description: "Durable workflow-neutral run state and active lease coordination over NATS"
 author: quarkloop
 license: Apache-2.0
 
 service:
-  address_env: QUARK_RUNSTATE_ADDR
   health:
     protocol: nats_service
     service: quark.runstate.v1.RunStateService

@@ -32,7 +32,7 @@ func (s *Server) DetectType(ctx context.Context, req *documentv1.DetectTypeReque
 	input := inputFromProto(req.GetInput())
 	source, err := sourceForDetection(ctx, input)
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	detected := detectSource(source)
 	return &documentv1.DetectTypeResponse{
@@ -47,7 +47,7 @@ func (s *Server) DetectType(ctx context.Context, req *documentv1.DetectTypeReque
 func (s *Server) ParseBytes(ctx context.Context, req *documentv1.ParseBytesRequest) (*documentv1.ParseBytesResponse, error) {
 	parsed, err := s.parse(ctx, req.GetInput())
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &documentv1.ParseBytesResponse{
 		DocumentId:     parsed.DocumentID,
@@ -63,7 +63,7 @@ func (s *Server) ParseBytes(ctx context.Context, req *documentv1.ParseBytesReque
 func (s *Server) ExtractText(ctx context.Context, req *documentv1.ExtractTextRequest) (*documentv1.ExtractTextResponse, error) {
 	parsed, err := s.parse(ctx, req.GetInput())
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	text, pages := limitedTextPages(parsed.Pages, req.GetMaxChars())
 	return &documentv1.ExtractTextResponse{
@@ -77,7 +77,7 @@ func (s *Server) ExtractText(ctx context.Context, req *documentv1.ExtractTextReq
 func (s *Server) ExtractLayout(ctx context.Context, req *documentv1.ExtractLayoutRequest) (*documentv1.ExtractLayoutResponse, error) {
 	parsed, err := s.parse(ctx, req.GetInput())
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &documentv1.ExtractLayoutResponse{Pages: layoutPagesToProto(parsed.Layouts)}, nil
 }
@@ -85,7 +85,7 @@ func (s *Server) ExtractLayout(ctx context.Context, req *documentv1.ExtractLayou
 func (s *Server) GetPages(ctx context.Context, req *documentv1.GetPagesRequest) (*documentv1.GetPagesResponse, error) {
 	parsed, err := s.parse(ctx, req.GetInput())
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	pages := make([]*documentv1.Page, 0, len(parsed.Pages))
 	layoutByPage := layoutByPageNumber(parsed.Layouts)
@@ -113,7 +113,7 @@ func (s *Server) GetPages(ctx context.Context, req *documentv1.GetPagesRequest) 
 func (s *Server) ExtractTables(ctx context.Context, req *documentv1.ExtractTablesRequest) (*documentv1.ExtractTablesResponse, error) {
 	parsed, err := s.parse(ctx, req.GetInput())
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &documentv1.ExtractTablesResponse{Tables: tablesToProto(parsed.Tables)}, nil
 }
@@ -121,7 +121,7 @@ func (s *Server) ExtractTables(ctx context.Context, req *documentv1.ExtractTable
 func (s *Server) ExtractImages(ctx context.Context, req *documentv1.ExtractImagesRequest) (*documentv1.ExtractImagesResponse, error) {
 	parsed, err := s.parse(ctx, req.GetInput())
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &documentv1.ExtractImagesResponse{Images: imagesToProto(parsed.Images)}, nil
 }
@@ -129,10 +129,10 @@ func (s *Server) ExtractImages(ctx context.Context, req *documentv1.ExtractImage
 func (s *Server) RunOCR(ctx context.Context, req *documentv1.RunOCRRequest) (*documentv1.RunOCRResponse, error) {
 	parsed, err := s.parse(ctx, req.GetInput())
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	if parsed.Family == "image" {
-		return nil, grpcError(errOCRBackendMissing)
+		return nil, serviceError(errOCRBackendMissing)
 	}
 	pages := selectPages(parsed.Pages, req.GetPageNumbers())
 	return &documentv1.RunOCRResponse{
@@ -166,7 +166,7 @@ func sourceForDetection(ctx context.Context, input documentInput) (sourceDocumen
 	return sourceDocument{}, err
 }
 
-func grpcError(err error) error {
+func serviceError(err error) error {
 	switch {
 	case errors.Is(err, errEmptyInput):
 		return serviceerrors.InvalidArgument(err.Error())

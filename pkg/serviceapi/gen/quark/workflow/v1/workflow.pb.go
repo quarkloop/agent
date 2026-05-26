@@ -804,7 +804,7 @@ type DocumentIngestionWorkflow struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Title         string                 `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`
 	Sources       []*WorkflowSource      `protobuf:"bytes,2,rep,name=sources,proto3" json:"sources,omitempty"`
-	Steps         []*ServiceFunctionCall `protobuf:"bytes,3,rep,name=steps,proto3" json:"steps,omitempty"`
+	Checkpoints   []*WorkflowCheckpoint  `protobuf:"bytes,3,rep,name=checkpoints,proto3" json:"checkpoints,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -853,9 +853,9 @@ func (x *DocumentIngestionWorkflow) GetSources() []*WorkflowSource {
 	return nil
 }
 
-func (x *DocumentIngestionWorkflow) GetSteps() []*ServiceFunctionCall {
+func (x *DocumentIngestionWorkflow) GetCheckpoints() []*WorkflowCheckpoint {
 	if x != nil {
-		return x.Steps
+		return x.Checkpoints
 	}
 	return nil
 }
@@ -936,32 +936,32 @@ func (x *WorkflowSource) GetMetadata() map[string]string {
 	return nil
 }
 
-type ServiceFunctionCall struct {
+// WorkflowCheckpoint is durable coordination state. The agent executes any
+// required service functions and signals the workflow when the checkpoint is
+// complete or failed.
+type WorkflowCheckpoint struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Service       string                 `protobuf:"bytes,2,opt,name=service,proto3" json:"service,omitempty"`
-	Function      string                 `protobuf:"bytes,3,opt,name=function,proto3" json:"function,omitempty"`
-	Subject       string                 `protobuf:"bytes,4,opt,name=subject,proto3" json:"subject,omitempty"`
-	PayloadJson   string                 `protobuf:"bytes,5,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"`
-	Required      bool                   `protobuf:"varint,6,opt,name=required,proto3" json:"required,omitempty"`
+	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	Required      bool                   `protobuf:"varint,3,opt,name=required,proto3" json:"required,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ServiceFunctionCall) Reset() {
-	*x = ServiceFunctionCall{}
+func (x *WorkflowCheckpoint) Reset() {
+	*x = WorkflowCheckpoint{}
 	mi := &file_quark_workflow_v1_workflow_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ServiceFunctionCall) String() string {
+func (x *WorkflowCheckpoint) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ServiceFunctionCall) ProtoMessage() {}
+func (*WorkflowCheckpoint) ProtoMessage() {}
 
-func (x *ServiceFunctionCall) ProtoReflect() protoreflect.Message {
+func (x *WorkflowCheckpoint) ProtoReflect() protoreflect.Message {
 	mi := &file_quark_workflow_v1_workflow_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -973,47 +973,26 @@ func (x *ServiceFunctionCall) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ServiceFunctionCall.ProtoReflect.Descriptor instead.
-func (*ServiceFunctionCall) Descriptor() ([]byte, []int) {
+// Deprecated: Use WorkflowCheckpoint.ProtoReflect.Descriptor instead.
+func (*WorkflowCheckpoint) Descriptor() ([]byte, []int) {
 	return file_quark_workflow_v1_workflow_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *ServiceFunctionCall) GetId() string {
+func (x *WorkflowCheckpoint) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *ServiceFunctionCall) GetService() string {
+func (x *WorkflowCheckpoint) GetDescription() string {
 	if x != nil {
-		return x.Service
+		return x.Description
 	}
 	return ""
 }
 
-func (x *ServiceFunctionCall) GetFunction() string {
-	if x != nil {
-		return x.Function
-	}
-	return ""
-}
-
-func (x *ServiceFunctionCall) GetSubject() string {
-	if x != nil {
-		return x.Subject
-	}
-	return ""
-}
-
-func (x *ServiceFunctionCall) GetPayloadJson() string {
-	if x != nil {
-		return x.PayloadJson
-	}
-	return ""
-}
-
-func (x *ServiceFunctionCall) GetRequired() bool {
+func (x *WorkflowCheckpoint) GetRequired() bool {
 	if x != nil {
 		return x.Required
 	}
@@ -1133,7 +1112,7 @@ type WorkflowEvent struct {
 	WorkflowId    string                 `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
 	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
-	StepId        string                 `protobuf:"bytes,4,opt,name=step_id,json=stepId,proto3" json:"step_id,omitempty"`
+	CheckpointId  string                 `protobuf:"bytes,4,opt,name=checkpoint_id,json=checkpointId,proto3" json:"checkpoint_id,omitempty"`
 	Message       string                 `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
 	OccurredAt    string                 `protobuf:"bytes,6,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
 	PayloadJson   string                 `protobuf:"bytes,7,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"`
@@ -1192,9 +1171,9 @@ func (x *WorkflowEvent) GetType() string {
 	return ""
 }
 
-func (x *WorkflowEvent) GetStepId() string {
+func (x *WorkflowEvent) GetCheckpointId() string {
 	if x != nil {
-		return x.StepId
+		return x.CheckpointId
 	}
 	return ""
 }
@@ -1280,11 +1259,11 @@ const file_quark_workflow_v1_workflow_proto_rawDesc = "" +
 	"\x18DescribeWorkflowResponse\x12;\n" +
 	"\bworkflow\x18\x01 \x01(\v2\x1f.quark.workflow.v1.WorkflowInfoR\bworkflow\"V\n" +
 	"\x15ListWorkflowsResponse\x12=\n" +
-	"\tworkflows\x18\x01 \x03(\v2\x1f.quark.workflow.v1.WorkflowInfoR\tworkflows\"\xac\x01\n" +
+	"\tworkflows\x18\x01 \x03(\v2\x1f.quark.workflow.v1.WorkflowInfoR\tworkflows\"\xb7\x01\n" +
 	"\x19DocumentIngestionWorkflow\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12;\n" +
-	"\asources\x18\x02 \x03(\v2!.quark.workflow.v1.WorkflowSourceR\asources\x12<\n" +
-	"\x05steps\x18\x03 \x03(\v2&.quark.workflow.v1.ServiceFunctionCallR\x05steps\"\xf4\x01\n" +
+	"\asources\x18\x02 \x03(\v2!.quark.workflow.v1.WorkflowSourceR\asources\x12G\n" +
+	"\vcheckpoints\x18\x03 \x03(\v2%.quark.workflow.v1.WorkflowCheckpointR\vcheckpoints\"\xf4\x01\n" +
 	"\x0eWorkflowSource\x12\x10\n" +
 	"\x03uri\x18\x01 \x01(\tR\x03uri\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x1a\n" +
@@ -1293,14 +1272,11 @@ const file_quark_workflow_v1_workflow_proto_rawDesc = "" +
 	"\bmetadata\x18\x05 \x03(\v2/.quark.workflow.v1.WorkflowSource.MetadataEntryR\bmetadata\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb4\x01\n" +
-	"\x13ServiceFunctionCall\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
-	"\aservice\x18\x02 \x01(\tR\aservice\x12\x1a\n" +
-	"\bfunction\x18\x03 \x01(\tR\bfunction\x12\x18\n" +
-	"\asubject\x18\x04 \x01(\tR\asubject\x12!\n" +
-	"\fpayload_json\x18\x05 \x01(\tR\vpayloadJson\x12\x1a\n" +
-	"\brequired\x18\x06 \x01(\bR\brequired\"\xae\x03\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"b\n" +
+	"\x12WorkflowCheckpoint\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1a\n" +
+	"\brequired\x18\x03 \x01(\bR\brequired\"\xae\x03\n" +
 	"\fWorkflowInfo\x12\x1f\n" +
 	"\vworkflow_id\x18\x01 \x01(\tR\n" +
 	"workflowId\x12\x15\n" +
@@ -1317,13 +1293,13 @@ const file_quark_workflow_v1_workflow_proto_rawDesc = "" +
 	"\bmetadata\x18\t \x03(\v2-.quark.workflow.v1.WorkflowInfo.MetadataEntryR\bmetadata\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xd2\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xde\x01\n" +
 	"\rWorkflowEvent\x12\x1f\n" +
 	"\vworkflow_id\x18\x01 \x01(\tR\n" +
 	"workflowId\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x12\n" +
-	"\x04type\x18\x03 \x01(\tR\x04type\x12\x17\n" +
-	"\astep_id\x18\x04 \x01(\tR\x06stepId\x12\x18\n" +
+	"\x04type\x18\x03 \x01(\tR\x04type\x12#\n" +
+	"\rcheckpoint_id\x18\x04 \x01(\tR\fcheckpointId\x12\x18\n" +
 	"\amessage\x18\x05 \x01(\tR\amessage\x12\x1f\n" +
 	"\voccurred_at\x18\x06 \x01(\tR\n" +
 	"occurredAt\x12!\n" +
@@ -1374,7 +1350,7 @@ var file_quark_workflow_v1_workflow_proto_goTypes = []any{
 	(*ListWorkflowsResponse)(nil),       // 13: quark.workflow.v1.ListWorkflowsResponse
 	(*DocumentIngestionWorkflow)(nil),   // 14: quark.workflow.v1.DocumentIngestionWorkflow
 	(*WorkflowSource)(nil),              // 15: quark.workflow.v1.WorkflowSource
-	(*ServiceFunctionCall)(nil),         // 16: quark.workflow.v1.ServiceFunctionCall
+	(*WorkflowCheckpoint)(nil),          // 16: quark.workflow.v1.WorkflowCheckpoint
 	(*WorkflowInfo)(nil),                // 17: quark.workflow.v1.WorkflowInfo
 	(*WorkflowEvent)(nil),               // 18: quark.workflow.v1.WorkflowEvent
 	nil,                                 // 19: quark.workflow.v1.StartWorkflowRequest.MetadataEntry
@@ -1391,7 +1367,7 @@ var file_quark_workflow_v1_workflow_proto_depIdxs = []int32{
 	17, // 6: quark.workflow.v1.DescribeWorkflowResponse.workflow:type_name -> quark.workflow.v1.WorkflowInfo
 	17, // 7: quark.workflow.v1.ListWorkflowsResponse.workflows:type_name -> quark.workflow.v1.WorkflowInfo
 	15, // 8: quark.workflow.v1.DocumentIngestionWorkflow.sources:type_name -> quark.workflow.v1.WorkflowSource
-	16, // 9: quark.workflow.v1.DocumentIngestionWorkflow.steps:type_name -> quark.workflow.v1.ServiceFunctionCall
+	16, // 9: quark.workflow.v1.DocumentIngestionWorkflow.checkpoints:type_name -> quark.workflow.v1.WorkflowCheckpoint
 	20, // 10: quark.workflow.v1.WorkflowSource.metadata:type_name -> quark.workflow.v1.WorkflowSource.MetadataEntry
 	0,  // 11: quark.workflow.v1.WorkflowInfo.status:type_name -> quark.workflow.v1.WorkflowStatus
 	21, // 12: quark.workflow.v1.WorkflowInfo.metadata:type_name -> quark.workflow.v1.WorkflowInfo.MetadataEntry

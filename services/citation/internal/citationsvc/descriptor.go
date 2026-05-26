@@ -5,12 +5,11 @@ import (
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 )
 
-func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
+func Descriptor(skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
 	return &servicev1.ServiceDescriptor{
 		Name:    "citation",
 		Type:    "citation",
 		Version: "1.0.0",
-		Address: address,
 		Rpcs: []*servicev1.RpcDescriptor{
 			rpc("ResolveSpans", "quark.citation.v1.ResolveSpansRequest", "quark.citation.v1.ResolveSpansResponse", "Resolve selected claim text into source spans with offsets and confidence."),
 			rpc("CreateCitation", "quark.citation.v1.CreateCitationRequest", "quark.citation.v1.CitationSpan", "Create one normalized citation span from source text and selected evidence."),

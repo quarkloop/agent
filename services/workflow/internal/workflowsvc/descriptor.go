@@ -5,7 +5,7 @@ import (
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 )
 
-func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
+func Descriptor(skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
 	var skills []*servicev1.SkillDescriptor
 	if skill != nil {
 		skills = append(skills, skill)
@@ -15,7 +15,6 @@ func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.Ser
 		Name:    "workflow",
 		Type:    "workflow",
 		Version: "1.0.0",
-		Address: address,
 		Rpcs: []*servicev1.RpcDescriptor{
 			rpc(serviceName, "Start", "quark.workflow.v1.StartWorkflowRequest", "quark.workflow.v1.StartWorkflowResponse", "Start a durable workflow."),
 			rpc(serviceName, "Signal", "quark.workflow.v1.SignalWorkflowRequest", "quark.workflow.v1.SignalWorkflowResponse", "Send a signal to a running workflow."),

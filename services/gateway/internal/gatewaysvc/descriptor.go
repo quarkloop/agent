@@ -5,7 +5,7 @@ import (
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 )
 
-func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
+func Descriptor(skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
 	var skills []*servicev1.SkillDescriptor
 	if skill != nil {
 		skills = append(skills, skill)
@@ -15,7 +15,6 @@ func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.Ser
 		Name:    "gateway",
 		Type:    "gateway",
 		Version: "1.0.0",
-		Address: address,
 		Rpcs: []*servicev1.RpcDescriptor{
 			rpc("gateway_Generate", serviceName, "Generate", "quark.gateway.v1.GenerateRequest", "quark.gateway.v1.GenerateResponse", "Run one non-streaming model generation request."),
 			streamingRPC("gateway_StreamGenerate", serviceName, "StreamGenerate", "quark.gateway.v1.StreamGenerateRequest", "quark.gateway.v1.StreamGenerateResponse", "Run one streaming model generation request."),

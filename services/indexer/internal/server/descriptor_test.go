@@ -11,7 +11,7 @@ import (
 
 func TestDescriptorPublishesOnlyCanonicalIndexerSubjects(t *testing.T) {
 	t.Parallel()
-	descriptor := Descriptor("", nil)
+	descriptor := Descriptor(nil)
 	if len(descriptor.GetRpcs()) == 0 {
 		t.Fatal("descriptor has no service functions")
 	}

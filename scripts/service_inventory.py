@@ -116,7 +116,6 @@ def scalar_after_colon(line: str) -> tuple[str, Any] | None:
 def parse_service_manifest(path: pathlib.Path) -> dict[str, Any]:
     top: dict[str, Any] = {}
     service: dict[str, Any] = {
-        "address_env": "",
         "health_service": "",
         "readiness_required": False,
         "skill": "",
@@ -215,7 +214,6 @@ def parse_service_manifest(path: pathlib.Path) -> dict[str, Any]:
         "manifest_path": path.relative_to(ROOT).as_posix(),
         "skill_path": (path.parent / service["skill"]).relative_to(ROOT).as_posix() if service["skill"] else "",
         "readme_path": (path.parent / service["readme"]).relative_to(ROOT).as_posix() if service["readme"] else "",
-        "address_env": service["address_env"],
         "health_service": service["health_service"],
         "readiness_required": service["readiness_required"],
         "proto_services": service["proto_services"],
@@ -366,7 +364,6 @@ def build_service_inventory(manifests: list[dict[str, Any]], proto_services: dic
             "readme_path": manifest["readme_path"],
             "module_path": module.relative_to(ROOT).as_posix() if module else "",
             "module_exists": module is not None,
-            "address_env": manifest["address_env"],
             "health_service": manifest["health_service"],
             "readiness_required": manifest["readiness_required"],
             "proto_services": manifest["proto_services"],

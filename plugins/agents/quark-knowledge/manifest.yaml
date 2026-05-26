@@ -1,7 +1,6 @@
 name: quark-knowledge
 version: "1.0.0"
 type: agent
-mode: api
 description: "Quark Knowledge agent profile"
 author: quarkloop
 license: Apache-2.0
@@ -60,6 +59,12 @@ agent:
     - core_EvaluatePolicy
     - core_RecordAuditEvent
     - core_PutArtifact
+    - harness_GetContextReport
+    - harness_StreamContextReports
+    - harness_PutMemory
+    - harness_GetMemory
+    - harness_SearchMemory
+    - harness_DeleteMemory
     - workflow_Start
     - workflow_Query
     - workflow_Describe

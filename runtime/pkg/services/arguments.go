@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/quarkloop/runtime/pkg/modelservice"
+	"github.com/quarkloop/runtime/pkg/runcontext"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -120,7 +120,7 @@ func serviceRequestUnmarshalOptions() protojson.UnmarshalOptions {
 }
 
 func injectRuntimeContextArguments(ctx context.Context, typeName, arguments string) (string, error) {
-	spaceID := strings.TrimSpace(modelservice.SpaceID(ctx))
+	spaceID := strings.TrimSpace(runcontext.SpaceID(ctx))
 	if spaceID == "" {
 		return arguments, nil
 	}

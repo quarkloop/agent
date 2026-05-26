@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/quarkloop/pkg/plugin"
-	"github.com/quarkloop/runtime/pkg/modelservice"
+	"github.com/quarkloop/runtime/pkg/runcontext"
 )
 
 type fakeProvider struct {
@@ -132,7 +132,7 @@ func TestInferStreamsTraceableToolEvents(t *testing.T) {
 	client := NewClientWithLimits(provider, "test-model", 0, InferenceLimits{MaxTurns: 1, MaxFinalGuardRetries: 1})
 
 	var events []map[string]any
-	ctx := modelservice.WithRunID(modelservice.WithSessionID(context.Background(), "session-1"), "run-1")
+	ctx := runcontext.WithRunID(runcontext.WithSessionID(context.Background(), "session-1"), "run-1")
 	_, err := client.Infer(
 		ctx,
 		[]plugin.Message{{Role: "user", Content: "index"}},

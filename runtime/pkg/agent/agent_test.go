@@ -14,9 +14,10 @@ import (
 	"github.com/quarkloop/runtime/pkg/harnessclient"
 	"github.com/quarkloop/runtime/pkg/hierarchy"
 	"github.com/quarkloop/runtime/pkg/message"
-	"github.com/quarkloop/runtime/pkg/modelservice"
+	"github.com/quarkloop/runtime/pkg/modelusage"
 	"github.com/quarkloop/runtime/pkg/permissions"
 	"github.com/quarkloop/runtime/pkg/pluginmanager"
+	"github.com/quarkloop/runtime/pkg/runcontext"
 )
 
 func TestPromptMaterialsIncludeConfiguredPluginMaterial(t *testing.T) {
@@ -232,7 +233,7 @@ func TestExecuteToolUsesAssistiveApprovalGate(t *testing.T) {
 		err    error
 	}
 	resultCh := make(chan toolResult, 1)
-	ctx := modelservice.WithSessionID(context.Background(), "session-1")
+	ctx := runcontext.WithSessionID(context.Background(), "session-1")
 	go func() {
 		output, err := a.executeTool(ctx, "runtime_echo", `{"value":"hello"}`)
 		resultCh <- toolResult{output: output, err: err}
@@ -304,7 +305,7 @@ func TestExecuteToolDeniesUnpermittedServiceFunctionAndRecordsPolicyEvent(t *tes
 		},
 	})
 
-	ctx := modelservice.WithSessionID(context.Background(), "session-1")
+	ctx := runcontext.WithSessionID(context.Background(), "session-1")
 	_, err := a.executeTool(ctx, "indexer_QueryContext", `{"authorization":"Bearer secret-value"}`)
 	if err == nil {
 		t.Fatal("expected permission denial")
@@ -365,8 +366,8 @@ func TestInstrumentResponseRecordsToolActivity(t *testing.T) {
 
 func TestRecordModelUsageStoresRedactedSessionActivity(t *testing.T) {
 	a := newTestAgent(t)
-	ctx := modelservice.WithSessionID(context.Background(), "session-1")
-	a.recordModelUsage(ctx, modelservice.Usage{
+	ctx := runcontext.WithSessionID(context.Background(), "session-1")
+	a.recordModelUsage(ctx, modelusage.Usage{
 		Provider:      "openrouter",
 		Model:         "openai/gpt-test",
 		InputTokens:   11,
@@ -379,7 +380,7 @@ func TestRecordModelUsageStoresRedactedSessionActivity(t *testing.T) {
 	if len(records) != 1 || records[0].Type != "model.usage" || records[0].SessionID != "session-1" {
 		t.Fatalf("activity records = %+v", records)
 	}
-	var usage modelservice.Usage
+	var usage modelusage.Usage
 	if err := json.Unmarshal(records[0].Data, &usage); err != nil {
 		t.Fatalf("decode usage: %v", err)
 	}
@@ -396,7 +397,7 @@ func TestEmitMessageErrorPropagatesBoundaryCategory(t *testing.T) {
 	response := make(chan message.StreamMessage, 1)
 	err := plugin.NewProviderError(plugin.ProviderErrorRateLimit, "openrouter", "model-a", 429, nil)
 
-	ctx := modelservice.WithRunID(context.Background(), "run-1")
+	ctx := runcontext.WithRunID(context.Background(), "run-1")
 	a.emitMessageError(ctx, "session-1", response, err)
 
 	select {

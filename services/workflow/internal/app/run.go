@@ -15,7 +15,6 @@ import (
 )
 
 type Config struct {
-	Address           string
 	SkillDir          string
 	TemporalAddress   string
 	TemporalNamespace string
@@ -46,23 +45,9 @@ func Run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("connect temporal: %w", err)
 	}
-	var serviceClient *natskit.Client
-	if cfg.NATS.URL != "" {
-		activityConfig := cfg.NATS
-		activityConfig.Name = "quark-workflow-activities"
-		serviceClient, err = natskit.Connect(ctx, activityConfig)
-		if err != nil {
-			temporalClient.Close()
-			return fmt.Errorf("connect nats for workflow activities: %w", err)
-		}
-	}
-	dispatcher := workflowsvc.NewNATSDispatcher(serviceClient, natskit.DefaultTimeout)
 	workerInstance := worker.New(temporalClient, cfg.TaskQueue, worker.Options{})
-	workflowsvc.RegisterTemporalWorker(workerInstance, dispatcher, events)
+	workflowsvc.RegisterTemporalWorker(workerInstance, events)
 	if err := workerInstance.Start(); err != nil {
-		if serviceClient != nil {
-			serviceClient.Close()
-		}
 		temporalClient.Close()
 		return fmt.Errorf("start temporal worker: %w", err)
 	}
@@ -70,30 +55,19 @@ func Run(ctx context.Context, cfg Config) error {
 	engine, err := workflowsvc.NewTemporalEngine(temporalClient, cfg.TaskQueue, events)
 	if err != nil {
 		workerInstance.Stop()
-		if serviceClient != nil {
-			serviceClient.Close()
-		}
 		return err
 	}
 	server, err := workflowsvc.NewServer(engine, cfg.Logger)
 	if err != nil {
 		workerInstance.Stop()
-		if serviceClient != nil {
-			serviceClient.Close()
-		}
 		return err
 	}
 	defer server.Close()
 	defer workerInstance.Stop()
-	defer func() {
-		if serviceClient != nil {
-			serviceClient.Close()
-		}
-	}()
 
 	cfg.NATS.Logger = cfg.Logger
 	cfg.Logger.Info("workflow service listening", "temporal", cfg.TemporalAddress, "task_queue", cfg.TaskQueue)
-	return natskit.RunRPCService(ctx, cfg.NATS, workflowBinding(cfg.Address, skill, server))
+	return natskit.RunRPCService(ctx, cfg.NATS, workflowBinding(skill, server))
 }
 
 func resolveSkillPath(skillDir string) (string, error) {
@@ -113,9 +87,6 @@ func resolveSkillPath(skillDir string) (string, error) {
 }
 
 func normalizeConfig(cfg Config) Config {
-	if cfg.Address == "" {
-		cfg.Address = "127.0.0.1:7315"
-	}
 	if cfg.TemporalAddress == "" {
 		cfg.TemporalAddress = "127.0.0.1:7233"
 	}

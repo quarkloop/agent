@@ -2,7 +2,7 @@
 
 The document service owns mechanical document inspection and extraction. It is a
 NATS service-function provider used by agents when source files need parser-backed evidence before
-the agent performs semantic extraction with the model service.
+the agent performs semantic extraction through Gateway.
 
 The service does not classify business meaning, infer schemas, choose chunks,
 create embeddings, write index records, call another service, or answer users.
@@ -42,7 +42,7 @@ encoding semantic schemas into the parser.
 ## Run
 
 ```bash
-go run ./services/document/cmd/document --addr 127.0.0.1:7307 --skill-dir plugins/services/document
+go run ./services/document/cmd/document --skill-dir plugins/services/document
 ```
 
 Set `QUARK_PDFTOTEXT_PATH` or pass `--pdftotext` to select a specific PDF text

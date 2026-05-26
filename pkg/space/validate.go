@@ -188,16 +188,6 @@ func validateServices(services []ServiceRef) error {
 			return fmt.Errorf("services[%d]: duplicate service %q", i, service.Name)
 		}
 		seen[service.Name] = true
-		switch service.Mode {
-		case "", "local", "online":
-		default:
-			return fmt.Errorf("services[%d]: mode must be local or online", i)
-		}
-		if service.AddressEnv != "" {
-			if err := validateEnvVarName(service.AddressEnv, true); err != nil {
-				return fmt.Errorf("services[%d].address_env: %w", i, err)
-			}
-		}
 	}
 	return nil
 }

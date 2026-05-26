@@ -174,12 +174,12 @@ func TestValidateConfigEnvNames(t *testing.T) {
 
 func TestValidateConfigServices(t *testing.T) {
 	cfg := base()
-	cfg.Services = []space.ServiceRef{{Name: "indexer", Ref: "quark/service-indexer", Mode: "local", AddressEnv: "QUARK_INDEXER_ADDR"}}
+	cfg.Services = []space.ServiceRef{{Name: "indexer", Ref: "quark/service-indexer"}}
 	if err := space.ValidateConfig(cfg); err != nil {
 		t.Fatalf("expected valid services, got: %v", err)
 	}
-	cfg.Services[0].Mode = "sideways"
-	assertInvalid(t, cfg, "mode")
+	cfg.Services = append(cfg.Services, space.ServiceRef{Name: "indexer"})
+	assertInvalid(t, cfg, "duplicate")
 }
 
 func TestValidateConfigAgentOverrides(t *testing.T) {

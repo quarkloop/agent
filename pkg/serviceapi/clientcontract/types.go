@@ -211,14 +211,9 @@ type ServiceInfo struct {
 	Name          string                `json:"name"`
 	Type          string                `json:"type"`
 	Version       string                `json:"version"`
-	Mode          string                `json:"mode"`
 	Description   string                `json:"description"`
 	Status        ServiceStatus         `json:"status"`
-	PID           int                   `json:"pid,omitempty"`
-	Endpoint      string                `json:"endpoint,omitempty"`
-	LogPath       string                `json:"log_path,omitempty"`
-	StartedAt     *time.Time            `json:"started_at,omitempty"`
-	AddressEnv    string                `json:"address_env,omitempty"`
+	SubjectPrefix string                `json:"subject_prefix,omitempty"`
 	HealthService string                `json:"health_service,omitempty"`
 	MinVersion    string                `json:"min_version,omitempty"`
 	FunctionCount int                   `json:"function_count"`

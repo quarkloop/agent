@@ -64,6 +64,11 @@ func (s *Server) Signal(ctx context.Context, req *workflowv1.SignalWorkflowReque
 	if req == nil || strings.TrimSpace(req.GetWorkflowId()) == "" || strings.TrimSpace(req.GetSignal()) == "" {
 		return nil, serviceerrors.InvalidArgument("workflow_id and signal are required")
 	}
+	switch req.GetSignal() {
+	case SignalCancel, SignalCheckpointCompleted, SignalCheckpointFailed:
+	default:
+		return nil, serviceerrors.InvalidArgumentf("unsupported workflow signal %q", req.GetSignal())
+	}
 	info, err := s.engine.Signal(ctx, req)
 	if err != nil {
 		return nil, err

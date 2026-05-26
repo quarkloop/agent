@@ -11,7 +11,7 @@ import (
 	"github.com/quarkloop/pkg/boundary"
 	"github.com/quarkloop/pkg/natskit"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
-	"github.com/quarkloop/runtime/pkg/modelservice"
+	"github.com/quarkloop/runtime/pkg/runcontext"
 )
 
 const (
@@ -78,7 +78,7 @@ func (c *NATSCaller) Call(ctx context.Context, call serviceFunctionCall) (natski
 	if cfg.URL == "" {
 		return natskit.ResponseEnvelope{}, boundary.New(boundary.Runtime, boundary.Unavailable, call.Operation.Subject, "QUARK_NATS_URL is required for service function calls")
 	}
-	spaceID := strings.TrimSpace(modelservice.SpaceID(ctx))
+	spaceID := strings.TrimSpace(runcontext.SpaceID(ctx))
 	if spaceID == "" {
 		spaceID = cfg.SpaceID
 	}
@@ -97,8 +97,8 @@ func (c *NATSCaller) Call(ctx context.Context, call serviceFunctionCall) (natski
 	if err != nil {
 		return natskit.ResponseEnvelope{}, boundary.Wrap(boundary.Runtime, boundary.InvalidArgument, call.Operation.Subject, err)
 	}
-	request.SessionID = modelservice.SessionID(ctx)
-	request.RunID = modelservice.RunID(ctx)
+	request.SessionID = runcontext.SessionID(ctx)
+	request.RunID = runcontext.RunID(ctx)
 	if request.RunID != "" {
 		request.AgentID = "main"
 	}

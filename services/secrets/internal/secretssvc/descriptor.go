@@ -5,7 +5,7 @@ import (
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 )
 
-func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
+func Descriptor(skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
 	var skills []*servicev1.SkillDescriptor
 	if skill != nil {
 		skills = append(skills, skill)
@@ -15,7 +15,6 @@ func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.Ser
 		Name:    "secrets",
 		Type:    "secrets",
 		Version: "1.0.0",
-		Address: address,
 		Rpcs: []*servicev1.RpcDescriptor{
 			rpc(serviceName, "ResolveRef", "quark.secrets.v1.ResolveRefRequest", "quark.secrets.v1.ResolveRefResponse", "Resolve an OpenBao secret reference."),
 			rpc(serviceName, "IssueScopedSecret", "quark.secrets.v1.IssueScopedSecretRequest", "quark.secrets.v1.IssueScopedSecretResponse", "Issue a scoped secret token."),

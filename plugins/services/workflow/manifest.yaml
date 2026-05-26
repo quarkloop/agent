@@ -1,13 +1,11 @@
 name: workflow
 version: "1.0.0"
 type: service
-mode: api
 description: "Durable workflow orchestration boundary backed by Temporal"
 author: quarkloop
 license: Apache-2.0
 
 service:
-  address_env: QUARK_WORKFLOW_ADDR
   health:
     protocol: nats_service
     service: quark.workflow.v1.WorkflowService

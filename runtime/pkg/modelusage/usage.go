@@ -1,8 +1,9 @@
-package modelservice
+// Package modelusage observes redacted accounting returned by Gateway.
+// It does not select providers, retry requests, or invoke model APIs.
+package modelusage
 
-// Usage is the redacted model accounting shape emitted by the model boundary.
-// It intentionally excludes prompts, tool arguments, raw response text, and
-// provider credentials.
+// Usage is the redacted model accounting shape returned by Gateway and
+// recorded by runtime activity storage.
 type Usage struct {
 	SessionID       string   `json:"session_id,omitempty"`
 	RunID           string   `json:"run_id,omitempty"`
@@ -17,12 +18,5 @@ type Usage struct {
 	CostEstimate    float64  `json:"cost_estimate,omitempty"`
 	FallbackChain   []string `json:"fallback_chain,omitempty"`
 	RequestID       string   `json:"request_id,omitempty"`
-	FailureCategory string   `json:"failure_category,omitempty"`
-	FailureResetAt  string   `json:"failure_reset_at,omitempty"`
 	FinishReason    string   `json:"finish_reason"`
-}
-
-func cloneUsage(usage Usage) Usage {
-	usage.FallbackChain = append([]string(nil), usage.FallbackChain...)
-	return usage
 }

@@ -8,8 +8,8 @@ usage out of every other package.
 
 1. Use Workflow for long-running, resumable, multi-step work where failure,
    retry, progress visibility, or cancellation matters.
-2. Do not ask another service to call Workflow or any other service. Agents and
-   workflows coordinate service functions through NATS.
+2. Do not ask another service or Workflow to call a domain service. The agent
+   executes domain service functions and signals workflow checkpoints.
 3. Use `workflow_Start` only with a clear workflow type and concrete work plan.
    For document ingestion, the workflow type is `document_ingestion_indexing`.
 4. Use `workflow_Query`, `workflow_Describe`, and `workflow_StreamEvents` to
@@ -60,6 +60,6 @@ usage out of every other package.
 
 - Workflow owns Temporal client, worker registration, activity retry policy,
   workflow state queries, cancellation, and workflow progress events.
-- Workflow activities call service functions over NATS using the standard
-  service-function envelope.
+- Workflow accepts checkpoint-completed and checkpoint-failed signals after
+  the agent has performed the corresponding work.
 - Services remain domain owners and do not call Workflow or each other.

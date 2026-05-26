@@ -5,7 +5,7 @@ import (
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 )
 
-func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
+func Descriptor(skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
 	var skills []*servicev1.SkillDescriptor
 	if skill != nil {
 		skills = append(skills, skill)
@@ -14,7 +14,6 @@ func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.Ser
 		Name:    "space",
 		Type:    "space",
 		Version: "1.0.0",
-		Address: address,
 		Rpcs: []*servicev1.RpcDescriptor{
 			rpc("CreateSpace", "quark.space.v1.CreateSpaceRequest", "quark.space.v1.Space", "Create a space and persist its initial configuration."),
 			rpc("UpdateConfig", "quark.space.v1.UpdateConfigRequest", "quark.space.v1.Space", "Replace the authoritative configuration for a space."),

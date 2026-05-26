@@ -13,9 +13,8 @@ import (
 // recordStore persists durable, user-visible run history. Ephemeral ownership
 // and scheduling leases intentionally live behind leaseStore instead.
 type recordStore struct {
-	mu         sync.Mutex
-	path       string
-	legacyPath string
+	mu   sync.Mutex
+	path string
 }
 
 type persistedState struct {
@@ -27,15 +26,10 @@ func newRecordStore(root string) (*recordStore, error) {
 		return nil, fmt.Errorf("create run state root: %w", err)
 	}
 	store := &recordStore{
-		path:       filepath.Join(root, "runstate-records.json"),
-		legacyPath: filepath.Join(root, "ingestion-state.json"),
+		path: filepath.Join(root, "runstate-records.json"),
 	}
 	if _, err := os.Stat(store.path); errors.Is(err, os.ErrNotExist) {
-		state, migrationErr := loadLegacyState(store.legacyPath)
-		if migrationErr != nil {
-			return nil, migrationErr
-		}
-		if err := store.saveLocked(state); err != nil {
+		if err := store.saveLocked(persistedState{}); err != nil {
 			return nil, err
 		}
 	}

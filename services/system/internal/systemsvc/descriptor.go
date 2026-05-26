@@ -5,13 +5,12 @@ import (
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 )
 
-func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
+func Descriptor(skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
 	service := "quark.system.v1.SystemService"
 	return &servicev1.ServiceDescriptor{
 		Name:    "system",
 		Type:    "system",
 		Version: "1.0.0",
-		Address: address,
 		Rpcs: []*servicev1.RpcDescriptor{
 			rpc("system_Snapshot", service, "Snapshot", "quark.system.v1.SnapshotRequest", "quark.system.v1.SnapshotResponse", "Return a scoped system snapshot."),
 			rpc("system_GetOSInfo", service, "GetOSInfo", "quark.system.v1.GetOSInfoRequest", "quark.system.v1.GetOSInfoResponse", "Return operating-system identity."),

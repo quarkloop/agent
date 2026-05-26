@@ -2,36 +2,35 @@ package workflowsvc
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/quarkloop/pkg/natskit"
 	"github.com/stretchr/testify/mock"
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/testsuite"
 )
 
-func TestDocumentIngestionWorkflowDispatchesRequiredSteps(t *testing.T) {
+func TestDocumentIngestionWorkflowWaitsForAgentCheckpointSignals(t *testing.T) {
 	var suite testsuite.WorkflowTestSuite
 	env := suite.NewTestWorkflowEnvironment()
 	env.RegisterWorkflow(DocumentIngestionWorkflow)
 	registerTestActivities(env)
 	env.OnActivity(ActivityRecordWorkflowEvent, mock.Anything, mock.Anything).Return(nil).Maybe()
-	env.OnActivity(ActivityDispatchServiceFunction, mock.Anything, mock.MatchedBy(func(input ServiceFunctionActivityInput) bool {
-		return input.StepID == "extract" && input.Service == "document"
-	})).Return(ServiceFunctionActivityResult{PayloadJSON: `{"text":"hello"}`}, nil).Once()
-	env.OnActivity(ActivityDispatchServiceFunction, mock.Anything, mock.MatchedBy(func(input ServiceFunctionActivityInput) bool {
-		return input.StepID == "index" && input.Service == "indexer"
-	})).Return(ServiceFunctionActivityResult{PayloadJSON: `{"indexed":true}`}, nil).Once()
+	env.RegisterDelayedCallback(func() {
+		env.SignalWorkflow(SignalCheckpointCompleted, `{"checkpoint_id":"extract","payload_json":"{\"text\":\"hello\"}"}`)
+	}, time.Second)
+	env.RegisterDelayedCallback(func() {
+		env.SignalWorkflow(SignalCheckpointCompleted, `{"checkpoint_id":"index","payload_json":"{\"indexed\":true}"}`)
+	}, 2*time.Second)
 
 	env.ExecuteWorkflow(DocumentIngestionWorkflow, DocumentIngestionInput{
 		WorkflowID: "wf-1",
 		SpaceID:    "space-1",
 		Title:      "Index documents",
-		Steps: []ServiceCallInput{
-			{ID: "extract", Service: "document", Function: "extract_text", Required: true},
-			{ID: "index", Service: "indexer", Function: "index_record", Required: true},
+		Checkpoints: []CheckpointInput{
+			{ID: "extract", Description: "Agent has extracted the document", Required: true},
+			{ID: "index", Description: "Agent has indexed canonical records", Required: true},
 		},
 	})
 	if !env.IsWorkflowCompleted() {
@@ -47,24 +46,26 @@ func TestDocumentIngestionWorkflowDispatchesRequiredSteps(t *testing.T) {
 	if result.State.Status != "succeeded" {
 		t.Fatalf("status = %q, want succeeded", result.State.Status)
 	}
-	if got := strings.Join(result.State.CompletedSteps, ","); got != "extract,index" {
-		t.Fatalf("completed steps = %q", got)
+	if got := strings.Join(result.State.CompletedCheckpoints, ","); got != "extract,index" {
+		t.Fatalf("completed checkpoints = %q", got)
 	}
 	env.AssertExpectations(t)
 }
 
-func TestDocumentIngestionWorkflowFailsRequiredStep(t *testing.T) {
+func TestDocumentIngestionWorkflowFailsRequiredCheckpointSignal(t *testing.T) {
 	var suite testsuite.WorkflowTestSuite
 	env := suite.NewTestWorkflowEnvironment()
 	env.RegisterWorkflow(DocumentIngestionWorkflow)
 	registerTestActivities(env)
 	env.OnActivity(ActivityRecordWorkflowEvent, mock.Anything, mock.Anything).Return(nil).Maybe()
-	env.OnActivity(ActivityDispatchServiceFunction, mock.Anything, mock.Anything).Return(ServiceFunctionActivityResult{}, errors.New("index unavailable")).Times(3)
+	env.RegisterDelayedCallback(func() {
+		env.SignalWorkflow(SignalCheckpointFailed, `{"checkpoint_id":"index","message":"index unavailable"}`)
+	}, time.Second)
 
 	env.ExecuteWorkflow(DocumentIngestionWorkflow, DocumentIngestionInput{
-		WorkflowID: "wf-1",
-		SpaceID:    "space-1",
-		Steps:      []ServiceCallInput{{ID: "index", Service: "indexer", Function: "index_record", Required: true}},
+		WorkflowID:  "wf-1",
+		SpaceID:     "space-1",
+		Checkpoints: []CheckpointInput{{ID: "index", Required: true}},
 	})
 	if !env.IsWorkflowCompleted() {
 		t.Fatal("workflow did not complete")
@@ -77,43 +78,31 @@ func TestDocumentIngestionWorkflowFailsRequiredStep(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
-func TestActivitiesDispatchServiceFunctionBuildsWorkflowEnvelope(t *testing.T) {
-	dispatcher := &recordingDispatcher{}
-	activities := NewActivities(dispatcher, NewEventLog())
-	result, err := activities.DispatchServiceFunction(context.Background(), ServiceFunctionActivityInput{
+func TestDocumentIngestionWorkflowDoesNotAcceptWrongCheckpoint(t *testing.T) {
+	var suite testsuite.WorkflowTestSuite
+	env := suite.NewTestWorkflowEnvironment()
+	env.RegisterWorkflow(DocumentIngestionWorkflow)
+	registerTestActivities(env)
+	env.OnActivity(ActivityRecordWorkflowEvent, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.RegisterDelayedCallback(func() {
+		env.SignalWorkflow(SignalCheckpointCompleted, `{"checkpoint_id":"future"}`)
+	}, time.Second)
+	env.RegisterDelayedCallback(func() {
+		env.SignalWorkflow(SignalCheckpointCompleted, `{"checkpoint_id":"extract"}`)
+	}, 2*time.Second)
+
+	env.ExecuteWorkflow(DocumentIngestionWorkflow, DocumentIngestionInput{
 		WorkflowID:  "wf-1",
 		SpaceID:     "space-1",
-		SessionID:   "session-1",
-		AgentID:     "agent-1",
-		StepID:      "extract",
-		Service:     "document",
-		Function:    "extract_text",
-		PayloadJSON: `{"path":"/tmp/a.pdf"}`,
+		Checkpoints: []CheckpointInput{{ID: "extract", Required: true}},
 	})
-	if err != nil {
-		t.Fatalf("dispatch: %v", err)
+	if err := env.GetWorkflowError(); err != nil {
+		t.Fatalf("workflow error: %v", err)
 	}
-	if result.PayloadJSON != `{"ok":true}` {
-		t.Fatalf("payload = %s", result.PayloadJSON)
+	var result DocumentIngestionResult
+	if err := env.GetWorkflowResult(&result); err != nil || len(result.State.CompletedCheckpoints) != 1 {
+		t.Fatalf("workflow result = %+v, %v", result, err)
 	}
-	req := dispatcher.request
-	if req.Actor != "workflow" || req.WorkflowID != "wf-1" || req.SpaceID != "space-1" {
-		t.Fatalf("request correlation = %+v", req)
-	}
-	if dispatcher.operation.Subject != "svc.document.v1.extract_text" {
-		t.Fatalf("subject = %q", dispatcher.operation.Subject)
-	}
-}
-
-type recordingDispatcher struct {
-	operation natskit.Operation
-	request   natskit.RequestEnvelope
-}
-
-func (d *recordingDispatcher) Dispatch(_ context.Context, operation natskit.Operation, req natskit.RequestEnvelope) (natskit.ResponseEnvelope, error) {
-	d.operation = operation
-	d.request = req.Clone()
-	return natskit.OKResponse(req.ServiceCallID, []byte(`{"ok":true}`)), nil
 }
 
 type workflowTestEnv interface {
@@ -124,7 +113,4 @@ func registerTestActivities(env workflowTestEnv) {
 	env.RegisterActivityWithOptions(func(context.Context, WorkflowEventRecord) error {
 		return nil
 	}, activity.RegisterOptions{Name: ActivityRecordWorkflowEvent})
-	env.RegisterActivityWithOptions(func(context.Context, ServiceFunctionActivityInput) (ServiceFunctionActivityResult, error) {
-		return ServiceFunctionActivityResult{}, nil
-	}, activity.RegisterOptions{Name: ActivityDispatchServiceFunction})
 }

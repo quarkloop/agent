@@ -15,12 +15,11 @@ import (
 
 func main() {
 	var cfg app.Config
-	flag.StringVar(&cfg.Address, "addr", envOrDefault("QUARK_WORKFLOW_ADDR", "127.0.0.1:7315"), "service descriptor address")
 	flag.StringVar(&cfg.SkillDir, "skill-dir", "", "directory containing the service SKILL.md")
 	flag.StringVar(&cfg.TemporalAddress, "temporal-addr", envOrDefault("QUARK_TEMPORAL_ADDR", "127.0.0.1:7233"), "Temporal frontend address")
 	flag.StringVar(&cfg.TemporalNamespace, "temporal-namespace", envOrDefault("QUARK_TEMPORAL_NAMESPACE", "default"), "Temporal namespace")
 	flag.StringVar(&cfg.TaskQueue, "task-queue", envOrDefault("QUARK_WORKFLOW_TASK_QUEUE", "quark-workflow"), "Temporal task queue")
-	flag.StringVar(&cfg.NATS.URL, "nats-url", os.Getenv("QUARK_NATS_URL"), "NATS URL for service-function endpoints and workflow activities")
+	flag.StringVar(&cfg.NATS.URL, "nats-url", os.Getenv("QUARK_NATS_URL"), "NATS URL for service-function endpoints")
 	flag.StringVar(&cfg.NATS.Username, "nats-user", os.Getenv("QUARK_NATS_USER"), "NATS username")
 	flag.StringVar(&cfg.NATS.Password, "nats-password", os.Getenv("QUARK_NATS_PASSWORD"), "NATS password")
 	flag.Parse()

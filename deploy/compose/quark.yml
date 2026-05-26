@@ -81,7 +81,7 @@ services:
       <<: *go-build
       args:
         PACKAGE: ./services/io/cmd/io
-    command: ["--addr", "0.0.0.0:7308", "--skill-dir", "/plugins/services/io"]
+    command: ["--skill-dir", "/plugins/services/io"]
     depends_on:
       supervisor:
         condition: service_healthy
@@ -97,7 +97,7 @@ services:
       <<: *go-build
       args:
         PACKAGE: ./services/space/cmd/space
-    command: ["--addr", "0.0.0.0:7303", "--root", "/var/lib/quark/spaces", "--skill-dir", "/plugins/services/space"]
+    command: ["--root", "/var/lib/quark/spaces", "--skill-dir", "/plugins/services/space"]
     depends_on:
       supervisor:
         condition: service_healthy
@@ -112,7 +112,7 @@ services:
       <<: *go-build
       args:
         PACKAGE: ./services/document/cmd/document
-    command: ["--addr", "0.0.0.0:7305", "--skill-dir", "/plugins/services/document"]
+    command: ["--skill-dir", "/plugins/services/document"]
     depends_on:
       supervisor:
         condition: service_healthy
@@ -127,7 +127,7 @@ services:
       <<: *go-build
       args:
         PACKAGE: ./services/runstate/cmd/runstate
-    command: ["--addr", "0.0.0.0:7306", "--root", "/var/lib/quark/runstate", "--skill-dir", "/plugins/services/runstate", "--nats-url", "nats://supervisor:4222", "--nats-user", "quark-control", "--nats-password", "quark-control-dev"]
+    command: ["--root", "/var/lib/quark/runstate", "--skill-dir", "/plugins/services/runstate", "--nats-url", "nats://supervisor:4222", "--nats-user", "quark-control", "--nats-password", "quark-control-dev"]
     depends_on:
       supervisor:
         condition: service_healthy
@@ -142,7 +142,7 @@ services:
       <<: *go-build
       args:
         PACKAGE: ./services/indexer/cmd/indexer
-    command: ["--addr", "0.0.0.0:7301", "--dgraph", "dgraph:9080", "--skill-dir", "/plugins/services/indexer"]
+    command: ["--dgraph", "dgraph:9080", "--skill-dir", "/plugins/services/indexer"]
     depends_on:
       supervisor:
         condition: service_healthy
@@ -158,7 +158,7 @@ services:
       <<: *go-build
       args:
         PACKAGE: ./services/gateway/cmd/gateway
-    command: ["--addr", "0.0.0.0:7309", "--skill-dir", "/plugins/services/gateway", "--nats-url", "nats://supervisor:4222", "--nats-user", "quark-control", "--nats-password", "quark-control-dev"]
+    command: ["--skill-dir", "/plugins/services/gateway", "--nats-url", "nats://supervisor:4222", "--nats-user", "quark-control", "--nats-password", "quark-control-dev"]
     depends_on:
       supervisor:
         condition: service_healthy
@@ -183,7 +183,7 @@ services:
       <<: *go-build
       args:
         PACKAGE: ./services/workflow/cmd/workflow
-    command: ["--addr", "0.0.0.0:7315", "--skill-dir", "/plugins/services/workflow", "--temporal-addr", "temporal:7233", "--nats-url", "nats://supervisor:4222", "--nats-user", "quark-control", "--nats-password", "quark-control-dev"]
+    command: ["--skill-dir", "/plugins/services/workflow", "--temporal-addr", "temporal:7233", "--nats-url", "nats://supervisor:4222", "--nats-user", "quark-control", "--nats-password", "quark-control-dev"]
     depends_on:
       supervisor:
         condition: service_healthy
@@ -199,7 +199,7 @@ services:
       <<: *go-build
       args:
         PACKAGE: ./services/secrets/cmd/secrets
-    command: ["--addr", "0.0.0.0:7316", "--skill-dir", "/plugins/services/secrets", "--openbao-addr", "http://openbao:8200", "--openbao-token", "${QUARK_OPENBAO_TOKEN:-dev-root}", "--nats-url", "nats://supervisor:4222", "--nats-user", "quark-control", "--nats-password", "quark-control-dev"]
+    command: ["--skill-dir", "/plugins/services/secrets", "--openbao-addr", "http://openbao:8200", "--openbao-token", "${QUARK_OPENBAO_TOKEN:-dev-root}", "--nats-url", "nats://supervisor:4222", "--nats-user", "quark-control", "--nats-password", "quark-control-dev"]
     depends_on:
       supervisor:
         condition: service_healthy
@@ -215,7 +215,7 @@ services:
       <<: *go-build
       args:
         PACKAGE: ./services/citation/cmd/citation
-    command: ["--addr", "0.0.0.0:7310", "--skill-dir", "/plugins/services/citation"]
+    command: ["--skill-dir", "/plugins/services/citation"]
     depends_on:
       supervisor:
         condition: service_healthy
@@ -229,7 +229,7 @@ services:
       <<: *go-build
       args:
         PACKAGE: ./services/core/cmd/core
-    command: ["--addr", "0.0.0.0:7311", "--root", "/var/lib/quark/core", "--skill-dir", "/plugins/services/core"]
+    command: ["--root", "/var/lib/quark/core", "--skill-dir", "/plugins/services/core"]
     depends_on:
       supervisor:
         condition: service_healthy
@@ -244,7 +244,7 @@ services:
       <<: *go-build
       args:
         PACKAGE: ./services/devops/cmd/devops
-    command: ["--addr", "0.0.0.0:7312", "--skill-dir", "/plugins/services/devops"]
+    command: ["--skill-dir", "/plugins/services/devops"]
     depends_on:
       supervisor:
         condition: service_healthy
@@ -259,7 +259,7 @@ services:
       <<: *go-build
       args:
         PACKAGE: ./services/system/cmd/system
-    command: ["--addr", "0.0.0.0:7313", "--skill-dir", "/plugins/services/system"]
+    command: ["--skill-dir", "/plugins/services/system"]
     depends_on:
       supervisor:
         condition: service_healthy

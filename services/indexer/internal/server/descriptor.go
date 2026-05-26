@@ -5,13 +5,12 @@ import (
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 )
 
-func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
+func Descriptor(skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
 	const service = "quark.indexer.v1.IndexerService"
 	return &servicev1.ServiceDescriptor{
 		Name:    "indexer",
 		Type:    "indexer",
 		Version: "1.0.0",
-		Address: address,
 		Rpcs: []*servicev1.RpcDescriptor{
 			rpc("indexer_UpsertDocument", service, "UpsertDocument", "quark.indexer.v1.UpsertDocumentRequest", "quark.indexer.v1.IndexStatus", "Upsert one canonical source document record."),
 			rpc("indexer_UpsertChunk", service, "UpsertChunk", "quark.indexer.v1.UpsertChunkRequest", "quark.indexer.v1.IndexStatus", "Upsert one canonical chunk with embedding metadata and provenance."),

@@ -105,9 +105,6 @@ func validateServiceDescriptor(i int, desc *servicev1.ServiceDescriptor) error {
 	if desc.GetName() == "" {
 		return fmt.Errorf("services[%d]: missing name", i)
 	}
-	if desc.GetAddress() == "" {
-		return fmt.Errorf("services[%d] %q: missing endpoint address", i, desc.GetName())
-	}
 	if desc.GetVersion() == "" {
 		return fmt.Errorf("services[%d] %q: missing version", i, desc.GetName())
 	}

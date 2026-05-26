@@ -15,7 +15,6 @@ import (
 
 func main() {
 	var cfg app.Config
-	flag.StringVar(&cfg.Address, "addr", envOrDefault("QUARK_SECRETS_ADDR", "127.0.0.1:7316"), "service descriptor address")
 	flag.StringVar(&cfg.SkillDir, "skill-dir", "", "directory containing the service SKILL.md")
 	flag.StringVar(&cfg.OpenBaoAddress, "openbao-addr", envOrDefault("QUARK_OPENBAO_ADDR", "http://127.0.0.1:8200"), "OpenBao API address")
 	flag.StringVar(&cfg.OpenBaoToken, "openbao-token", os.Getenv("QUARK_OPENBAO_TOKEN"), "OpenBao client token")

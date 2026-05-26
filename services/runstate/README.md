@@ -36,5 +36,5 @@ embeddings, index data, or call another service.
   `reference_id` values, not internal invocation IDs or raw payload data.
 - `runstate_leases` is ephemeral coordination state; lease expiry or deletion
   cannot remove durable history.
-- On first startup, an existing `ingestion-state.json` is imported into the
-  universal item model and marked as migrated data.
+- Deprecated ingestion state files are not read. Run State starts from its
+  authoritative `runstate-records.json` ledger only.

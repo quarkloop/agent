@@ -16,7 +16,6 @@ import (
 )
 
 func main() {
-	var addr string
 	var skillDir string
 	var fallbackSpec string
 	var embeddingProvider string
@@ -25,7 +24,6 @@ func main() {
 	var natsPassword string
 	var natsTimeout time.Duration
 
-	flag.StringVar(&addr, "addr", "127.0.0.1:7306", "service descriptor address")
 	flag.StringVar(&skillDir, "skill-dir", "", "directory containing the service SKILL.md")
 	flag.StringVar(&fallbackSpec, "fallbacks", os.Getenv("QUARK_GATEWAY_FALLBACKS"), "fallbacks as provider=fallback1,fallback2;provider2=fallback")
 	flag.StringVar(&embeddingProvider, "embedding-provider", os.Getenv("QUARK_GATEWAY_EMBEDDING_PROVIDER"), "provider configured for Gateway embedding requests")
@@ -44,7 +42,6 @@ func main() {
 	defer stop()
 
 	if err := app.Run(ctx, app.Config{
-		Address:  addr,
 		SkillDir: skillDir,
 		NATS: natskit.Config{
 			URL:             natsURL,

@@ -12,7 +12,6 @@ import (
 )
 
 type Config struct {
-	Address   string
 	SkillDir  string
 	PDFToText string
 	NATS      natskit.Config
@@ -20,9 +19,6 @@ type Config struct {
 }
 
 func Run(ctx context.Context, cfg Config) error {
-	if cfg.Address == "" {
-		cfg.Address = "127.0.0.1:7310"
-	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
@@ -40,7 +36,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return err
 	}
-	descriptor := iosvc.Descriptor(cfg.Address, skill)
+	descriptor := iosvc.Descriptor(skill)
 	cfg.NATS.Logger = cfg.Logger
 	return natskit.RunRPCService(ctx, cfg.NATS, natskit.Binding{
 		Descriptor: descriptor,

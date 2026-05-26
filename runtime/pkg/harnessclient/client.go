@@ -9,11 +9,13 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/protobuf/encoding/protojson"
+
 	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/plugin"
+	"github.com/quarkloop/runtime/pkg/runcontext"
+
 	harnessv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/harness/v1"
-	"github.com/quarkloop/runtime/pkg/modelservice"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type Material struct {
@@ -63,14 +65,14 @@ func (c *Client) Compose(ctx context.Context, input Input) ([]plugin.Message, er
 	if c == nil {
 		return nil, fmt.Errorf("harness client is not configured")
 	}
-	spaceID := firstNonEmpty(modelservice.SpaceID(ctx), c.cfg.SpaceID)
+	spaceID := firstNonEmpty(runcontext.SpaceID(ctx), c.cfg.SpaceID)
 	if spaceID == "" {
 		return nil, fmt.Errorf("space id is required for harness context composition")
 	}
 	request := &harnessv1.ComposeContextRequest{
 		Space:           spaceID,
-		SessionId:       modelservice.SessionID(ctx),
-		RunId:           modelservice.RunID(ctx),
+		SessionId:       runcontext.SessionID(ctx),
+		RunId:           runcontext.RunID(ctx),
 		ContextWindow:   int32(input.ContextWindow),
 		SystemMaterials: materialsToProto(input.Materials),
 		RuntimeFacts:    materialsToProto(input.RuntimeFacts),
@@ -84,8 +86,8 @@ func (c *Client) Compose(ctx context.Context, input Input) ([]plugin.Message, er
 	if err != nil {
 		return nil, err
 	}
-	envelope.SessionID = modelservice.SessionID(ctx)
-	envelope.RunID = modelservice.RunID(ctx)
+	envelope.SessionID = runcontext.SessionID(ctx)
+	envelope.RunID = runcontext.RunID(ctx)
 	operation, err := natskit.ServiceOperation("harness", "compose_context")
 	if err != nil {
 		return nil, err

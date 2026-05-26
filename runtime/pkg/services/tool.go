@@ -41,8 +41,7 @@ type Executor struct {
 }
 
 type resolvedRPC struct {
-	rpc     *servicev1.RpcDescriptor
-	address string
+	rpc *servicev1.RpcDescriptor
 }
 
 func NewExecutor(descriptors []*servicev1.ServiceDescriptor) *Executor {
@@ -220,7 +219,7 @@ func (e *Executor) resolve(functionName string) (resolvedRPC, error) {
 			if FunctionNameFor(desc.GetName(), rpc) != functionName {
 				continue
 			}
-			return resolvedRPC{rpc: rpc, address: desc.GetAddress()}, nil
+			return resolvedRPC{rpc: rpc}, nil
 		}
 	}
 	return resolvedRPC{}, fmt.Errorf("service function not found: %q", functionName)

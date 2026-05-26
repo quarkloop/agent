@@ -26,7 +26,7 @@ func TestInspectServicesReportsNATSServiceFromManifest(t *testing.T) {
 	if len(services) != 1 {
 		t.Fatalf("services = %+v", services)
 	}
-	if services[0].Status != clientcontract.ServiceStatusReady || services[0].Endpoint != "svc.indexer.v1" {
+	if services[0].Status != clientcontract.ServiceStatusReady || services[0].SubjectPrefix != "svc.indexer.v1" {
 		t.Fatalf("service info = %+v", services[0])
 	}
 }
@@ -65,7 +65,6 @@ func writeMainAgentPlugin(t *testing.T, root string) {
 		"manifest.yaml": `name: quark-main
 version: "1.0.0"
 type: agent
-mode: api
 description: Main agent
 agent:
   profile: PROFILE.yaml
@@ -82,7 +81,6 @@ func writeInstalledServicePlugin(t *testing.T, srv *Server, spaceID string) {
 	t.Helper()
 	writeInstalledServicePluginNamed(t, srv, spaceID, servicePluginFixture{
 		Name:         "indexer",
-		AddressEnv:   "QUARK_INDEXER_ADDR",
 		ProtoService: "quark.indexer.v1.IndexerService",
 		FunctionName: "indexer_QueryContext",
 	})

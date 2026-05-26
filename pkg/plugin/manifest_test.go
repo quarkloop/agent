@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -14,10 +15,8 @@ func TestParseServiceManifest(t *testing.T) {
 	if err := os.WriteFile(path, []byte(`name: indexer
 version: "1.0.0"
 type: service
-mode: api
 description: Indexer service
 service:
-  address_env: QUARK_INDEXER_ADDR
   skill: SKILL.md
   readme: README.md
   transport: nats
@@ -45,7 +44,7 @@ service:
 	if manifest.Type != TypeService {
 		t.Fatalf("type = %s, want %s", manifest.Type, TypeService)
 	}
-	if manifest.Service == nil || manifest.Service.AddressEnv != "QUARK_INDEXER_ADDR" {
+	if manifest.Service == nil {
 		t.Fatalf("service config = %+v", manifest.Service)
 	}
 	if manifest.Service.Transport != "nats" || manifest.Service.SubjectPrefix != "svc.indexer.v1" || manifest.Service.QueueGroup != "q.service.v1.indexer" {
@@ -64,7 +63,6 @@ func TestServiceManifestDefaultsSkillAndReadme(t *testing.T) {
 		Name:    "gateway",
 		Version: "1.0.0",
 		Type:    TypeService,
-		Mode:    ModeAPI,
 		Service: &ServiceConfig{
 			Functions: []ServiceFunctionConfig{{
 				Name:        "gateway_Embed",
@@ -103,7 +101,6 @@ func TestAgentManifestDefaultsProfileSystemAndSkill(t *testing.T) {
 		Name:    "quark-knowledge",
 		Version: "1.0.0",
 		Type:    TypeAgent,
-		Mode:    ModeAPI,
 		Agent:   &AgentConfig{},
 	}
 	if err := manifest.Validate(); err != nil {
@@ -170,7 +167,6 @@ func TestServiceManifestRequiresFunctions(t *testing.T) {
 		Name:    "gateway",
 		Version: "1.0.0",
 		Type:    TypeService,
-		Mode:    ModeAPI,
 		Service: &ServiceConfig{},
 	}
 	if err := manifest.Validate(); err == nil {
@@ -183,7 +179,6 @@ func TestServiceManifestRejectsNonCanonicalQueueGroup(t *testing.T) {
 		Name:    "gateway",
 		Version: "1.0.0",
 		Type:    TypeService,
-		Mode:    ModeAPI,
 		Service: &ServiceConfig{
 			QueueGroup: "q.gateway.v1",
 			Functions: []ServiceFunctionConfig{{
@@ -198,6 +193,26 @@ func TestServiceManifestRejectsNonCanonicalQueueGroup(t *testing.T) {
 	}
 	if err := manifest.Validate(); err == nil || !strings.Contains(err.Error(), "responder group") {
 		t.Fatalf("validate non-canonical queue = %v", err)
+	}
+}
+
+func TestServiceManifestRejectsExecutableToolMode(t *testing.T) {
+	manifest := &Manifest{
+		Name:    "gateway",
+		Version: "1.0.0",
+		Type:    TypeService,
+		Mode:    ModeAPI,
+		Service: &ServiceConfig{Functions: []ServiceFunctionConfig{{
+			Name:        "gateway_Embed",
+			Service:     "quark.gateway.v1.GatewayService",
+			Method:      "Embed",
+			Request:     "quark.gateway.v1.EmbedRequest",
+			Response:    "quark.gateway.v1.EmbedResponse",
+			Description: "Embed content.",
+		}}},
+	}
+	if err := manifest.Validate(); err == nil || !strings.Contains(err.Error(), "must not declare an execution mode") {
+		t.Fatalf("validate service execution mode = %v", err)
 	}
 }
 
@@ -551,8 +566,19 @@ func TestQuarkMainProfileIsRootCoordinator(t *testing.T) {
 	if !profile.IsMain() {
 		t.Fatalf("quark main role = %q", profile.RoleOrDefault())
 	}
-	if len(profile.Permissions.Services) != 0 || len(profile.Permissions.Tools) != 0 {
-		t.Fatalf("quark main profile should receive resolved permissions from supervisor, got %+v", profile.Permissions)
+	if len(profile.Permissions.Tools) != 0 {
+		t.Fatalf("quark main profile has unexpected tool permissions: %+v", profile.Permissions.Tools)
+	}
+	wantServices := []string{
+		"harness_GetContextReport",
+		"harness_StreamContextReports",
+		"harness_PutMemory",
+		"harness_GetMemory",
+		"harness_SearchMemory",
+		"harness_DeleteMemory",
+	}
+	if !slices.Equal(profile.Permissions.Services, wantServices) {
+		t.Fatalf("quark main services = %+v, want %+v", profile.Permissions.Services, wantServices)
 	}
 	targets := map[string]bool{}
 	for _, target := range profile.Handoff.CanDelegateTo {

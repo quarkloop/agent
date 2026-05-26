@@ -3,7 +3,6 @@
 package utils
 
 import (
-	"strings"
 	"testing"
 
 	spacemodel "github.com/quarkloop/pkg/space"
@@ -40,13 +39,11 @@ func spaceConfigFor(t *testing.T, name, workingDir, provider, model string, serv
 		seenServices[service.Name] = struct{}{}
 		addPluginRef("quark/service-" + service.Plugin)
 		config.Services = append(config.Services, spacemodel.ServiceRef{
-			Name:       service.Name,
-			Ref:        "quark/service-" + service.Plugin,
-			Mode:       service.Mode,
-			AddressEnv: service.AddressEnv,
+			Name: service.Name,
+			Ref:  "quark/service-" + service.Plugin,
 		})
 	}
-	addService(ServicePlugin{Name: "io", Plugin: "io", Mode: "local", AddressEnv: "QUARK_IO_ADDR"})
+	addService(ServicePlugin{Name: "io", Plugin: "io"})
 	enabled := true
 	for _, agent := range agents {
 		addPluginRef("quark/agent-" + agent)
@@ -57,13 +54,13 @@ func spaceConfigFor(t *testing.T, name, workingDir, provider, model string, serv
 		config.Agents = append(config.Agents, ref)
 	}
 	if includeKnowledgeServices {
-		addService(ServicePlugin{Name: "core", Plugin: "core", Mode: "local", AddressEnv: "QUARK_CORE_ADDR"})
-		addService(ServicePlugin{Name: "gateway", Plugin: "gateway", Mode: "local", AddressEnv: "QUARK_GATEWAY_SERVICE_ADDR"})
-		addService(ServicePlugin{Name: "indexer", Plugin: "indexer", Mode: "local", AddressEnv: "QUARK_INDEXER_ADDR"})
-		addService(ServicePlugin{Name: "document", Plugin: "document", Mode: "local", AddressEnv: "QUARK_DOCUMENT_ADDR"})
-		addService(ServicePlugin{Name: "runstate", Plugin: "runstate", Mode: "local", AddressEnv: "QUARK_RUNSTATE_ADDR"})
-		addService(ServicePlugin{Name: "citation", Plugin: "citation", Mode: "local", AddressEnv: "QUARK_CITATION_ADDR"})
-		addService(ServicePlugin{Name: "harness", Plugin: "harness", Mode: "local", AddressEnv: "QUARK_HARNESS_ADDR"})
+		addService(ServicePlugin{Name: "core", Plugin: "core"})
+		addService(ServicePlugin{Name: "gateway", Plugin: "gateway"})
+		addService(ServicePlugin{Name: "indexer", Plugin: "indexer"})
+		addService(ServicePlugin{Name: "document", Plugin: "document"})
+		addService(ServicePlugin{Name: "runstate", Plugin: "runstate"})
+		addService(ServicePlugin{Name: "citation", Plugin: "citation"})
+		addService(ServicePlugin{Name: "harness", Plugin: "harness"})
 	}
 	for _, service := range services {
 		addService(service)
@@ -80,10 +77,8 @@ func spaceConfigFor(t *testing.T, name, workingDir, provider, model string, serv
 
 // ServicePlugin declares an additional service plugin for an e2e space.
 type ServicePlugin struct {
-	Name       string
-	Plugin     string
-	Mode       string
-	AddressEnv string
+	Name   string
+	Plugin string
 }
 
 func (s ServicePlugin) WithDefaults() ServicePlugin {
@@ -93,12 +88,6 @@ func (s ServicePlugin) WithDefaults() ServicePlugin {
 func (s ServicePlugin) withDefaults() ServicePlugin {
 	if s.Plugin == "" {
 		s.Plugin = s.Name
-	}
-	if s.Mode == "" {
-		s.Mode = "local"
-	}
-	if s.AddressEnv == "" && s.Name != "" {
-		s.AddressEnv = "QUARK_" + strings.ToUpper(strings.ReplaceAll(s.Name, "-", "_")) + "_ADDR"
 	}
 	return s
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/quarkloop/runtime/pkg/llm"
 	"github.com/quarkloop/runtime/pkg/loop"
 	"github.com/quarkloop/runtime/pkg/message"
-	"github.com/quarkloop/runtime/pkg/modelservice"
+	"github.com/quarkloop/runtime/pkg/runcontext"
 	"github.com/quarkloop/runtime/pkg/workflow"
 )
 
@@ -27,9 +27,9 @@ func (a *Agent) handleUserMessage(ctx context.Context, msg loop.Message) error {
 	if spaceID == "" {
 		spaceID = a.SpaceID
 	}
-	requestCtx = modelservice.WithSpaceID(requestCtx, spaceID)
-	requestCtx = modelservice.WithSessionID(requestCtx, userMsg.SessionID)
-	requestCtx = modelservice.WithRunID(requestCtx, runID)
+	requestCtx = runcontext.WithSpaceID(requestCtx, spaceID)
+	requestCtx = runcontext.WithSessionID(requestCtx, userMsg.SessionID)
+	requestCtx = runcontext.WithRunID(requestCtx, runID)
 	defer cancel()
 	stopRequestCancel := context.AfterFunc(userMsg.Context, cancel)
 	defer stopRequestCancel()

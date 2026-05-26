@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/quarkloop/pkg/plugin"
-	"github.com/quarkloop/runtime/pkg/modelservice"
 )
 
 // Registry manages available LLM models and their clients.
@@ -28,12 +27,6 @@ func NewRegistry() *Registry {
 
 // LoadFromURL fetches a model list from a remote URL and initializes clients.
 func (r *Registry) LoadFromURL(url string, providers map[string]Provider) error {
-	return r.LoadFromURLWithGatewayService(url, modelservice.New(providers, nil))
-}
-
-// LoadFromURLWithGatewayService fetches a model list and initializes clients
-// through the Gateway-backed model boundary.
-func (r *Registry) LoadFromURLWithGatewayService(url string, service *modelservice.Service) error {
 	resp, err := http.Get(url)
 	if err != nil {
 		return fmt.Errorf("fetch model list: %w", err)
@@ -50,27 +43,23 @@ func (r *Registry) LoadFromURLWithGatewayService(url string, service *modelservi
 		return fmt.Errorf("parse model list: %w", err)
 	}
 
-	return r.LoadEntriesWithGatewayService(entries, service)
+	return r.LoadEntries(entries, providers)
 }
 
-// LoadEntries initializes clients from a list of model entries.
+// LoadEntries initializes clients from models and their Gateway client
+// adapters. Provider routing policy is owned by Gateway, not this registry.
 func (r *Registry) LoadEntries(entries []plugin.ModelEntry, providers map[string]Provider) error {
-	return r.LoadEntriesWithGatewayService(entries, modelservice.New(providers, nil))
-}
-
-// LoadEntriesWithGatewayService initializes clients from a list of model entries
-// and routes every provider call through the Gateway-backed model boundary.
-func (r *Registry) LoadEntriesWithGatewayService(entries []plugin.ModelEntry, service *modelservice.Service) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	for _, entry := range entries {
-		if service == nil || !service.HasProvider(entry.Provider) {
-			slog.Warn("provider not implemented, skipping model", "provider", entry.Provider, "model", entry.ID)
+		provider, ok := providers[entry.Provider]
+		if !ok || provider == nil {
+			slog.Warn("gateway adapter not available, skipping model", "provider", entry.Provider, "model", entry.ID)
 			continue
 		}
 
-		r.models[entry.ID] = NewClient(service.Adapter(entry.Provider), entry.ID, entry.ContextWindow)
+		r.models[entry.ID] = NewClient(provider, entry.ID, entry.ContextWindow)
 		slog.Info("model registered", "model", entry.ID, "provider", entry.Provider, "context_window", entry.ContextWindow)
 
 		if entry.Default || r.Default == "" {

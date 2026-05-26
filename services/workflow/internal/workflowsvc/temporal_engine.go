@@ -38,10 +38,9 @@ func NewTemporalEngine(c client.Client, taskQueue string, events *EventLog) (*Te
 	return &TemporalEngine{client: c, taskQueue: taskQueue, events: events}, nil
 }
 
-func RegisterTemporalWorker(w worker.Worker, dispatcher ServiceFunctionDispatcher, events *EventLog) {
-	activities := NewActivities(dispatcher, events)
+func RegisterTemporalWorker(w worker.Worker, events *EventLog) {
+	activities := NewActivities(events)
 	w.RegisterWorkflowWithOptions(DocumentIngestionWorkflow, temporalworkflow.RegisterOptions{Name: WorkflowTypeDocumentIngestion})
-	w.RegisterActivityWithOptions(activities.DispatchServiceFunction, activity.RegisterOptions{Name: ActivityDispatchServiceFunction})
 	w.RegisterActivityWithOptions(activities.RecordWorkflowEvent, activity.RegisterOptions{Name: ActivityRecordWorkflowEvent})
 }
 
@@ -196,13 +195,11 @@ func documentInputFromRequest(id string, req *workflowv1.StartWorkflowRequest) D
 			Metadata: cloneStringMap(source.GetMetadata()),
 		})
 	}
-	for _, step := range ingestion.GetSteps() {
-		input.Steps = append(input.Steps, ServiceCallInput{
-			ID:          step.GetId(),
-			Service:     step.GetService(),
-			Function:    step.GetFunction(),
-			PayloadJSON: step.GetPayloadJson(),
-			Required:    step.GetRequired(),
+	for _, checkpoint := range ingestion.GetCheckpoints() {
+		input.Checkpoints = append(input.Checkpoints, CheckpointInput{
+			ID:          checkpoint.GetId(),
+			Description: checkpoint.GetDescription(),
+			Required:    checkpoint.GetRequired(),
 		})
 	}
 	return input

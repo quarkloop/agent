@@ -3,7 +3,6 @@
 package e2e
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/quarkloop/e2e/utils"
@@ -56,17 +55,15 @@ func localServicePlugins(names ...string) []utils.ServicePlugin {
 	plugins := make([]utils.ServicePlugin, 0, len(names))
 	for _, name := range names {
 		plugins = append(plugins, utils.ServicePlugin{
-			Name:       name,
-			Plugin:     name,
-			Mode:       "local",
-			AddressEnv: "QUARK_" + strings.ToUpper(strings.ReplaceAll(name, "-", "_")) + "_ADDR",
+			Name:   name,
+			Plugin: name,
 		})
 	}
 	return plugins
 }
 
 func gatewayServicePlugin() utils.ServicePlugin {
-	return utils.ServicePlugin{Name: "gateway", Plugin: "gateway", Mode: "local", AddressEnv: "QUARK_GATEWAY_SERVICE_ADDR"}
+	return utils.ServicePlugin{Name: "gateway", Plugin: "gateway"}
 }
 
 func devOpsAgentServicePermissions(extra ...string) map[string][]string {

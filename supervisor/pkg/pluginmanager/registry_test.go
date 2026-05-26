@@ -72,7 +72,7 @@ func writeRegistryFixture(t *testing.T, root, kind, name string, pluginType plug
 
 func writeManifest(t *testing.T, dir, name string, pluginType plugin.PluginType) {
 	t.Helper()
-	content := "name: " + name + "\nversion: \"1.0.0\"\ntype: " + string(pluginType) + "\nmode: api\n"
+	content := "name: " + name + "\nversion: \"1.0.0\"\ntype: " + string(pluginType) + "\n"
 	switch pluginType {
 	case plugin.TypeAgent:
 		content += "agent:\n  profile: PROFILE.yaml\n  system: SYSTEM.md\n  skill: SKILL.md\n"

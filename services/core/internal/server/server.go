@@ -49,17 +49,17 @@ func (s *Server) CheckReadiness(context.Context, *corev1.CheckReadinessRequest) 
 func (s *Server) RecordAuditEvent(_ context.Context, req *corev1.RecordAuditEventRequest) (*corev1.RecordAuditEventResponse, error) {
 	event := cloneAuditEvent(req.GetEvent())
 	if event.GetRunId() == "" {
-		return nil, grpcError(fmt.Errorf("run_id is required"))
+		return nil, serviceError(fmt.Errorf("run_id is required"))
 	}
 	if event.GetAction() == "" {
-		return nil, grpcError(fmt.Errorf("action is required"))
+		return nil, serviceError(fmt.Errorf("action is required"))
 	}
 	ensureID(&event.Id, "audit")
 	ensureTimestamp(&event.CreatedAt)
 	redactAuditEvent(event)
 	stored, err := s.store.recordAudit(event)
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &corev1.RecordAuditEventResponse{Event: stored}, nil
 }
@@ -67,7 +67,7 @@ func (s *Server) RecordAuditEvent(_ context.Context, req *corev1.RecordAuditEven
 func (s *Server) ListAuditEvents(_ context.Context, req *corev1.ListAuditEventsRequest) (*corev1.ListAuditEventsResponse, error) {
 	events, err := s.store.listAudit(req.GetRunId(), int(req.GetLimit()))
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &corev1.ListAuditEventsResponse{Events: events}, nil
 }
@@ -75,17 +75,17 @@ func (s *Server) ListAuditEvents(_ context.Context, req *corev1.ListAuditEventsR
 func (s *Server) PutArtifact(_ context.Context, req *corev1.PutArtifactRequest) (*corev1.PutArtifactResponse, error) {
 	artifact := cloneArtifact(req.GetArtifact())
 	if artifact.GetKind() == "" {
-		return nil, grpcError(fmt.Errorf("kind is required"))
+		return nil, serviceError(fmt.Errorf("kind is required"))
 	}
 	if artifact.GetUri() == "" {
-		return nil, grpcError(fmt.Errorf("uri is required"))
+		return nil, serviceError(fmt.Errorf("uri is required"))
 	}
 	ensureID(&artifact.Id, "artifact")
 	ensureTimestamp(&artifact.CreatedAt)
 	redactArtifact(artifact)
 	stored, err := s.store.putArtifact(artifact)
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &corev1.PutArtifactResponse{Artifact: stored}, nil
 }
@@ -93,7 +93,7 @@ func (s *Server) PutArtifact(_ context.Context, req *corev1.PutArtifactRequest) 
 func (s *Server) GetArtifact(_ context.Context, req *corev1.GetArtifactRequest) (*corev1.GetArtifactResponse, error) {
 	artifact, err := s.store.getArtifact(req.GetId())
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &corev1.GetArtifactResponse{Artifact: artifact}, nil
 }
@@ -101,10 +101,10 @@ func (s *Server) GetArtifact(_ context.Context, req *corev1.GetArtifactRequest) 
 func (s *Server) RequestApproval(_ context.Context, req *corev1.RequestApprovalRequest) (*corev1.RequestApprovalResponse, error) {
 	approval := cloneApproval(req.GetApproval())
 	if approval.GetAction() == "" {
-		return nil, grpcError(fmt.Errorf("action is required"))
+		return nil, serviceError(fmt.Errorf("action is required"))
 	}
 	if approval.GetSubject() == "" {
-		return nil, grpcError(fmt.Errorf("subject is required"))
+		return nil, serviceError(fmt.Errorf("subject is required"))
 	}
 	ensureID(&approval.Id, "approval")
 	ensureTimestamp(&approval.CreatedAt)
@@ -112,30 +112,30 @@ func (s *Server) RequestApproval(_ context.Context, req *corev1.RequestApprovalR
 		approval.Status = "pending"
 	}
 	if approval.GetStatus() != "pending" {
-		return nil, grpcError(fmt.Errorf("new approval status must be pending"))
+		return nil, serviceError(fmt.Errorf("new approval status must be pending"))
 	}
 	approval.Decision = nil
 	stored, err := s.store.putApproval(approval)
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &corev1.RequestApprovalResponse{Approval: stored}, nil
 }
 
 func (s *Server) RecordApprovalDecision(_ context.Context, req *corev1.RecordApprovalDecisionRequest) (*corev1.RecordApprovalDecisionResponse, error) {
 	if req.GetApprovalId() == "" {
-		return nil, grpcError(fmt.Errorf("approval_id is required"))
+		return nil, serviceError(fmt.Errorf("approval_id is required"))
 	}
 	decision := cloneDecision(req.GetDecision())
 	if decision.GetActor() == "" {
-		return nil, grpcError(fmt.Errorf("decision actor is required"))
+		return nil, serviceError(fmt.Errorf("decision actor is required"))
 	}
 	if decision.GetReason() == "" {
-		return nil, grpcError(fmt.Errorf("decision reason is required"))
+		return nil, serviceError(fmt.Errorf("decision reason is required"))
 	}
 	approval, err := s.store.getApproval(req.GetApprovalId())
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	if approval.GetStatus() != "pending" {
 		return nil, serviceerrors.FailedPreconditionf("approval %q is already %s", approval.GetId(), approval.GetStatus())
@@ -149,7 +149,7 @@ func (s *Server) RecordApprovalDecision(_ context.Context, req *corev1.RecordApp
 	}
 	stored, err := s.store.putApproval(approval)
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &corev1.RecordApprovalDecisionResponse{Approval: stored}, nil
 }
@@ -157,7 +157,7 @@ func (s *Server) RecordApprovalDecision(_ context.Context, req *corev1.RecordApp
 func (s *Server) GetConfig(_ context.Context, req *corev1.GetConfigRequest) (*corev1.GetConfigResponse, error) {
 	value, err := s.store.getConfig(req.GetScope(), req.GetKey())
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &corev1.GetConfigResponse{Value: value}, nil
 }
@@ -165,29 +165,29 @@ func (s *Server) GetConfig(_ context.Context, req *corev1.GetConfigRequest) (*co
 func (s *Server) SetConfig(_ context.Context, req *corev1.SetConfigRequest) (*corev1.SetConfigResponse, error) {
 	value := cloneConfig(req.GetValue())
 	if value.GetScope() == "" {
-		return nil, grpcError(fmt.Errorf("scope is required"))
+		return nil, serviceError(fmt.Errorf("scope is required"))
 	}
 	if value.GetKey() == "" {
-		return nil, grpcError(fmt.Errorf("key is required"))
+		return nil, serviceError(fmt.Errorf("key is required"))
 	}
 	if req.GetReason() == "" {
-		return nil, grpcError(fmt.Errorf("reason is required"))
+		return nil, serviceError(fmt.Errorf("reason is required"))
 	}
 	ensureTimestamp(&value.UpdatedAt)
 	redactConfig(value)
 	stored, err := s.store.putConfig(value)
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &corev1.SetConfigResponse{Value: stored}, nil
 }
 
 func (s *Server) GetSecretRef(_ context.Context, req *corev1.GetSecretRefRequest) (*corev1.GetSecretRefResponse, error) {
 	if req.GetScope() == "" {
-		return nil, grpcError(fmt.Errorf("scope is required"))
+		return nil, serviceError(fmt.Errorf("scope is required"))
 	}
 	if req.GetName() == "" {
-		return nil, grpcError(fmt.Errorf("name is required"))
+		return nil, serviceError(fmt.Errorf("name is required"))
 	}
 	return &corev1.GetSecretRefResponse{Secret: &corev1.SecretRef{
 		Scope:         req.GetScope(),
@@ -200,35 +200,35 @@ func (s *Server) GetSecretRef(_ context.Context, req *corev1.GetSecretRefRequest
 func (s *Server) PublishEvent(_ context.Context, req *corev1.PublishEventRequest) (*corev1.PublishEventResponse, error) {
 	event := cloneEvent(req.GetEvent())
 	if event.GetStream() == "" {
-		return nil, grpcError(fmt.Errorf("stream is required"))
+		return nil, serviceError(fmt.Errorf("stream is required"))
 	}
 	if event.GetKind() == "" {
-		return nil, grpcError(fmt.Errorf("kind is required"))
+		return nil, serviceError(fmt.Errorf("kind is required"))
 	}
 	ensureID(&event.Id, "event")
 	ensureTimestamp(&event.CreatedAt)
 	redactEvent(event)
 	stored, err := s.store.publishEvent(event)
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &corev1.PublishEventResponse{Event: stored}, nil
 }
 
 func (s *Server) ListEvents(_ context.Context, req *corev1.ListEventsRequest) (*corev1.ListEventsResponse, error) {
 	if req.GetStream() == "" {
-		return nil, grpcError(fmt.Errorf("stream is required"))
+		return nil, serviceError(fmt.Errorf("stream is required"))
 	}
 	events, err := s.store.listEvents(req.GetStream(), req.GetAfterSequence(), int(req.GetLimit()))
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &corev1.ListEventsResponse{Events: events}, nil
 }
 
 func (s *Server) EvaluatePolicy(_ context.Context, req *corev1.EvaluatePolicyRequest) (*corev1.EvaluatePolicyResponse, error) {
 	if req.GetAction() == "" {
-		return nil, grpcError(fmt.Errorf("action is required"))
+		return nil, serviceError(fmt.Errorf("action is required"))
 	}
 	return &corev1.EvaluatePolicyResponse{Decision: evaluatePolicy(req.GetAction(), req.GetSubject(), req.GetAttributes())}, nil
 }
@@ -236,13 +236,13 @@ func (s *Server) EvaluatePolicy(_ context.Context, req *corev1.EvaluatePolicyReq
 func (s *Server) CreateWorkspaceMutationPlan(_ context.Context, req *corev1.CreateWorkspaceMutationPlanRequest) (*corev1.CreateWorkspaceMutationPlanResponse, error) {
 	plan := clonePlan(req.GetPlan())
 	if plan.GetScope() == "" {
-		return nil, grpcError(fmt.Errorf("scope is required"))
+		return nil, serviceError(fmt.Errorf("scope is required"))
 	}
 	if plan.GetAction() == "" {
-		return nil, grpcError(fmt.Errorf("action is required"))
+		return nil, serviceError(fmt.Errorf("action is required"))
 	}
 	if len(plan.GetPaths()) == 0 {
-		return nil, grpcError(fmt.Errorf("at least one path is required"))
+		return nil, serviceError(fmt.Errorf("at least one path is required"))
 	}
 	ensureID(&plan.Id, "workspace-plan")
 	if plan.GetApprovalRequired() || workspaceMutationNeedsApproval(plan.GetAction()) {
@@ -256,25 +256,25 @@ func (s *Server) CreateWorkspaceMutationPlan(_ context.Context, req *corev1.Crea
 	}
 	stored, err := s.store.putPlan(plan)
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &corev1.CreateWorkspaceMutationPlanResponse{Plan: stored}, nil
 }
 
 func (s *Server) ApproveWorkspaceMutationPlan(_ context.Context, req *corev1.ApproveWorkspaceMutationPlanRequest) (*corev1.ApproveWorkspaceMutationPlanResponse, error) {
 	if req.GetPlanId() == "" {
-		return nil, grpcError(fmt.Errorf("plan_id is required"))
+		return nil, serviceError(fmt.Errorf("plan_id is required"))
 	}
 	if req.GetApprovalId() == "" {
-		return nil, grpcError(fmt.Errorf("approval_id is required"))
+		return nil, serviceError(fmt.Errorf("approval_id is required"))
 	}
 	plan, err := s.store.getPlan(req.GetPlanId())
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	approval, err := s.store.getApproval(req.GetApprovalId())
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	if approval.GetStatus() != "approved" || approval.GetDecision() == nil || !approval.GetDecision().GetApproved() {
 		return nil, serviceerrors.FailedPreconditionf("approval %q is not approved", approval.GetId())
@@ -283,7 +283,7 @@ func (s *Server) ApproveWorkspaceMutationPlan(_ context.Context, req *corev1.App
 	plan.Status = "approved"
 	stored, err := s.store.putPlan(plan)
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &corev1.ApproveWorkspaceMutationPlanResponse{Plan: stored}, nil
 }
@@ -291,18 +291,18 @@ func (s *Server) ApproveWorkspaceMutationPlan(_ context.Context, req *corev1.App
 func (s *Server) ScheduleRun(_ context.Context, req *corev1.ScheduleRunRequest) (*corev1.ScheduleRunResponse, error) {
 	schedule := cloneSchedule(req.GetSchedule())
 	if schedule.GetScope() == "" {
-		return nil, grpcError(fmt.Errorf("scope is required"))
+		return nil, serviceError(fmt.Errorf("scope is required"))
 	}
 	if schedule.GetCron() == "" {
-		return nil, grpcError(fmt.Errorf("cron is required"))
+		return nil, serviceError(fmt.Errorf("cron is required"))
 	}
 	if schedule.GetAction() == "" {
-		return nil, grpcError(fmt.Errorf("action is required"))
+		return nil, serviceError(fmt.Errorf("action is required"))
 	}
 	ensureID(&schedule.Id, "schedule")
 	stored, err := s.store.putSchedule(schedule)
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &corev1.ScheduleRunResponse{Schedule: stored}, nil
 }
@@ -310,7 +310,7 @@ func (s *Server) ScheduleRun(_ context.Context, req *corev1.ScheduleRunRequest) 
 func (s *Server) ListSchedules(_ context.Context, req *corev1.ListSchedulesRequest) (*corev1.ListSchedulesResponse, error) {
 	schedules, err := s.store.listSchedules(req.GetScope())
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &corev1.ListSchedulesResponse{Schedules: schedules}, nil
 }
@@ -318,19 +318,19 @@ func (s *Server) ListSchedules(_ context.Context, req *corev1.ListSchedulesReque
 func (s *Server) RecordEvaluation(_ context.Context, req *corev1.RecordEvaluationRequest) (*corev1.RecordEvaluationResponse, error) {
 	evaluation := cloneEvaluation(req.GetEvaluation())
 	if evaluation.GetRunId() == "" {
-		return nil, grpcError(fmt.Errorf("run_id is required"))
+		return nil, serviceError(fmt.Errorf("run_id is required"))
 	}
 	if evaluation.GetName() == "" {
-		return nil, grpcError(fmt.Errorf("name is required"))
+		return nil, serviceError(fmt.Errorf("name is required"))
 	}
 	if evaluation.GetStatus() == "" {
-		return nil, grpcError(fmt.Errorf("status is required"))
+		return nil, serviceError(fmt.Errorf("status is required"))
 	}
 	ensureID(&evaluation.Id, "evaluation")
 	ensureTimestamp(&evaluation.CreatedAt)
 	stored, err := s.store.putEvaluation(evaluation)
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &corev1.RecordEvaluationResponse{Evaluation: stored}, nil
 }
@@ -338,7 +338,7 @@ func (s *Server) RecordEvaluation(_ context.Context, req *corev1.RecordEvaluatio
 func (s *Server) GetEvaluation(_ context.Context, req *corev1.GetEvaluationRequest) (*corev1.GetEvaluationResponse, error) {
 	evaluation, err := s.store.getEvaluation(req.GetId())
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &corev1.GetEvaluationResponse{Evaluation: evaluation}, nil
 }
@@ -429,7 +429,7 @@ func cloneDecision(in *corev1.ApprovalDecision) *corev1.ApprovalDecision {
 	}
 }
 
-func grpcError(err error) error {
+func serviceError(err error) error {
 	if err == nil {
 		return nil
 	}

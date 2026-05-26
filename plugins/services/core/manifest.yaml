@@ -1,13 +1,11 @@
 name: core
 version: "1.0.0"
 type: service
-mode: api
 description: "Operational backbone for health, audit, artifacts, approvals, config, secrets, events, policy, scheduler, and evaluation"
 author: quarkloop
 license: Apache-2.0
 
 service:
-  address_env: QUARK_CORE_ADDR
   health:
     protocol: nats_service
     service: quark.core.v1.CoreService

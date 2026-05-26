@@ -193,7 +193,7 @@ func TestMutationFunctionsReturnApprovalPlans(t *testing.T) {
 
 func TestDescriptorMatchesSystemPluginContract(t *testing.T) {
 	t.Parallel()
-	descriptor := Descriptor("127.0.0.1:7311", &servicev1.SkillDescriptor{Name: "service-system"})
+	descriptor := Descriptor(&servicev1.SkillDescriptor{Name: "service-system"})
 
 	if descriptor.GetName() != "system" || descriptor.GetType() != "system" {
 		t.Fatalf("descriptor identity mismatch: %+v", descriptor)

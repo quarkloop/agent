@@ -17,10 +17,8 @@ func TestInstallerListsServicePlugins(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(serviceDir, "manifest.yaml"), []byte(`name: indexer
 version: "1.0.0"
 type: service
-mode: api
 description: Indexer service
 service:
-  address_env: QUARK_INDEXER_ADDR
   skill: SKILL.md
   readme: README.md
   functions:

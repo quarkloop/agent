@@ -13,7 +13,7 @@ import (
 	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/plugin"
 	gatewayv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/gateway/v1"
-	"github.com/quarkloop/runtime/pkg/modelservice"
+	"github.com/quarkloop/runtime/pkg/runcontext"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -93,14 +93,14 @@ func (p *Provider) ChatCompletionStream(ctx context.Context, req *plugin.ChatReq
 		client.Close()
 		return nil, fmt.Errorf("marshal gateway request: %w", err)
 	}
-	envelope, err := natskit.NewRequest(natskit.NewServiceCallID(), firstNonEmpty(modelservice.SpaceID(ctx), "runtime"), natskit.ActorRuntime, payload)
+	envelope, err := natskit.NewRequest(natskit.NewServiceCallID(), firstNonEmpty(runcontext.SpaceID(ctx), "runtime"), natskit.ActorRuntime, payload)
 	if err != nil {
 		cancel()
 		client.Close()
 		return nil, err
 	}
-	envelope.SessionID = modelservice.SessionID(ctx)
-	envelope.RunID = modelservice.RunID(ctx)
+	envelope.SessionID = runcontext.SessionID(ctx)
+	envelope.RunID = runcontext.RunID(ctx)
 	stream, err := client.OpenServiceStream(streamCtx, operation, envelope)
 	if err != nil {
 		cancel()

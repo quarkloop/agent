@@ -1,6 +1,8 @@
 package workflowsvc
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"go.temporal.io/sdk/temporal"
@@ -11,20 +13,21 @@ const (
 	WorkflowTypeDocumentIngestion = "document_ingestion_indexing"
 	QueryState                    = "state"
 	SignalCancel                  = "cancel"
+	SignalCheckpointCompleted     = "checkpoint_completed"
+	SignalCheckpointFailed        = "checkpoint_failed"
 
-	ActivityDispatchServiceFunction = "DispatchServiceFunction"
-	ActivityRecordWorkflowEvent     = "RecordWorkflowEvent"
+	ActivityRecordWorkflowEvent = "RecordWorkflowEvent"
 )
 
 type DocumentIngestionInput struct {
-	WorkflowID string                `json:"workflow_id"`
-	SpaceID    string                `json:"space_id"`
-	SessionID  string                `json:"session_id,omitempty"`
-	AgentID    string                `json:"agent_id,omitempty"`
-	Title      string                `json:"title,omitempty"`
-	Sources    []WorkflowSourceInput `json:"sources,omitempty"`
-	Steps      []ServiceCallInput    `json:"steps,omitempty"`
-	Metadata   map[string]string     `json:"metadata,omitempty"`
+	WorkflowID  string                `json:"workflow_id"`
+	SpaceID     string                `json:"space_id"`
+	SessionID   string                `json:"session_id,omitempty"`
+	AgentID     string                `json:"agent_id,omitempty"`
+	Title       string                `json:"title,omitempty"`
+	Sources     []WorkflowSourceInput `json:"sources,omitempty"`
+	Checkpoints []CheckpointInput     `json:"checkpoints,omitempty"`
+	Metadata    map[string]string     `json:"metadata,omitempty"`
 }
 
 type WorkflowSourceInput struct {
@@ -35,47 +38,36 @@ type WorkflowSourceInput struct {
 	Metadata map[string]string `json:"metadata,omitempty"`
 }
 
-type ServiceCallInput struct {
+type CheckpointInput struct {
 	ID          string `json:"id"`
-	Service     string `json:"service"`
-	Function    string `json:"function"`
-	PayloadJSON string `json:"payload_json"`
+	Description string `json:"description,omitempty"`
 	Required    bool   `json:"required"`
 }
 
 type WorkflowState struct {
-	WorkflowID     string   `json:"workflow_id"`
-	Status         string   `json:"status"`
-	CurrentStepID  string   `json:"current_step_id,omitempty"`
-	CompletedSteps []string `json:"completed_steps,omitempty"`
-	LastError      string   `json:"last_error,omitempty"`
+	WorkflowID           string   `json:"workflow_id"`
+	Status               string   `json:"status"`
+	CurrentCheckpointID  string   `json:"current_checkpoint_id,omitempty"`
+	CompletedCheckpoints []string `json:"completed_checkpoints,omitempty"`
+	LastError            string   `json:"last_error,omitempty"`
 }
 
 type DocumentIngestionResult struct {
 	State WorkflowState `json:"state"`
 }
 
-type ServiceFunctionActivityInput struct {
-	WorkflowID  string `json:"workflow_id"`
-	SpaceID     string `json:"space_id"`
-	SessionID   string `json:"session_id,omitempty"`
-	AgentID     string `json:"agent_id,omitempty"`
-	StepID      string `json:"step_id"`
-	Service     string `json:"service"`
-	Function    string `json:"function"`
-	PayloadJSON string `json:"payload_json"`
-}
-
-type ServiceFunctionActivityResult struct {
-	PayloadJSON string `json:"payload_json"`
+type CheckpointSignal struct {
+	CheckpointID string `json:"checkpoint_id"`
+	Message      string `json:"message,omitempty"`
+	PayloadJSON  string `json:"payload_json,omitempty"`
 }
 
 type WorkflowEventRecord struct {
-	WorkflowID  string `json:"workflow_id"`
-	Type        string `json:"type"`
-	StepID      string `json:"step_id,omitempty"`
-	Message     string `json:"message,omitempty"`
-	PayloadJSON string `json:"payload_json,omitempty"`
+	WorkflowID   string `json:"workflow_id"`
+	Type         string `json:"type"`
+	CheckpointID string `json:"checkpoint_id,omitempty"`
+	Message      string `json:"message,omitempty"`
+	PayloadJSON  string `json:"payload_json,omitempty"`
 }
 
 func DocumentIngestionWorkflow(ctx workflow.Context, input DocumentIngestionInput) (DocumentIngestionResult, error) {
@@ -95,52 +87,61 @@ func DocumentIngestionWorkflow(ctx workflow.Context, input DocumentIngestionInpu
 			MaximumAttempts:    3,
 		},
 	})
-	signalCh := workflow.GetSignalChannel(ctx, SignalCancel)
+	cancelCh := workflow.GetSignalChannel(ctx, SignalCancel)
+	completedCh := workflow.GetSignalChannel(ctx, SignalCheckpointCompleted)
+	failedCh := workflow.GetSignalChannel(ctx, SignalCheckpointFailed)
 
 	if err := recordWorkflowEvent(ctx, WorkflowEventRecord{WorkflowID: input.WorkflowID, Type: "workflow_started", Message: input.Title}); err != nil {
 		return DocumentIngestionResult{}, err
 	}
-	for _, step := range input.Steps {
+	for _, checkpoint := range input.Checkpoints {
 		var cancelPayload string
-		if signalCh.ReceiveAsync(&cancelPayload) {
+		if cancelCh.ReceiveAsync(&cancelPayload) {
 			state.Status = "cancelled"
 			state.LastError = cancelPayload
 			_ = recordWorkflowEvent(ctx, WorkflowEventRecord{WorkflowID: input.WorkflowID, Type: "workflow_cancelled", Message: cancelPayload})
 			return DocumentIngestionResult{State: state}, workflow.ErrCanceled
 		}
-		state.CurrentStepID = step.ID
-		if err := recordWorkflowEvent(ctx, WorkflowEventRecord{WorkflowID: input.WorkflowID, Type: "step_started", StepID: step.ID}); err != nil {
+		state.CurrentCheckpointID = checkpoint.ID
+		if err := recordWorkflowEvent(ctx, WorkflowEventRecord{WorkflowID: input.WorkflowID, Type: "checkpoint_waiting", CheckpointID: checkpoint.ID, Message: checkpoint.Description}); err != nil {
 			return DocumentIngestionResult{}, err
 		}
-
-		var result ServiceFunctionActivityResult
-		err := workflow.ExecuteActivity(ctx, ActivityDispatchServiceFunction, ServiceFunctionActivityInput{
-			WorkflowID:  input.WorkflowID,
-			SpaceID:     input.SpaceID,
-			SessionID:   input.SessionID,
-			AgentID:     input.AgentID,
-			StepID:      step.ID,
-			Service:     step.Service,
-			Function:    step.Function,
-			PayloadJSON: step.PayloadJSON,
-		}).Get(ctx, &result)
-		if err != nil {
-			state.LastError = err.Error()
-			if recordErr := recordWorkflowEvent(ctx, WorkflowEventRecord{WorkflowID: input.WorkflowID, Type: "step_failed", StepID: step.ID, Message: err.Error()}); recordErr != nil {
-				return DocumentIngestionResult{}, recordErr
+		for {
+			signalName, signal, err := waitForCheckpointSignal(ctx, cancelCh, completedCh, failedCh)
+			if err != nil {
+				return DocumentIngestionResult{}, err
 			}
-			if step.Required {
-				state.Status = "failed"
-				return DocumentIngestionResult{State: state}, err
+			if signalName == SignalCancel {
+				state.Status = "cancelled"
+				state.LastError = signal.Message
+				_ = recordWorkflowEvent(ctx, WorkflowEventRecord{WorkflowID: input.WorkflowID, Type: "workflow_cancelled", Message: signal.Message})
+				return DocumentIngestionResult{State: state}, workflow.ErrCanceled
 			}
-			continue
-		}
-		state.CompletedSteps = append(state.CompletedSteps, step.ID)
-		if err := recordWorkflowEvent(ctx, WorkflowEventRecord{WorkflowID: input.WorkflowID, Type: "step_completed", StepID: step.ID, PayloadJSON: result.PayloadJSON}); err != nil {
-			return DocumentIngestionResult{}, err
+			if signal.CheckpointID != checkpoint.ID {
+				if err := recordWorkflowEvent(ctx, WorkflowEventRecord{WorkflowID: input.WorkflowID, Type: "checkpoint_signal_rejected", CheckpointID: checkpoint.ID, Message: "signal does not match current checkpoint"}); err != nil {
+					return DocumentIngestionResult{}, err
+				}
+				continue
+			}
+			if signalName == SignalCheckpointFailed {
+				state.LastError = signal.Message
+				if err := recordWorkflowEvent(ctx, WorkflowEventRecord{WorkflowID: input.WorkflowID, Type: "checkpoint_failed", CheckpointID: checkpoint.ID, Message: signal.Message, PayloadJSON: signal.PayloadJSON}); err != nil {
+					return DocumentIngestionResult{}, err
+				}
+				if checkpoint.Required {
+					state.Status = "failed"
+					return DocumentIngestionResult{State: state}, fmt.Errorf("required checkpoint %q failed: %s", checkpoint.ID, signal.Message)
+				}
+				break
+			}
+			state.CompletedCheckpoints = append(state.CompletedCheckpoints, checkpoint.ID)
+			if err := recordWorkflowEvent(ctx, WorkflowEventRecord{WorkflowID: input.WorkflowID, Type: "checkpoint_completed", CheckpointID: checkpoint.ID, Message: signal.Message, PayloadJSON: signal.PayloadJSON}); err != nil {
+				return DocumentIngestionResult{}, err
+			}
+			break
 		}
 	}
-	state.CurrentStepID = ""
+	state.CurrentCheckpointID = ""
 	state.Status = "succeeded"
 	if err := recordWorkflowEvent(ctx, WorkflowEventRecord{WorkflowID: input.WorkflowID, Type: "workflow_completed"}); err != nil {
 		return DocumentIngestionResult{}, err
@@ -150,4 +151,36 @@ func DocumentIngestionWorkflow(ctx workflow.Context, input DocumentIngestionInpu
 
 func recordWorkflowEvent(ctx workflow.Context, event WorkflowEventRecord) error {
 	return workflow.ExecuteActivity(ctx, ActivityRecordWorkflowEvent, event).Get(ctx, nil)
+}
+
+func waitForCheckpointSignal(ctx workflow.Context, cancelCh, completedCh, failedCh workflow.ReceiveChannel) (string, CheckpointSignal, error) {
+	var (
+		name string
+		raw  string
+	)
+	selector := workflow.NewSelector(ctx)
+	selector.AddReceive(cancelCh, func(channel workflow.ReceiveChannel, _ bool) {
+		channel.Receive(ctx, &raw)
+		name = SignalCancel
+	})
+	selector.AddReceive(completedCh, func(channel workflow.ReceiveChannel, _ bool) {
+		channel.Receive(ctx, &raw)
+		name = SignalCheckpointCompleted
+	})
+	selector.AddReceive(failedCh, func(channel workflow.ReceiveChannel, _ bool) {
+		channel.Receive(ctx, &raw)
+		name = SignalCheckpointFailed
+	})
+	selector.Select(ctx)
+	if name == SignalCancel {
+		return name, CheckpointSignal{Message: raw}, nil
+	}
+	var signal CheckpointSignal
+	if err := json.Unmarshal([]byte(raw), &signal); err != nil {
+		return "", CheckpointSignal{}, fmt.Errorf("%s payload is invalid: %w", name, err)
+	}
+	if signal.CheckpointID == "" {
+		return "", CheckpointSignal{}, fmt.Errorf("%s payload requires checkpoint_id", name)
+	}
+	return name, signal, nil
 }

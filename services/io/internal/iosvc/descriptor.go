@@ -5,7 +5,7 @@ import (
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 )
 
-func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
+func Descriptor(skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
 	var skills []*servicev1.SkillDescriptor
 	if skill != nil {
 		skills = append(skills, skill)
@@ -15,7 +15,6 @@ func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.Ser
 		Name:    "io",
 		Type:    "io",
 		Version: "1.0.0",
-		Address: address,
 		Rpcs: []*servicev1.RpcDescriptor{
 			rpc(serviceName, "Read", "quark.io.v1.ReadRequest", "quark.io.v1.ReadResponse", "Read a text file, optionally with a line range."),
 			rpc(serviceName, "List", "quark.io.v1.ListRequest", "quark.io.v1.ListResponse", "List directory entries with optional recursion and hashes."),

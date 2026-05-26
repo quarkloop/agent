@@ -11,7 +11,6 @@ func TestExecutorRegistersIOProtobufDescriptorsInProductionPackage(t *testing.T)
 	executor := services.NewExecutor([]*servicev1.ServiceDescriptor{{
 		Name:    "io",
 		Version: "1.0.0",
-		Address: "127.0.0.1:1",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:  "quark.io.v1.IOService",
 			Method:   "Read",

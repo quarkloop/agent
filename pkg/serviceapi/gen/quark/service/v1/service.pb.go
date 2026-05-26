@@ -115,7 +115,6 @@ type ServiceDescriptor struct {
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
 	Version       string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
-	Address       string                 `protobuf:"bytes,4,opt,name=address,proto3" json:"address,omitempty"`
 	Rpcs          []*RpcDescriptor       `protobuf:"bytes,5,rep,name=rpcs,proto3" json:"rpcs,omitempty"`
 	Skills        []*SkillDescriptor     `protobuf:"bytes,6,rep,name=skills,proto3" json:"skills,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -169,13 +168,6 @@ func (x *ServiceDescriptor) GetType() string {
 func (x *ServiceDescriptor) GetVersion() string {
 	if x != nil {
 		return x.Version
-	}
-	return ""
-}
-
-func (x *ServiceDescriptor) GetAddress() string {
-	if x != nil {
-		return x.Address
 	}
 	return ""
 }
@@ -554,14 +546,13 @@ const file_quark_service_v1_service_proto_rawDesc = "" +
 	"\x14ListServicesResponse\x12?\n" +
 	"\bservices\x18\x01 \x03(\v2#.quark.service.v1.ServiceDescriptorR\bservices\"'\n" +
 	"\x11GetServiceRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\"\xdf\x01\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"\xd4\x01\n" +
 	"\x11ServiceDescriptor\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x18\n" +
-	"\aversion\x18\x03 \x01(\tR\aversion\x12\x18\n" +
-	"\aaddress\x18\x04 \x01(\tR\aaddress\x123\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\x123\n" +
 	"\x04rpcs\x18\x05 \x03(\v2\x1f.quark.service.v1.RpcDescriptorR\x04rpcs\x129\n" +
-	"\x06skills\x18\x06 \x03(\v2!.quark.service.v1.SkillDescriptorR\x06skills\"\xdc\x04\n" +
+	"\x06skills\x18\x06 \x03(\v2!.quark.service.v1.SkillDescriptorR\x06skillsJ\x04\b\x04\x10\x05R\aaddress\"\xdc\x04\n" +
 	"\rRpcDescriptor\x12\x18\n" +
 	"\aservice\x18\x01 \x01(\tR\aservice\x12\x16\n" +
 	"\x06method\x18\x02 \x01(\tR\x06method\x12\x18\n" +

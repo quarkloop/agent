@@ -34,7 +34,7 @@ func NewServer(cfg Config) *Server {
 func (s *Server) Read(_ context.Context, req *iov1.ReadRequest) (*iov1.ReadResponse, error) {
 	result, err := iofs.Read(req.GetPath(), req.GetStartLine(), req.GetEndLine())
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &iov1.ReadResponse{
 		Content:    result.Content,
@@ -47,7 +47,7 @@ func (s *Server) Read(_ context.Context, req *iov1.ReadRequest) (*iov1.ReadRespo
 func (s *Server) List(_ context.Context, req *iov1.ListRequest) (*iov1.ListResponse, error) {
 	result, err := iofs.List(req.GetPath(), req.GetRecursive(), req.GetIncludeHash())
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &iov1.ListResponse{
 		Entries: result.Entries,
@@ -59,7 +59,7 @@ func (s *Server) Stat(_ context.Context, req *iov1.StatRequest) (*iov1.StatRespo
 	includeHash := req.GetIncludeHash()
 	entry, err := iofs.Stat(req.GetPath(), includeHash)
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &iov1.StatResponse{Entry: fileEntryToProto(entry)}, nil
 }
@@ -67,7 +67,7 @@ func (s *Server) Stat(_ context.Context, req *iov1.StatRequest) (*iov1.StatRespo
 func (s *Server) Write(_ context.Context, req *iov1.WriteRequest) (*iov1.WriteResponse, error) {
 	n, err := iofs.Write(req.GetPath(), req.GetContent(), req.GetApproved())
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &iov1.WriteResponse{Written: int32(n)}, nil
 }
@@ -75,7 +75,7 @@ func (s *Server) Write(_ context.Context, req *iov1.WriteRequest) (*iov1.WriteRe
 func (s *Server) Append(_ context.Context, req *iov1.AppendRequest) (*iov1.AppendResponse, error) {
 	n, err := iofs.Append(req.GetPath(), req.GetContent(), req.GetApproved())
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &iov1.AppendResponse{Appended: int32(n)}, nil
 }
@@ -83,14 +83,14 @@ func (s *Server) Append(_ context.Context, req *iov1.AppendRequest) (*iov1.Appen
 func (s *Server) Replace(_ context.Context, req *iov1.ReplaceRequest) (*iov1.ReplaceResponse, error) {
 	n, err := iofs.Replace(req.GetPath(), req.GetFind(), req.GetReplaceWith(), req.GetApproved())
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &iov1.ReplaceResponse{Replacements: int32(n)}, nil
 }
 
 func (s *Server) Remove(_ context.Context, req *iov1.RemoveRequest) (*iov1.RemoveResponse, error) {
 	if err := iofs.Remove(req.GetPath(), req.GetApproved()); err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &iov1.RemoveResponse{}, nil
 }
@@ -98,7 +98,7 @@ func (s *Server) Remove(_ context.Context, req *iov1.RemoveRequest) (*iov1.Remov
 func (s *Server) ReadMedia(_ context.Context, req *iov1.ReadMediaRequest) (*iov1.ReadMediaResponse, error) {
 	result, err := iofs.ReadMedia(req.GetPath(), req.GetMaxBytes())
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &iov1.ReadMediaResponse{
 		Source:  mediaReferenceToProto(result.Source),
@@ -109,7 +109,7 @@ func (s *Server) ReadMedia(_ context.Context, req *iov1.ReadMediaRequest) (*iov1
 func (s *Server) ExtractPdf(ctx context.Context, req *iov1.ExtractPdfRequest) (*iov1.ExtractPdfResponse, error) {
 	result, err := iofs.ExtractPdf(ctx, req.GetPath(), req.GetMaxChars(), s.pdfToText)
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &iov1.ExtractPdfResponse{
 		Content:       result.Content,
@@ -133,7 +133,7 @@ func mediaReferenceToProto(source iofs.MediaReference) *iov1.MediaReference {
 func (s *Server) Execute(_ context.Context, req *iov1.ExecuteRequest) (*iov1.ExecuteResponse, error) {
 	output, exitCode, err := ioshell.Execute(req.GetCommand(), req.GetApproved())
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	return &iov1.ExecuteResponse{Output: output, ExitCode: exitCode}, nil
 }
@@ -141,7 +141,7 @@ func (s *Server) Execute(_ context.Context, req *iov1.ExecuteRequest) (*iov1.Exe
 func (s *Server) SearchWeb(_ context.Context, req *iov1.SearchWebRequest) (*iov1.SearchWebResponse, error) {
 	results, query, err := iosearch.Search(req.GetQuery(), int(req.GetMaxResults()))
 	if err != nil {
-		return nil, grpcError(err)
+		return nil, serviceError(err)
 	}
 	out := make([]*iov1.WebResult, 0, len(results))
 	for _, r := range results {
@@ -184,7 +184,7 @@ func fileEntriesToProto(entries []iofs.FileEntry) []*iov1.FileEntry {
 	return out
 }
 
-func grpcError(err error) error {
+func serviceError(err error) error {
 	switch {
 	case errors.Is(err, iofs.ErrMutationNotApproved), errors.Is(err, ioshell.ErrNotApproved):
 		return serviceerrors.FailedPrecondition(err.Error())

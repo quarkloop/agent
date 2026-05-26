@@ -6,7 +6,6 @@ import (
 	"github.com/quarkloop/pkg/plugin"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
-	spacemodel "github.com/quarkloop/pkg/space"
 	"github.com/quarkloop/supervisor/pkg/pluginmanager"
 )
 
@@ -27,31 +26,26 @@ func (s *Server) inspectServices(_ context.Context, space string) ([]clientcontr
 		if item.Manifest.Type != plugin.TypeService {
 			continue
 		}
-		configured, configuredForSpace := servicePluginConfig(serviceConfig, item.Manifest)
+		_, configuredForSpace := servicePluginConfig(serviceConfig, item.Manifest)
 		if !configuredForSpace {
 			continue
 		}
-		out = append(out, inspectInstalledService(item, configured))
+		out = append(out, inspectInstalledService(item))
 	}
 	return out, nil
 }
 
-func inspectInstalledService(item pluginmanager.InstalledPlugin, configured spacemodel.ServiceRef) clientcontract.ServiceInfo {
+func inspectInstalledService(item pluginmanager.InstalledPlugin) clientcontract.ServiceInfo {
 	info := clientcontract.ServiceInfo{
 		Name:        item.Manifest.Name,
 		Type:        string(item.Manifest.Type),
 		Version:     item.Manifest.Version,
-		Mode:        string(item.Manifest.Mode),
 		Description: item.Manifest.Description,
 		Status:      clientcontract.ServiceStatusUnavailable,
 	}
 	if item.Manifest.Service == nil {
 		info.Diagnostics = append(info.Diagnostics, "service manifest is missing service config")
 		return info
-	}
-	info.AddressEnv = item.Manifest.Service.AddressEnv
-	if configured.AddressEnv != "" {
-		info.AddressEnv = configured.AddressEnv
 	}
 	info.HealthService = serviceHealthName(item.Manifest)
 	info.MinVersion = item.Manifest.Service.Readiness.MinVersion
@@ -66,7 +60,7 @@ func inspectInstalledService(item pluginmanager.InstalledPlugin, configured spac
 		info.Diagnostics = append(info.Diagnostics, err.Error())
 		return info
 	}
-	info.Endpoint = item.Manifest.Service.SubjectPrefix
+	info.SubjectPrefix = item.Manifest.Service.SubjectPrefix
 	info.Status = clientcontract.ServiceStatusReady
 	if count := descriptorFunctionCount(pluginDescriptors); count > 0 {
 		info.FunctionCount = count

@@ -17,7 +17,7 @@ import (
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
 	iov1 "github.com/quarkloop/pkg/serviceapi/gen/quark/io/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
-	"github.com/quarkloop/runtime/pkg/modelservice"
+	"github.com/quarkloop/runtime/pkg/runcontext"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -118,7 +118,7 @@ func TestServiceRequestUnmarshalDiscardsUnknownGeneratedFields(t *testing.T) {
 }
 
 func TestInjectRuntimeContextArgumentsAddsSpaceForSpaceScopedRequests(t *testing.T) {
-	ctx := modelservice.WithSpaceID(context.Background(), "space-1")
+	ctx := runcontext.WithSpaceID(context.Background(), "space-1")
 
 	normalized, err := injectRuntimeContextArguments(ctx, "quark.runstate.v1.StartRunRequest", `{"title":"Import"}`)
 	if err != nil {
@@ -134,7 +134,7 @@ func TestInjectRuntimeContextArgumentsAddsSpaceForSpaceScopedRequests(t *testing
 }
 
 func TestInjectRuntimeContextArgumentsDoesNotOverrideExplicitSpace(t *testing.T) {
-	ctx := modelservice.WithSpaceID(context.Background(), "runtime-space")
+	ctx := runcontext.WithSpaceID(context.Background(), "runtime-space")
 
 	normalized, err := injectRuntimeContextArguments(ctx, "quark.runstate.v1.StartRunRequest", `{"space":"explicit-space","title":"Import"}`)
 	if err != nil {
@@ -803,8 +803,7 @@ func TestExecutorRetriesRetryableServiceFunctionFailures(t *testing.T) {
 	subscribeGatewayEmbeddingFunction(t, ns.ClientURL(), fake.handle)
 
 	executor := NewExecutorWithCaller([]*servicev1.ServiceDescriptor{{
-		Name:    "gateway",
-		Address: "nats://service-functions",
+		Name: "gateway",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:       "quark.gateway.v1.GatewayService",
 			Method:        "Embed",
@@ -854,8 +853,7 @@ func TestExecutorMapsServiceInvalidArgumentToDiagnostics(t *testing.T) {
 	subscribeGatewayEmbeddingFunction(t, ns.ClientURL(), invalidArgumentEmbeddingServer{}.handle)
 
 	executor := NewExecutorWithCaller([]*servicev1.ServiceDescriptor{{
-		Name:    "gateway",
-		Address: "nats://service-functions",
+		Name: "gateway",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:      "quark.gateway.v1.GatewayService",
 			Method:       "Embed",

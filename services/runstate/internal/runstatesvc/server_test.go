@@ -113,23 +113,6 @@ func TestCompletionCancellationAndLeaseOwnership(t *testing.T) {
 	}
 }
 
-func TestMigratesLegacyIngestionRecords(t *testing.T) {
-	root := t.TempDir()
-	legacy := `{"runs":[{"id":"ing-1","space":"space-1","title":"old","status":"running","created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z","sources":[{"id":"src-1","source_uri":"file:///a.pdf","filename":"a.pdf","source_hash":"sha256:a","phase":"parsed","status":"succeeded","file_path":"/tmp/a.pdf","extraction":{"phase":"parsed","status":"succeeded","updated_at":"2026-01-01T00:00:00Z"}}]}]}`
-	if err := os.WriteFile(filepath.Join(root, "ingestion-state.json"), []byte(legacy), 0o600); err != nil {
-		t.Fatalf("write legacy: %v", err)
-	}
-	srv := newTestServer(t, root)
-	got, err := srv.GetRun(context.Background(), &runstatev1.GetRunRequest{RunId: "ing-1"})
-	if err != nil {
-		t.Fatalf("get migrated run: %v", err)
-	}
-	if got.GetRun().GetKind() != "knowledge.index" || got.GetRun().GetItems()[0].GetName() != "a.pdf" ||
-		got.GetRun().GetItems()[0].GetMetadata()["file_path"] != "/tmp/a.pdf" {
-		t.Fatalf("migrated run = %#v", got.GetRun())
-	}
-}
-
 func TestRunStateServiceDoesNotCallOtherServices(t *testing.T) {
 	root := filepath.Join("..", "..")
 	banned := []string{

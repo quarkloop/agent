@@ -7,7 +7,7 @@ import (
 	"github.com/quarkloop/pkg/plugin"
 	"github.com/quarkloop/runtime/pkg/channel"
 	"github.com/quarkloop/runtime/pkg/loop"
-	"github.com/quarkloop/runtime/pkg/modelservice"
+	"github.com/quarkloop/runtime/pkg/modelusage"
 )
 
 // sendInitMessages queues initialization messages after plugin discovery.
@@ -38,14 +38,14 @@ func (a *Agent) sendInitMessages() {
 func (a *Agent) handleInitLLM(_ context.Context, msg loop.Message) error {
 	payload := msg.(InitLLMMsg)
 	slog.Info("initializing LLM models")
-	models := modelservice.New(payload.Providers, a.recordModelUsage)
+	providers := modelusage.ObserveProviders(payload.Providers, a.recordModelUsage)
 	if payload.ModelListURL != "" {
-		if err := a.Models.LoadFromURLWithGatewayService(payload.ModelListURL, models); err != nil {
+		if err := a.Models.LoadFromURL(payload.ModelListURL, providers); err != nil {
 			slog.Warn("remote model list failed, using fallback", "error", err)
 		}
 	}
 	if a.Models.GetDefault() == nil && len(payload.Fallback) > 0 {
-		if err := a.Models.LoadEntriesWithGatewayService(payload.Fallback, models); err != nil {
+		if err := a.Models.LoadEntries(payload.Fallback, providers); err != nil {
 			slog.Error("fallback model init failed", "error", err)
 		}
 	}

@@ -11,8 +11,7 @@ func TestCatalogExposesServiceFunctions(t *testing.T) {
 	t.Parallel()
 
 	catalog := NewCatalog([]*servicev1.ServiceDescriptor{{
-		Name:    "indexer",
-		Address: "127.0.0.1:7301",
+		Name: "indexer",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:      "quark.indexer.v1.IndexerService",
 			Method:       "QueryContext",

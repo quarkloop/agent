@@ -5,14 +5,14 @@ import (
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 )
 
-func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
+func Descriptor(skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
 	var skills []*servicev1.SkillDescriptor
 	if skill != nil {
 		skills = append(skills, skill)
 	}
 	serviceName := "quark.runstate.v1.RunStateService"
 	return &servicev1.ServiceDescriptor{
-		Name: "runstate", Type: "runstate", Version: "1.0.0", Address: address,
+		Name: "runstate", Type: "runstate", Version: "1.0.0",
 		Rpcs: []*servicev1.RpcDescriptor{
 			rpc(serviceName, "StartRun", "quark.runstate.v1.StartRunRequest", "quark.runstate.v1.StartRunResponse", "Create a durable execution run."),
 			rpc(serviceName, "GetRun", "quark.runstate.v1.GetRunRequest", "quark.runstate.v1.GetRunResponse", "Return one execution run."),

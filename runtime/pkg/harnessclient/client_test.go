@@ -14,7 +14,7 @@ import (
 	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/plugin"
 	harnessv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/harness/v1"
-	"github.com/quarkloop/runtime/pkg/modelservice"
+	"github.com/quarkloop/runtime/pkg/runcontext"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -36,7 +36,7 @@ func TestRustHarnessConformsToNATSKitUnaryAndStreamingContracts(t *testing.T) {
 		}
 	})
 
-	ctx := modelservice.WithSessionID(modelservice.WithSpaceID(context.Background(), "space-a"), "session-a")
+	ctx := runcontext.WithSessionID(runcontext.WithSpaceID(context.Background(), "space-a"), "session-a")
 	client := New(Config{URL: ns.ClientURL(), SpaceID: "space-a", Timeout: 250 * time.Millisecond})
 	t.Cleanup(client.Close)
 	var messages []plugin.Message

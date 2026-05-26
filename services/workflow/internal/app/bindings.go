@@ -11,9 +11,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func workflowBinding(address string, skill *servicev1.SkillDescriptor, server *workflowsvc.Server) natskit.Binding {
+func workflowBinding(skill *servicev1.SkillDescriptor, server *workflowsvc.Server) natskit.Binding {
 	return natskit.Binding{
-		Descriptor: workflowsvc.Descriptor(address, skill),
+		Descriptor: workflowsvc.Descriptor(skill),
 		Services: []natskit.RPCService{{
 			Service:        "quark.workflow.v1.WorkflowService",
 			Implementation: server,

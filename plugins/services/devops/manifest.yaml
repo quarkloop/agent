@@ -1,13 +1,11 @@
 name: devops
 version: "1.0.0"
 type: service
-mode: api
 description: "Selected repository, build, test, container, deploy, and policy service functions"
 author: quarkloop
 license: Apache-2.0
 
 service:
-  address_env: QUARK_DEVOPS_ADDR
   health:
     protocol: nats_service
     service: quark.devops.v1.RepoService

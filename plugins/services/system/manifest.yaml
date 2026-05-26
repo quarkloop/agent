@@ -1,13 +1,11 @@
 name: system
 version: "1.0.0"
 type: service
-mode: api
 description: "Selected Linux/system observation and approval-gated mutation functions"
 author: quarkloop
 license: Apache-2.0
 
 service:
-  address_env: QUARK_SYSTEM_ADDR
   health:
     protocol: nats_service
     service: quark.system.v1.SystemService

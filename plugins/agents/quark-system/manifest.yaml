@@ -1,7 +1,6 @@
 name: quark-system
 version: "1.0.0"
 type: agent
-mode: api
 description: "Quark System agent profile"
 author: quarkloop
 license: Apache-2.0
@@ -28,5 +27,11 @@ agent:
     - system_GetMetrics
     - system_KillProcess
     - system_RestartService
+    - harness_GetContextReport
+    - harness_StreamContextReports
+    - harness_PutMemory
+    - harness_GetMemory
+    - harness_SearchMemory
+    - harness_DeleteMemory
   skills:
     - SKILL.md

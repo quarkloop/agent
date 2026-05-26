@@ -24,8 +24,8 @@ and legacy PDF text extraction.
 
 ## Configuration
 
-- `QUARK_IO_ADDR`: service listen address used by the supervisor-resolved
-  service catalog.
+- Service functions are reached through their canonical `svc.io.v1.*` NATS
+  subjects; no per-service endpoint is configured.
 - `QUARK_PDFTOTEXT_PATH`: optional path to the `pdftotext` executable.
 - `BRAVE_API_KEY` / `SERPAPI_KEY`: optional web search provider credentials.
 

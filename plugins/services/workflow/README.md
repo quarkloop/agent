@@ -18,15 +18,14 @@ service-function calls.
 
 ## Document Ingestion Workflow
 
-The first workflow type is `document_ingestion_indexing`. It accepts sources and
-a service-function step plan. Each step is executed through the standard NATS
-service-function envelope with `actor=workflow`, preserving `workflow_id`,
-`space_id`, `session_id`, and `agent_id`.
+The first workflow type is `document_ingestion_indexing`. It accepts sources
+and durable checkpoints. The agent performs service-function calls itself and
+sends `checkpoint_completed` or `checkpoint_failed` signals with the
+checkpoint ID; Workflow never invokes a domain service.
 
 ## Operational Requirements
 
 - Temporal frontend must be reachable by the Workflow service.
-- NATS must be reachable for workflow service-function endpoints and
-  service-function activities.
+- NATS must be reachable for Workflow service-function endpoints.
 - Runtime and agents must not embed Temporal SDK code.
 - Services must not call Workflow or each other.

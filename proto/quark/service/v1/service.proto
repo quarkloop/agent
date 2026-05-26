@@ -6,7 +6,7 @@ import "google/protobuf/empty.proto";
 
 option go_package = "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1;servicev1";
 
-// ServiceRegistry provides runtime discovery for Quark gRPC services.
+// ServiceRegistry provides runtime discovery metadata for NATS service functions.
 service ServiceRegistry {
   rpc ListServices(google.protobuf.Empty) returns (ListServicesResponse);
   rpc GetService(GetServiceRequest) returns (ServiceDescriptor);
@@ -24,7 +24,8 @@ message ServiceDescriptor {
   string name = 1;
   string type = 2;
   string version = 3;
-  string address = 4;
+  reserved 4;
+  reserved "address";
   repeated RpcDescriptor rpcs = 5;
   repeated SkillDescriptor skills = 6;
 }

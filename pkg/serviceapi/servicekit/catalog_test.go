@@ -13,7 +13,6 @@ func TestRuntimeServiceCatalogRoundTrip(t *testing.T) {
 		Name:    "indexer",
 		Type:    "indexer",
 		Version: "1.0.0",
-		Address: "127.0.0.1:7301",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:       "quark.indexer.v1.IndexerService",
 			Method:        "QueryContext",
@@ -62,7 +61,6 @@ func TestRuntimeServiceCatalogValidatesDescriptors(t *testing.T) {
 	_, err := servicekit.MarshalRuntimeServiceCatalog([]*servicev1.ServiceDescriptor{{
 		Name:    "indexer",
 		Version: "1.0.0",
-		Address: "127.0.0.1:7301",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:  "quark.indexer.v1.IndexerService",
 			Method:   "QueryContext",
@@ -79,7 +77,6 @@ func TestRuntimeServiceCatalogValidatesResolvedFunctionMetadata(t *testing.T) {
 	_, err := servicekit.MarshalRuntimeServiceCatalog([]*servicev1.ServiceDescriptor{{
 		Name:    "indexer",
 		Version: "1.0.0",
-		Address: "127.0.0.1:7301",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:     "quark.indexer.v1.IndexerService",
 			Method:      "QueryContext",
@@ -100,7 +97,6 @@ func TestRuntimeServiceCatalogRequiresCanonicalSubject(t *testing.T) {
 	_, err := servicekit.MarshalRuntimeServiceCatalog([]*servicev1.ServiceDescriptor{{
 		Name:    "indexer",
 		Version: "1.0.0",
-		Address: "svc.indexer.v1",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:      "quark.indexer.v1.IndexerService",
 			Method:       "QueryContext",

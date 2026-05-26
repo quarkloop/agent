@@ -5,28 +5,29 @@ import (
 	"testing"
 
 	"github.com/quarkloop/pkg/plugin"
-	"github.com/quarkloop/runtime/pkg/modelservice"
+	"github.com/quarkloop/runtime/pkg/modelusage"
+	"github.com/quarkloop/runtime/pkg/runcontext"
 )
 
-func TestRegistryLoadsEntriesThroughGatewayService(t *testing.T) {
-	var usage []modelservice.Usage
-	models := modelservice.New(map[string]Provider{
+func TestRegistryLoadsEntriesThroughObservedGatewayAdapters(t *testing.T) {
+	var usage []modelusage.Usage
+	providers := modelusage.ObserveProviders(map[string]Provider{
 		"openrouter": fakeProvider{stream: func(context.Context, *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
 			ch := make(chan plugin.StreamEvent, 2)
 			ch <- plugin.StreamEvent{Delta: "ready"}
-			ch <- plugin.StreamEvent{Done: true}
+			ch <- plugin.StreamEvent{Done: true, Usage: &plugin.StreamUsage{Provider: "openrouter", Model: "openai/gpt-test", FinishReason: "stop"}}
 			close(ch)
 			return ch, nil
 		}},
-	}, func(_ context.Context, record modelservice.Usage) {
+	}, func(_ context.Context, record modelusage.Usage) {
 		usage = append(usage, record)
 	})
 
 	registry := NewRegistry()
-	err := registry.LoadEntriesWithGatewayService([]plugin.ModelEntry{
+	err := registry.LoadEntries([]plugin.ModelEntry{
 		{ID: "openai/gpt-test", Provider: "openrouter", Default: true, ContextWindow: 1024},
 		{ID: "missing/model", Provider: "missing"},
-	}, models)
+	}, providers)
 	if err != nil {
 		t.Fatalf("load entries: %v", err)
 	}
@@ -38,7 +39,7 @@ func TestRegistryLoadsEntriesThroughGatewayService(t *testing.T) {
 	if client == nil {
 		t.Fatal("default client is nil")
 	}
-	ctx := modelservice.WithSessionID(context.Background(), "session-1")
+	ctx := runcontext.WithSessionID(context.Background(), "session-1")
 	got, err := client.Infer(ctx, []plugin.Message{{Role: "user", Content: "hello"}}, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("infer: %v", err)

@@ -5,12 +5,11 @@ import (
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 )
 
-func Descriptor(address string, skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
+func Descriptor(skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
 	return &servicev1.ServiceDescriptor{
 		Name:    "devops",
 		Type:    "devops",
 		Version: "1.0.0",
-		Address: address,
 		Rpcs: []*servicev1.RpcDescriptor{
 			rpc("repo_Status", "quark.devops.v1.RepoService", "Status", "quark.devops.v1.StatusRequest", "quark.devops.v1.StatusResponse", "Return repository branch, cleanliness, and changed-file status."),
 			rpc("repo_Diff", "quark.devops.v1.RepoService", "Diff", "quark.devops.v1.DiffRequest", "quark.devops.v1.DiffResponse", "Return a bounded diff for selected repository files."),

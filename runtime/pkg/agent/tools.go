@@ -8,7 +8,7 @@ import (
 	"github.com/quarkloop/pkg/plugin"
 	"github.com/quarkloop/runtime/pkg/execution"
 	"github.com/quarkloop/runtime/pkg/loop"
-	"github.com/quarkloop/runtime/pkg/modelservice"
+	"github.com/quarkloop/runtime/pkg/runcontext"
 	"github.com/quarkloop/runtime/pkg/toolpolicy"
 )
 
@@ -91,8 +91,8 @@ func (a *Agent) executeTool(ctx context.Context, name, arguments string) (string
 }
 
 func (a *Agent) toolPolicyDeniedError(ctx context.Context, name, arguments string) error {
-	sessionID := modelservice.SessionID(ctx)
-	runID := modelservice.RunID(ctx)
+	sessionID := runcontext.SessionID(ctx)
+	runID := runcontext.RunID(ctx)
 	if a.Activity != nil {
 		a.addActivity(sessionID, "policy.denied", map[string]any{
 			"tool": name, "reason": "tool_not_allowed",
@@ -114,7 +114,7 @@ func (a *Agent) requireToolApproval(ctx context.Context, name, arguments string)
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if err := a.execution.Gate().RequestApproval(ctx, name, arguments, modelservice.SessionID(ctx)); err != nil {
+	if err := a.execution.Gate().RequestApproval(ctx, name, arguments, runcontext.SessionID(ctx)); err != nil {
 		return false, fmt.Errorf("tool call approval failed for %s: %w", name, err)
 	}
 	return true, nil

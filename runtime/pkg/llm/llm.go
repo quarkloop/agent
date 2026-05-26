@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/quarkloop/pkg/plugin"
-	"github.com/quarkloop/runtime/pkg/modelservice"
+	"github.com/quarkloop/runtime/pkg/runcontext"
 )
 
 // Client wraps a provider with the inference loop.
@@ -282,8 +282,8 @@ func (c *Client) inferWithPolicy(ctx context.Context, messages []plugin.Message,
 			return fullContent, nil
 		}
 
-		sessionID := modelservice.SessionID(ctx)
-		runID := modelservice.RunID(ctx)
+		sessionID := runcontext.SessionID(ctx)
+		runID := runcontext.RunID(ctx)
 		slog.Info("tool calls", "count", len(toolCalls), "names", toolCallNames(toolCalls), "session_id", sessionID, "run_id", runID)
 
 		// Append assistant message with tool calls

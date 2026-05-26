@@ -115,10 +115,8 @@ func TestRuntimeCatalogSnapshotReturnsVersionedPayloads(t *testing.T) {
 	writeInstalledServicePlugin(t, srv, "test-space")
 	config := spacemodel.NewConfig("test-space", t.TempDir())
 	config = config.WithPluginSelection(spacemodel.PluginRef{Ref: "quark/service-indexer"}, &spacemodel.ServiceRef{
-		Name:       "indexer",
-		Ref:        "quark/service-indexer",
-		Mode:       "local",
-		AddressEnv: "QUARK_INDEXER_ADDR",
+		Name: "indexer",
+		Ref:  "quark/service-indexer",
 	})
 	data, err := spacemodel.MarshalConfig(config)
 	if err != nil {
@@ -227,7 +225,6 @@ func TestValidateServicePluginDescriptorsRejectsMissingRPC(t *testing.T) {
 	desc := &servicev1.ServiceDescriptor{
 		Name:    "indexer",
 		Version: "1.0.0",
-		Address: "127.0.0.1:7301",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:       "quark.indexer.v1.IndexerService",
 			Method:        "QueryContext",
@@ -261,7 +258,6 @@ func TestValidateServicePluginDescriptorsRejectsVersionMismatch(t *testing.T) {
 	desc := &servicev1.ServiceDescriptor{
 		Name:    "indexer",
 		Version: "2.0.0",
-		Address: "127.0.0.1:7301",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:     "quark.indexer.v1.IndexerService",
 			Method:      "QueryContext",
@@ -296,16 +292,13 @@ func TestResolveServicePluginCatalogIgnoresUnboundInstalledServicePlugins(t *tes
 	writeInstalledServicePlugin(t, srv, "test-space")
 	writeInstalledServicePluginNamed(t, srv, "test-space", servicePluginFixture{
 		Name:         "citation",
-		AddressEnv:   "QUARK_CITATION_ADDR",
 		ProtoService: "quark.citation.v1.CitationService",
 		FunctionName: "citation_VerifyGrounding",
 	})
 	config := spacemodel.NewConfig("test-space", t.TempDir())
 	config = config.WithPluginSelection(spacemodel.PluginRef{Ref: "quark/service-indexer"}, &spacemodel.ServiceRef{
-		Name:       "indexer",
-		Ref:        "quark/service-indexer",
-		Mode:       "local",
-		AddressEnv: "QUARK_INDEXER_ADDR",
+		Name: "indexer",
+		Ref:  "quark/service-indexer",
 	})
 	config = config.WithPluginSelection(spacemodel.PluginRef{Ref: "quark/service-citation"}, nil)
 	data, err := spacemodel.MarshalConfig(config)
@@ -491,7 +484,6 @@ func connectNATS(t *testing.T, url, username, password string) *natsgo.Conn {
 
 type servicePluginFixture struct {
 	Name         string
-	AddressEnv   string
 	ProtoService string
 	FunctionName string
 }
@@ -505,13 +497,11 @@ func writeInstalledServicePluginNamed(t *testing.T, srv *Server, space string, f
 	manifest := fmt.Sprintf(`name: %s
 version: "1.0.0"
 type: service
-mode: api
 description: %s service
 service:
   transport: nats
   subject_prefix: svc.%s.v1
   queue_group: q.service.v1.%s
-  address_env: %s
   health:
     protocol: nats_service
     service: %s
@@ -532,7 +522,7 @@ service:
       description: Retrieve context.
       risk_level: read
       idempotent: true
-`, fixture.Name, fixture.Name, fixture.Name, fixture.Name, fixture.AddressEnv, fixture.ProtoService, fixture.ProtoService, fixture.FunctionName, fixture.ProtoService)
+`, fixture.Name, fixture.Name, fixture.Name, fixture.Name, fixture.ProtoService, fixture.ProtoService, fixture.FunctionName, fixture.ProtoService)
 	if err := os.WriteFile(filepath.Join(dir, "manifest.yaml"), []byte(manifest), 0o644); err != nil {
 		t.Fatal(err)
 	}

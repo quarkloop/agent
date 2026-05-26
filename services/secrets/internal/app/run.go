@@ -13,7 +13,6 @@ import (
 )
 
 type Config struct {
-	Address        string
 	SkillDir       string
 	OpenBaoAddress string
 	OpenBaoToken   string
@@ -51,7 +50,7 @@ func Run(ctx context.Context, cfg Config) error {
 	cfg.NATS.Logger = cfg.Logger
 	cfg.Logger.Info("secrets service listening", "openbao", cfg.OpenBaoAddress)
 	return natskit.RunRPCService(ctx, cfg.NATS, natskit.Binding{
-		Descriptor: secretssvc.Descriptor(cfg.Address, skill),
+		Descriptor: secretssvc.Descriptor(skill),
 		Services: []natskit.RPCService{{
 			Service:        "quark.secrets.v1.SecretsService",
 			Implementation: server,
@@ -60,9 +59,6 @@ func Run(ctx context.Context, cfg Config) error {
 }
 
 func normalizeConfig(cfg Config) Config {
-	if cfg.Address == "" {
-		cfg.Address = "127.0.0.1:7316"
-	}
 	if cfg.OpenBaoAddress == "" {
 		cfg.OpenBaoAddress = "http://127.0.0.1:8200"
 	}

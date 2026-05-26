@@ -6,7 +6,7 @@ Quark is a local agent operating environment.
 Supervisor = control plane
 Runtime    = execution engine
 Agents     = reasoning coordinators
-Services   = typed kernel capabilities
+Services   = typed service-function owners
 Plugins    = installable extension units
 Spaces     = isolated workspace identities
 space.json = Space-service-owned configuration record
@@ -74,7 +74,7 @@ The agent-owned document indexing flow is:
 
 1. read or extract source content with tools/services,
 2. track generic run/item state with Run State service functions,
-3. use LLM reasoning through the model boundary to classify and structure
+3. use LLM reasoning through Gateway to classify and structure
    facts, entities, relations, and citations,
 4. call `gateway_Embed`,
 5. call canonical indexer upsert functions for documents, chunks, facts,

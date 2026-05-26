@@ -15,7 +15,6 @@ import (
 )
 
 type Config struct {
-	Address  string
 	Driver   indexer.GraphVectorDriver
 	SkillDir string
 	NATS     natskit.Config
@@ -23,9 +22,6 @@ type Config struct {
 }
 
 func Run(ctx context.Context, cfg Config) error {
-	if cfg.Address == "" {
-		cfg.Address = "127.0.0.1:7301"
-	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
@@ -46,7 +42,7 @@ func Run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return err
 	}
-	descriptor := server.Descriptor(cfg.Address, skill)
+	descriptor := server.Descriptor(skill)
 	defer cfg.Driver.Close()
 	cfg.NATS.Logger = cfg.Logger
 	return natskit.RunRPCService(ctx, cfg.NATS, natskit.Binding{

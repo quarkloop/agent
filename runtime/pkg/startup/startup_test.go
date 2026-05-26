@@ -72,7 +72,6 @@ func TestLoadServiceCatalogPrefersNATSSnapshot(t *testing.T) {
 	servicePayload, err := servicekit.MarshalRuntimeServiceCatalog([]*servicev1.ServiceDescriptor{{
 		Name:    "indexer",
 		Version: "1.0.0",
-		Address: "127.0.0.1:7301",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:      "quark.indexer.v1.IndexerService",
 			Method:       "QueryContext",
@@ -106,8 +105,7 @@ func TestRegisterServiceFunctionsUsesRuntimeToolPath(t *testing.T) {
 		t.Fatalf("new agent: %v", err)
 	}
 	catalog := runtimeservices.NewCatalog([]*servicev1.ServiceDescriptor{{
-		Name:    "indexer",
-		Address: "127.0.0.1:7301",
+		Name: "indexer",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:     "quark.indexer.v1.IndexerService",
 			Method:      "QueryContext",
@@ -135,9 +133,8 @@ func TestRegisterServiceFunctionsSkipsStreamingRPCs(t *testing.T) {
 		t.Fatalf("new agent: %v", err)
 	}
 	catalog := runtimeservices.NewCatalog([]*servicev1.ServiceDescriptor{{
-		Name:    "gateway",
-		Type:    "gateway",
-		Address: "127.0.0.1:7306",
+		Name: "gateway",
+		Type: "gateway",
 		Rpcs: []*servicev1.RpcDescriptor{{
 			Service:      "quark.gateway.v1.GatewayService",
 			Method:       "StreamGenerate",
@@ -158,9 +155,8 @@ func TestRegisterServiceFunctionsSkipsStreamingRPCs(t *testing.T) {
 
 func TestModelProviderFromServiceUsesGatewayDescriptor(t *testing.T) {
 	catalog := runtimeservices.NewCatalog([]*servicev1.ServiceDescriptor{{
-		Name:    "gateway",
-		Type:    "gateway",
-		Address: "127.0.0.1:7306",
+		Name: "gateway",
+		Type: "gateway",
 	}})
 	if got := ModelProviderFromService(catalog, "openrouter"); got == nil {
 		t.Fatal("expected gateway service provider adapter")

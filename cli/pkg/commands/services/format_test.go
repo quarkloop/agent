@@ -3,7 +3,6 @@ package servicescmd
 import (
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 )
@@ -13,10 +12,10 @@ func TestFormatServiceTable(t *testing.T) {
 		Name:          "indexer",
 		Status:        clientcontract.ServiceStatusReady,
 		Version:       "1.0.0",
-		Endpoint:      "127.0.0.1:7301",
+		SubjectPrefix: "svc.indexer.v1",
 		FunctionCount: 2,
 	}})
-	for _, want := range []string{"NAME", "indexer", "ready", "127.0.0.1:7301"} {
+	for _, want := range []string{"NAME", "SUBJECT PREFIX", "indexer", "ready", "svc.indexer.v1"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("table missing %q:\n%s", want, out)
 		}
@@ -24,12 +23,11 @@ func TestFormatServiceTable(t *testing.T) {
 }
 
 func TestFormatServiceInspectIncludesDiagnostics(t *testing.T) {
-	started := time.Date(2026, 5, 17, 10, 0, 0, 0, time.UTC)
 	out := formatServiceInspect(clientcontract.ServiceInfo{
-		Name:        "indexer",
-		Status:      clientcontract.ServiceStatusUnavailable,
-		Description: "Indexer",
-		StartedAt:   &started,
+		Name:          "indexer",
+		Status:        clientcontract.ServiceStatusUnavailable,
+		Description:   "Indexer",
+		SubjectPrefix: "svc.indexer.v1",
 		Functions: []clientcontract.ServiceFunctionInfo{{
 			Name:    "indexer_QueryContext",
 			Service: "quark.indexer.v1.IndexerService",
@@ -37,7 +35,7 @@ func TestFormatServiceInspectIncludesDiagnostics(t *testing.T) {
 		}},
 		Diagnostics: []string{"health status is NOT_SERVING"},
 	})
-	for _, want := range []string{"indexer_QueryContext", "Diagnostics", "NOT_SERVING", "2026-05-17T10:00:00Z"} {
+	for _, want := range []string{"indexer_QueryContext", "Diagnostics", "NOT_SERVING", "svc.indexer.v1.*"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("inspect missing %q:\n%s", want, out)
 		}

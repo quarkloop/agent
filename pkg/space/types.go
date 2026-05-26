@@ -67,12 +67,9 @@ type AgentMemoryOverride struct {
 // ServiceRef records a space-selected service plugin reference. Supervisor
 // resolves concrete service catalog data before runtime consumes it.
 type ServiceRef struct {
-	Name       string         `json:"name"`
-	Ref        string         `json:"ref,omitempty"`
-	Mode       string         `json:"mode,omitempty"`
-	Address    string         `json:"address,omitempty"`
-	AddressEnv string         `json:"address_env,omitempty"`
-	Config     map[string]any `json:"config,omitempty"`
+	Name   string         `json:"name"`
+	Ref    string         `json:"ref,omitempty"`
+	Config map[string]any `json:"config,omitempty"`
 }
 
 type Permissions struct {

@@ -91,7 +91,6 @@ func coreServiceDescriptor() *servicev1.ServiceDescriptor {
 		Name:    "core",
 		Type:    "core",
 		Version: "1.0.0",
-		Address: "svc.core.v1",
 		Rpcs: []*servicev1.RpcDescriptor{
 			{
 				Service:       "quark.core.v1.CoreService",
