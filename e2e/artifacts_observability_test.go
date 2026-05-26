@@ -54,6 +54,14 @@ func TestAgentRunArtifactsAreRedactedAndStructured(t *testing.T) {
 			ObservedAt:     "2026-05-18T10:00:01Z",
 			DurationMillis: 25,
 		}},
+		ModelUsage: []utils.ModelUsage{{
+			Provider: "openrouter", Model: "test/model", RequestID: "provider-request-1",
+			InputTokens: 12, OutputTokens: 4, RunID: "run-1", FinishReason: "stop",
+		}},
+		GatewayUsage: []utils.GatewayUsage{{
+			Provider: "openrouter", Model: "test/model", Requests: 1,
+			InputTokens: 12, OutputTokens: 4, TotalTokens: 16,
+		}},
 	}
 
 	artifacts := writeAgentRunArtifacts(t, dir, "agent-run", env, trace, "prompt "+secret)
@@ -102,7 +110,7 @@ func TestAgentRunArtifactsAreRedactedAndStructured(t *testing.T) {
 	if payload.CatalogSnapshot["catalog_ref"] == "" || payload.ProfileSnapshot["model"] != "test/model" {
 		t.Fatalf("catalog/profile snapshots missing: %+v %+v", payload.CatalogSnapshot, payload.ProfileSnapshot)
 	}
-	if payload.ModelUsage["provider"] != "openrouter" || payload.ModelUsage["reported_by_model"] != false {
+	if payload.ModelUsage["provider"] != "openrouter" || payload.ModelUsage["reported_by_model"] != true {
 		t.Fatalf("unexpected model usage snapshot: %+v", payload.ModelUsage)
 	}
 	if len(payload.ModelTimeline) != 1 || payload.ModelTimeline[0]["provider"] != "openrouter" {

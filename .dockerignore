@@ -4,9 +4,9 @@
 bin
 docs
 e2e.test
+e2e/testdata
 web/.next
 web/node_modules
 **/plugin.so
 **/*-service
-**/supervisor
-**/runtime
+**/target

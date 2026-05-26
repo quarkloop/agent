@@ -12,8 +12,8 @@ import (
 func spaceConfigFor(t *testing.T, name, workingDir, provider, model string, services []ServicePlugin, extraServicePlugins []string, agents []string, agentServices map[string][]string, includeKnowledgeServices bool) []byte {
 	t.Helper()
 	config := spacemodel.NewConfig(name, workingDir)
-	config.Model = spacemodel.Model{Provider: provider, Name: model}
-	if provider != "noop" {
+	if provider != "" || model != "" {
+		config.Model = spacemodel.Model{Provider: provider, Name: model}
 		config.Model.Env = []string{"OPENROUTER_API_KEY"}
 	}
 	config.Plugins = nil

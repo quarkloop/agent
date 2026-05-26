@@ -19,7 +19,7 @@ type RuntimeIdentity struct {
 
 type E2EEnv struct {
 	Root                string
-	SpacesDir           string
+	WorkingDir          string
 	Space               string
 	NATS                NATSEndpoints
 	Agent               RuntimeIdentity
@@ -29,8 +29,7 @@ type E2EEnv struct {
 	Services            []ServicePlugin
 	Agents              []string
 	ExtraServicePlugins []string
-
-	ServiceAddresses map[string]string
+	Compose             *ComposeProject
 }
 
 type NATSEndpoints struct {
@@ -40,64 +39,29 @@ type NATSEndpoints struct {
 	StateDir      string
 }
 
-func (e *E2EEnv) ServiceAddress(name string) string {
-	if e == nil || e.ServiceAddresses == nil {
-		return ""
-	}
-	return e.ServiceAddresses[name]
-}
-
-// RuntimeSetup is the read-only setup state exposed to a StartOptions hook
-// before the runtime process is launched.
-type RuntimeSetup struct {
-	Root       string
-	SpacesDir  string
-	Space      string
-	NATS       NATSEndpoints
-	WorkingDir string
-}
-
 type StartOptions struct {
-	// ForceBinaryTools, when true, omits the tool plugin.so files from the
-	// installed space so the agent's pluginmanager must fall back to
-	// api-mode loading. Used to test binary fallback end-to-end.
-	ForceBinaryTools bool
-	// DisableServiceDiscovery keeps legacy tool E2Es focused on plugin behavior
-	// instead of adding generated service functions from the runtime service
-	// catalog.
-	DisableServiceDiscovery bool
-	// DisableKnowledgeServices omits the default Knowledge service declarations
-	// declarations for non-Knowledge e2e flows.
+	// DisableKnowledgeServices omits the default Knowledge services for focused
+	// scenarios that request only their declared service plugins.
 	DisableKnowledgeServices bool
-	// SupervisorEnv is appended to the supervisor process environment.
-	SupervisorEnv map[string]string
-	// WorkingDir is the space working directory registered with the supervisor.
-	// When empty, StartE2E creates an isolated temp directory.
+	// WorkingDir is an isolated user workspace bind-mounted into the services
+	// that may read or intentionally mutate test fixtures.
 	WorkingDir string
-	// Embedding configures the Gateway embedding model for Knowledge tests.
+	// Embedding selects the configured real Gateway embedding model.
 	Embedding GatewayEmbeddingOptions
-	// Services declares additional service plugins that should be installed in
-	// the e2e space and exposed to runtime via supervisor discovery.
+	// Services declares service plugins exposed to runtime for the scenario.
 	Services []ServicePlugin
-	// ExtraServicePlugins installs service plugins without declaring a running
-	// service binding in the authoritative space configuration.
+	// ExtraServicePlugins installs descriptors without binding a running
+	// service. It is retained only for catalog validation scenarios.
 	ExtraServicePlugins []string
-	// Agents declares agent profile plugins that should be installed and
-	// enabled through the space configuration. When empty, tests use the runtime fallback
-	// profile so legacy tool E2Es stay focused.
+	// Agents declares installed/enabled agent profiles.
 	Agents []string
-	// AgentServicePermissions narrows an installed agent profile to the named
-	// service functions through the space configuration override layer.
+	// AgentServicePermissions narrows each enabled profile to service functions.
 	AgentServicePermissions map[string][]string
-	// BeforeRuntime runs after the space and plugins are ready, but before the
-	// runtime child is started. Use it to start external services whose
-	// addresses were already supplied through SupervisorEnv.
-	BeforeRuntime func(t *testing.T, setup RuntimeSetup, bins BuiltBinaries)
 }
 
-// StartE2E boots a supervisor, registers a space, installs plugins, and
-// launches an agent. Tests use the returned env to create sessions and
-// interact with the agent.
+// StartE2E provisions one isolated Docker Compose deployment, creates its
+// space through the supervisor NATS contract, then starts the NATS-only
+// runtime with a space-scoped credential.
 func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 	t.Helper()
 
@@ -105,32 +69,16 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 	if len(opts) > 0 {
 		opt = opts[0]
 	}
-
-	cfg, ok := CfgForTest(t, "OPENROUTER_API_KEY")
-	if withProvider && !ok {
-		t.Skip("no provider configured (set OPENROUTER_API_KEY)")
-	}
-
-	bins := BuildAllOnce(t)
 	embedding := opt.Embedding.withDefaults()
-
-	supervisorEnv := make(map[string]string, len(opt.SupervisorEnv)+1)
-	for k, v := range opt.SupervisorEnv {
-		supervisorEnv[k] = v
+	var cfg ProviderConfig
+	if withProvider {
+		cfg = RequireProviderConfig(t)
 	}
-	if opt.DisableServiceDiscovery {
-		supervisorEnv["QUARK_DISABLE_SERVICE_DISCOVERY"] = "true"
-	}
-	spacesDir, natsEndpoints := startSupervisor(t, bins, supervisorEnv)
-
-	spaceName := fmt.Sprintf("e2e-%d", time.Now().UnixNano())
-	provider := "openrouter"
-	model := "noop/noop"
+	var provider, model string
 	if withProvider {
 		provider = cfg.Provider
 		model = cfg.Model
 	}
-
 	workingDir := opt.WorkingDir
 	if workingDir == "" {
 		workingDir = t.TempDir()
@@ -138,15 +86,45 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 	if err := os.MkdirAll(workingDir, 0o755); err != nil {
 		t.Fatalf("mkdir working dir: %v", err)
 	}
+	if err := os.Chmod(workingDir, 0o755); err != nil {
+		t.Fatalf("make bind-mounted working directory readable: %v", err)
+	}
+
+	project := NewComposeProject(t, workingDir)
+	projectEnv := make(map[string]string)
+	if withProvider {
+		projectEnv["QUARK_MODEL_PROVIDER"] = provider
+		projectEnv["QUARK_MODEL_NAME"] = model
+		projectEnv["OPENROUTER_MODEL"] = model
+	}
+	if embedding.Provider != "" {
+		projectEnv["QUARK_GATEWAY_EMBEDDING_PROVIDER"] = embedding.Provider
+	}
+	if embedding.Model != "" {
+		projectEnv["OPENROUTER_EMBEDDING_MODEL"] = embedding.Model
+	}
+	project.SetEnv(projectEnv)
+	project.Up("supervisor", "space")
+	natsEndpoints := project.Endpoints()
+	waitForControlNATS(t, natsEndpoints, 45*time.Second)
+
+	spaceName := fmt.Sprintf("e2e-%d", time.Now().UnixNano())
 	agents := withDefaultMainAgent(opt.Agents)
 	createSpace(t, natsEndpoints, clientcontract.CreateSpaceRequest{
 		Config: spaceConfigFor(t, spaceName, workingDir, provider, model, opt.Services, opt.ExtraServicePlugins, agents, opt.AgentServicePermissions, !opt.DisableKnowledgeServices),
 	})
 	runtimeCredential := issueRuntimeCredential(t, natsEndpoints, spaceName)
+	runtimeID := "e2e-runtime-" + spaceName
+	project.SetEnv(map[string]string{
+		"QUARK_RUNTIME_ID":            runtimeID,
+		"QUARK_SPACE":                 spaceName,
+		"QUARK_RUNTIME_NATS_USER":     runtimeCredential.Username,
+		"QUARK_RUNTIME_NATS_PASSWORD": runtimeCredential.Password,
+	})
 
 	env := &E2EEnv{
 		Root:                QuarkRoot(t),
-		SpacesDir:           spacesDir,
+		WorkingDir:          workingDir,
 		Space:               spaceName,
 		NATS:                natsEndpoints,
 		Provider:            provider,
@@ -155,52 +133,36 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 		Services:            append([]ServicePlugin(nil), opt.Services...),
 		Agents:              append([]string(nil), agents...),
 		ExtraServicePlugins: append([]string(nil), opt.ExtraServicePlugins...),
-
-		ServiceAddresses: serviceAddressesFromOptions(opt.Services, supervisorEnv),
+		Compose:             project,
+		Agent:               RuntimeIdentity{ID: runtimeID, Space: spaceName},
 	}
 
-	if opt.BeforeRuntime != nil {
-		opt.BeforeRuntime(t, RuntimeSetup{
-			Root:       env.Root,
-			SpacesDir:  env.SpacesDir,
-			Space:      env.Space,
-			NATS:       env.NATS,
-			WorkingDir: workingDir,
-		}, bins)
+	serviceContainers := composeServicesFor(opt, withProvider)
+	project.Up(serviceContainers...)
+	waitForServiceResponders(t, env, serviceContainers, 60*time.Second)
+	if withProvider {
+		preflightGateway(t, env)
 	}
-	DumpNATSCLIDiagnostics(t, env.NATS, "after-services")
-
-	runtimeID := "e2e-runtime-" + spaceName
-	runtimeOverrides := map[string]string{
-		"QUARK_RUNTIME_ID":                runtimeID,
-		"QUARK_SPACE":                     spaceName,
-		"QUARK_MODEL_PROVIDER":            provider,
-		"QUARK_MODEL_NAME":                model,
-		"QUARK_GATEWAY_REQUEST_TIMEOUT":   e2eModelGatewayTimeout(),
-		"QUARK_GATEWAY_MAX_OUTPUT_TOKENS": e2eModelMaxOutputTokens(),
-		"QUARK_NATS_URL":                  runtimeCredential.URL,
-		"QUARK_NATS_USER":                 runtimeCredential.Username,
-		"QUARK_NATS_PASSWORD":             runtimeCredential.Password,
-	}
-	for _, key := range providerCredentialEnvKeys() {
-		if value := supervisorEnv[key]; value != "" {
-			runtimeOverrides[key] = value
-		}
-	}
-	runtimeEnv := RuntimeProcessEnv(runtimeOverrides)
-	runtimeProc := StartProcess(t, "runtime", bins.Agent, []string{
-		"start",
-		"--channel", "nats",
-	}, runtimeEnv)
-	env.Agent = RuntimeIdentity{
-		ID:    runtimeID,
-		Space: spaceName,
-	}
-
-	runtimeProc.WaitForLog(t, "nats channel listening", 30*time.Second)
-	DumpNATSCLIDiagnostics(t, env.NATS, "after-runtime")
-	Logf(t, "runtime=%s nats=%s (space=%s)", runtimeID, natsEndpoints.ClientURL, spaceName)
+	DumpNATSCLIDiagnostics(t, env.NATS, "after-services", project.ArtifactsDir())
+	project.Up("runtime")
+	waitForRuntimeNATS(t, env, 45*time.Second)
+	DumpNATSCLIDiagnostics(t, env.NATS, "after-runtime", project.ArtifactsDir())
+	Logf(t, "runtime=%s nats=%s space=%s services=%s", runtimeID, natsEndpoints.ClientURL, spaceName, strings.Join(serviceContainers, ","))
 	return env
+}
+
+func composeServicesFor(opt StartOptions, withProvider bool) []string {
+	services := []string{"io"}
+	if !opt.DisableKnowledgeServices {
+		services = append(services, "core", "gateway", "indexer", "document", "runstate", "citation", "harness")
+	}
+	for _, service := range opt.Services {
+		services = append(services, service.withDefaults().Name)
+	}
+	if withProvider {
+		services = append(services, "gateway")
+	}
+	return uniqueNonEmpty(services)
 }
 
 func withDefaultMainAgent(agents []string) []string {
@@ -223,57 +185,4 @@ func withDefaultMainAgent(agents []string) []string {
 		add(agent)
 	}
 	return out
-}
-
-func e2eModelGatewayTimeout() string {
-	if value := strings.TrimSpace(os.Getenv("QUARK_E2E_MODEL_GATEWAY_TIMEOUT")); value != "" {
-		return value
-	}
-	if value := strings.TrimSpace(os.Getenv("QUARK_GATEWAY_REQUEST_TIMEOUT")); value != "" {
-		return value
-	}
-	return "2m"
-}
-
-func e2eModelMaxOutputTokens() string {
-	if value := strings.TrimSpace(os.Getenv("QUARK_E2E_MODEL_MAX_OUTPUT_TOKENS")); value != "" {
-		return value
-	}
-	if value := strings.TrimSpace(os.Getenv("QUARK_GATEWAY_MAX_OUTPUT_TOKENS")); value != "" {
-		return value
-	}
-	return "4096"
-}
-
-func serviceAddressesFromOptions(services []ServicePlugin, supervisorEnv map[string]string) map[string]string {
-	addresses := make(map[string]string)
-	if addr := supervisorEnv["QUARK_INDEXER_ADDR"]; addr != "" {
-		addresses["indexer"] = addr
-	}
-	if addr := supervisorEnv["QUARK_CORE_ADDR"]; addr != "" {
-		addresses["core"] = addr
-	}
-	if addr := supervisorEnv["QUARK_GATEWAY_SERVICE_ADDR"]; addr != "" {
-		addresses["gateway"] = addr
-	}
-	if addr := supervisorEnv["QUARK_DOCUMENT_ADDR"]; addr != "" {
-		addresses["document"] = addr
-	}
-	if addr := supervisorEnv["QUARK_RUNSTATE_ADDR"]; addr != "" {
-		addresses["runstate"] = addr
-	}
-	if addr := supervisorEnv["QUARK_CITATION_ADDR"]; addr != "" {
-		addresses["citation"] = addr
-	}
-	if addr := supervisorEnv["QUARK_IO_ADDR"]; addr != "" {
-		addresses["io"] = addr
-	}
-	for _, service := range services {
-		service = service.withDefaults()
-		if addr := supervisorEnv[service.AddressEnv]; addr != "" {
-			addresses[service.Name] = addr
-			addresses[service.Plugin] = addr
-		}
-	}
-	return addresses
 }

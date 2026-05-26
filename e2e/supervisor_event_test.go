@@ -3,36 +3,32 @@
 package e2e
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/quarkloop/e2e/utils"
 )
 
-// TestSupervisorSessionEventReachesAgent verifies the supervisor -> runtime
-// NATS path: creating a session through supervisor-owned subjects should cause
-// the runtime process to mirror it into its in-memory registry.
-func TestSupervisorSessionEventReachesAgent(t *testing.T) {
-	env := utils.StartE2E(t, false, utils.StartOptions{DisableKnowledgeServices: true})
+// TestRuntimeAcceptsSupervisorSessionInput verifies the NATS boundary: the
+// supervisor provisions session identity and runtime admits it when the user
+// first sends input. Runtime no longer mirrors HTTP-created state.
+func TestRuntimeAcceptsSupervisorSessionInput(t *testing.T) {
+	env := utils.StartE2E(t, true, utils.StartOptions{
+		DisableKnowledgeServices: true,
+		Services:                 []utils.ServicePlugin{gatewayServicePlugin()},
+	})
 
 	before := utils.AgentSessionsCount(t, env)
-
 	sess := utils.CreateChatSession(t, env, "event-test")
-	utils.Logf(t, "created session id=%s", sess.ID)
-
-	deadline := time.Now().Add(10 * time.Second)
-	attempts := 0
-	for time.Now().Before(deadline) {
-		n := utils.AgentSessionsCount(t, env)
-		attempts++
-		if attempts == 1 || attempts%10 == 0 {
-			utils.Logf(t, "poll %d: agent sessions=%d (want > %d)", attempts, n, before)
-		}
-		if n > before {
-			utils.Logf(t, "agent mirrored session after %d polls", attempts)
-			return
-		}
-		time.Sleep(100 * time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	reply := utils.PostMessage(t, ctx, env, sess.ID, "Reply briefly to confirm this session is available.")
+	if reply == "" {
+		t.Fatal("expected a response after sending session input")
 	}
-	t.Fatalf("agent never registered the session (polls=%d, before=%d)", attempts, before)
+	after := utils.AgentSessionsCount(t, env)
+	if after <= before {
+		t.Fatalf("runtime did not admit input session: sessions before=%d after=%d", before, after)
+	}
 }

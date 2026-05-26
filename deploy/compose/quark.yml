@@ -6,6 +6,7 @@ x-go-build: &go-build
 
 x-service-defaults: &service-defaults
   restart: unless-stopped
+  user: ${QUARK_CONTAINER_USER:-quark}
   networks:
     - quark
   env_file:
@@ -39,9 +40,9 @@ services:
       - --nats-monitor-port
       - "8222"
     ports:
-      - "4222:4222"
-      - "8222:8222"
-      - "9222:9222"
+      - "127.0.0.1:${QUARK_NATS_CLIENT_PORT:-4222}:4222"
+      - "127.0.0.1:${QUARK_NATS_MONITOR_PORT:-8222}:8222"
+      - "127.0.0.1:${QUARK_NATS_WEBSOCKET_PORT:-9222}:9222"
     volumes:
       - ../../plugins:/plugins:ro
       - supervisor-state:/var/lib/quark
@@ -70,6 +71,8 @@ services:
       QUARK_SPACE: ${QUARK_SPACE:-default}
       QUARK_MODEL_PROVIDER: ${QUARK_MODEL_PROVIDER:-openrouter}
       QUARK_MODEL_NAME: ${QUARK_MODEL_NAME:-openai/gpt-5-mini}
+      QUARK_GATEWAY_REQUEST_TIMEOUT: ${QUARK_GATEWAY_REQUEST_TIMEOUT:-2m}
+      QUARK_GATEWAY_MAX_OUTPUT_TOKENS: ${QUARK_GATEWAY_MAX_OUTPUT_TOKENS:-4096}
 
   io:
     <<: *service-defaults
@@ -82,11 +85,10 @@ services:
     depends_on:
       supervisor:
         condition: service_healthy
-    ports:
-      - "7308:7308"
     volumes:
       - ../../plugins:/plugins:ro
       - spaces:/var/lib/quark/spaces
+      - ${QUARK_E2E_WORKING_DIR:-/tmp/quark-e2e-workspace}:${QUARK_E2E_WORKING_DIR:-/tmp/quark-e2e-workspace}
 
   space:
     <<: *service-defaults
@@ -99,8 +101,6 @@ services:
     depends_on:
       supervisor:
         condition: service_healthy
-    ports:
-      - "7303:7303"
     volumes:
       - ../../plugins:/plugins:ro
       - spaces:/var/lib/quark/spaces
@@ -116,10 +116,9 @@ services:
     depends_on:
       supervisor:
         condition: service_healthy
-    ports:
-      - "7305:7305"
     volumes:
       - ../../plugins:/plugins:ro
+      - ${QUARK_E2E_WORKING_DIR:-/tmp/quark-e2e-workspace}:${QUARK_E2E_WORKING_DIR:-/tmp/quark-e2e-workspace}
 
   runstate:
     <<: *service-defaults
@@ -129,8 +128,9 @@ services:
       args:
         PACKAGE: ./services/runstate/cmd/runstate
     command: ["--addr", "0.0.0.0:7306", "--root", "/var/lib/quark/runstate", "--skill-dir", "/plugins/services/runstate", "--nats-url", "nats://supervisor:4222", "--nats-user", "quark-control", "--nats-password", "quark-control-dev"]
-    ports:
-      - "7306:7306"
+    depends_on:
+      supervisor:
+        condition: service_healthy
     volumes:
       - ../../plugins:/plugins:ro
       - runstate-records:/var/lib/quark/runstate
@@ -148,8 +148,6 @@ services:
         condition: service_healthy
       dgraph:
         condition: service_started
-    ports:
-      - "7301:7301"
     volumes:
       - ../../plugins:/plugins:ro
 
@@ -164,8 +162,6 @@ services:
     depends_on:
       supervisor:
         condition: service_healthy
-    ports:
-      - "7309:7309"
     volumes:
       - ../../plugins:/plugins:ro
     environment:
@@ -173,6 +169,11 @@ services:
       QUARK_NATS_USER: quark-control
       QUARK_NATS_PASSWORD: quark-control-dev
       QUARK_GATEWAY_EMBEDDING_PROVIDER: ${QUARK_GATEWAY_EMBEDDING_PROVIDER:-openrouter}
+      QUARK_GATEWAY_TIMEOUT: ${QUARK_GATEWAY_TIMEOUT:-2m}
+      QUARK_OPENROUTER_PROVIDER_KIND: ${QUARK_OPENROUTER_PROVIDER_KIND:-openai-compatible}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4o-mini}
       OPENROUTER_EMBEDDING_MODEL: ${OPENROUTER_EMBEDDING_MODEL:-}
 
   workflow:
@@ -188,8 +189,6 @@ services:
         condition: service_healthy
       temporal:
         condition: service_started
-    ports:
-      - "7315:7315"
     volumes:
       - ../../plugins:/plugins:ro
 
@@ -206,8 +205,6 @@ services:
         condition: service_healthy
       openbao:
         condition: service_started
-    ports:
-      - "7316:7316"
     volumes:
       - ../../plugins:/plugins:ro
 
@@ -222,8 +219,6 @@ services:
     depends_on:
       supervisor:
         condition: service_healthy
-    ports:
-      - "7310:7310"
     volumes:
       - ../../plugins:/plugins:ro
 
@@ -238,8 +233,6 @@ services:
     depends_on:
       supervisor:
         condition: service_healthy
-    ports:
-      - "7311:7311"
     volumes:
       - ../../plugins:/plugins:ro
       - core-state:/var/lib/quark/core
@@ -255,10 +248,9 @@ services:
     depends_on:
       supervisor:
         condition: service_healthy
-    ports:
-      - "7312:7312"
     volumes:
       - ../../plugins:/plugins:ro
+      - ${QUARK_E2E_WORKING_DIR:-/tmp/quark-e2e-workspace}:${QUARK_E2E_WORKING_DIR:-/tmp/quark-e2e-workspace}
 
   system:
     <<: *service-defaults
@@ -271,20 +263,28 @@ services:
     depends_on:
       supervisor:
         condition: service_healthy
-    ports:
-      - "7313:7313"
     volumes:
       - ../../plugins:/plugins:ro
 
+  harness:
+    <<: *service-defaults
+    profiles: ["services", "knowledge"]
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.rust-harness
+    command: ["--root", "/var/lib/quark/harness", "--nats-url", "nats://supervisor:4222", "--nats-user", "quark-control", "--nats-password", "quark-control-dev"]
+    depends_on:
+      supervisor:
+        condition: service_healthy
+    volumes:
+      - harness-state:/var/lib/quark/harness
+
   dgraph:
-    image: dgraph/standalone:latest
-    profiles: ["knowledge"]
+    image: dgraph/standalone:v25.0.0
+    profiles: ["services", "knowledge"]
     restart: unless-stopped
     networks:
       - quark
-    ports:
-      - "8080:8080"
-      - "9080:9080"
     volumes:
       - dgraph-data:/dgraph
 
@@ -357,7 +357,7 @@ services:
 
   openbao:
     image: openbao/openbao:2.3
-    profiles: ["secrets"]
+    profiles: ["services", "secrets"]
     restart: unless-stopped
     networks:
       - quark
@@ -371,7 +371,7 @@ services:
 
   temporal:
     image: temporalio/auto-setup:1.29
-    profiles: ["workflow"]
+    profiles: ["services", "workflow"]
     restart: unless-stopped
     networks:
       - quark
@@ -380,12 +380,12 @@ services:
 
 networks:
   quark:
-    name: quark
 
 volumes:
   supervisor-state:
   spaces:
   runstate-records:
   core-state:
+  harness-state:
   dgraph-data:
   victoria-metrics-data:

@@ -82,6 +82,23 @@ func waitForControlNATS(t *testing.T, endpoints NATSEndpoints, timeout time.Dura
 	t.Fatalf("control nats not ready: %v", lastErr)
 }
 
+func waitForRuntimeNATS(t *testing.T, env *E2EEnv, timeout time.Duration) {
+	t.Helper()
+	credential := issueSpaceScopedCredential(t, env.NATS, clientcontract.SubjectSpaceCredential, env.Space)
+	conn := connectNATSCredential(t, credential)
+	defer conn.Close()
+	deadline := time.Now().Add(timeout)
+	var lastErr error
+	for time.Now().Before(deadline) {
+		_, lastErr = tryRequestNATSPayload[clientcontract.RuntimeInfoResponse](conn, clientcontract.SubjectRuntimeInfoGet, env.Space, clientcontract.RuntimeInfoRequest{SpaceID: env.Space}, time.Second)
+		if lastErr == nil {
+			return
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	t.Fatalf("runtime nats operations not ready: %v", lastErr)
+}
+
 func createSpace(t *testing.T, endpoints NATSEndpoints, req clientcontract.CreateSpaceRequest) clientcontract.SpaceInfo {
 	t.Helper()
 	control := connectControlNATS(t, endpoints)

@@ -5,14 +5,16 @@ ARG GO_VERSION=1.26
 FROM golang:${GO_VERSION}-alpine AS build
 ARG PACKAGE
 WORKDIR /src
-RUN apk add --no-cache ca-certificates git build-base
+RUN apk add --no-cache ca-certificates git
 COPY . .
-RUN test -n "${PACKAGE}" && \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    test -n "${PACKAGE}" && \
     CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/quark "${PACKAGE}"
 
 FROM alpine:3.22
 RUN addgroup -S quark && adduser -S -G quark quark && \
-    apk add --no-cache ca-certificates curl tzdata
+    apk add --no-cache ca-certificates curl git poppler-utils tzdata
 USER quark
 WORKDIR /var/lib/quark
 COPY --from=build /out/quark /usr/local/bin/quark

@@ -45,7 +45,7 @@ func TestAgentIndexesITCompanyMarkdownDocuments(t *testing.T) {
 
 	model := strings.TrimSpace(os.Getenv("OPENROUTER_E2E_EMBEDDING_MODEL"))
 	if model == "" {
-		t.Skip("set OPENROUTER_E2E_EMBEDDING_MODEL to run Gateway embedding e2e coverage")
+		t.Fatal("OPENROUTER_E2E_EMBEDDING_MODEL is required for real Gateway embedding E2E execution")
 	}
 	embedding := utils.GatewayEmbeddingOptions{Provider: "openrouter", Model: model}
 	env := utils.StartE2E(t, true, standardKnowledgeServicesStartOptions(t, embedding, workingDir))

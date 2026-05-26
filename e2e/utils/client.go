@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -37,6 +36,8 @@ type MessageTrace struct {
 	ToolResultEvents []ToolEvent
 	LastEvent        string
 	Completed        bool
+	ModelUsage       []ModelUsage
+	GatewayUsage     []GatewayUsage
 }
 
 type ToolEvent struct {
@@ -144,15 +145,18 @@ func PostMessageTraceWithOptions(t *testing.T, ctx context.Context, env *E2EEnv,
 
 	trace, err := readNATSMessageTrace(reqCtx, events, opts, requestID)
 	if err != nil {
-		var rl rateLimitError
-		if AsRateLimitError(err, &rl) {
-			t.Skipf("provider rate limited the e2e run: %s", rl.message)
+		if env.Compose != nil {
+			DumpNATSCLIDiagnostics(t, env.NATS, "message-failure", env.Compose.ArtifactsDir())
+			env.Compose.capture("message-failure")
+		} else {
+			DumpNATSCLIDiagnostics(t, env.NATS, "message-failure")
 		}
 		t.Fatalf("read message stream %s: %v", opts.Label, err)
 	}
 	trace.Space = opts.Space
 	trace.SessionID = opts.SessionID
 	trace.RunID = traceRunID(trace)
+	collectUsage(t, env, &trace)
 	return trace
 }
 
@@ -365,25 +369,9 @@ func consumeMessageTraceEvent(trace *MessageTrace, full *strings.Builder, event 
 			trace.ToolResultEvents = append(trace.ToolResultEvents, event)
 		}
 	case "error":
-		message := string(data)
-		if IsRateLimitText(message) {
-			return rateLimitError{message: message}
-		}
-		return fmt.Errorf("agent returned error event: %s", message)
+		return fmt.Errorf("agent returned error event: %s", string(data))
 	}
 	return nil
-}
-
-type rateLimitError struct {
-	message string
-}
-
-func (e rateLimitError) Error() string {
-	return "provider rate limited the e2e run: " + e.message
-}
-
-func AsRateLimitError(err error, target *rateLimitError) bool {
-	return errors.As(err, target)
 }
 
 func messageTraceDiagnostics(trace MessageTrace, opts MessageTraceOptions) string {
@@ -409,8 +397,7 @@ func previewString(value string, limit int) string {
 	return string(runes[:limit]) + "...(truncated)"
 }
 
-// AgentSessionsCount reads the runtime NATS info subject and returns the
-// mirrored session count.
+// AgentSessionsCount reads the runtime NATS info subject.
 func AgentSessionsCount(t *testing.T, env *E2EEnv) int {
 	t.Helper()
 	credential := issueSpaceScopedCredential(t, env.NATS, clientcontract.SubjectSpaceCredential, env.Space)
@@ -418,25 +405,4 @@ func AgentSessionsCount(t *testing.T, env *E2EEnv) int {
 	defer conn.Close()
 	resp := requestNATSPayload[clientcontract.RuntimeInfoResponse](t, conn, clientcontract.SubjectRuntimeInfoGet, env.Space, clientcontract.RuntimeInfoRequest{SpaceID: env.Space})
 	return resp.Sessions
-}
-
-// WaitForAgentSession polls the runtime NATS session subject until the
-// supervisor-created session has been mirrored by the agent.
-func WaitForAgentSession(t *testing.T, env *E2EEnv, id string, timeout time.Duration) {
-	t.Helper()
-	credential := issueSpaceScopedCredential(t, env.NATS, clientcontract.SubjectSpaceCredential, env.Space)
-	conn := connectNATSCredential(t, credential)
-	defer conn.Close()
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		resp, err := tryRequestNATSPayload[clientcontract.RuntimeSessionResponse](conn, clientcontract.SubjectRuntimeSessionGet, env.Space, clientcontract.RuntimeSessionRequest{
-			SpaceID:   env.Space,
-			SessionID: id,
-		}, 2*time.Second)
-		if err == nil && resp.Found {
-			return
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	t.Fatalf("agent never mirrored session %s", id)
 }

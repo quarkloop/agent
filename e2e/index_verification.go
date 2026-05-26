@@ -57,6 +57,7 @@ func verifyPersistedPDFIndexState(t *testing.T, ctx context.Context, artifactDir
 		})
 	}
 	writeJSONArtifact(t, artifactDir, "direct-index-state.json", report)
+	utils.CaptureGatewayUsage(t, env)
 }
 
 func verifyPersistedMarkdownIndexState(t *testing.T, ctx context.Context, artifactDir string, env *utils.E2EEnv, documents []indexedMarkdownDocument) {
@@ -108,6 +109,7 @@ func verifyPersistedMarkdownIndexState(t *testing.T, ctx context.Context, artifa
 		})
 	}
 	writeJSONArtifact(t, artifactDir, "markdown-direct-index-state.json", report)
+	utils.CaptureGatewayUsage(t, env)
 }
 
 func gatewayTextInputs(values ...string) []*gatewayv1.MultimodalInput {

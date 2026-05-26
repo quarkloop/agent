@@ -4,6 +4,7 @@ package e2e
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -12,23 +13,17 @@ import (
 	"github.com/quarkloop/pkg/natskit"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
 	"github.com/quarkloop/supervisor/pkg/natshub"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 )
 
 func TestIndexerServiceWithRealDgraph(t *testing.T) {
-	indexerAddr := reserveLoopbackAddress(t)
-	env := utils.StartE2E(t, false, utils.StartOptions{
+	embeddingModel := strings.TrimSpace(os.Getenv("OPENROUTER_E2E_EMBEDDING_MODEL"))
+	if embeddingModel == "" {
+		t.Fatal("OPENROUTER_E2E_EMBEDDING_MODEL is required for real Gateway embedding E2E execution")
+	}
+	env := utils.StartE2E(t, true, utils.StartOptions{
 		DisableKnowledgeServices: true,
-		Services:                 localServicePlugins("indexer"),
-		SupervisorEnv: map[string]string{
-			"QUARK_INDEXER_ADDR": indexerAddr,
-		},
-		BeforeRuntime: func(t *testing.T, setup utils.RuntimeSetup, bins utils.BuiltBinaries) {
-			t.Helper()
-			dgraphAddr := utils.StartDgraph(t)
-			startIndexerServiceAt(t, bins.Indexer, dgraphAddr, indexerAddr, setup.NATS)
-		},
+		Embedding:                utils.GatewayEmbeddingOptions{Provider: "openrouter", Model: embeddingModel},
+		Services:                 append(localServicePlugins("indexer"), gatewayServicePlugin()),
 	})
 
 	conn, err := natskit.Connect(context.Background(), natskit.Config{
@@ -43,11 +38,19 @@ func TestIndexerServiceWithRealDgraph(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
+	text := "Quark service extraction uses NATS service functions and Dgraph vector indexes."
+	vector, model := requestRealEmbedding(t, ctx, conn, env, text)
 	var indexResp indexerv1.IndexStatus
 	requestServiceFunction(t, ctx, conn, env.Space, "indexer", "upsert_chunk", &indexerv1.UpsertChunkRequest{
 		ChunkId:     "e2e-chunk-1",
-		TextContent: "Quark service extraction uses NATS service functions and Dgraph vector indexes.",
-		Embedding:   []float32{1, 0, 0},
+		TextContent: text,
+		Embedding:   vector,
+		EmbeddingMetadata: &indexerv1.EmbeddingMetadata{
+			Provider:   "openrouter",
+			Model:      model,
+			Dimensions: int32(len(vector)),
+			Modalities: []string{"text"},
+		},
 		Entities: []*indexerv1.Entity{
 			{Id: "quark", Name: "Quark", Type: "PROJECT"},
 			{Id: "dgraph", Name: "Dgraph", Type: "DATABASE"},
@@ -62,8 +65,9 @@ func TestIndexerServiceWithRealDgraph(t *testing.T) {
 	}
 
 	var contextResp indexerv1.ContextResponse
+	queryVector, _ := requestRealEmbedding(t, ctx, conn, env, "Which database is used for Quark service extraction?")
 	queryCall := requestServiceFunction(t, ctx, conn, env.Space, "indexer", "query_context", &indexerv1.QueryRequest{
-		QueryVector: []float32{1, 0, 0},
+		QueryVector: queryVector,
 		Limit:       5,
 		Depth:       2,
 		Filters:     map[string]string{"tenant": "quark"},
@@ -81,36 +85,5 @@ func TestIndexerServiceWithRealDgraph(t *testing.T) {
 	if audit.ReferenceID != queryCall.ReferenceID || audit.Service != "indexer" || audit.Function != "query_context" || audit.Status != "ok" {
 		t.Fatalf("query audit record = %+v", audit)
 	}
-}
-
-func requestServiceFunction(t *testing.T, ctx context.Context, conn *natskit.Client, spaceID, service, function string, req proto.Message, resp proto.Message) natskit.ResponseEnvelope {
-	t.Helper()
-	payload, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(req)
-	if err != nil {
-		t.Fatalf("marshal service request: %v", err)
-	}
-	operation, err := natskit.ServiceOperation(service, function)
-	if err != nil {
-		t.Fatalf("service operation: %v", err)
-	}
-	envelope, err := natskit.NewRequest(natskit.NewServiceCallID(), spaceID, natskit.ActorRuntime, payload)
-	if err != nil {
-		t.Fatalf("validate service request: %v", err)
-	}
-	out, err := conn.Call(ctx, operation, envelope)
-	if err != nil {
-		t.Fatalf("request %s: %v", operation.Subject, err)
-	}
-	if out.Status != natskit.StatusOK {
-		t.Fatalf("service response failed: %+v", out.Error)
-	}
-	if out.ServiceCallID != envelope.ServiceCallID ||
-		out.ReferenceID != natskit.ReferenceIDForServiceCall(envelope.ServiceCallID) ||
-		out.AuditRef != natskit.AuditRefForReference(out.ReferenceID) {
-		t.Fatalf("service response audit references are inconsistent: %+v", out)
-	}
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(out.Payload, resp); err != nil {
-		t.Fatalf("decode service payload: %v", err)
-	}
-	return out
+	utils.CaptureGatewayUsage(t, env)
 }

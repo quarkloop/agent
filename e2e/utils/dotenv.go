@@ -11,23 +11,6 @@ import (
 	"testing"
 )
 
-// IsRateLimit reports whether err looks like an upstream rate-limit response.
-func IsRateLimit(err error) bool {
-	return IsRateLimitText(err.Error())
-}
-
-func IsRateLimitText(msg string) bool {
-	msg = strings.ToLower(msg)
-	return strings.Contains(msg, "429") ||
-		strings.Contains(msg, "402") ||
-		strings.Contains(msg, "quota") ||
-		strings.Contains(msg, "credit") ||
-		strings.Contains(msg, "requires more credits") ||
-		strings.Contains(msg, "rate limit") ||
-		strings.Contains(msg, "rate-limit") ||
-		strings.Contains(msg, "rate-limited")
-}
-
 func loadDotEnv(path string) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -61,26 +44,43 @@ func init() {
 	loadDotEnv(filepath.Join(workspaceRoot, ".env"))
 }
 
-// ProviderConfig identifies which LLM provider to drive an e2e test against.
+// ProviderConfig identifies which real LLM provider drives E2E execution.
 type ProviderConfig struct {
 	Provider string
 	Model    string
 	APIKey   string
 }
 
-// CfgForTest returns the provider configuration derived from env vars. The
-// second return is false when no credentials are present, so the caller can
-// skip.
-func CfgForTest(t *testing.T, envKey string) (ProviderConfig, bool) {
+const defaultE2EModel = "openrouter/owl-alpha"
+
+var allowedE2EModels = map[string]struct{}{
+	"openrouter/owl-alpha":                   {},
+	"nvidia/nemotron-3-super-120b-a12b:free": {},
+	"deepseek/deepseek-v4-flash:free":        {},
+}
+
+// RequireProviderConfig returns the real Gateway provider configuration for
+// E2E execution. A missing provider is a failed prerequisite, not a silently
+// skipped production-flow test.
+func RequireProviderConfig(t *testing.T) ProviderConfig {
 	t.Helper()
-	if key := os.Getenv(envKey); key != "" {
-		m := firstEnv("OPENROUTER_E2E_MODEL", "OPENROUTER_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL")
+	if key := os.Getenv("OPENROUTER_API_KEY"); key != "" {
+		m := firstEnv("OPENROUTER_E2E_MODEL", "OPENROUTER_MODEL")
 		if m == "" {
-			m = "openai/gpt-4o-mini"
+			m = defaultE2EModel
 		}
-		return ProviderConfig{Provider: "openrouter", Model: m, APIKey: key}, true
+		if !allowedE2EModel(m) {
+			t.Fatalf("OpenRouter E2E model %q is not allowed; configure one of the declared real-model E2E allowlist values", m)
+		}
+		return ProviderConfig{Provider: "openrouter", Model: m, APIKey: key}
 	}
-	return ProviderConfig{}, false
+	t.Fatal("OPENROUTER_API_KEY is required for real-model E2E execution")
+	return ProviderConfig{}
+}
+
+func allowedE2EModel(model string) bool {
+	_, ok := allowedE2EModels[strings.TrimSpace(model)]
+	return ok
 }
 
 func firstEnv(keys ...string) string {

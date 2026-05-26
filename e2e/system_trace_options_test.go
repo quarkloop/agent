@@ -4,20 +4,7 @@ package e2e
 
 import (
 	"testing"
-	"time"
-
-	"github.com/quarkloop/e2e/utils"
 )
-
-const systemServiceFlowTimeout = 3 * time.Minute
-
-func systemServiceTraceOptions(label string) utils.MessageTraceOptions {
-	return utils.MessageTraceOptions{
-		Label:          label,
-		OverallTimeout: systemServiceFlowTimeout,
-		IdleTimeout:    90 * time.Second,
-	}
-}
 
 func TestSystemTraceOptionsAreCentralized(t *testing.T) {
 	opts := systemServiceTraceOptions("system")

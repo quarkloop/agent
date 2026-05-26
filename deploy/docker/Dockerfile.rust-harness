@@ -1,0 +1,19 @@
+# syntax=docker/dockerfile:1.7
+
+FROM rust:1.88-alpine AS build
+WORKDIR /src
+RUN apk add --no-cache build-base musl-dev
+COPY services/harness ./services/harness
+COPY proto ./proto
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/src/services/harness/target \
+    cargo build --release --manifest-path services/harness/Cargo.toml && \
+    cp services/harness/target/release/quark-harness /out-harness
+
+FROM alpine:3.22
+RUN addgroup -S quark && adduser -S -G quark quark && \
+    apk add --no-cache ca-certificates tzdata
+USER quark
+WORKDIR /var/lib/quark
+COPY --from=build /out-harness /usr/local/bin/quark-harness
+ENTRYPOINT ["/usr/local/bin/quark-harness"]

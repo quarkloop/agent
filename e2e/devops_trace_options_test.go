@@ -4,20 +4,7 @@ package e2e
 
 import (
 	"testing"
-	"time"
-
-	"github.com/quarkloop/e2e/utils"
 )
-
-const devOpsServiceFlowTimeout = 5 * time.Minute
-
-func devOpsServiceTraceOptions(label string) utils.MessageTraceOptions {
-	return utils.MessageTraceOptions{
-		Label:          label,
-		OverallTimeout: devOpsServiceFlowTimeout,
-		IdleTimeout:    90 * time.Second,
-	}
-}
 
 func TestDevOpsTraceOptionsAreCentralized(t *testing.T) {
 	opts := devOpsServiceTraceOptions("devops flow")

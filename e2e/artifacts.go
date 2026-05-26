@@ -58,16 +58,15 @@ func writeAgentRunArtifacts(t *testing.T, dir, prefix string, env *utils.E2EEnv,
 			"model":      env.Embedding.Model,
 			"dimensions": env.Embedding.Dimensions,
 		},
-		"catalog_snapshot": catalogSnapshot(env, trace),
-		"profile_snapshot": profileSnapshot(env),
-		"model_usage":      modelUsageSnapshot(env, trace),
-		"model_usage_timeline": []map[string]any{
-			modelUsageSnapshot(env, trace),
-		},
-		"services":         serviceSnapshot(env),
-		"tool_timeline":    toolTimeline(trace),
-		"service_timeline": serviceTimeline(trace),
-		"diagnostics":      diagnosticsSnapshot(trace),
+		"catalog_snapshot":       catalogSnapshot(env, trace),
+		"profile_snapshot":       profileSnapshot(env),
+		"model_usage":            modelUsageSnapshot(env, trace),
+		"model_usage_timeline":   modelUsageTimeline(trace),
+		"gateway_usage_by_model": append([]utils.GatewayUsage(nil), trace.GatewayUsage...),
+		"services":               serviceSnapshot(env),
+		"tool_timeline":          toolTimeline(trace),
+		"service_timeline":       serviceTimeline(trace),
+		"diagnostics":            diagnosticsSnapshot(trace),
 		"artifacts": map[string]string{
 			"reply":         artifacts.Reply,
 			"tools":         artifacts.Tools,
@@ -159,12 +158,41 @@ func profileSnapshot(env *utils.E2EEnv) map[string]any {
 }
 
 func modelUsageSnapshot(env *utils.E2EEnv, trace utils.MessageTrace) map[string]any {
-	return map[string]any{
+	snapshot := map[string]any{
 		"provider":          env.Provider,
 		"model":             env.Model,
 		"tool_calls":        len(trace.ToolStartEvents),
-		"reported_by_model": false,
+		"reported_by_model": len(trace.ModelUsage) > 0 || len(trace.GatewayUsage) > 0,
 	}
+	if len(trace.GatewayUsage) > 0 {
+		usage := trace.GatewayUsage[0]
+		snapshot["provider"] = usage.Provider
+		snapshot["model"] = usage.Model
+		snapshot["requests"] = usage.Requests
+		snapshot["input_tokens"] = usage.InputTokens
+		snapshot["output_tokens"] = usage.OutputTokens
+		snapshot["embedding_tokens"] = usage.EmbeddingTokens
+		snapshot["total_tokens"] = usage.TotalTokens
+		snapshot["cost_estimate"] = usage.CostEstimate
+	}
+	return snapshot
+}
+
+func modelUsageTimeline(trace utils.MessageTrace) []map[string]any {
+	timeline := make([]map[string]any, 0, len(trace.ModelUsage))
+	for _, usage := range trace.ModelUsage {
+		timeline = append(timeline, map[string]any{
+			"provider":         usage.Provider,
+			"model":            usage.Model,
+			"request_id":       usage.RequestID,
+			"input_tokens":     usage.InputTokens,
+			"output_tokens":    usage.OutputTokens,
+			"embedding_tokens": usage.EmbeddingTokens,
+			"run_id":           usage.RunID,
+			"finish_reason":    usage.FinishReason,
+		})
+	}
+	return timeline
 }
 
 func uniqueStrings(values []string) []string {

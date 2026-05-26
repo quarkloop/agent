@@ -4,32 +4,31 @@ package utils
 
 import "testing"
 
-func TestCfgForTestDefaultsToOpenRouterE2EModel(t *testing.T) {
+func TestRequireProviderConfigDefaultsToOpenRouterE2EModel(t *testing.T) {
 	t.Setenv("OPENROUTER_API_KEY", "test-key")
 	t.Setenv("OPENROUTER_E2E_MODEL", "")
 	t.Setenv("OPENROUTER_MODEL", "")
-	t.Setenv("ANTHROPIC_DEFAULT_SONNET_MODEL", "")
 
-	cfg, ok := CfgForTest(t, "OPENROUTER_API_KEY")
-	if !ok {
-		t.Fatal("expected provider config")
-	}
+	cfg := RequireProviderConfig(t)
 	if cfg.Provider != "openrouter" {
 		t.Fatalf("provider = %q, want openrouter", cfg.Provider)
 	}
-	if cfg.Model != "openai/gpt-4o-mini" {
-		t.Fatalf("model = %q, want openai/gpt-4o-mini", cfg.Model)
+	if cfg.Model != defaultE2EModel {
+		t.Fatalf("model = %q, want %s", cfg.Model, defaultE2EModel)
 	}
 }
 
-func TestIsRateLimitTextRecognizesProviderQuotaAndCreditFailures(t *testing.T) {
-	for _, msg := range []string{
-		"status=402: this request requires more credits",
-		"quota exhausted",
-		"HTTP 429 rate limit",
+func TestAllowedE2EModelsAreLimitedToFinalGatePolicy(t *testing.T) {
+	for _, model := range []string{
+		"openrouter/owl-alpha",
+		"nvidia/nemotron-3-super-120b-a12b:free",
+		"deepseek/deepseek-v4-flash:free",
 	} {
-		if !IsRateLimitText(msg) {
-			t.Fatalf("IsRateLimitText(%q) = false", msg)
+		if !allowedE2EModel(model) {
+			t.Fatalf("configured E2E model %q was rejected", model)
 		}
+	}
+	if allowedE2EModel("openai/gpt-4o-mini") {
+		t.Fatal("unapproved E2E model was accepted")
 	}
 }

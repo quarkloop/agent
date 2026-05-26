@@ -4,8 +4,10 @@ package utils
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -26,15 +28,17 @@ type natsCLIProbe struct {
 	Args     []string
 }
 
-func DumpNATSCLIDiagnostics(t testing.TB, endpoints NATSEndpoints, label string) {
+func DumpNATSCLIDiagnostics(t testing.TB, endpoints NATSEndpoints, label string, artifactDirs ...string) {
 	t.Helper()
 	binary, ok := resolveNATSCLI()
 	if !ok {
 		Logf(t, "nats-cli[%s] unavailable; install nats or set NATS_CLI to enable subject and account diagnostics", label)
+		writeNATSCLIArtifact(t, artifactDirs, label, "unavailable", "nats CLI unavailable")
 		return
 	}
 	if endpoints.ClientURL == "" {
 		Logf(t, "nats-cli[%s] skipped: empty NATS client URL", label)
+		writeNATSCLIArtifact(t, artifactDirs, label, "skipped", "empty NATS client URL")
 		return
 	}
 	control := natsCLIIdentity{User: natshub.DefaultControlUser, Password: natshub.DefaultControlPassword}
@@ -58,6 +62,26 @@ func DumpNATSCLIDiagnostics(t testing.TB, endpoints NATSEndpoints, label string)
 			status = "error: " + err.Error()
 		}
 		Logf(t, "nats-cli[%s][%s] status=%s output=%s", label, probe.Label, status, compactCLIOutput(out))
+		writeNATSCLIArtifact(t, artifactDirs, label, probe.Label, fmt.Sprintf("status=%s\n%s", status, out))
+	}
+}
+
+func writeNATSCLIArtifact(t testing.TB, dirs []string, label, probe, content string) {
+	t.Helper()
+	for _, dir := range dirs {
+		if strings.TrimSpace(dir) == "" {
+			continue
+		}
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			Logf(t, "create NATS diagnostic artifact directory %s: %v", dir, err)
+			continue
+		}
+		path := filepath.Join(dir, "nats-"+label+"-"+probe+".txt")
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			Logf(t, "write NATS diagnostic artifact %s: %v", path, err)
+			continue
+		}
+		Logf(t, "nats diagnostic artifact: %s", path)
 	}
 }
 
