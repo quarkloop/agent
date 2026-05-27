@@ -408,6 +408,61 @@ func TestStreamingServiceMarksOnlyTerminalResponseFinal(t *testing.T) {
 	}
 }
 
+func TestStreamingServiceRefreshesIdleTimeoutOnProgress(t *testing.T) {
+	server := startNATS(t, false)
+	host, err := newHost(context.Background(), Config{URL: server.ClientURL(), Name: "stream-idle-host"}, "q.stream.v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(host.Close)
+	operation, _ := ServiceOperation("gateway", "stream_generate")
+	const idleTimeout = 35 * time.Millisecond
+	if err := host.RegisterStream(operation, idleTimeout, func(ctx context.Context, req RequestEnvelope, publish func(ResponseEnvelope) error) (ResponseEnvelope, error) {
+		for i := 0; i < 4; i++ {
+			select {
+			case <-time.After(20 * time.Millisecond):
+			case <-ctx.Done():
+				return ResponseEnvelope{}, ctx.Err()
+			}
+			if err := publish(OKResponse(req.ServiceCallID, json.RawMessage(`{"delta":"progress"}`))); err != nil {
+				return ResponseEnvelope{}, err
+			}
+		}
+		return OKResponse(req.ServiceCallID, json.RawMessage(`{"done":true}`)), nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_ = host.Ready(context.Background())
+	client, _ := Connect(context.Background(), Config{URL: server.ClientURL(), Name: "stream-idle-client"})
+	t.Cleanup(client.Close)
+	req, _ := NewRequest("call-stream-idle", "space-1", ActorRuntime, json.RawMessage(`{}`))
+	stream, err := client.OpenServiceStream(context.Background(), operation, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stream.Close() })
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	for i := 0; i < 4; i++ {
+		data, err := stream.Next(ctx)
+		if err != nil {
+			t.Fatalf("progress response %d: %v", i, err)
+		}
+		resp, err := DecodeServiceResponse(data)
+		if err != nil || resp.Status != StatusOK || resp.Final {
+			t.Fatalf("progress response %d = %+v, err = %v", i, resp, err)
+		}
+	}
+	data, err := stream.Next(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	final, err := DecodeServiceResponse(data)
+	if err != nil || final.Status != StatusOK || !final.Final {
+		t.Fatalf("terminal response = %+v, err = %v", final, err)
+	}
+}
+
 func TestAuditWritesAcknowledgedRecordWithoutContent(t *testing.T) {
 	server := startNATS(t, true)
 	conn, err := natsgo.Connect(server.ClientURL())

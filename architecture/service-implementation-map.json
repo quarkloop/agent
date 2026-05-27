@@ -86,11 +86,11 @@
         "indexer_QueryContext",
         "indexer_UpsertChunk",
         "indexer_UpsertCitation",
+        "indexer_UpsertDocument",
         "indexer_UpsertEntity",
         "indexer_UpsertFact",
         "indexer_UpsertRelation",
         "io_Append",
-        "io_ExtractPdf",
         "io_List",
         "io_Read",
         "io_ReadMedia",
@@ -256,7 +256,7 @@
   },
   "e2e_tests": {
     "direct_service_shortcut_suspect_count": 0,
-    "file_count": 24,
+    "file_count": 22,
     "files": [
       {
         "direct_service_shortcut_suspects": [],
@@ -266,14 +266,9 @@
           "36: ToolStarts: []string{\"gateway_Embed\"},",
           "40: Name:          \"gateway_Embed\",",
           "49: Name:           \"gateway_Embed\",",
-          "161: Name:          \"indexer_QueryContext\","
+          "161: Name:          \"indexer_QueryContext\",",
+          "204: Diagnostic: \"retry=1; no tool call was executed for the failed model turn\","
         ]
-      },
-      {
-        "direct_service_shortcut_suspects": [],
-        "has_process_flow": false,
-        "path": "e2e/ask_test.go",
-        "prompt_shortcut_suspects": []
       },
       {
         "direct_service_shortcut_suspects": [],
@@ -282,7 +277,11 @@
         "prompt_shortcut_suspects": [
           "20: Name: \"indexer_QueryContext\",",
           "29: Name: \"indexer_QueryContext\",",
-          "38: Name: \"indexer_QueryContext\","
+          "38: Name: \"indexer_QueryContext\",",
+          "47: Name:   \"gateway_Embed\",",
+          "55: Name: \"gateway_Embed\", Result: `{\"success\":true}`,",
+          "57: assertToolSuccessCountExactly(t, trace, \"gateway_Embed\", 1)",
+          "61: assertAnswerExcludes(t, \"The indexed source supports the answer.\", \"<longcat_tool_call>\", \"gateway_Embed\")"
         ]
       },
       {
@@ -302,30 +301,8 @@
       {
         "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
-        "path": "e2e/indexer_markdown_agent_test.go",
-        "prompt_shortcut_suspects": [
-          "67: assertToolStarted(t, indexTrace, \"gateway_Embed\")",
-          "68: assertToolStarted(t, indexTrace, \"indexer_UpsertChunk\")",
-          "70: assertNoToolErrors(t, indexTrace, \"indexer_UpsertChunk\")",
-          "72: assertToolSuccessCount(t, indexTrace, \"indexer_UpsertChunk\", len(documents))",
-          "89: assertToolStarted(t, queryTrace, \"gateway_Embed\")",
-          "90: assertToolStarted(t, queryTrace, \"indexer_QueryContext\")",
-          "92: assertNoToolErrors(t, queryTrace, \"gateway_Embed\", \"indexer_QueryContext\", \"citation_VerifyGrounding\", \"citation_RenderReferences\")"
-        ]
-      },
-      {
-        "direct_service_shortcut_suspects": [],
-        "has_process_flow": false,
         "path": "e2e/indexer_pdf_agent_test.go",
         "prompt_shortcut_suspects": []
-      },
-      {
-        "direct_service_shortcut_suspects": [],
-        "has_process_flow": false,
-        "path": "e2e/indexer_service_test.go",
-        "prompt_shortcut_suspects": [
-          "41: text := \"Quark service extraction uses NATS service functions and Dgraph vector indexes.\""
-        ]
       },
       {
         "direct_service_shortcut_suspects": [],
@@ -338,19 +315,14 @@
         "has_process_flow": false,
         "path": "e2e/prompt_builders_test.go",
         "prompt_shortcut_suspects": [
-          "35: \"gateway_Embed\",",
-          "36: \"indexer_UpsertChunk\",",
-          "41: \"service function\",",
-          "56: \"gateway_Embed\",",
-          "57: \"indexer_QueryContext\",",
-          "78: \"gateway_Embed\",",
-          "79: \"indexer_UpsertChunk\",",
-          "84: \"service function\",",
-          "99: \"gateway_Embed\",",
-          "100: \"indexer_QueryContext\",",
-          "120: \"service function\",",
-          "139: \"service function\",",
-          "159: \"service function\","
+          "34: \"gateway_Embed\",",
+          "35: \"indexer_UpsertChunk\",",
+          "40: \"service function\",",
+          "55: \"gateway_Embed\",",
+          "56: \"indexer_QueryContext\",",
+          "76: \"service function\",",
+          "95: \"service function\",",
+          "115: \"service function\","
         ]
       },
       {
@@ -370,21 +342,16 @@
         "has_process_flow": false,
         "path": "e2e/service_options_test.go",
         "prompt_shortcut_suspects": [
-          "13: \"io_Read\", \"document_ExtractText\", \"runstate_StartRun\", \"gateway_Embed\",",
-          "14: \"indexer_UpsertChunk\", \"citation_VerifyGrounding\", \"core_RecordAuditEvent\",",
-          "26: t.Fatalf(\"standard knowledge e2e stack missing required service function %s\", function)"
+          "17: \"io_Read\", \"document_ExtractText\", \"runstate_StartRun\", \"gateway_Embed\",",
+          "18: \"indexer_UpsertChunk\", \"citation_VerifyGrounding\", \"runstate_MarkComplete\",",
+          "27: t.Fatalf(\"knowledge E2E exposed out-of-scope service function: %s\", function)",
+          "34: t.Fatalf(\"standard knowledge e2e stack missing required service function %s\", function)"
         ]
       },
       {
         "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
         "path": "e2e/service_plugin_inventory_test.go",
-        "prompt_shortcut_suspects": []
-      },
-      {
-        "direct_service_shortcut_suspects": [],
-        "has_process_flow": false,
-        "path": "e2e/supervisor_event_test.go",
         "prompt_shortcut_suspects": []
       },
       {
@@ -410,10 +377,11 @@
         "has_process_flow": false,
         "path": "e2e/utils/client_test.go",
         "prompt_shortcut_suspects": [
-          "19: `data: {\"id\":\"call-1\",\"name\":\"gateway_Embed\",\"arguments\":\"{}\"}`,",
-          "22: `data: {\"id\":\"call-1\",\"name\":\"gateway_Embed\",\"result\":\"{\\\"embeddingRef\\\":\\\"ref\\\"}\",\"error\":false}`,",
-          "39: if len(trace.ToolStarts) != 1 || trace.ToolStarts[0] != \"gateway_Embed\" {",
-          "45: if len(trace.ToolResults) != 1 || trace.ToolResults[0] != \"gateway_Embed\" {"
+          "21: `data: {\"id\":\"call-1\",\"name\":\"gateway_Embed\",\"arguments\":\"{}\"}`,",
+          "24: `data: {\"id\":\"call-1\",\"name\":\"gateway_Embed\",\"result\":\"{\\\"embeddingRef\\\":\\\"ref\\\"}\",\"error\":false}`,",
+          "27: `data: {\"phase\":\"tool_call_validation\",\"state\":\"rejected\",\"function\":\"indexer_UpsertChunk\",\"reason\":\"incomplete_canonical_record\",\"diagnostic\":\"missing facts\"}`,",
+          "44: if len(trace.ToolStarts) != 1 || trace.ToolStarts[0] != \"gateway_Embed\" {",
+          "50: if len(trace.ToolResults) != 1 || trace.ToolResults[0] != \"gateway_Embed\" {"
         ]
       },
       {
@@ -431,7 +399,19 @@
       {
         "direct_service_shortcut_suspects": [],
         "has_process_flow": false,
+        "path": "e2e/utils/env_test.go",
+        "prompt_shortcut_suspects": []
+      },
+      {
+        "direct_service_shortcut_suspects": [],
+        "has_process_flow": false,
         "path": "e2e/utils/nats_cli_test.go",
+        "prompt_shortcut_suspects": []
+      },
+      {
+        "direct_service_shortcut_suspects": [],
+        "has_process_flow": false,
+        "path": "e2e/utils/services_test.go",
         "prompt_shortcut_suspects": []
       },
       {
@@ -447,7 +427,7 @@
         "prompt_shortcut_suspects": []
       }
     ],
-    "prompt_shortcut_suspect_count": 36
+    "prompt_shortcut_suspect_count": 30
   },
   "services": {
     "citation": {
@@ -1879,7 +1859,7 @@
     },
     "io": {
       "declared_only_function_count": 0,
-      "function_count": 12,
+      "function_count": 11,
       "functions": [
         {
           "approval_required": false,
@@ -1928,22 +1908,6 @@
           "status": "implemented_end_to_end",
           "streaming": false,
           "subject": "svc.io.v1.stat"
-        },
-        {
-          "approval_required": false,
-          "idempotent": true,
-          "method": "ExtractPdf",
-          "method_implemented": true,
-          "name": "io_ExtractPdf",
-          "owner": "io",
-          "proto_rpc_exists": true,
-          "request": "quark.io.v1.ExtractPdfRequest",
-          "response": "quark.io.v1.ExtractPdfResponse",
-          "risk_level": "read",
-          "service": "quark.io.v1.IOService",
-          "status": "implemented_end_to_end",
-          "streaming": false,
-          "subject": "svc.io.v1.extract_pdf"
         },
         {
           "approval_required": false,
@@ -2075,7 +2039,7 @@
         }
       ],
       "health_service": "quark.io.v1.IOService",
-      "implemented_function_count": 12,
+      "implemented_function_count": 11,
       "manifest_path": "plugins/services/io/manifest.yaml",
       "module_exists": true,
       "module_path": "services/io",
@@ -3061,10 +3025,10 @@
   "summary": {
     "agent_profile_count": 4,
     "declared_only_or_mismatched_function_count": 1,
-    "e2e_test_file_count": 24,
-    "implemented_service_function_count": 147,
+    "e2e_test_file_count": 22,
+    "implemented_service_function_count": 146,
     "runnable_service_module_count": 13,
-    "service_function_count": 148,
+    "service_function_count": 147,
     "service_plugin_count": 13
   },
   "version": 1

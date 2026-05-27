@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	natsgo "github.com/nats-io/nats.go"
@@ -157,9 +158,9 @@ func (c *Client) RespondStream(subject, queue string, timeout time.Duration, han
 		timeout = c.cfg.Timeout
 	}
 	sub, err := c.conn.QueueSubscribe(subject, queue, func(raw *natsgo.Msg) {
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-		defer cancel()
-		if err := handler(ctx, messageFromNATS(raw), &Publisher{client: c, subject: raw.Reply}); err != nil {
+		activity := newStreamActivity(timeout)
+		defer activity.Close()
+		if err := handler(activity.Context(), messageFromNATS(raw), &Publisher{client: c, subject: raw.Reply, onPublish: activity.Touch}); err != nil {
 			c.cfg.Logger.Error("nats stream responder failed", "subject", subject, "error", err)
 		}
 	})
@@ -170,8 +171,9 @@ func (c *Client) RespondStream(subject, queue string, timeout time.Duration, han
 }
 
 type Publisher struct {
-	client  *Client
-	subject string
+	client    *Client
+	subject   string
+	onPublish func()
 }
 
 func (p *Publisher) Publish(data []byte, headers map[string]string) error {
@@ -181,7 +183,57 @@ func (p *Publisher) Publish(data []byte, headers map[string]string) error {
 	msg := natsgo.NewMsg(p.subject)
 	msg.Data = append([]byte(nil), data...)
 	setHeaders(msg, headers)
-	return p.client.conn.PublishMsg(msg)
+	if err := p.client.conn.PublishMsg(msg); err != nil {
+		return err
+	}
+	if p.onPublish != nil {
+		p.onPublish()
+	}
+	return nil
+}
+
+// streamActivity provides an inactivity bound for a server-streamed request.
+// Each published response establishes observable progress and refreshes the
+// deadline. Overall operation deadlines belong to the requesting context.
+type streamActivity struct {
+	ctx     context.Context
+	cancel  context.CancelFunc
+	timeout time.Duration
+	mu      sync.Mutex
+	timer   *time.Timer
+	closed  bool
+}
+
+func newStreamActivity(timeout time.Duration) *streamActivity {
+	ctx, cancel := context.WithCancel(context.Background())
+	activity := &streamActivity{ctx: ctx, cancel: cancel, timeout: timeout}
+	activity.timer = time.AfterFunc(timeout, cancel)
+	return activity
+}
+
+func (a *streamActivity) Context() context.Context {
+	return a.ctx
+}
+
+func (a *streamActivity) Touch() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.closed {
+		return
+	}
+	a.timer.Stop()
+	a.timer.Reset(a.timeout)
+}
+
+func (a *streamActivity) Close() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.closed {
+		return
+	}
+	a.closed = true
+	a.timer.Stop()
+	a.cancel()
 }
 
 type ReplyStream struct {

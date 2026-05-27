@@ -96,7 +96,6 @@ select queue groups.
 | `io` | `q.service.v1.io` | `io_Read` | `svc.io.v1.read` |
 | `io` | `q.service.v1.io` | `io_List` | `svc.io.v1.list` |
 | `io` | `q.service.v1.io` | `io_Stat` | `svc.io.v1.stat` |
-| `io` | `q.service.v1.io` | `io_ExtractPdf` | `svc.io.v1.extract_pdf` |
 | `io` | `q.service.v1.io` | `io_ReadMedia` | `svc.io.v1.read_media` |
 | `io` | `q.service.v1.io` | `io_SearchWeb` | `svc.io.v1.search_web` |
 | `io` | `q.service.v1.io` | `io_Fetch` | `svc.io.v1.fetch` |

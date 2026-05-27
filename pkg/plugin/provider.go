@@ -17,7 +17,7 @@ type Provider interface {
 
 // ModelEntry defines a model in a model list.
 type ModelEntry struct {
-	ID            string `json:"id"`             // e.g. "openai/gpt-4o-mini"
+	ID            string `json:"id"`             // e.g. "openrouter/owl-alpha"
 	Provider      string `json:"provider"`       // e.g. "openrouter"
 	Name          string `json:"name"`           // human-readable name
 	Default       bool   `json:"default"`        // whether this is the default model
