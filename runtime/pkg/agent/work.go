@@ -33,7 +33,7 @@ func (a *Agent) handleWorkStep(ctx context.Context, _ loop.Message) error {
 		return nil
 	}
 	infer := func(ctx context.Context, messages []plugin.Message, tools []plugin.ToolSchema, onTool plugin.ToolHandler, onMessage func(string, any)) (string, error) {
-		return client.InferWithPreparedContextAndPolicy(ctx, messages, tools, onTool, onMessage, a.contextPreparer(client.ContextWindow, ""), a.finalGuard(), nil, nil, nil, nil)
+		return client.InferWithPreparedContextAndPolicy(ctx, messages, tools, onTool, onMessage, a.contextPreparer(client.ContextWindow, ""), nil, nil, nil, nil, nil)
 	}
 	if err := a.Plan.ExecuteStep(ctx, infer, nil, a.defaultTools(), a.executeTool); err != nil {
 		slog.Error("work step error", "error", err)

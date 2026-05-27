@@ -6,9 +6,11 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/quarkloop/pkg/plugin"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 	"github.com/quarkloop/runtime/pkg/agent"
 	natschannel "github.com/quarkloop/runtime/pkg/channel/nats"
+	"github.com/quarkloop/runtime/pkg/runcontext"
 	"github.com/quarkloop/runtime/pkg/runtime"
 )
 
@@ -75,9 +77,21 @@ func (r AgentRegistrar) NewAgent(ctx context.Context, spaceConfig SpaceConfig) (
 	promptMaterials := ServicePromptMaterials(serviceCatalog)
 	coreRecorder := CoreEventRecorder(serviceCatalog)
 	modelProviderAdapter := ModelProviderFromServiceWithConfig(serviceCatalog, modelProvider, GatewayConfig(spaceConfig.Credential))
+	var modelEntries []plugin.ModelEntry
+	if modelProviderAdapter != nil {
+		modelEntries, err = ResolveSelectedGatewayModel(
+			runcontext.WithSpaceID(ctx, spaceConfig.SpaceID),
+			modelProviderAdapter,
+			modelName,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("resolve model metadata for space %q: %w", spaceConfig.SpaceID, err)
+		}
+	}
 	if strings.TrimSpace(agentPlugin.Skill) != "" {
 		promptMaterials = append(promptMaterials, AgentSkillMaterial(agentPlugin))
 	}
+	promptMaterials = append(promptMaterials, SpecialistSkillMaterials(pluginCatalog, agentPlugin)...)
 	agentName := "Main Agent"
 	agentDescription := ""
 	resolvedProfile := agent.Profile{}
@@ -93,13 +107,12 @@ func (r AgentRegistrar) NewAgent(ctx context.Context, spaceConfig SpaceConfig) (
 		Description:          agentDescription,
 		ModelProvider:        modelProvider,
 		Model:                modelName,
-		ModelListURL:         env.ModelListURL,
+		ModelEntries:         modelEntries,
 		Profile:              resolvedProfile,
 		SystemPrompt:         agentPlugin.SystemPrompt,
 		PluginCatalog:        pluginCatalog,
 		PromptMaterials:      promptMaterials,
 		ContextComposer:      HarnessComposer(spaceConfig.Credential),
-		PendingRefs:          ServiceFunctionPendingRefs(serviceCatalog),
 		ToolResultRef:        ServiceFunctionToolResultRef(serviceCatalog),
 		ToolCallArguments:    ServiceFunctionToolCallArgumentNormalizer(serviceCatalog),
 		CoreEvents:           coreRecorder,

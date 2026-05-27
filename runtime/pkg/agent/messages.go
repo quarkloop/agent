@@ -48,9 +48,8 @@ func NewUserMessage(ctx context.Context, request message.PostRequest, resp chan 
 // InitLLMMsg carries LLM initialization data.
 type InitLLMMsg struct {
 	loop.BaseMessage
-	ModelListURL string
-	Providers    map[string]plugin.Provider // typed providers
-	Fallback     []plugin.ModelEntry        // typed model entries
+	Providers map[string]plugin.Provider // typed providers
+	Models    []plugin.ModelEntry        // Gateway-resolved model entries
 }
 
 // NewInitLLMMsg creates a new InitLLM message.

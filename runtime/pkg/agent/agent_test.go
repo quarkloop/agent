@@ -18,6 +18,7 @@ import (
 	"github.com/quarkloop/runtime/pkg/permissions"
 	"github.com/quarkloop/runtime/pkg/pluginmanager"
 	"github.com/quarkloop/runtime/pkg/runcontext"
+	"github.com/quarkloop/runtime/pkg/workflow"
 )
 
 func TestPromptMaterialsIncludeConfiguredPluginMaterial(t *testing.T) {
@@ -46,6 +47,79 @@ func TestPromptMaterialsUseResolvedAgentProfilePrompt(t *testing.T) {
 	}
 	if got[0].SourceID != "plugin.agent.quark-knowledge.system" {
 		t.Fatalf("prompt material provenance = %+v", got[0])
+	}
+}
+
+func TestWorkflowPromptMaterialsExposeOnlyCurrentServiceGuidance(t *testing.T) {
+	a := newTestAgent(t)
+	a.config.PromptMaterials = []harnessclient.Material{
+		{SourceID: "plugin.service.document.skill", SourceKind: "service_skill", Content: "Document guidance.", ApplicableTools: []string{"document_GetPages"}},
+		{SourceID: "plugin.service.indexer.skill", SourceKind: "service_skill", Content: "Indexer guidance.", ApplicableTools: []string{"indexer_UpsertChunk"}},
+		{SourceID: "plugin.agent.quark-knowledge.skill", SourceKind: "agent_skill", Content: "Knowledge guidance."},
+	}
+
+	got := a.promptMaterialsForTools([]plugin.ToolSchema{{Name: "document_GetPages"}})
+	if len(got) != 2 || got[0].Content != "Document guidance." || got[1].Content != "Knowledge guidance." {
+		t.Fatalf("stage prompt materials = %+v", got)
+	}
+}
+
+func TestWorkflowPromptMaterialsUseResolvedServiceFunctionsAcrossDomains(t *testing.T) {
+	a := newTestAgent(t)
+	a.config.PromptMaterials = []harnessclient.Material{{
+		SourceID:        "plugin.service.devops.skill",
+		SourceKind:      "service_skill",
+		Content:         "DevOps guidance.",
+		ApplicableTools: []string{"repo_Status", "build_DetectProject", "policy_EvaluateChange"},
+	}}
+
+	got := a.promptMaterialsForTools([]plugin.ToolSchema{{Name: "build_DetectProject"}})
+	if len(got) != 1 || got[0].Content != "DevOps guidance." {
+		t.Fatalf("cross-domain service material = %+v", got)
+	}
+}
+
+func TestWorkflowContextIncludesCurrentStepFactFromInitialTurn(t *testing.T) {
+	composer := &recordingComposer{}
+	a := newTestAgentWithConfig(t, Config{ID: "test-agent", ContextComposer: composer})
+	tools := []plugin.ToolSchema{
+		{Name: "repo_Status"},
+		{Name: "test_RunTests"},
+		{Name: "test_ExplainFailure"},
+	}
+	tracker := workflow.NewTracker(
+		"session-1",
+		"Inspect this repository, run its tests, and explain any failure.",
+		tools,
+		workflow.NewStore(),
+		nil,
+	)
+	if tracker == nil {
+		t.Fatal("expected workflow tracker")
+	}
+	prepare := a.workflowContextPreparer(0, "", tools, tracker.CallableTools, tracker)
+	if _, err := prepare(context.Background(), []plugin.Message{{Role: "user", Content: "run tests"}}); err != nil {
+		t.Fatalf("prepare initial workflow context: %v", err)
+	}
+	assertRuntimeWorkflowFact(t, composer.lastInput(), "repository inspection", "repo_Status")
+
+	tracker.RecordToolResult("repo_Status", `{}`, `{"clean":true}`)
+	if _, err := prepare(context.Background(), []plugin.Message{{Role: "user", Content: "run tests"}}); err != nil {
+		t.Fatalf("prepare advanced workflow context: %v", err)
+	}
+	assertRuntimeWorkflowFact(t, composer.lastInput(), "test execution", "test_RunTests")
+}
+
+func assertRuntimeWorkflowFact(t *testing.T, input harnessclient.Input, step, function string) {
+	t.Helper()
+	if len(input.RuntimeFacts) != 1 {
+		t.Fatalf("runtime facts = %+v", input.RuntimeFacts)
+	}
+	fact := input.RuntimeFacts[0]
+	if fact.SourceID != "runtime.workflow.status" || !fact.Required ||
+		!strings.Contains(fact.Content, `"current_step":"`+step+`"`) ||
+		!strings.Contains(fact.Content, `"`+function+`"`) {
+		t.Fatalf("workflow fact = %+v", fact)
 	}
 }
 
@@ -122,7 +196,7 @@ func TestAgentInitializesWorkflowStateStore(t *testing.T) {
 func TestInitializationHandlersOwnModelAndChannelRegistration(t *testing.T) {
 	a := newTestAgent(t)
 	if err := a.handleInitLLM(context.Background(), InitLLMMsg{
-		Fallback:  []plugin.ModelEntry{{ID: "test-model", Provider: "test", Name: "test-model", Default: true}},
+		Models:    []plugin.ModelEntry{{ID: "test-model", Provider: "test", Name: "test-model", Default: true}},
 		Providers: map[string]plugin.Provider{"test": staticProvider{reply: "ready"}},
 	}); err != nil {
 		t.Fatalf("initialize model: %v", err)
@@ -452,6 +526,19 @@ func (testComposer) Compose(_ context.Context, input harnessclient.Input) ([]plu
 	}
 	out = append(out, input.History...)
 	return out, nil
+}
+
+type recordingComposer struct {
+	inputs []harnessclient.Input
+}
+
+func (c *recordingComposer) Compose(_ context.Context, input harnessclient.Input) ([]plugin.Message, error) {
+	c.inputs = append(c.inputs, input)
+	return append([]plugin.Message(nil), input.History...), nil
+}
+
+func (c *recordingComposer) lastInput() harnessclient.Input {
+	return c.inputs[len(c.inputs)-1]
 }
 
 type staticProvider struct {

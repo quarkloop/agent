@@ -19,10 +19,11 @@ import (
 )
 
 type Material struct {
-	SourceID   string
-	SourceKind string
-	Content    string
-	Required   bool
+	SourceID        string
+	SourceKind      string
+	Content         string
+	Required        bool
+	ApplicableTools []string
 }
 
 type Input struct {
@@ -162,8 +163,11 @@ func messagesToProto(messages []plugin.Message) []*harnessv1.ContextMessage {
 	out := make([]*harnessv1.ContextMessage, 0, len(messages))
 	for i, message := range messages {
 		out = append(out, &harnessv1.ContextMessage{
-			Role: message.Role, Content: message.Content,
-			SourceId: fmt.Sprintf("session.message.%d", i+1),
+			Role:       message.Role,
+			Content:    message.Content,
+			SourceId:   fmt.Sprintf("session.message.%d", i+1),
+			ToolCalls:  toolCallsToProto(message.ToolCalls),
+			ToolCallId: message.ToolCallID,
 		})
 	}
 	return out
@@ -172,7 +176,42 @@ func messagesToProto(messages []plugin.Message) []*harnessv1.ContextMessage {
 func messagesFromProto(messages []*harnessv1.ContextMessage) []plugin.Message {
 	out := make([]plugin.Message, 0, len(messages))
 	for _, message := range messages {
-		out = append(out, plugin.Message{Role: message.GetRole(), Content: message.GetContent()})
+		out = append(out, plugin.Message{
+			Role:       message.GetRole(),
+			Content:    message.GetContent(),
+			ToolCalls:  toolCallsFromProto(message.GetToolCalls()),
+			ToolCallID: message.GetToolCallId(),
+		})
+	}
+	return out
+}
+
+func toolCallsToProto(calls []plugin.ToolCall) []*harnessv1.ContextToolCall {
+	out := make([]*harnessv1.ContextToolCall, 0, len(calls))
+	for _, call := range calls {
+		out = append(out, &harnessv1.ContextToolCall{
+			Index:         int32(call.Index),
+			Id:            call.ID,
+			Type:          call.Type,
+			Name:          call.Function.Name,
+			ArgumentsJson: call.Function.Arguments,
+		})
+	}
+	return out
+}
+
+func toolCallsFromProto(calls []*harnessv1.ContextToolCall) []plugin.ToolCall {
+	out := make([]plugin.ToolCall, 0, len(calls))
+	for _, call := range calls {
+		out = append(out, plugin.ToolCall{
+			Index: int(call.GetIndex()),
+			ID:    call.GetId(),
+			Type:  call.GetType(),
+			Function: plugin.ToolCallFunction{
+				Name:      call.GetName(),
+				Arguments: call.GetArgumentsJson(),
+			},
+		})
 	}
 	return out
 }

@@ -19,19 +19,9 @@ func (a *Agent) sendInitMessages() {
 	for id := range providers {
 		slog.Info("Gateway model adapter available", "provider", id)
 	}
-	fallback := []plugin.ModelEntry{}
-	if a.config.Model != "" {
-		fallback = append(fallback, plugin.ModelEntry{
-			ID:       a.config.Model,
-			Provider: a.config.ModelProvider,
-			Name:     a.config.Model,
-			Default:  true,
-		})
-	}
 	msg := NewInitLLMMsg()
-	msg.ModelListURL = a.config.ModelListURL
 	msg.Providers = providers
-	msg.Fallback = fallback
+	msg.Models = append([]plugin.ModelEntry(nil), a.config.ModelEntries...)
 	a.loop.Send(msg)
 }
 
@@ -39,14 +29,9 @@ func (a *Agent) handleInitLLM(_ context.Context, msg loop.Message) error {
 	payload := msg.(InitLLMMsg)
 	slog.Info("initializing LLM models")
 	providers := modelusage.ObserveProviders(payload.Providers, a.recordModelUsage)
-	if payload.ModelListURL != "" {
-		if err := a.Models.LoadFromURL(payload.ModelListURL, providers); err != nil {
-			slog.Warn("remote model list failed, using fallback", "error", err)
-		}
-	}
-	if a.Models.GetDefault() == nil && len(payload.Fallback) > 0 {
-		if err := a.Models.LoadEntries(payload.Fallback, providers); err != nil {
-			slog.Error("fallback model init failed", "error", err)
+	if len(payload.Models) > 0 {
+		if err := a.Models.LoadEntries(payload.Models, providers); err != nil {
+			slog.Error("Gateway model catalog init failed", "error", err)
 		}
 	}
 	if a.Models.GetDefault() != nil {

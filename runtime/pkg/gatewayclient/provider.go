@@ -63,8 +63,8 @@ func (p *Provider) ChatCompletionStream(ctx context.Context, req *plugin.ChatReq
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	streamCtx, cancel := context.WithTimeout(ctx, p.cfg.Timeout)
-	client, err := natskit.Connect(streamCtx, natskit.Config{
+	setupCtx, cancelSetup := context.WithTimeout(ctx, p.cfg.Timeout)
+	client, err := natskit.Connect(setupCtx, natskit.Config{
 		URL:      p.cfg.URL,
 		Username: p.cfg.Username,
 		Password: p.cfg.Password,
@@ -72,12 +72,12 @@ func (p *Provider) ChatCompletionStream(ctx context.Context, req *plugin.ChatReq
 		Name:     "quark-runtime-gateway-client",
 	})
 	if err != nil {
-		cancel()
+		cancelSetup()
 		return nil, fmt.Errorf("connect gateway nats: %w", err)
 	}
 	operation, err := natskit.ServiceOperation("gateway", "stream_generate")
 	if err != nil {
-		cancel()
+		cancelSetup()
 		client.Close()
 		return nil, err
 	}
@@ -89,32 +89,33 @@ func (p *Provider) ChatCompletionStream(ctx context.Context, req *plugin.ChatReq
 		Options:  requestOptions(p.cfg),
 	})
 	if err != nil {
-		cancel()
+		cancelSetup()
 		client.Close()
 		return nil, fmt.Errorf("marshal gateway request: %w", err)
 	}
 	envelope, err := natskit.NewRequest(natskit.NewServiceCallID(), firstNonEmpty(runcontext.SpaceID(ctx), "runtime"), natskit.ActorRuntime, payload)
 	if err != nil {
-		cancel()
+		cancelSetup()
 		client.Close()
 		return nil, err
 	}
 	envelope.SessionID = runcontext.SessionID(ctx)
 	envelope.RunID = runcontext.RunID(ctx)
-	stream, err := client.OpenServiceStream(streamCtx, operation, envelope)
+	stream, err := client.OpenServiceStream(setupCtx, operation, envelope)
+	cancelSetup()
 	if err != nil {
-		cancel()
 		client.Close()
 		return nil, fmt.Errorf("open gateway stream: %w", err)
 	}
 	out := make(chan plugin.StreamEvent, 64)
 	go func() {
 		defer close(out)
-		defer cancel()
 		defer stream.Close()
 		defer client.Close()
 		for {
-			data, err := stream.Next(streamCtx)
+			waitCtx, cancelWait := context.WithTimeout(ctx, p.cfg.Timeout)
+			data, err := stream.Next(waitCtx)
+			cancelWait()
 			if err != nil {
 				out <- plugin.StreamEvent{Err: fmt.Errorf("gateway stream wait: %w", err)}
 				return

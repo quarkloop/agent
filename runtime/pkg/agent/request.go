@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/quarkloop/pkg/plugin"
-	"github.com/quarkloop/runtime/pkg/guard"
 	"github.com/quarkloop/runtime/pkg/llm"
 	"github.com/quarkloop/runtime/pkg/loop"
 	"github.com/quarkloop/runtime/pkg/message"
@@ -69,15 +68,19 @@ func (a *Agent) handleUserMessage(ctx context.Context, msg loop.Message) error {
 	var workflowGuard llm.FinalGuard
 	var workflowToolCallGate llm.ToolCallGate
 	var workflowToolCallGuard llm.ToolCallGuard
-	var workflowToolResultGate llm.ToolResultGate
-	var workflowToolResultContext llm.ToolResultContext
+	var workflowToolSurface llm.ToolSurface
+	var workflowRequiredTools llm.RequiredToolContinuation
 	if workflowTracker != nil {
 		onTool = workflowTracker.WrapToolHandler(onTool)
 		workflowGuard = workflowTracker.FinalGuard
 		workflowToolCallGate = workflowTracker.AcceptFinalBeforeToolCalls
 		workflowToolCallGuard = workflowTracker.GuardToolCalls
-		workflowToolResultGate = workflowTracker.AcceptFinalAfterToolCalls
-		workflowToolResultContext = workflowTracker.ContinuationStatus
+		workflowToolSurface = workflowTracker.CallableTools
+		workflowRequiredTools = workflowTracker.RequiredToolContinuation
+	}
+	prepareContext := a.contextPreparer(client.ContextWindow, a.Plan.GetSummary())
+	if workflowToolSurface != nil {
+		prepareContext = a.workflowContextPreparer(client.ContextWindow, a.Plan.GetSummary(), tools, workflowToolSurface, workflowTracker)
 	}
 	rawMessages := make([]plugin.Message, 0, len(history))
 	for _, item := range history {
@@ -90,25 +93,19 @@ func (a *Agent) handleUserMessage(ctx context.Context, msg loop.Message) error {
 		tools,
 		onTool,
 		response,
-		a.contextPreparer(client.ContextWindow, a.Plan.GetSummary()),
-		guard.CombineFinalGuards(a.finalGuard(), workflowGuard),
+		prepareContext,
+		workflowToolSurface,
+		workflowRequiredTools,
+		workflowGuard,
 		workflowToolCallGate,
 		workflowToolCallGuard,
-		workflowToolResultGate,
-		workflowToolResultContext,
+		nil,
+		nil,
 	)
 	if err != nil {
 		a.emitMessageError(requestCtx, userMsg.SessionID, response, err)
 		slog.Error("agent message failed", "session_id", userMsg.SessionID, "run_id", runID, "error", err)
 		return err
-	}
-	if a.config.PendingRefs != nil {
-		if refs := a.config.PendingRefs(); len(refs) > 0 {
-			err := guard.UnconsumedPendingRefsError(refs)
-			a.emitMessageError(requestCtx, userMsg.SessionID, response, err)
-			slog.Error("agent message failed", "session_id", userMsg.SessionID, "run_id", runID, "error", err)
-			return err
-		}
 	}
 
 	s.AddMessage("assistant", fullResponse)

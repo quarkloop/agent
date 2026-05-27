@@ -9,7 +9,6 @@ const (
 	EnvAgentProfile  = "QUARK_AGENT_PROFILE"
 	EnvModelProvider = "QUARK_MODEL_PROVIDER"
 	EnvModelName     = "QUARK_MODEL_NAME"
-	EnvModelListURL  = "MODEL_LIST_URL"
 	EnvPrimarySpace  = "QUARK_SPACE"
 	EnvRuntimeSpaces = "QUARK_SPACES"
 )
@@ -18,7 +17,6 @@ type Environment struct {
 	AgentProfile  string
 	ModelProvider string
 	ModelName     string
-	ModelListURL  string
 	PrimarySpace  string
 	RuntimeSpaces string
 }
@@ -28,7 +26,6 @@ func EnvironmentFromOS() Environment {
 		AgentProfile:  strings.TrimSpace(os.Getenv(EnvAgentProfile)),
 		ModelProvider: strings.TrimSpace(os.Getenv(EnvModelProvider)),
 		ModelName:     strings.TrimSpace(os.Getenv(EnvModelName)),
-		ModelListURL:  strings.TrimSpace(os.Getenv(EnvModelListURL)),
 		PrimarySpace:  strings.TrimSpace(os.Getenv(EnvPrimarySpace)),
 		RuntimeSpaces: strings.TrimSpace(os.Getenv(EnvRuntimeSpaces)),
 	}

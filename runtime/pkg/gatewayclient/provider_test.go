@@ -107,6 +107,57 @@ func TestProviderBoundsGatewayStreamWait(t *testing.T) {
 	}
 }
 
+func TestProviderAllowsProgressingStreamBeyondIdleTimeout(t *testing.T) {
+	ns := startProviderTestNATS(t)
+	host, err := natskit.StartRPCService(context.Background(), natskit.Config{
+		URL: ns.ClientURL(), Username: "quark-control", Password: "secret",
+		Name: "gateway-provider-active-stream-test", Timeout: time.Second,
+	}, natskit.Binding{
+		Descriptor: &servicev1.ServiceDescriptor{Name: "gateway", Rpcs: []*servicev1.RpcDescriptor{
+			natskit.MustStreamingServiceRPC("gateway", "gateway_StreamGenerate", "quark.gateway.v1.GatewayService", "StreamGenerate", "quark.gateway.v1.StreamGenerateRequest", "quark.gateway.v1.StreamGenerateResponse", "Stream model output."),
+		}},
+		Streams: []natskit.RPCStream{{Service: "quark.gateway.v1.GatewayService", Method: "StreamGenerate", Handle: func(ctx context.Context, _ proto.Message, publish func(proto.Message) error) (proto.Message, error) {
+			for i := 0; i < 4; i++ {
+				select {
+				case <-time.After(20 * time.Millisecond):
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				}
+				if err := publish(&gatewayv1.StreamGenerateResponse{Delta: "part"}); err != nil {
+					return nil, err
+				}
+			}
+			return &gatewayv1.StreamGenerateResponse{Done: true}, nil
+		}}},
+	})
+	if err != nil {
+		t.Fatalf("subscribe gateway subject: %v", err)
+	}
+	t.Cleanup(host.Close)
+
+	provider := New(Config{URL: ns.ClientURL(), Username: "quark-control", Password: "secret", Timeout: 35 * time.Millisecond}, "openrouter")
+	stream, err := provider.ChatCompletionStream(context.Background(), &plugin.ChatRequest{
+		Model:    "test/model",
+		Messages: []plugin.Message{{Role: "user", Content: "hello"}},
+	})
+	if err != nil {
+		t.Fatalf("stream: %v", err)
+	}
+	var text string
+	for event := range stream {
+		if event.Err != nil {
+			t.Fatalf("stream event error: %v", event.Err)
+		}
+		text += event.Delta
+		if event.Done {
+			break
+		}
+	}
+	if text != "partpartpartpart" {
+		t.Fatalf("streamed text = %q", text)
+	}
+}
+
 func TestConfigFromEnvReadsGatewayTimeout(t *testing.T) {
 	t.Setenv(EnvGatewayTimeout, "2m")
 

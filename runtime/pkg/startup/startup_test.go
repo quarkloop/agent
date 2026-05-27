@@ -127,6 +127,21 @@ func TestRegisterServiceFunctionsUsesRuntimeToolPath(t *testing.T) {
 	}
 }
 
+func TestServicePromptMaterialsBindSkillsToDescriptorFunctionNames(t *testing.T) {
+	catalog := runtimeservices.NewCatalog([]*servicev1.ServiceDescriptor{{
+		Name:   "devops",
+		Skills: []*servicev1.SkillDescriptor{{Markdown: "Use DevOps evidence."}},
+		Rpcs: []*servicev1.RpcDescriptor{{
+			FunctionName: "build_DetectProject",
+		}},
+	}})
+
+	got := ServicePromptMaterials(catalog)
+	if len(got) != 1 || len(got[0].ApplicableTools) != 1 || got[0].ApplicableTools[0] != "build_DetectProject" {
+		t.Fatalf("service prompt material bindings = %+v", got)
+	}
+}
+
 func TestRegisterServiceFunctionsSkipsStreamingRPCs(t *testing.T) {
 	a, err := agent.NewAgent(agent.Config{ID: "test-agent"})
 	if err != nil {
@@ -160,6 +175,44 @@ func TestModelProviderFromServiceUsesGatewayDescriptor(t *testing.T) {
 	}})
 	if got := ModelProviderFromService(catalog, "openrouter"); got == nil {
 		t.Fatal("expected gateway service provider adapter")
+	}
+}
+
+type selectedModelFixture struct {
+	models []plugin.ModelEntry
+}
+
+func (p selectedModelFixture) ListModels(context.Context) ([]plugin.ModelEntry, error) {
+	return append([]plugin.ModelEntry(nil), p.models...), nil
+}
+
+func (selectedModelFixture) ChatCompletionStream(context.Context, *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+	return nil, nil
+}
+
+func (selectedModelFixture) ParseToolCalls(string) ([]plugin.ToolCall, string) {
+	return nil, ""
+}
+
+func TestResolveSelectedGatewayModelRequiresSelectedContextMetadata(t *testing.T) {
+	got, err := ResolveSelectedGatewayModel(context.Background(), selectedModelFixture{models: []plugin.ModelEntry{
+		{ID: "other/model", Provider: "openrouter", ContextWindow: 1000},
+		{ID: "selected/model", Provider: "openrouter", ContextWindow: 128000},
+	}}, "selected/model")
+	if err != nil {
+		t.Fatalf("resolve selected model: %v", err)
+	}
+	if len(got) != 1 || got[0].ID != "selected/model" || got[0].ContextWindow != 128000 || !got[0].Default {
+		t.Fatalf("selected models = %+v", got)
+	}
+}
+
+func TestResolveSelectedGatewayModelRejectsUnknownContextWindow(t *testing.T) {
+	_, err := ResolveSelectedGatewayModel(context.Background(), selectedModelFixture{models: []plugin.ModelEntry{{
+		ID: "selected/model", Provider: "openrouter",
+	}}}, "selected/model")
+	if err == nil {
+		t.Fatal("model with unknown context window unexpectedly resolved")
 	}
 }
 
@@ -216,6 +269,27 @@ func TestResolveAgentPluginDefaultsToMainProfile(t *testing.T) {
 	}
 	if got.AgentProfile == nil || got.AgentProfile.ID != "quark-main" {
 		t.Fatalf("default profile = %+v", got)
+	}
+}
+
+func TestSpecialistSkillMaterialsExposeOnlyInstalledDelegateGuidance(t *testing.T) {
+	main := pluginmanager.CatalogPlugin{
+		Name: "quark-main", Type: plugin.TypeAgent,
+		AgentProfile: &plugin.AgentProfile{
+			ID: "quark-main", Role: plugin.AgentProfileRoleMain,
+			Handoff: plugin.AgentProfileHandoff{CanDelegateTo: []string{"quark-knowledge", "quark-system"}},
+		},
+	}
+	catalog := &pluginmanager.Catalog{Plugins: []pluginmanager.CatalogPlugin{
+		main,
+		{Name: "quark-knowledge", Type: plugin.TypeAgent, Skill: "knowledge guidance",
+			AgentProfile: &plugin.AgentProfile{ID: "quark-knowledge", Role: plugin.AgentProfileRoleDelegate}},
+		{Name: "quark-devops", Type: plugin.TypeAgent, Skill: "unrelated guidance",
+			AgentProfile: &plugin.AgentProfile{ID: "quark-devops", Role: plugin.AgentProfileRoleDelegate}},
+	}}
+	got := SpecialistSkillMaterials(catalog, main)
+	if len(got) != 1 || got[0].SourceID != "plugin.agent.quark-knowledge.skill" || got[0].Content != "knowledge guidance" {
+		t.Fatalf("specialist materials = %+v", got)
 	}
 }
 

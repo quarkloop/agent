@@ -126,6 +126,39 @@ func TestRustHarnessConformsToNATSKitUnaryAndStreamingContracts(t *testing.T) {
 	running = false
 }
 
+func TestMessagesPreserveStructuredToolExecutionHistory(t *testing.T) {
+	input := []plugin.Message{
+		{
+			Role: "assistant",
+			ToolCalls: []plugin.ToolCall{{
+				Index: 2,
+				ID:    "call-embed",
+				Type:  "function",
+				Function: plugin.ToolCallFunction{
+					Name:      "gateway_Embed",
+					Arguments: `{"inputs":[{"content":"source text"}]}`,
+				},
+			}},
+		},
+		{Role: "tool", Content: `{"embeddingRef":"embedding:1"}`, ToolCallID: "call-embed"},
+	}
+
+	roundTrip := messagesFromProto(messagesToProto(input))
+	if len(roundTrip) != len(input) {
+		t.Fatalf("messages = %d, want %d", len(roundTrip), len(input))
+	}
+	gotCall := roundTrip[0].ToolCalls
+	if len(gotCall) != 1 || gotCall[0].ID != "call-embed" ||
+		gotCall[0].Index != 2 || gotCall[0].Type != "function" ||
+		gotCall[0].Function.Name != "gateway_Embed" ||
+		gotCall[0].Function.Arguments != `{"inputs":[{"content":"source text"}]}` {
+		t.Fatalf("assistant tool calls = %+v", gotCall)
+	}
+	if roundTrip[1].ToolCallID != "call-embed" {
+		t.Fatalf("tool call id = %q, want %q", roundTrip[1].ToolCallID, "call-embed")
+	}
+}
+
 func buildRustHarness(t *testing.T) string {
 	t.Helper()
 	root, err := filepath.Abs(filepath.Join("..", "..", ".."))

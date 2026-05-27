@@ -31,13 +31,12 @@ type Config struct {
 	Description          string
 	ModelProvider        string
 	Model                string
-	ModelListURL         string
+	ModelEntries         []plugin.ModelEntry
 	Profile              Profile
 	SystemPrompt         string
 	PluginCatalog        *pluginmanager.Catalog
 	PromptMaterials      []harnessclient.Material
 	ContextComposer      harnessclient.Composer
-	PendingRefs          func() []string
 	ToolResultRef        func(name, arguments, result string) (string, error)
 	ToolCallArguments    llm.ToolCallArgumentNormalizer
 	CoreEvents           *coreevents.Recorder
