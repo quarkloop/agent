@@ -1,9 +1,10 @@
 # Quark Service Architecture
 
-Quark services move long-lived, specialized platform capabilities behind typed
-gRPC contracts. The runtime can discover them, read their `SKILL.md` guidance,
-and call their RPCs through a generic service tool. The supervisor also uses
-services for platform-owned state, starting with space storage.
+Quark services move long-lived, specialized platform behavior behind typed
+protobuf-backed NATS service functions. Runtime receives a supervisor-resolved
+catalog, reads service-plugin `SKILL.md` guidance, and calls those functions
+through its generic tool surface. Protobuf defines payloads; NATS is the only
+application transport.
 
 This keeps the agent runtime focused on agent lifecycle, sessions, prompts,
 plans, tools, and execution. Services own durable domain behavior such as
@@ -12,46 +13,36 @@ indexing, release automation, and space metadata.
 ## Topology
 
 ```text
-quark CLI
-  |
-  | HTTP
-  v
-supervisor
-  | \
-  |  \ gRPC SpaceService
-  |   v
-  |  services/space
-  |
-  | launches runtime with QUARK_* service endpoint env vars
-  v
-runtime
-  |
-  | gRPC ServiceRegistry discovery + service RPC invocation
-  v
-services/indexer, services/build-release, services/space, future services
+CLI / Web clients ----\
+runtime ---------------+--> NATS accounts and subjects <-- supervisor catalog/control
+services -------------/              |
+                         JetStream audit/events/KV
 ```
 
-Every service exposes its own domain service plus
-`quark.service.v1.ServiceRegistry` on the same gRPC listener. The registry
-returns service descriptors, RPC method descriptors, endpoint addresses, and
-embedded service skills.
+Every Go service registers operations with `pkg/natskit` on canonical
+`svc.<service>.v1.<function>` subjects. Supervisor owns descriptor validation,
+account import/export configuration, embedded broker provisioning, and
+JetStream resource lifecycle. Runtime and services do not discover or launch
+each other.
 
 ## Contracts
 
 Source protobufs live under `proto/quark/<service>/v1`.
 
 Generated Go code lives under `pkg/serviceapi/gen` and is imported by runtime,
-supervisor, service binaries, adapters, and tests. Shared gRPC helpers live in
-`pkg/serviceapi/servicekit`.
+supervisor, service binaries, adapters, and tests. Shared descriptor/payload
+helpers live in `pkg/serviceapi/servicekit`; shared Go NATS execution mechanics
+live in `pkg/natskit`.
 
 Current contracts:
 
 | Proto package | Service | Owner |
 | --- | --- | --- |
-| `quark.service.v1` | `ServiceRegistry` | shared service discovery |
+| `quark.service.v1` | service descriptors | supervisor-owned catalog validation |
 | `quark.indexer.v1` | `IndexerService` | `services/indexer` |
-| `quark.buildrelease.v1` | `BuildReleaseService` | `services/build-release` |
-| `quark.space.v1` | `SpaceService` | `services/space` |
+| `quark.gateway.v1` | `GatewayService` | `services/gateway` |
+| `quark.devops.v1` | `DevOpsService` | `services/devops` |
+| `quark.space.v1` | `SpaceService` | `services/space`; `space.json` plus opaque caller-namespaced records |
 
 Regenerate stubs after proto changes:
 
@@ -74,72 +65,244 @@ A service should have:
 - a binary under `services/<name>/cmd/<name>`
 - service-owned domain logic under `services/<name>/pkg` or `internal`
 - a `SKILL.md` describing capabilities and request/response semantics
-- a `ServiceRegistry` descriptor that lists all callable RPCs and embeds the
+- a descriptor that lists all callable service functions and embeds the
   service skill
-- health registration for the domain gRPC service
+- `pkg/natskit` registration on canonical operation subjects
 - focused unit/integration tests
 
-Services should not import runtime internals. Runtime and supervisor callers
-interact with services through generated protobuf clients or the generic runtime
-service executor.
+Services should not import runtime internals or call another service. Runtime
+coordinates calls through generated payload contracts and `pkg/natskit`.
+The System service composes native Linux, network, bounded log, inventory,
+and approval-plan adapters behind its typed functions; raw system commands
+are not an agent-callable transport or general shell boundary.
 
-## Runtime Discovery
+## Supervisor-Owned Discovery
 
-The runtime discovers services from environment variables:
+The supervisor owns discovery for tools, agent profiles, skills, and services.
+Its registry reads immutable bundled assets and supervisor-owned optional
+installations. Space configuration records selections only; it does not own
+plugin asset copies.
+Runtime requests the resolved catalog using its scoped NATS credential:
 
-| Variable | Meaning |
+| Subject | Meaning |
 | --- | --- |
-| `QUARK_SERVICE_ADDRS` | comma, semicolon, or newline separated addresses; entries can be `name=host:port` |
-| `QUARK_INDEXER_ADDR` | convenience endpoint for the indexer service |
-| `QUARK_BUILD_RELEASE_ADDR` | convenience endpoint for the build-release service |
-| `QUARK_SPACE_SERVICE_ADDR` | space service endpoint, passed by supervisor |
-| `QUARK_DISABLE_SERVICE_DISCOVERY` | set to `true` to leave the runtime service catalog off |
+| `catalog.runtime.v1.get` | normalized plugin/service catalog snapshot and root agent profile |
+| `catalog.runtime.v1.events` | catalog-change notification prompting a refreshed snapshot |
 
-At startup, `runtime/pkg/services` dials each endpoint, calls
-`ServiceRegistry.ListServices`, loads descriptors and skills, and builds a
-`services.Catalog`. The runtime passes that catalog to the agent as a generic
-capability provider. The agent loop only sees capability prompts, tool schemas,
-and dispatch functions; it does not import service packages or special-case
-individual services. If no endpoints are configured, runtime behavior is
-unchanged. Discovery failures are logged and do not prevent the runtime from
-starting.
+Runtime consumes that catalog exactly and does not scan supervisor-owned
+plugin layouts for launched agents. An empty catalog is valid.
 
-When descriptors exist, the runtime exposes a `grpc-service` tool:
+Service plugins expose generated service functions such as
+`indexer_GetContext` and `gateway_Embed`. The executor resolves the service
+function descriptor and its canonical catalog subject, decodes JSON into the
+protobuf request type, issues the NATS operation through `pkg/natskit`, and
+returns protobuf JSON. Gateway uses the same shared NATS endpoint registration
+for unary generation, streaming generation, embeddings, and usage responses;
+its domain package does not own NATS subscriptions or envelopes. This keeps
+service-specific logic out of `runtime/pkg/agent` while giving agents one
+consistent tool invocation path.
+
+The runtime service-function implementation is split by ownership:
+`runtime/pkg/services/tool.go` owns the executor orchestration,
+`service_call.go` owns NATS/protobuf invocation, `schema.go` owns tool schema
+generation, `arguments.go` owns protobuf JSON normalization,
+`runtime_references.go` owns runtime-only content/vector reference expansion,
+`canonical.go` owns canonical index record defaults, and
+`result_references.go` owns compact result/content reference storage. Generic
+service dispatch must stay separate from document/indexing helpers.
+
+## NATS Client Contracts
+
+Client-facing product operations use supervisor-owned NATS subjects. The CLI
+connects with the control credential for supervisor operations, then requests
+scoped credentials before interacting with runtime-owned subjects. Browser and
+mobile clients use the same subject contracts over the embedded NATS WebSocket
+listener:
+
+| Operation | Subject | Credential scope |
+| --- | --- | --- |
+| Create/list/get/update/delete space | `control.space.v1.*` | control |
+| Issue space user credential | `control.space.v1.credential` | control |
+| Issue runtime credential | `control.space.v1.runtime_credential` | control |
+| Create/list/get/delete session | `control.session.v1.*` | control |
+| Issue session credential | `control.session.v1.credential` | control |
+| Send session message | `session.<session-id>.input` | session |
+| Subscribe session events | `session.<session-id>.events` | session |
+| Inspect runtime info/session mirror | `runtime.info.v1.get`, `runtime.session.v1.get` | space user |
+| Runtime plan/activity | `runtime.plan.v1.*`, `runtime.activity.v1.*` | space user |
+
+### NATS Ownership Registry
+
+`pkg/natskit` is the sole application-side Go transport implementation.
+`supervisor/pkg/natshub` is different in kind: it owns the embedded broker,
+accounts, imports/exports, permissions, and durable resource provisioning.
+Services and runtime never create a broker.
+
+| Owner | Subjects | Paradigm | Publisher / responder or consumer | Queue / retention |
+| --- | --- | --- | --- | --- |
+| Supervisor control API | `control.space.v1.{create,list,get,update,delete,config,doctor,credential,runtime_credential}` | Core request/reply | CLI or control client / supervisor | `q.supervisor.control`; transient replies |
+| Supervisor control API | `control.session.v1.{create,list,get,delete,credential}` | Core request/reply | CLI or control client / supervisor | `q.supervisor.control`; transient replies |
+| Supervisor control API | `control.plugin.v1.{list,get,install,uninstall,search,hub_info}` | Core request/reply | CLI or control client / supervisor | `q.supervisor.control`; transient replies |
+| Supervisor control API | `control.service.v1.{list,inspect,doctor}` | Core request/reply | CLI or control client / supervisor | `q.supervisor.control`; transient replies |
+| Supervisor catalog | `catalog.runtime.v1.get` | Core request/reply | runtime / supervisor | imported per space; transient reply |
+| Supervisor catalog | `catalog.runtime.v1.events` | pub/sub plus JetStream history | supervisor / runtime | `QUARK_CATALOG`; 30 days |
+| Runtime session channel | `session.<session-id>.input` (`session.*.input` responder) | Core request/reply | session client / runtime | `q.runtime.sessions`; input is transient |
+| Runtime session channel | `session.<session-id>.events`, `session.<session-id>.status` | Core live delivery plus acknowledged JetStream history | runtime / session client | Per-space `QUARK_SESSION_EVENTS`; 30 days |
+| Runtime inspection | `runtime.info.v1.get`, `runtime.session.v1.get`, `runtime.plan.v1.{get,approve,reject}`, `runtime.activity.v1.list` | Core request/reply | space client / runtime | `q.runtime.sessions`; transient replies |
+| Runtime activity | `runtime.activity.v1.events`, `agent.<agent-id>.events` | Core live delivery plus acknowledged JetStream history | runtime / space client or diagnostics | Per-space `QUARK_RUNTIME_ACTIVITY`; 30 days; request subjects are excluded |
+| Agent invocation | `agent.<agent-id>.invoke` | Core request/reply, reserved | runtime coordinator / agent executor | No production responder until agent dispatch extraction |
+| Service host | `svc.<service>.v1.<function>` | Core request/reply or multi-response reply stream | runtime or workflow / selected service host | NATSKit-derived `q.service.v1.<service>`; transient reply; audit separately durable |
+| Harness service | `svc.harness.v1.{compose_context,get_context_report,stream_context_reports,put_memory,get_memory,search_memory,delete_memory}` | Core request/reply or multi-response reply stream | runtime or read-only CLI context inspector / Rust Harness host | `q.service.v1.harness`; context reports and explicit memory persisted by Harness |
+| Service audit | `audit.<space-id>.service_calls.<reference-id>` | acknowledged JetStream publish | `pkg/natskit` recorder / audit readers | `QUARK_AUDIT`; configurable, default 90 days |
+| Telemetry events | `telemetry.<space-id>.>` | JetStream publish | application instrumentation / Vector or diagnostics | `QUARK_TELEMETRY`; 14 days |
+
+Installed service operation subjects are generated from each validated service
+descriptor and are not entered independently by callers. Current service
+owners use responder groups derived by `pkg/natskit` as
+`q.service.v1.<service>`. Queue groups are host-internal routing metadata and
+cannot be selected by clients or separately configured by instances; clients
+send to the concrete `svc.<service>.v1.<function>` subject. The generated
+catalog in `architecture/nats-subjects.md` enumerates each concrete
+service-function subject and its owning responder group.
+
+Each runtime-catalog `RpcDescriptor` carries that concrete `subject`. The
+descriptor subject is authoritative for runtime invocation, supervisor account
+imports, and tool-call observability; `owner` and `function_name` remain
+display and audit metadata and are never used to reconstruct a route.
+
+| Durable resource owner | Name | Purpose and lifecycle |
+| --- | --- | --- |
+| Space NATS account | `runtime_space_leases` KV | CAS lock that prevents two runtimes from owning that space; the scoped runtime credential renews/releases; 10 minute broker TTL. |
+| Control NATS account | `runstate_leases` KV | Active work-item ownership consumed only by Run State; 10 minute broker TTL; durable ledger remains in service storage. |
+
+Service exports are created by supervisor from validated descriptors as
+`svc.<service>.v1.<function>` and imported unchanged into each authorized
+space account. There are no compatibility subject mappings. Account
+permissions, rather than identifiers embedded in request payloads, enforce
+space/session/service isolation. Workflow history is currently exposed through
+the streamed workflow service function; no separate `workflow.*.events`
+JetStream subject is provisioned until a durable consumer contract exists.
+Likewise, unused jobs, object-store handoff, and coordination buckets are not
+pre-provisioned.
+
+The WebSocket flow is:
+
+1. Authenticate to the supervisor/control path and request a scoped credential.
+2. Open a NATS WebSocket connection to the supervisor-provided
+   `websocket_url`.
+3. Use the credential only for its intended account-local subjects.
+4. Refresh credentials through the supervisor when the client needs a different
+   space/session scope.
+
+The runtime HTTP message API is no longer used by CLI or E2E flows. E2E starts
+runtime with the NATS channel only, creates spaces and sessions through NATS
+control subjects, sends user prompts through `session.<id>.input`, and reads
+streamed events from `session.<id>.events`.
+
+## Service Call Audit References
+
+Every service-function response exposes three distinct correlation values:
+
+| Field | Meaning |
+| --- | --- |
+| `service_call_id` | Identifier of the individual invocation, created by the caller. |
+| `reference_id` | Stable opaque audit lookup identifier derived for that invocation and returned to workflows. |
+| `audit_ref` | Namespaced external audit reference for operator-facing output. |
+
+Services publish one redacted service-call audit record per completed unary or
+terminal streaming invocation to the durable JetStream audit subject scoped by
+space and `reference_id`. The record contains routing/correlation/status and
+retention metadata. The optional snapshot policy stores payload metadata only
+(`bytes`, bound status, and `content_stored: false`); it never stores prompt or
+document body content.
+
+Run State stores returned `reference_id` values when a durable run needs to
+associate its phases with service calls. It is not the audit store. Runtime
+tool traces surface all three fields for debugging and later CLI audit lookup.
+Operators retrieve redacted records through supervisor-owned control operations
+using `quark audit get <reference-id> --space <space>` and filter history with
+`quark audit list`; CLI callers never read the audit JetStream directly.
+
+## NATS Catalog Flow
+
+Supervisor remains the catalog owner. Runtime no longer needs the old
+`QUARK_RUNTIME_PLUGIN_CATALOG` and `QUARK_RUNTIME_SERVICE_CATALOG` launch
+environment in the normal NATS path. A runtime starts with its scoped NATS
+credential and requests:
+
+| Operation | Subject |
+| --- | --- |
+| Runtime catalog snapshot | `catalog.runtime.v1.get` |
+| Catalog update notification | `catalog.runtime.v1.events` |
+
+The catalog snapshot response contains the resolved plugin catalog, the resolved
+service catalog, the selected agent profile, the target space, and generation
+time. Supervisor publishes catalog update notifications when space/catalog
+inputs change, including space creation, space configuration updates, plugin install, and
+plugin uninstall. Runtime can subscribe to update notifications and fetch a new
+snapshot when it needs to reconcile.
+
+Catalog resolution stays supervisor-owned:
+
+- Plugin manifests and agent profiles are read from the supervisor plugin
+  registry, not copied into individual spaces.
+- Space configuration profile/service narrowing is validated against installed plugin
+  limits.
+- Service descriptors are discovered and validated against service plugin
+  manifests before they enter a runtime snapshot.
+- NATS imports/exports allow a space runtime credential to request only its own
+  runtime catalog snapshot and receive catalog events.
+
+### Space Configuration Examples
+
+Local services are declared as space-selected references. The Space service
+persists this record; supervisor validates the references and passes a
+normalized service catalog to runtime:
 
 ```json
 {
-  "service": "indexer",
-  "method": "GetContext",
-  "request": {
-    "queryVector": [1, 0, 0],
-    "limit": 5,
-    "depth": 2
-  }
+  "schema": "quark.space/v1",
+  "name": "knowledge",
+  "plugins": [
+    {"ref": "quark/tool-fs"},
+    {"ref": "quark/service-indexer"},
+    {"ref": "quark/service-gateway"}
+  ],
+  "services": [
+    {"name": "indexer", "ref": "quark/service-indexer"},
+    {"name": "gateway", "ref": "quark/service-gateway"}
+  ]
 }
 ```
 
-The executor resolves the descriptor, decodes the JSON request into the
-protobuf message type, invokes the RPC, and returns protobuf JSON. This keeps
-service-specific logic out of `runtime/pkg/agent` while giving agents one
-consistent service-backed capability.
+Embedding provider and model configuration belongs to Gateway deployment, not
+to a parallel service or a space file:
+
+```bash
+export OPENROUTER_API_KEY=sk-or-v1-...
+export QUARK_GATEWAY_EMBEDDING_PROVIDER=openrouter
+export OPENROUTER_EMBEDDING_MODEL=nvidia/llama-nemotron-embed-vl-1b-v2:free
+```
 
 ## Space Service
 
-`services/space` owns space metadata, the authoritative Quarkfile copy,
-derived storage paths, agent launch environment, and doctor diagnostics. The
-supervisor keeps its HTTP API for CLI compatibility, but its `space.Store`
-implementation is now a gRPC adapter over `SpaceService`.
+`services/space` owns the authoritative `space.json` record, opaque
+caller-namespaced records such as session persistence, and doctor diagnostics.
+It does not interpret catalog, session, runtime, or plugin semantics. The
+supervisor handles those high-level decisions while its `space.Store`
+implementation invokes Space service functions through canonical NATSKit
+request/reply operations.
 
-By default, `quark-supervisor start` starts an embedded local `SpaceService`
-and still talks to it through gRPC. To use an external service:
+Start the Space service against the supervisor-owned NATS endpoint and storage
+root before issuing space control operations:
 
 ```bash
-space-service --addr 127.0.0.1:7303 --root /tmp/quark-spaces
-quark-supervisor start --space-service 127.0.0.1:7303
+space-service --root /tmp/quark-spaces
+supervisor start
 ```
 
-The supervisor passes `QUARK_SPACE_SERVICE_ADDR` into launched runtimes so the
-agent can discover the space service skill and RPC surface.
+The supervisor resolves space and service catalogs; runtime receives the
+resolved catalog rather than reading space configuration storage.
 
 ## Build-Release Service
 
@@ -164,18 +327,106 @@ export QUARK_BUILD_RELEASE_ADDR=127.0.0.1:7302
 
 `services/indexer` is the GraphRAG storage boundary. Agents are responsible for
 reading files, extracting structure, producing embeddings, and sending
-structured `IndexRequest` messages. The indexer stores chunks, entities,
-relations, source metadata, and queryable context in Dgraph.
+structured `IndexRequest` messages. The indexer stores the canonical knowledge
+record in Dgraph: source document, typed source/media/page references, text
+chunk, embedding vector and modality metadata, entities, relations, facts,
+citations, source metadata, and provenance.
+
+The indexer intentionally does not parse PDFs, call LLMs, generate embeddings,
+choose semantic extraction structures, or call any other service. The runtime agent
+coordinates those steps through tools and service plugins, then sends the final
+canonical record to `indexer_IndexDocument`.
+
+Canonical index records contain:
+
+- `document`: stable document ID, name/type, source URI, metadata, and typed
+  source references when evidence includes pages or media.
+- `chunk`: `chunkId`, text content, source metadata, and vector.
+- `embeddingMetadata`: provider, model, dimensions, content hash, version, and
+  source modalities.
+- `entities` and `relations`: graph nodes and typed edges extracted by the
+  agent.
+- `facts`: structured subject/predicate/object claims with confidence and
+  evidence.
+- `citations`: source URI, chunk ID, optional page/media reference,
+  text span/offsets, modality, and confidence.
+- `provenance`: source URI/hash, ingestion timestamp, producing agent/tool
+  trace, and provenance metadata such as tenant or RBAC tags.
 
 Run locally with Dgraph:
 
 ```bash
-indexer-service --addr 127.0.0.1:7301 --dgraph 127.0.0.1:9080 --skill-dir services/indexer
+indexer-service --addr 127.0.0.1:7301 --dgraph 127.0.0.1:9080 --skill-dir plugins/services/indexer
 export QUARK_INDEXER_ADDR=127.0.0.1:7301
 ```
 
-The indexer intentionally does not parse PDFs or call LLMs. That work belongs
-to the agent side of the boundary.
+Queries send an already-computed query vector to `indexer_GetContext`. The
+response returns ranked chunks, restored canonical metadata, citations,
+provenance, graph context, a structured `contextPackage`, and a flattened
+reasoning context for the LLM. Chunk scores are normalized into `[0,1]`, and
+`contextPackage.confidence` gives the aggregate retrieval confidence for the
+returned evidence set.
+
+## Run State Service
+
+`services/runstate` records workflow-neutral durable execution state. A run
+contains generic items, arbitrary phases, artifact references, auditable
+service-call references, actor references, retry/error state, and retention
+metadata. It is used for Knowledge indexing today and is not coupled to that
+workflow.
+
+Durable records are persisted in `runstate-records.json`. Active work
+ownership uses the supervisor-provisioned `runstate_leases` NATS KV bucket
+with create/CAS semantics; KV expiration never removes the durable ledger. On
+first startup, legacy `ingestion-state.json` records are imported into the
+generic item model for local existing data.
+
+The service does not parse sources, call Gateway, generate embeddings, call
+Indexer, or coordinate work. Those operations remain runtime agent decisions.
+
+## Agent-Coordinated Ingestion
+
+Ingestion is coordinated by the runtime agent, not by service-to-service calls.
+For each source, the agent follows one visible tool/service chain:
+
+1. Read or mechanically extract source content through IO/document service
+   functions.
+2. Use the agent plugin's document reasoning guidance and Gateway model path
+   to produce semantic structure.
+3. Validate and map the structure into the indexer's canonical record shape.
+4. Embed the chunk through `gateway_Embed`.
+5. Call `indexer_IndexDocument` with the returned `embeddingRef`, canonical
+   metadata, citations, and provenance.
+6. Verify retrieval with `gateway_Embed` plus `indexer_GetContext` before
+   claiming the indexed dataset is ready.
+
+Every tool/service call is streamed with a stable tool-call ID, tool name,
+arguments, result preview, and error flag. The runtime may also record
+progress, artifact references, and service-call references through Run State
+for resumable or auditable work. Index records carry source URI/hash and trace
+IDs in `provenance` when available.
+
+Agent and service plugins own document reasoning and canonical-record guidance.
+Harness packages the resolved plugin material and runtime facts into model
+context, reports the material and any explicit memory contributions used, and
+does not author extraction policy. Parser output remains raw source evidence;
+the agent coordinates semantic reasoning and service-function calls.
+
+Directory indexing reads files in place. The agent should use IO listing and
+document extraction functions for each supported file. For image evidence,
+runtime keeps returned media behind an opaque reference and resolves it only
+when sending typed content to Gateway. Source path, sha256 hash, and modified timestamp are
+stored in indexer metadata/provenance, so indexing does not depend on renaming,
+restructuring, or sidecar files in the user's directory. Renames, folder
+reorganization, and sidecars are separate workspace-organization actions and
+require explicit user approval.
+
+When approved, sidecars use `<source-stem>.quark.json` next to the source file.
+The metadata format records source path/hash, detected type, summary,
+citations, index IDs, timestamps, and optional metadata. Approved
+renames use a deterministic `<detected-type>-<title><ext>` slug. Sidecar
+generation can be disabled, and deleted sidecars do not affect retrieval because
+the indexer remains the source of truth.
 
 ## Build And Test
 
@@ -190,6 +441,7 @@ Service binaries are emitted as:
 | Binary | Source |
 | --- | --- |
 | `bin/indexer-service` | `services/indexer/cmd/indexer` |
+| `bin/gateway-service` | `services/gateway/cmd/gateway` |
 | `bin/build-release-service` | `services/build-release/cmd/build-release` |
 | `bin/space-service` | `services/space/cmd/space` |
 
@@ -203,25 +455,32 @@ Run the Dgraph-backed indexer E2E tests:
 
 ```bash
 go test -tags e2e -v -run '^TestIndexerServiceWithRealDgraph$' ./e2e
-go test -tags e2e -v -run '^TestAgentServiceCatalogIndexesUltimateBrochurePDF$' ./e2e
+go test -tags e2e -v -run '^TestAgentIndexesUploadedPDFDataset$' ./e2e
 ```
 
 The PDF test requires Docker/Dgraph through the E2E helper, `pdftotext` in
-`PATH`, and an available real provider quota. It sends the PDF path to the
-runtime agent, expects the agent to call `fs extract_pdf`, structure the
-content with the LLM, call `grpc-service` for `IndexDocument` and `GetContext`,
-then verifies the Dgraph-backed indexer state. Provider rate limits are treated
-as unavailable external dependencies.
+`PATH`, and an available real provider quota. It sends PDF paths to the runtime
+agent, expects the agent to call document/IO extraction, `gateway_Embed`, and
+`indexer_IndexDocument` for indexing, then starts fresh chat sessions and asks
+questions that must be answered through `indexer_GetContext`. Provider rate
+limits are treated as unavailable external dependencies.
 
 ## Migration Notes
 
-- Runtime service awareness now lives in `runtime/pkg/services` as a catalog
-  capability provider, not in plugin loading code or agent service branches.
-- `SpaceService` owns space storage behavior; supervisor HTTP handlers keep
-  the existing CLI-facing API stable.
+- Runtime service awareness lives in `runtime/pkg/services` as a service-backed
+  tool catalog, not in plugin loading code or agent service branches.
+- `SpaceService` owns space storage behavior; supervisor NATS handlers own
+  high-level orchestration without writing space files directly.
 - Build-release business logic lives in `services/build-release/pkg`; the tool
   plugin is an adapter and should stay thin.
 - New services should publish a registry descriptor and skill before runtime
   integrations are added.
-- If a service endpoint is absent or unavailable, only that service capability
-  is omitted from the agent prompt and `grpc-service` routing.
+- If a service endpoint is absent or unavailable, only that service-backed tool
+  is omitted from the agent prompt and service executor routing.
+### DevOps implementation boundary
+
+The DevOps service registers canonical `svc.devops.v1.*` NATS service-function
+subjects through `pkg/natskit`. Repository, build/release, test, container,
+deployment, policy, workspace, command-execution, and diagnostic behavior are
+implemented as distinct adapters; external command execution is isolated to
+the command adapter.
