@@ -62,13 +62,17 @@ type openRouterKeyStatus struct {
 	} `json:"data"`
 }
 
+const (
+	gatewayMetadataCallTimeout = 30 * time.Second
+)
+
 func collectUsage(t *testing.T, env *E2EEnv, trace *MessageTrace) {
 	t.Helper()
 	if env == nil || trace == nil || strings.TrimSpace(env.Provider) == "" {
 		return
 	}
 	trace.ModelUsage = runtimeModelUsage(t, env, trace.SessionID)
-	trace.GatewayUsage = CaptureGatewayUsage(t, env)
+	trace.GatewayUsage = observeGatewayUsage(t, env)
 	for _, usage := range trace.ModelUsage {
 		Logf(t, "model-request provider=%s model=%s request_id=%s prompt_tokens=%d completion_tokens=%d embedding_tokens=%d run_id=%s",
 			usage.Provider, usage.Model, usage.RequestID, usage.InputTokens, usage.OutputTokens, usage.EmbeddingTokens, usage.RunID)
@@ -78,6 +82,13 @@ func collectUsage(t *testing.T, env *E2EEnv, trace *MessageTrace) {
 // CaptureGatewayUsage reports cumulative per-test Gateway usage and applies
 // external-call budgets. Each E2E deployment owns one isolated Gateway.
 func CaptureGatewayUsage(t *testing.T, env *E2EEnv) []GatewayUsage {
+	t.Helper()
+	usages := observeGatewayUsage(t, env)
+	AssertGatewayUsageBudget(t, usages)
+	return usages
+}
+
+func observeGatewayUsage(t *testing.T, env *E2EEnv) []GatewayUsage {
 	t.Helper()
 	if env == nil || strings.TrimSpace(env.Provider) == "" {
 		return nil
@@ -93,44 +104,37 @@ func CaptureGatewayUsage(t *testing.T, env *E2EEnv) []GatewayUsage {
 		Logf(t, "model-usage provider=%s model=%s requests=%d prompt_tokens=%d completion_tokens=%d embedding_tokens=%d total_tokens=%d cost_estimate=%g",
 			usage.Provider, usage.Model, usage.Requests, usage.InputTokens, usage.OutputTokens, usage.EmbeddingTokens, usage.TotalTokens, usage.CostEstimate)
 	}
-	budgetRequests := int64Env("QUARK_E2E_MAX_PROVIDER_REQUESTS", 100)
+	return usages
+}
+
+// AssertGatewayUsageBudget fails only after the caller has written its trace
+// artifacts, so a usage regression cannot erase the evidence needed to fix it.
+func AssertGatewayUsageBudget(t *testing.T, usages []GatewayUsage) {
+	t.Helper()
+	var requests, tokens int64
+	for _, usage := range usages {
+		requests += usage.Requests
+		tokens += usage.TotalTokens
+	}
+	budgetRequests := int64Env("QUARK_E2E_MAX_PROVIDER_REQUESTS", 50)
 	budgetTokens := int64Env("QUARK_E2E_MAX_TOTAL_TOKENS", 250000)
 	if err := validateGatewayUsageBudget(requests, tokens, budgetRequests, budgetTokens); err != nil {
 		t.Fatal(err)
 	}
-	return usages
 }
 
 func preflightGateway(t *testing.T, env *E2EEnv) {
 	t.Helper()
 	verifyOpenRouterCreditPrerequisite(t, env)
 	var health gatewayv1.ProviderHealthResponse
-	callGateway(t, env, "provider_health", &gatewayv1.ProviderHealthRequest{Provider: env.Provider}, &health)
+	callGateway(t, env, "provider_health", &gatewayv1.ProviderHealthRequest{Provider: env.Provider}, &health, gatewayMetadataCallTimeout)
 	if !health.GetHealthy() {
 		t.Fatalf("Gateway provider %q is not ready: %s", health.GetProvider(), health.GetStatus())
 	}
-	var generated gatewayv1.GenerateResponse
-	callGateway(t, env, "generate", &gatewayv1.GenerateRequest{
-		Provider: env.Provider,
-		Model:    env.Model,
-		Messages: []*gatewayv1.ModelMessage{{
-			Role: "user",
-			Content: []*gatewayv1.ContentPart{{
-				Kind: gatewayv1.ContentKind_CONTENT_KIND_TEXT,
-				Text: "Reply with OK.",
-			}},
-		}},
-		Options: map[string]string{"max_output_tokens": "4"},
-	}, &generated)
-	usage := generated.GetUsage()
-	if strings.TrimSpace(generated.GetText()) == "" || usage.GetRequestId() == "" {
-		t.Fatalf("Gateway provider preflight returned incomplete generation metadata: %+v", &generated)
-	}
-	Logf(t, "provider-preflight provider=%s model=%s request_id=%s prompt_tokens=%d completion_tokens=%d", usage.GetProvider(), usage.GetModel(), usage.GetRequestId(), usage.GetInputTokens(), usage.GetOutputTokens())
-	CaptureGatewayUsage(t, env)
+	Logf(t, "provider-readiness provider=%s status=%s model_calls=deferred_to_scenario", health.GetProvider(), health.GetStatus())
 }
 
-func callGateway(t *testing.T, env *E2EEnv, function string, req proto.Message, resp proto.Message) {
+func callGateway(t *testing.T, env *E2EEnv, function string, req proto.Message, resp proto.Message, timeout time.Duration) {
 	t.Helper()
 	conn, err := natskit.Connect(context.Background(), natskit.Config{
 		URL: env.NATS.ClientURL, Username: natshub.DefaultControlUser,
@@ -153,7 +157,7 @@ func callGateway(t *testing.T, env *E2EEnv, function string, req proto.Message, 
 	if err != nil {
 		t.Fatalf("Gateway %s envelope: %v", function, err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	envelope, err := conn.Call(ctx, operation, request)
 	if err != nil {
@@ -310,12 +314,4 @@ func int64Env(key string, fallback int64) int64 {
 		return fallback
 	}
 	return parsed
-}
-
-func formatUsageRecords(usages []GatewayUsage) string {
-	parts := make([]string, 0, len(usages))
-	for _, usage := range usages {
-		parts = append(parts, fmt.Sprintf("%s/%s:%d", usage.Provider, usage.Model, usage.TotalTokens))
-	}
-	return strings.Join(parts, ",")
 }

@@ -41,3 +41,22 @@ func TestAssertIndexerQueryReturnedStructuredContextAcceptsHyphenatedChunkIDPrev
 	}}}
 	assertIndexerQueryReturnedStructuredContext(t, trace)
 }
+
+func TestAssertEmbeddingToolResultAcceptsBatchedRealGatewayResponse(t *testing.T) {
+	trace := utils.MessageTrace{ToolResultEvents: []utils.ToolEvent{{
+		Name:   "gateway_Embed",
+		Result: `{"embeddings":[{"provider":"openrouter","model":"nvidia/llama-nemotron-embed-vl-1b-v2:free","dimensions":2048}]}`,
+	}}}
+	assertEmbeddingToolResult(t, trace, "openrouter", "nvidia/llama-nemotron-embed-vl-1b-v2:free", 0)
+}
+
+func TestAssertToolSuccessCountExactlyAcceptsExpectedResultCount(t *testing.T) {
+	trace := utils.MessageTrace{ToolResultEvents: []utils.ToolEvent{{
+		Name: "gateway_Embed", Result: `{"success":true}`,
+	}}}
+	assertToolSuccessCountExactly(t, trace, "gateway_Embed", 1)
+}
+
+func TestAssertAnswerExcludesAllowsUserFacingAnswer(t *testing.T) {
+	assertAnswerExcludes(t, "The indexed source supports the answer.", "<longcat_tool_call>", "gateway_Embed")
+}

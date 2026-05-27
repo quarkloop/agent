@@ -28,7 +28,7 @@ func TestAllowedE2EModelsAreLimitedToFinalGatePolicy(t *testing.T) {
 			t.Fatalf("configured E2E model %q was rejected", model)
 		}
 	}
-	if allowedE2EModel("openai/gpt-4o-mini") {
+	if allowedE2EModel("openrouter/not-approved") {
 		t.Fatal("unapproved E2E model was accepted")
 	}
 }

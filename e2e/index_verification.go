@@ -18,18 +18,11 @@ func verifyPersistedPDFIndexState(t *testing.T, ctx context.Context, artifactDir
 	conn := openIndexVerificationConn(t, env)
 	defer conn.Close()
 
+	vector := requestVerificationEmbedding(t, ctx, conn, env, "verify indexed PDF source records")
 	report := make([]map[string]any, 0, len(documents))
 	for _, document := range documents {
-		var embedding gatewayv1.EmbedResponse
-		requestServiceFunction(t, ctx, conn, env.Space, "gateway", "embed", &gatewayv1.EmbedRequest{
-			Inputs: gatewayTextInputs(document.Name + " " + document.Filename),
-		}, &embedding)
-		if len(embedding.GetEmbeddings()) != 1 {
-			t.Fatalf("gateway embedding result count for %s = %d, want 1", document.Filename, len(embedding.GetEmbeddings()))
-		}
-		vector := embedding.GetEmbeddings()[0]
 		var resp indexerv1.ContextResponse
-		requestServiceFunction(t, ctx, conn, env.Space, "indexer", "query_context", &indexerv1.QueryRequest{
+		queryCall := requestServiceFunction(t, ctx, conn, env.Space, "indexer", "query_context", &indexerv1.QueryRequest{
 			QueryVector: vector.GetVector(),
 			Limit:       1,
 			Depth:       1,
@@ -44,6 +37,10 @@ func verifyPersistedPDFIndexState(t *testing.T, ctx context.Context, artifactDir
 		}
 		if chunk.GetEmbeddingMetadata().GetDimensions() != vector.GetDimensions() {
 			t.Fatalf("persisted embedding dimensions for %s = %d, want %d", document.Filename, chunk.GetEmbeddingMetadata().GetDimensions(), vector.GetDimensions())
+		}
+		audit := utils.GetAuditRecord(t, env, queryCall.ReferenceID)
+		if audit.ReferenceID != queryCall.ReferenceID || audit.Service != "indexer" || audit.Function != "query_context" || audit.Status != "ok" {
+			t.Fatalf("query audit record for %s = %+v", document.Filename, audit)
 		}
 		report = append(report, map[string]any{
 			"filename":           document.Filename,
@@ -60,56 +57,16 @@ func verifyPersistedPDFIndexState(t *testing.T, ctx context.Context, artifactDir
 	utils.CaptureGatewayUsage(t, env)
 }
 
-func verifyPersistedMarkdownIndexState(t *testing.T, ctx context.Context, artifactDir string, env *utils.E2EEnv, documents []indexedMarkdownDocument) {
+func requestVerificationEmbedding(t *testing.T, ctx context.Context, conn *natskit.Client, env *utils.E2EEnv, text string) *gatewayv1.Embedding {
 	t.Helper()
-	conn := openIndexVerificationConn(t, env)
-	defer conn.Close()
-
-	report := make([]map[string]any, 0, len(documents))
-	for _, document := range documents {
-		var embedding gatewayv1.EmbedResponse
-		requestServiceFunction(t, ctx, conn, env.Space, "gateway", "embed", &gatewayv1.EmbedRequest{
-			Inputs: gatewayTextInputs(document.Query),
-		}, &embedding)
-		if len(embedding.GetEmbeddings()) != 1 {
-			t.Fatalf("gateway embedding result count for %s = %d, want 1", document.Filename, len(embedding.GetEmbeddings()))
-		}
-		vector := embedding.GetEmbeddings()[0]
-		var resp indexerv1.ContextResponse
-		requestServiceFunction(t, ctx, conn, env.Space, "indexer", "query_context", &indexerv1.QueryRequest{
-			QueryVector: vector.GetVector(),
-			Limit:       1,
-			Depth:       1,
-			Filters:     map[string]string{"filename": document.Filename},
-		}, &resp)
-		if len(resp.GetChunks()) == 0 {
-			t.Fatalf("persisted markdown index state missing chunk for %s", document.Filename)
-		}
-		chunk := resp.GetChunks()[0]
-		if got := chunk.GetMetadata()["filename"]; got != document.Filename {
-			t.Fatalf("persisted markdown chunk filename = %q, want %q: %+v", got, document.Filename, chunk.GetMetadata())
-		}
-		if chunk.GetEmbeddingMetadata().GetDimensions() != vector.GetDimensions() {
-			t.Fatalf("persisted markdown embedding dimensions for %s = %d, want %d", document.Filename, chunk.GetEmbeddingMetadata().GetDimensions(), vector.GetDimensions())
-		}
-		for _, want := range document.Want {
-			if !containsText(chunk.GetText(), want) && !containsText(resp.GetReasoningContext(), want) {
-				t.Fatalf("persisted markdown context for %s missing %q:\nchunk=%s\ncontext=%s", document.Filename, want, chunk.GetText(), resp.GetReasoningContext())
-			}
-		}
-		report = append(report, map[string]any{
-			"filename":           document.Filename,
-			"chunk_id":           chunk.GetId(),
-			"score":              chunk.GetScore(),
-			"embedding_provider": chunk.GetEmbeddingMetadata().GetProvider(),
-			"embedding_model":    chunk.GetEmbeddingMetadata().GetModel(),
-			"embedding_dims":     chunk.GetEmbeddingMetadata().GetDimensions(),
-			"metadata":           chunk.GetMetadata(),
-			"context_confidence": resp.GetContextPackage().GetConfidence(),
-		})
+	var embedding gatewayv1.EmbedResponse
+	requestServiceFunction(t, ctx, conn, env.Space, "gateway", "embed", &gatewayv1.EmbedRequest{
+		Inputs: gatewayTextInputs(text),
+	}, &embedding)
+	if len(embedding.GetEmbeddings()) != 1 {
+		t.Fatalf("gateway verification embedding result count = %d, want 1", len(embedding.GetEmbeddings()))
 	}
-	writeJSONArtifact(t, artifactDir, "markdown-direct-index-state.json", report)
-	utils.CaptureGatewayUsage(t, env)
+	return embedding.GetEmbeddings()[0]
 }
 
 func gatewayTextInputs(values ...string) []*gatewayv1.MultimodalInput {

@@ -6,9 +6,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/quarkloop/e2e/utils"
 	"github.com/quarkloop/pkg/natskit"
-	gatewayv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/gateway/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -43,23 +41,4 @@ func requestServiceFunction(t *testing.T, ctx context.Context, conn *natskit.Cli
 		t.Fatalf("decode service payload: %v", err)
 	}
 	return out
-}
-
-func requestRealEmbedding(t *testing.T, ctx context.Context, conn *natskit.Client, env *utils.E2EEnv, text string) ([]float32, string) {
-	t.Helper()
-	var response gatewayv1.EmbedResponse
-	requestServiceFunction(t, ctx, conn, env.Space, "gateway", "embed", &gatewayv1.EmbedRequest{
-		Provider: env.Embedding.Provider,
-		Model:    env.Embedding.Model,
-		Inputs: []*gatewayv1.MultimodalInput{{Content: []*gatewayv1.ContentPart{{
-			Kind: gatewayv1.ContentKind_CONTENT_KIND_TEXT,
-			Text: text,
-		}}}},
-	}, &response)
-	if len(response.GetEmbeddings()) != 1 || len(response.GetEmbeddings()[0].GetVector()) == 0 {
-		t.Fatalf("gateway returned no real embedding: %+v", &response)
-	}
-	usage := response.GetUsage()
-	utils.Logf(t, "gateway embedding usage provider=%s model=%s tokens=%d request_id=%s", usage.GetProvider(), usage.GetModel(), usage.GetEmbeddingTokens(), usage.GetRequestId())
-	return append([]float32(nil), response.GetEmbeddings()[0].GetVector()...), response.GetEmbeddings()[0].GetModel()
 }

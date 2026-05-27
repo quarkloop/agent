@@ -183,3 +183,67 @@ func TestAgentRunArtifactsIncludeToolFailureDiagnostics(t *testing.T) {
 		t.Fatalf("diagnostic missing service correlation: %+v", payload.Diagnostics[0])
 	}
 }
+
+func TestAgentRunArtifactsIncludeModelRetryDiagnostics(t *testing.T) {
+	dir := t.TempDir()
+	env := &utils.E2EEnv{
+		Space:    "e2e-artifact-test",
+		Agent:    utils.RuntimeIdentity{ID: "runtime-1"},
+		Provider: "openrouter",
+		Model:    "test/model",
+		Embedding: utils.GatewayEmbeddingOptions{
+			Provider: "openrouter",
+			Model:    "fixture/embed",
+		},
+	}
+	trace := utils.MessageTrace{
+		ProgressEvents: []utils.ProgressEvent{{
+			Phase:      "model_turn",
+			State:      "retrying",
+			Reason:     "transient_stream_timeout",
+			Diagnostic: "retry=1; no tool call was executed for the failed model turn",
+		}},
+	}
+
+	artifacts := writeAgentRunArtifacts(t, dir, "agent-run", env, trace, "index these documents")
+	data, err := os.ReadFile(artifacts.Observability)
+	if err != nil {
+		t.Fatalf("read observability artifact: %v", err)
+	}
+	var payload struct {
+		Diagnostics []map[string]any `json:"diagnostics"`
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		t.Fatalf("decode observability artifact: %v\n%s", err, string(data))
+	}
+	if len(payload.Diagnostics) != 1 || payload.Diagnostics[0]["code"] != "model.turn_retried" {
+		t.Fatalf("diagnostics = %+v", payload.Diagnostics)
+	}
+	if payload.Diagnostics[0]["reason"] != "transient_stream_timeout" {
+		t.Fatalf("retry diagnostic missing reason: %+v", payload.Diagnostics[0])
+	}
+}
+
+func TestAgentRunArtifactsIncludeRejectedFinalResponseDiagnostics(t *testing.T) {
+	dir := t.TempDir()
+	env := &utils.E2EEnv{Space: "e2e-artifact-test", Agent: utils.RuntimeIdentity{ID: "runtime-1"}, Provider: "openrouter", Model: "test/model"}
+	trace := utils.MessageTrace{ProgressEvents: []utils.ProgressEvent{{
+		Phase: "final_response_validation", State: "rejected", Reason: "finalization_incomplete",
+	}}}
+
+	artifacts := writeAgentRunArtifacts(t, dir, "agent-run", env, trace, "index these documents")
+	data, err := os.ReadFile(artifacts.Observability)
+	if err != nil {
+		t.Fatalf("read observability artifact: %v", err)
+	}
+	var payload struct {
+		Diagnostics []map[string]any `json:"diagnostics"`
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		t.Fatalf("decode observability artifact: %v", err)
+	}
+	if len(payload.Diagnostics) != 1 || payload.Diagnostics[0]["code"] != "response.final_rejected" ||
+		payload.Diagnostics[0]["reason"] != "finalization_incomplete" {
+		t.Fatalf("diagnostics = %+v", payload.Diagnostics)
+	}
+}

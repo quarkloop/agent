@@ -12,18 +12,18 @@ import (
 )
 
 var serviceReadinessFunctions = map[string]string{
-	"io":       "stat",
-	"core":     "check_health",
-	"gateway":  "provider_health",
-	"indexer":  "query_context",
-	"document": "detect_type",
-	"runstate": "list_runs",
-	"citation": "score_coverage",
-	"harness":  "get_context_report",
-	"devops":   "status",
-	"system":   "snapshot",
-	"workflow": "list",
-	"secrets":  "audit_access",
+	"io":       "io_Stat",
+	"core":     "core_CheckHealth",
+	"gateway":  "gateway_ProviderHealth",
+	"indexer":  "indexer_QueryContext",
+	"document": "document_DetectType",
+	"runstate": "runstate_ListRuns",
+	"citation": "citation_ScoreCoverage",
+	"harness":  "harness_GetContextReport",
+	"devops":   "repo_Status",
+	"system":   "system_Snapshot",
+	"workflow": "workflow_List",
+	"secrets":  "secrets_AuditAccess",
 }
 
 // waitForServiceResponders ensures Compose containers have registered their
@@ -45,7 +45,7 @@ func waitForServiceResponders(t *testing.T, env *E2EEnv, services []string, time
 
 func waitForServiceResponder(t *testing.T, conn *natskit.Client, spaceID, service, function string, timeout time.Duration) {
 	t.Helper()
-	operation, err := natskit.ServiceOperation(service, function)
+	operation, err := natskit.ServiceOperationFromFunctionName(service, function)
 	if err != nil {
 		t.Fatalf("service readiness operation %s/%s: %v", service, function, err)
 	}

@@ -5,6 +5,7 @@ package utils
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -27,6 +28,7 @@ type E2EEnv struct {
 	Model               string
 	Embedding           GatewayEmbeddingOptions
 	Services            []ServicePlugin
+	RunningServices     []string
 	Agents              []string
 	ExtraServicePlugins []string
 	Compose             *ComposeProject
@@ -96,6 +98,7 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 		projectEnv["QUARK_MODEL_PROVIDER"] = provider
 		projectEnv["QUARK_MODEL_NAME"] = model
 		projectEnv["OPENROUTER_MODEL"] = model
+		projectEnv["QUARK_GATEWAY_MAX_EXTERNAL_REQUESTS"] = strconv.FormatInt(int64Env("QUARK_E2E_MAX_PROVIDER_REQUESTS", 50), 10)
 	}
 	if embedding.Provider != "" {
 		projectEnv["QUARK_GATEWAY_EMBEDDING_PROVIDER"] = embedding.Provider
@@ -122,6 +125,7 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 		"QUARK_RUNTIME_NATS_PASSWORD": runtimeCredential.Password,
 	})
 
+	serviceContainers := composeServicesFor(opt, withProvider)
 	env := &E2EEnv{
 		Root:                QuarkRoot(t),
 		WorkingDir:          workingDir,
@@ -131,30 +135,32 @@ func StartE2E(t *testing.T, withProvider bool, opts ...StartOptions) *E2EEnv {
 		Model:               model,
 		Embedding:           embedding,
 		Services:            append([]ServicePlugin(nil), opt.Services...),
+		RunningServices:     append([]string(nil), serviceContainers...),
 		Agents:              append([]string(nil), agents...),
 		ExtraServicePlugins: append([]string(nil), opt.ExtraServicePlugins...),
 		Compose:             project,
 		Agent:               RuntimeIdentity{ID: runtimeID, Space: spaceName},
 	}
 
-	serviceContainers := composeServicesFor(opt, withProvider)
-	project.Up(serviceContainers...)
+	project.Up(composeStartupContainers(serviceContainers)...)
 	waitForServiceResponders(t, env, serviceContainers, 60*time.Second)
 	if withProvider {
 		preflightGateway(t, env)
 	}
-	DumpNATSCLIDiagnostics(t, env.NATS, "after-services", project.ArtifactsDir())
+	DumpNATSCLIDiagnostics(t, env.NATS, "after-services", env.RunningServices, project.ArtifactsDir())
 	project.Up("runtime")
 	waitForRuntimeNATS(t, env, 45*time.Second)
-	DumpNATSCLIDiagnostics(t, env.NATS, "after-runtime", project.ArtifactsDir())
+	DumpNATSCLIDiagnostics(t, env.NATS, "after-runtime", env.RunningServices, project.ArtifactsDir())
 	Logf(t, "runtime=%s nats=%s space=%s services=%s", runtimeID, natsEndpoints.ClientURL, spaceName, strings.Join(serviceContainers, ","))
 	return env
 }
 
 func composeServicesFor(opt StartOptions, withProvider bool) []string {
-	services := []string{"io"}
+	// IO supplies baseline workspace access and Harness supplies mandatory
+	// runtime context composition for every inference-capable scenario.
+	services := []string{"io", "harness"}
 	if !opt.DisableKnowledgeServices {
-		services = append(services, "core", "gateway", "indexer", "document", "runstate", "citation", "harness")
+		services = append(services, "core", "gateway", "indexer", "document", "runstate", "citation")
 	}
 	for _, service := range opt.Services {
 		services = append(services, service.withDefaults().Name)
@@ -163,6 +169,23 @@ func composeServicesFor(opt StartOptions, withProvider bool) []string {
 		services = append(services, "gateway")
 	}
 	return uniqueNonEmpty(services)
+}
+
+// composeStartupContainers includes infrastructure that supplies a declared
+// Quark service but is not itself a service-function responder.
+func composeStartupContainers(services []string) []string {
+	startup := append([]string(nil), services...)
+	for _, service := range services {
+		switch service {
+		case "indexer":
+			startup = append(startup, "dgraph")
+		case "secrets":
+			startup = append(startup, "openbao")
+		case "workflow":
+			startup = append(startup, "temporal")
+		}
+	}
+	return uniqueNonEmpty(startup)
 }
 
 func withDefaultMainAgent(agents []string) []string {

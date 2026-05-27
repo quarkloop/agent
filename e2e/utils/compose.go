@@ -5,8 +5,10 @@ package utils
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -26,7 +28,9 @@ type ComposeProject struct {
 	name      string
 	env       map[string]string
 	artifacts string
+	workspace string
 	endpoints NATSEndpoints
+	booted    bool
 }
 
 func NewComposeProject(t *testing.T, workingDir string) *ComposeProject {
@@ -46,14 +50,17 @@ func NewComposeProject(t *testing.T, workingDir string) *ComposeProject {
 		file:      filepath.Join(root, "deploy", "compose", "quark.yml"),
 		name:      name,
 		artifacts: artifacts,
+		workspace: workingDir,
 		env: map[string]string{
 			"QUARK_NATS_CLIENT_PORT":    fmt.Sprint(clientPort),
 			"QUARK_NATS_MONITOR_PORT":   fmt.Sprint(monitorPort),
 			"QUARK_NATS_WEBSOCKET_PORT": fmt.Sprint(webSocketPort),
 			"QUARK_E2E_WORKING_DIR":     workingDir,
-			// E2E fixtures deliberately exercise approved writes in the
-			// isolated bind-mounted workspace.
-			"QUARK_CONTAINER_USER": "0:0",
+			// Stateful containers own disposable named volumes as root; only
+			// services operating on the bind-mounted user workspace use the
+			// invoking host identity so Git trust and file ownership match.
+			"QUARK_CONTAINER_USER":           "0:0",
+			"QUARK_WORKSPACE_CONTAINER_USER": workspaceContainerUser(),
 		},
 		endpoints: NATSEndpoints{
 			ClientURL:     fmt.Sprintf("nats://127.0.0.1:%d", clientPort),
@@ -63,9 +70,22 @@ func NewComposeProject(t *testing.T, workingDir string) *ComposeProject {
 	}
 	t.Cleanup(func() {
 		project.capture("cleanup")
-		project.run(false, "down", "--volumes", "--remove-orphans")
+		if t.Failed() {
+			project.preserveFailureArtifacts()
+		}
+		// Profiled services must be included in teardown or Compose removes
+		// only unprofiled control-plane containers.
+		project.run(true, "down", "--volumes", "--remove-orphans")
 	})
 	return project
+}
+
+func workspaceContainerUser() string {
+	current, err := user.Current()
+	if err != nil || strings.TrimSpace(current.Uid) == "" || strings.TrimSpace(current.Gid) == "" {
+		return "quark"
+	}
+	return current.Uid + ":" + current.Gid
 }
 
 func composeProjectName(testName string) string {
@@ -83,6 +103,26 @@ func (p *ComposeProject) Endpoints() NATSEndpoints { return p.endpoints }
 
 func (p *ComposeProject) ArtifactsDir() string { return p.artifacts }
 
+func (p *ComposeProject) preserveFailureArtifacts() {
+	p.t.Helper()
+	root := filepath.Join(os.TempDir(), "quark-e2e-failures", p.name)
+	for _, source := range []struct {
+		path string
+		name string
+	}{
+		{path: p.artifacts, name: "compose-artifacts"},
+		{path: p.workspace, name: "workspace"},
+	} {
+		if strings.TrimSpace(source.path) == "" {
+			continue
+		}
+		if err := copyArtifactDirectory(source.path, filepath.Join(root, source.name)); err != nil {
+			Logf(p.t, "preserve failure artifacts from %s: %v", source.path, err)
+		}
+	}
+	Logf(p.t, "preserved failure artifacts: %s", root)
+}
+
 func (p *ComposeProject) SetEnv(values map[string]string) {
 	for key, value := range values {
 		if strings.TrimSpace(key) != "" {
@@ -94,8 +134,16 @@ func (p *ComposeProject) SetEnv(values map[string]string) {
 func (p *ComposeProject) Up(services ...string) {
 	p.t.Helper()
 	services = uniqueNonEmpty(services)
-	args := append([]string{"up", "--build", "--detach"}, services...)
+	args := []string{"up", "--build", "--detach"}
+	// Space credentials and JetStream accounts belong to the booted
+	// supervisor instance. Later phases start additional containers without
+	// recreating that control-plane dependency.
+	if p.booted {
+		args = append(args, "--no-deps")
+	}
+	args = append(args, services...)
 	p.require(args...)
+	p.booted = true
 	Logf(p.t, "docker-compose project=%s services=%s nats=%s", p.name, strings.Join(services, ","), p.endpoints.ClientURL)
 }
 
@@ -214,4 +262,41 @@ func uniqueNonEmpty(values []string) []string {
 		out = append(out, value)
 	}
 	return out
+}
+
+func copyArtifactDirectory(source, destination string) error {
+	return filepath.WalkDir(source, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		relative, err := filepath.Rel(source, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(destination, relative)
+		if entry.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		if !entry.Type().IsRegular() {
+			return nil
+		}
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return err
+		}
+		input, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer input.Close()
+		output, err := os.OpenFile(target, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
+		if err != nil {
+			return err
+		}
+		_, copyErr := io.Copy(output, input)
+		closeErr := output.Close()
+		if copyErr != nil {
+			return copyErr
+		}
+		return closeErr
+	})
 }

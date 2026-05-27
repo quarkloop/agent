@@ -9,10 +9,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/quarkloop/pkg/boundary/redaction"
 	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/pkg/serviceapi/clientcontract"
 )
@@ -34,6 +37,7 @@ type MessageTrace struct {
 	ToolResults      []string
 	ToolStartEvents  []ToolEvent
 	ToolResultEvents []ToolEvent
+	ProgressEvents   []ProgressEvent
 	LastEvent        string
 	Completed        bool
 	ModelUsage       []ModelUsage
@@ -52,6 +56,16 @@ type ToolEvent struct {
 	RunID          string `json:"run_id,omitempty"`
 	ObservedAt     string `json:"observed_at,omitempty"`
 	DurationMillis int64  `json:"duration_millis,omitempty"`
+}
+
+// ProgressEvent captures redacted lifecycle/validation signals emitted while
+// the model/tool loop is still running.
+type ProgressEvent struct {
+	Phase      string `json:"phase,omitempty"`
+	State      string `json:"state,omitempty"`
+	Function   string `json:"function,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+	Diagnostic string `json:"diagnostic,omitempty"`
 }
 
 // MessageTraceOptions bounds one streamed agent response and controls failure
@@ -145,19 +159,60 @@ func PostMessageTraceWithOptions(t *testing.T, ctx context.Context, env *E2EEnv,
 
 	trace, err := readNATSMessageTrace(reqCtx, events, opts, requestID)
 	if err != nil {
+		trace.Space = opts.Space
+		trace.SessionID = opts.SessionID
+		trace.RunID = traceRunID(trace)
 		if env.Compose != nil {
-			DumpNATSCLIDiagnostics(t, env.NATS, "message-failure", env.Compose.ArtifactsDir())
+			DumpNATSCLIDiagnostics(t, env.NATS, "message-failure", env.RunningServices, env.Compose.ArtifactsDir())
 			env.Compose.capture("message-failure")
 		} else {
-			DumpNATSCLIDiagnostics(t, env.NATS, "message-failure")
+			DumpNATSCLIDiagnostics(t, env.NATS, "message-failure", env.RunningServices)
 		}
-		t.Fatalf("read message stream %s: %v", opts.Label, err)
+		collectUsage(t, env, &trace)
+		if env.Compose != nil {
+			writeMessageFailureTraceArtifact(t, env.Compose.ArtifactsDir(), trace, opts, err)
+		}
+		t.Fatalf("read message stream %s: %v\n%s", opts.Label, err, messageTraceDiagnostics(trace, opts))
 	}
 	trace.Space = opts.Space
 	trace.SessionID = opts.SessionID
 	trace.RunID = traceRunID(trace)
 	collectUsage(t, env, &trace)
 	return trace
+}
+
+func writeMessageFailureTraceArtifact(t testing.TB, dir string, trace MessageTrace, opts MessageTraceOptions, streamErr error) {
+	t.Helper()
+	if strings.TrimSpace(dir) == "" {
+		return
+	}
+	payload := map[string]any{
+		"error":          fmt.Sprint(streamErr),
+		"label":          opts.Label,
+		"space":          trace.Space,
+		"session_id":     trace.SessionID,
+		"run_id":         trace.RunID,
+		"last_event":     trace.LastEvent,
+		"completed":      trace.Completed,
+		"text":           trace.Text,
+		"tool_starts":    trace.ToolStartEvents,
+		"tool_results":   trace.ToolResultEvents,
+		"progress":       trace.ProgressEvents,
+		"model_usage":    trace.ModelUsage,
+		"gateway_usage":  trace.GatewayUsage,
+		"prompt_preview": previewString(opts.Prompt, 500),
+	}
+	data, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		Logf(t, "marshal message failure trace: %v", err)
+		return
+	}
+	path := filepath.Join(dir, "message-failure-trace.json")
+	if err := os.WriteFile(path, redaction.RedactBytes(data), 0o644); err != nil {
+		Logf(t, "write message failure trace %s: %v", path, err)
+		return
+	}
+	Logf(t, "message failure artifact: %s", path)
 }
 
 func readNATSMessageTrace(ctx context.Context, events <-chan clientcontract.SessionEvent, opts MessageTraceOptions, requestID string) (MessageTrace, error) {
@@ -368,6 +423,11 @@ func consumeMessageTraceEvent(trace *MessageTrace, full *strings.Builder, event 
 			trace.ToolResults = append(trace.ToolResults, event.Name)
 			trace.ToolResultEvents = append(trace.ToolResultEvents, event)
 		}
+	case "progress":
+		var progress ProgressEvent
+		if json.Unmarshal(data, &progress) == nil && progress.Phase != "" {
+			trace.ProgressEvents = append(trace.ProgressEvents, progress)
+		}
 	case "error":
 		return fmt.Errorf("agent returned error event: %s", string(data))
 	}
@@ -376,7 +436,7 @@ func consumeMessageTraceEvent(trace *MessageTrace, full *strings.Builder, event 
 
 func messageTraceDiagnostics(trace MessageTrace, opts MessageTraceOptions) string {
 	return fmt.Sprintf(
-		"label=%s space=%s session=%s last_event=%s completed=%t tool_starts=%v tool_results=%v text_preview=%q prompt_preview=%q",
+		"label=%s space=%s session=%s last_event=%s completed=%t tool_starts=%v tool_results=%v progress=%v text_preview=%q prompt_preview=%q",
 		opts.Label,
 		opts.Space,
 		opts.SessionID,
@@ -384,6 +444,7 @@ func messageTraceDiagnostics(trace MessageTrace, opts MessageTraceOptions) strin
 		trace.Completed,
 		trace.ToolStarts,
 		trace.ToolResults,
+		trace.ProgressEvents,
 		previewString(trace.Text, 500),
 		previewString(opts.Prompt, 500),
 	)

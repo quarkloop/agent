@@ -5,6 +5,8 @@ package utils
 import (
 	"context"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -20,6 +22,9 @@ func TestReadMessageTraceParsesTokensAndTools(t *testing.T) {
 		"",
 		"event: tool_result",
 		`data: {"id":"call-1","name":"gateway_Embed","result":"{\"embeddingRef\":\"ref\"}","error":false}`,
+		"",
+		"event: progress",
+		`data: {"phase":"tool_call_validation","state":"rejected","function":"indexer_UpsertChunk","reason":"incomplete_canonical_record","diagnostic":"missing facts"}`,
 		"",
 	}, "\n"))
 
@@ -48,6 +53,10 @@ func TestReadMessageTraceParsesTokensAndTools(t *testing.T) {
 	if trace.ToolResultEvents[0].CallID != "call-1" || trace.ToolResultEvents[0].Error {
 		t.Fatalf("tool result event = %+v", trace.ToolResultEvents[0])
 	}
+	if len(trace.ProgressEvents) != 1 || trace.ProgressEvents[0].Reason != "incomplete_canonical_record" ||
+		trace.ProgressEvents[0].Diagnostic != "missing facts" {
+		t.Fatalf("progress events = %+v", trace.ProgressEvents)
+	}
 }
 
 func TestReadMessageTraceIdleTimeoutIncludesDiagnostics(t *testing.T) {
@@ -67,5 +76,22 @@ func TestReadMessageTraceIdleTimeoutIncludesDiagnostics(t *testing.T) {
 		if !strings.Contains(msg, want) {
 			t.Fatalf("error %q missing %q", msg, want)
 		}
+	}
+}
+
+func TestWriteMessageFailureTraceArtifactPreservesProgress(t *testing.T) {
+	dir := t.TempDir()
+	writeMessageFailureTraceArtifact(t, dir, MessageTrace{
+		SessionID: "session-1",
+		ProgressEvents: []ProgressEvent{{
+			Phase: "tool_call_validation", State: "rejected", Reason: "invalid_arguments",
+		}},
+	}, MessageTraceOptions{Label: "index", Prompt: "index these files"}, io.EOF)
+	data, err := os.ReadFile(filepath.Join(dir, "message-failure-trace.json"))
+	if err != nil {
+		t.Fatalf("read failure trace: %v", err)
+	}
+	if !strings.Contains(string(data), "invalid_arguments") || !strings.Contains(string(data), "session-1") {
+		t.Fatalf("failure trace missing diagnostics: %s", data)
 	}
 }

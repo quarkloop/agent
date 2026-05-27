@@ -25,9 +25,13 @@ func TestIOExecute(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
+	beforeSessions := utils.AgentSessionsCount(t, env)
 	sess := utils.CreateChatSession(t, env, "io-execute-test")
 	trace := utils.PostMessageTrace(t, ctx, env, sess.ID,
 		"Please run a shell command that prints the marker text quark-ok, then reply with only what the command printed.")
+	if afterSessions := utils.AgentSessionsCount(t, env); afterSessions <= beforeSessions {
+		t.Fatalf("runtime did not admit the supervisor-created input session: sessions before=%d after=%d", beforeSessions, afterSessions)
+	}
 	assertToolStarted(t, trace, "io_Execute")
 	utils.Logf(t, "reply: %q", trace.Text)
 	if trace.Text == "" {

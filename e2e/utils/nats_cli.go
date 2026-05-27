@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/quarkloop/pkg/natskit"
 	"github.com/quarkloop/supervisor/pkg/natshub"
 )
 
@@ -28,7 +29,7 @@ type natsCLIProbe struct {
 	Args     []string
 }
 
-func DumpNATSCLIDiagnostics(t testing.TB, endpoints NATSEndpoints, label string, artifactDirs ...string) {
+func DumpNATSCLIDiagnostics(t testing.TB, endpoints NATSEndpoints, label string, services []string, artifactDirs ...string) {
 	t.Helper()
 	binary, ok := resolveNATSCLI()
 	if !ok {
@@ -49,12 +50,9 @@ func DumpNATSCLIDiagnostics(t testing.TB, endpoints NATSEndpoints, label string,
 		{Label: "kv", Identity: control, Args: []string{"kv", "list", "--names"}},
 		{Label: "services-api", Identity: control, Args: []string{"service", "list", "--json"}},
 		{Label: "accounts", Identity: system, Args: []string{"server", "report", "accounts", "--json"}},
-		{Label: "svc-io-subscriptions", Identity: system, Args: []string{"server", "request", "subscriptions", "--filter-subject", "svc.io.v1.read", "--detail", "1"}},
-		{Label: "svc-gateway-subscriptions", Identity: system, Args: []string{"server", "request", "subscriptions", "--filter-subject", "svc.gateway.v1.stream_generate", "--detail", "1"}},
-		{Label: "svc-gateway-embedding-subscriptions", Identity: system, Args: []string{"server", "request", "subscriptions", "--filter-subject", "svc.gateway.v1.embed", "--detail", "1"}},
-		{Label: "svc-indexer-subscriptions", Identity: system, Args: []string{"server", "request", "subscriptions", "--filter-subject", "svc.indexer.v1.query_context", "--detail", "1"}},
 		{Label: "session-subscriptions", Identity: system, Args: []string{"server", "request", "subscriptions", "--filter-subject", "session.e2e.input", "--detail", "1"}},
 	}
+	probes = append(probes, serviceSubscriptionProbes(system, services)...)
 	for _, probe := range probes {
 		out, err := runNATSCLIProbe(binary, endpoints.ClientURL, probe)
 		status := "ok"
@@ -64,6 +62,42 @@ func DumpNATSCLIDiagnostics(t testing.TB, endpoints NATSEndpoints, label string,
 		Logf(t, "nats-cli[%s][%s] status=%s output=%s", label, probe.Label, status, compactCLIOutput(out))
 		writeNATSCLIArtifact(t, artifactDirs, label, probe.Label, fmt.Sprintf("status=%s\n%s", status, out))
 	}
+}
+
+func serviceSubscriptionProbes(identity natsCLIIdentity, services []string) []natsCLIProbe {
+	probes := make([]natsCLIProbe, 0, len(services)+3)
+	for _, service := range uniqueNonEmpty(services) {
+		function, ok := serviceReadinessFunctions[service]
+		if !ok {
+			continue
+		}
+		operation, err := natskit.ServiceOperationFromFunctionName(service, function)
+		if err != nil {
+			continue
+		}
+		probes = append(probes, subscriptionProbe("svc-"+service+"-subscriptions", identity, operation.Subject))
+	}
+	if containsString(services, "gateway") {
+		probes = append(probes,
+			subscriptionProbe("svc-gateway-stream-subscriptions", identity, "svc.gateway.v1.stream_generate"),
+			subscriptionProbe("svc-gateway-model-catalog-subscriptions", identity, "svc.gateway.v1.list_models"),
+			subscriptionProbe("svc-gateway-embedding-subscriptions", identity, "svc.gateway.v1.embed"),
+		)
+	}
+	return probes
+}
+
+func subscriptionProbe(label string, identity natsCLIIdentity, subject string) natsCLIProbe {
+	return natsCLIProbe{Label: label, Identity: identity, Args: []string{"server", "request", "subscriptions", "--filter-subject", subject, "--detail", "1"}}
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if strings.TrimSpace(value) == want {
+			return true
+		}
+	}
+	return false
 }
 
 func writeNATSCLIArtifact(t testing.TB, dirs []string, label, probe, content string) {

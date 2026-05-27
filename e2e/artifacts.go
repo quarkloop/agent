@@ -90,9 +90,10 @@ func writeArtifact(t *testing.T, dir, name, content string) string {
 func writeTraceArtifact(t *testing.T, dir, name string, trace utils.MessageTrace) {
 	t.Helper()
 	payload := map[string]any{
-		"text":    trace.Text,
-		"starts":  trace.ToolStartEvents,
-		"results": trace.ToolResultEvents,
+		"text":     trace.Text,
+		"starts":   trace.ToolStartEvents,
+		"results":  trace.ToolResultEvents,
+		"progress": trace.ProgressEvents,
 	}
 	writeJSONArtifact(t, dir, name, payload)
 }
@@ -274,6 +275,38 @@ func serviceTimeline(trace utils.MessageTrace) []map[string]any {
 
 func diagnosticsSnapshot(trace utils.MessageTrace) []map[string]any {
 	diagnostics := make([]map[string]any, 0)
+	for _, progress := range trace.ProgressEvents {
+		if progress.Phase == "model_turn" && progress.State == "retrying" {
+			diagnostics = append(diagnostics, map[string]any{
+				"code":       "model.turn_retried",
+				"severity":   "warning",
+				"reason":     progress.Reason,
+				"diagnostic": progress.Diagnostic,
+				"message":    "Runtime retried an uncommitted transient model stream failure.",
+			})
+			continue
+		}
+		if progress.Phase == "final_response_validation" && progress.State == "rejected" {
+			diagnostics = append(diagnostics, map[string]any{
+				"code":     "response.final_rejected",
+				"severity": "warning",
+				"reason":   progress.Reason,
+				"message":  "Runtime rejected a proposed final response before exposing it to the user.",
+			})
+			continue
+		}
+		if progress.Phase != "tool_call_validation" || progress.State != "rejected" {
+			continue
+		}
+		diagnostics = append(diagnostics, map[string]any{
+			"code":       "tool.call_rejected",
+			"severity":   "warning",
+			"tool":       progress.Function,
+			"reason":     progress.Reason,
+			"diagnostic": progress.Diagnostic,
+			"message":    "Runtime rejected a proposed tool call before execution.",
+		})
+	}
 	for _, event := range trace.ToolResultEvents {
 		if !event.Error {
 			continue

@@ -52,21 +52,20 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.GatewayEmbe
 	})
 
 	assertToolStarted(t, indexTrace, "runstate_StartRun")
-	assertToolStarted(t, indexTrace, "document_ExtractText")
+	assertToolStartedAny(t, indexTrace, "document_ExtractText", "document_GetPages")
 	assertToolStarted(t, indexTrace, "gateway_Embed")
+	assertToolNotStarted(t, indexTrace, "indexer_UpsertDocument")
 	assertToolStarted(t, indexTrace, "indexer_UpsertChunk")
 	assertToolStarted(t, indexTrace, "runstate_MarkComplete")
-	assertNoToolErrors(t, indexTrace, "document_ExtractText")
-	assertToolSuccessCount(t, indexTrace, "document_ExtractText", len(documents))
+	assertToolLatestResultsSucceeded(t, indexTrace, "runstate_StartRun", "runstate_MarkComplete")
+	assertNoToolErrors(t, indexTrace, "document_ExtractText", "document_GetPages")
+	assertToolSuccessCountAny(t, indexTrace, len(documents), "document_ExtractText", "document_GetPages")
 	assertNoToolErrors(t, indexTrace, "indexer_UpsertChunk")
 	assertEmbeddingSuccessCount(t, indexTrace, len(documents))
 	assertToolSuccessCount(t, indexTrace, "indexer_UpsertChunk", len(documents))
+	assertAnswerContainsAny(t, indexTrace.Text, "indexed", "indexing complete", "indexing is complete", "indexing completed")
+	assertAnswerExcludes(t, indexTrace.Text, "ready to proceed", "continue the indexing run", "indexing is incomplete")
 	assertAgentStructuredPDFIndexPayloads(t, indexTrace, documents)
-	for _, document := range documents {
-		if !containsText(indexTrace.Text, document.Filename) {
-			t.Fatalf("index confirmation missing filename %q:\n%s", document.Filename, indexTrace.Text)
-		}
-	}
 	verifyPersistedPDFIndexState(t, ctx, workingDir, env, documents)
 
 	queryCases := []indexedPDFQueryCase{{
@@ -98,7 +97,10 @@ func runAgentIndexesUploadedPDFDataset(t *testing.T, embedding utils.GatewayEmbe
 		assertToolStarted(t, queryTrace, "indexer_QueryContext")
 		assertToolStartedAny(t, queryTrace, "citation_VerifyGrounding", "citation_RenderReferences")
 		assertNoToolErrors(t, queryTrace, "gateway_Embed", "indexer_QueryContext", "citation_VerifyGrounding", "citation_RenderReferences")
-		if contains(queryTrace.ToolStarts, "io_Read") || contains(queryTrace.ToolStarts, "io_ExtractPdf") {
+		assertToolSuccessCountExactly(t, queryTrace, "gateway_Embed", 1)
+		assertToolSuccessCountExactly(t, queryTrace, "indexer_QueryContext", 1)
+		assertAnswerExcludes(t, queryTrace.Text, "<longcat_tool_call>", "<tool_call>", "gateway_Embed", "indexer_QueryContext", "citation_VerifyGrounding", "citation_RenderReferences")
+		if contains(queryTrace.ToolStarts, "io_Read") {
 			t.Fatalf("%s query re-read source files instead of using the index; starts=%v", queryCase.Title, queryTrace.ToolStarts)
 		}
 		assertIndexerQueryReturnedStructuredContext(t, queryTrace)

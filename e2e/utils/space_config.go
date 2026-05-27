@@ -44,6 +44,9 @@ func spaceConfigFor(t *testing.T, name, workingDir, provider, model string, serv
 		})
 	}
 	addService(ServicePlugin{Name: "io", Plugin: "io"})
+	// Harness is runtime infrastructure: every agent inference turn delegates
+	// context composition to it, regardless of the agent's callable services.
+	addService(ServicePlugin{Name: "harness", Plugin: "harness"})
 	enabled := true
 	for _, agent := range agents {
 		addPluginRef("quark/agent-" + agent)
@@ -60,7 +63,6 @@ func spaceConfigFor(t *testing.T, name, workingDir, provider, model string, serv
 		addService(ServicePlugin{Name: "document", Plugin: "document"})
 		addService(ServicePlugin{Name: "runstate", Plugin: "runstate"})
 		addService(ServicePlugin{Name: "citation", Plugin: "citation"})
-		addService(ServicePlugin{Name: "harness", Plugin: "harness"})
 	}
 	for _, service := range services {
 		addService(service)

@@ -13,7 +13,7 @@ func standardKnowledgeServicesStartOptions(t *testing.T, embedding utils.Gateway
 	return utils.StartOptions{
 		WorkingDir:              workingDir,
 		Embedding:               embedding,
-		Agents:                  []string{"quark-main"},
+		Agents:                  []string{"quark-main", "quark-knowledge"},
 		AgentServicePermissions: knowledgeAgentServicePermissions(),
 	}
 }
@@ -77,7 +77,10 @@ func devOpsAgentServicePermissions(extra ...string) map[string][]string {
 }
 
 func knowledgeAgentServicePermissions() map[string][]string {
-	return map[string][]string{"quark-main": knowledgeServiceFunctions()}
+	return map[string][]string{
+		"quark-main":      knowledgeServiceFunctions(),
+		"quark-knowledge": knowledgeServiceFunctions(),
+	}
 }
 
 func systemReadOnlyAgentServicePermissions() map[string][]string {
@@ -92,26 +95,12 @@ func systemReadOnlyAgentServicePermissions() map[string][]string {
 
 func knowledgeServiceFunctions() []string {
 	return []string{
-		"io_Read", "io_List", "io_Stat", "io_ExtractPdf",
-		"io_Write", "io_Append", "io_Replace", "io_Remove",
-		"document_DetectType", "document_ParseBytes", "document_ExtractText",
-		"document_ExtractLayout", "document_GetPages", "document_ExtractTables",
-		"document_ExtractImages", "document_RunOCR",
-		"runstate_StartRun", "runstate_GetRun", "runstate_ListRuns",
-		"runstate_ResumeRun", "runstate_UpdateItemState", "runstate_AppendArtifact",
-		"runstate_AppendReference", "runstate_MarkFailed", "runstate_MarkComplete",
-		"runstate_CancelRun", "runstate_ListIncompleteItems", "runstate_ListArtifacts",
+		"io_Read", "io_List", "io_Stat",
+		"document_ExtractText", "document_GetPages",
+		"runstate_StartRun", "runstate_MarkComplete",
 		"gateway_Embed",
-		"indexer_UpsertChunk", "indexer_UpsertFact", "indexer_UpsertEntity",
-		"indexer_UpsertRelation", "indexer_UpsertCitation", "indexer_QueryContext",
-		"indexer_DeleteDocument", "indexer_DeleteChunk",
-		"citation_ResolveSpans", "citation_CreateCitation", "citation_VerifyGrounding",
-		"citation_ScoreCoverage", "citation_RenderReferences",
-		"core_CreateWorkspaceMutationPlan", "core_ApproveWorkspaceMutationPlan",
-		"core_RequestApproval", "core_EvaluatePolicy", "core_RecordAuditEvent",
-		"core_PutArtifact",
-		"harness_GetContextReport", "harness_StreamContextReports", "harness_PutMemory",
-		"harness_GetMemory", "harness_SearchMemory", "harness_DeleteMemory",
+		"indexer_UpsertChunk", "indexer_QueryContext",
+		"citation_VerifyGrounding", "citation_RenderReferences",
 	}
 }
 

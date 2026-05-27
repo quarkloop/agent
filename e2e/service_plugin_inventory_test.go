@@ -23,11 +23,11 @@ func TestServicePluginInventoryHasE2ECoveragePlan(t *testing.T) {
 	expectations := map[string]serviceCoverageExpectation{
 		"citation": {
 			Mode:  "contract-only",
-			Tests: []string{"TestAgentIndexesUploadedPDFDataset", "TestAgentIndexesITCompanyMarkdownDocuments"},
+			Tests: []string{"TestAgentIndexesUploadedPDFDataset"},
 		},
 		"core": {
 			Mode:  "supervisor-runtime-owned",
-			Tests: []string{"TestRuntimeAcceptsSupervisorSessionInput", "TestAgentRunArtifactsAreRedactedAndStructured"},
+			Tests: []string{"TestAgentIndexesUploadedPDFDataset", "TestAgentRunArtifactsAreRedactedAndStructured"},
 		},
 		"devops": {
 			Mode:  "runtime-backed",
@@ -39,15 +39,15 @@ func TestServicePluginInventoryHasE2ECoveragePlan(t *testing.T) {
 		},
 		"gateway": {
 			Mode:  "runtime-backed",
-			Tests: []string{"TestAskMode", "TestAgentIndexesUploadedPDFDataset", "TestAgentIndexesITCompanyMarkdownDocuments"},
+			Tests: []string{"TestAgentIndexesUploadedPDFDataset"},
 		},
 		"indexer": {
 			Mode:  "runtime-backed",
-			Tests: []string{"TestIndexerServiceWithRealDgraph", "TestAgentIndexesUploadedPDFDataset", "TestAgentIndexesITCompanyMarkdownDocuments"},
+			Tests: []string{"TestAgentIndexesUploadedPDFDataset"},
 		},
 		"runstate": {
 			Mode:  "runtime-backed",
-			Tests: []string{"TestAgentIndexesUploadedPDFDataset", "TestAgentIndexesITCompanyMarkdownDocuments"},
+			Tests: []string{"TestAgentIndexesUploadedPDFDataset"},
 		},
 		"io": {
 			Mode:  "runtime-backed",
@@ -63,7 +63,7 @@ func TestServicePluginInventoryHasE2ECoveragePlan(t *testing.T) {
 		},
 		"space": {
 			Mode:  "supervisor-runtime-owned",
-			Tests: []string{"TestRuntimeAcceptsSupervisorSessionInput"},
+			Tests: []string{"TestAgentIndexesUploadedPDFDataset"},
 		},
 		"system": {
 			Mode:  "runtime-backed",

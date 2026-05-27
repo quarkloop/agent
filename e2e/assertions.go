@@ -152,20 +152,36 @@ func assertEmbeddingToolResult(t *testing.T, trace utils.MessageTrace, provider,
 		if err := json.Unmarshal([]byte(event.Result), &payload); err != nil {
 			continue
 		}
-		gotProvider := strings.TrimSpace(fmt.Sprint(payload["provider"]))
-		gotModel := strings.TrimSpace(fmt.Sprint(payload["model"]))
-		gotDimensions := strings.TrimSpace(fmt.Sprint(payload["dimensions"]))
-		if gotProvider != provider {
-			continue
-		}
-		if dimensions > 0 && gotDimensions != fmt.Sprint(dimensions) {
-			continue
-		}
-		if embeddingModelMatches(provider, gotModel, model) {
-			return
+		for _, result := range embeddingResultPayloads(payload) {
+			gotProvider := strings.TrimSpace(fmt.Sprint(result["provider"]))
+			gotModel := strings.TrimSpace(fmt.Sprint(result["model"]))
+			gotDimensions := strings.TrimSpace(fmt.Sprint(result["dimensions"]))
+			if gotProvider != provider || gotDimensions == "" || gotDimensions == "0" || gotDimensions == "<nil>" {
+				continue
+			}
+			if dimensions > 0 && gotDimensions != fmt.Sprint(dimensions) {
+				continue
+			}
+			if embeddingModelMatches(provider, gotModel, model) {
+				return
+			}
 		}
 	}
 	t.Fatalf("gateway_Embed tool results missing provider=%q model=%q dimensions=%d: %+v", provider, model, dimensions, trace.ToolResultEvents)
+}
+
+func embeddingResultPayloads(payload map[string]any) []map[string]any {
+	rawEmbeddings, ok := payload["embeddings"].([]any)
+	if !ok {
+		return []map[string]any{payload}
+	}
+	results := make([]map[string]any, 0, len(rawEmbeddings))
+	for _, raw := range rawEmbeddings {
+		if item, ok := raw.(map[string]any); ok {
+			results = append(results, item)
+		}
+	}
+	return results
 }
 
 func embeddingModelMatches(provider, got, want string) bool {
@@ -241,6 +257,45 @@ func assertToolSuccessCount(t *testing.T, trace utils.MessageTrace, tool string,
 	}
 }
 
+func assertToolSuccessCountExactly(t *testing.T, trace utils.MessageTrace, tool string, want int) {
+	t.Helper()
+	count := 0
+	for _, event := range trace.ToolResultEvents {
+		if event.Name == tool && toolEventSucceeded(event) {
+			count++
+		}
+	}
+	if count != want {
+		t.Fatalf("%s successful results = %d, want exactly %d: %+v", tool, count, want, trace.ToolResultEvents)
+	}
+}
+
+func assertAnswerExcludes(t *testing.T, answer string, forbidden ...string) {
+	t.Helper()
+	for _, value := range forbidden {
+		if containsText(answer, value) {
+			t.Fatalf("answer exposes internal value %q:\n%s", value, answer)
+		}
+	}
+}
+
+func assertToolSuccessCountAny(t *testing.T, trace utils.MessageTrace, want int, tools ...string) {
+	t.Helper()
+	accepted := make(map[string]struct{}, len(tools))
+	for _, tool := range tools {
+		accepted[tool] = struct{}{}
+	}
+	count := 0
+	for _, event := range trace.ToolResultEvents {
+		if _, ok := accepted[event.Name]; ok && toolEventSucceeded(event) {
+			count++
+		}
+	}
+	if count < want {
+		t.Fatalf("%v successful results = %d, want at least %d: %+v", tools, count, want, trace.ToolResultEvents)
+	}
+}
+
 func assertEmbeddingSuccessCount(t *testing.T, trace utils.MessageTrace, want int) {
 	t.Helper()
 	count := 0
@@ -250,6 +305,13 @@ func assertEmbeddingSuccessCount(t *testing.T, trace utils.MessageTrace, want in
 		}
 		if !toolEventSucceeded(event) {
 			continue
+		}
+		payload, ok := decodeJSONObject(event.Result)
+		if ok {
+			if embeddings, ok := payload["embeddings"].([]any); ok {
+				count += len(embeddings)
+				continue
+			}
 		}
 		if containsText(event.Result, "embeddingRef") {
 			count++
