@@ -20,6 +20,25 @@ Knowledge services require the `knowledge` profile:
 docker compose -f deploy/compose/quark.yml --profile knowledge up dgraph gateway indexer
 ```
 
+The DevOps profile uses a dedicated execution image because its typed build,
+test, release, and container service functions require the Go toolchain and
+Docker client in the running service process:
+
+```bash
+docker compose -f deploy/compose/quark.yml --profile devops up devops gateway
+```
+
+When a DevOps or file service operates on a bind-mounted workspace, set
+`QUARK_WORKSPACE_CONTAINER_USER` to the workspace owner's numeric `UID:GID`.
+The DevOps image stores Go home/module/build caches below ephemeral `/tmp`
+locations so running builds and tests does not create product state or
+root-owned cache files in that workspace.
+
+Set `QUARK_GATEWAY_MAX_EXTERNAL_REQUESTS` when an environment requires a
+hard bound on outbound model and embedding requests. Gateway enforces that
+bound before provider dispatch; E2E passes its declared provider budget
+through this setting.
+
 Observability and infrastructure profiles are split so local development can
 start only what it needs:
 

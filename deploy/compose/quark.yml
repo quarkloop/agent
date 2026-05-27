@@ -33,10 +33,16 @@ services:
       - /var/lib/quark/plugins
       - --nats-state-dir
       - /var/lib/quark/nats
+      - --nats-client-host
+      - "0.0.0.0"
       - --nats-client-port
       - "4222"
+      - --nats-websocket-host
+      - "0.0.0.0"
       - --nats-websocket-port
       - "9222"
+      - --nats-monitor-host
+      - "0.0.0.0"
       - --nats-monitor-port
       - "8222"
     ports:
@@ -70,13 +76,16 @@ services:
       QUARK_NATS_PASSWORD: ${QUARK_RUNTIME_NATS_PASSWORD:-quark-control-dev}
       QUARK_SPACE: ${QUARK_SPACE:-default}
       QUARK_MODEL_PROVIDER: ${QUARK_MODEL_PROVIDER:-openrouter}
-      QUARK_MODEL_NAME: ${QUARK_MODEL_NAME:-openai/gpt-5-mini}
+      QUARK_MODEL_NAME: ${QUARK_MODEL_NAME:-openrouter/owl-alpha}
       QUARK_GATEWAY_REQUEST_TIMEOUT: ${QUARK_GATEWAY_REQUEST_TIMEOUT:-2m}
       QUARK_GATEWAY_MAX_OUTPUT_TOKENS: ${QUARK_GATEWAY_MAX_OUTPUT_TOKENS:-4096}
+    volumes:
+      - ../../plugins:/plugins:ro
 
   io:
     <<: *service-defaults
     profiles: ["services"]
+    user: ${QUARK_WORKSPACE_CONTAINER_USER:-quark}
     build:
       <<: *go-build
       args:
@@ -108,6 +117,7 @@ services:
   document:
     <<: *service-defaults
     profiles: ["services"]
+    user: ${QUARK_WORKSPACE_CONTAINER_USER:-quark}
     build:
       <<: *go-build
       args:
@@ -170,10 +180,11 @@ services:
       QUARK_NATS_PASSWORD: quark-control-dev
       QUARK_GATEWAY_EMBEDDING_PROVIDER: ${QUARK_GATEWAY_EMBEDDING_PROVIDER:-openrouter}
       QUARK_GATEWAY_TIMEOUT: ${QUARK_GATEWAY_TIMEOUT:-2m}
+      QUARK_GATEWAY_MAX_EXTERNAL_REQUESTS: ${QUARK_GATEWAY_MAX_EXTERNAL_REQUESTS:-0}
       QUARK_OPENROUTER_PROVIDER_KIND: ${QUARK_OPENROUTER_PROVIDER_KIND:-openai-compatible}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
-      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4o-mini}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openrouter/owl-alpha}
       OPENROUTER_EMBEDDING_MODEL: ${OPENROUTER_EMBEDDING_MODEL:-}
 
   workflow:
@@ -188,7 +199,7 @@ services:
       supervisor:
         condition: service_healthy
       temporal:
-        condition: service_started
+        condition: service_healthy
     volumes:
       - ../../plugins:/plugins:ro
 
@@ -240,10 +251,12 @@ services:
   devops:
     <<: *service-defaults
     profiles: ["services", "devops"]
+    user: ${QUARK_WORKSPACE_CONTAINER_USER:-quark}
     build:
       <<: *go-build
+      dockerfile: deploy/docker/Dockerfile.devops
       args:
-        PACKAGE: ./services/devops/cmd/devops
+        GO_VERSION: ${QUARK_GO_VERSION:-1.26}
     command: ["--skill-dir", "/plugins/services/devops"]
     depends_on:
       supervisor:
@@ -268,7 +281,7 @@ services:
 
   harness:
     <<: *service-defaults
-    profiles: ["services", "knowledge"]
+    profiles: ["services"]
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile.rust-harness
@@ -370,13 +383,20 @@ services:
     command: ["server", "-dev", "-dev-listen-address=0.0.0.0:8200"]
 
   temporal:
-    image: temporalio/auto-setup:1.29
+    image: temporalio/temporal:1.7.0
     profiles: ["services", "workflow"]
     restart: unless-stopped
     networks:
       - quark
+    command: ["server", "start-dev", "--ip", "0.0.0.0", "--headless"]
     ports:
       - "7233:7233"
+    healthcheck:
+      test: ["CMD", "temporal", "operator", "namespace", "list", "--address", "127.0.0.1:7233"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+      start_period: 5s
 
 networks:
   quark:
