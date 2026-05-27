@@ -33,6 +33,9 @@ func (s *Server) StreamGenerateEvents(ctx context.Context, req *gatewayv1.Stream
 	if err != nil {
 		return nil, providerServiceError(err)
 	}
+	if err := s.reserveExternalRequest(providerID, cmd.Model, "stream_generate"); err != nil {
+		return nil, err
+	}
 	started := time.Now()
 	ch, err := p.StreamGenerate(ctx, cmd)
 	if err != nil {
@@ -49,6 +52,7 @@ func (s *Server) StreamGenerateEvents(ctx context.Context, req *gatewayv1.Stream
 			}
 			output.WriteString(event.Delta)
 			usage := modelUsage{}
+			var responseUsage *gatewayv1.ModelUsage
 			if event.Done {
 				if event.Usage != nil {
 					usage = *event.Usage
@@ -62,12 +66,13 @@ func (s *Server) StreamGenerateEvents(ctx context.Context, req *gatewayv1.Stream
 					usage.Model = firstNonEmpty(cmd.Model, defaultModel(p))
 				}
 				s.recordUsage(usage)
+				responseUsage = usageToProto(usage)
 			}
 			out <- StreamGenerateEvent{Response: &gatewayv1.StreamGenerateResponse{
 				Delta:     event.Delta,
 				ToolCalls: toolCallsToProto(event.ToolCalls),
 				Done:      event.Done,
-				Usage:     usageToProto(usage),
+				Usage:     responseUsage,
 			}}
 		}
 	}()
@@ -89,6 +94,9 @@ func (s *Server) Embed(ctx context.Context, req *gatewayv1.EmbedRequest) (*gatew
 	providerID, p, err := s.resolveProvider(provider)
 	if err != nil {
 		return nil, providerServiceError(err)
+	}
+	if err := s.reserveExternalRequest(providerID, cmd.Model, "embed"); err != nil {
+		return nil, err
 	}
 	started := time.Now()
 	embeddings, err := p.Embed(ctx, cmd)

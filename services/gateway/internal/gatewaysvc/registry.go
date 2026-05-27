@@ -126,8 +126,6 @@ func newProvider(cfg ProviderConfig) (provider, error) {
 		return newBifrostProvider(cfg)
 	case "openai-compatible":
 		return newOpenAICompatibleProvider(cfg), nil
-	case "unsupported":
-		return newUnsupportedProvider(cfg), nil
 	default:
 		return nil, fmt.Errorf("unsupported provider kind %q", cfg.Kind)
 	}

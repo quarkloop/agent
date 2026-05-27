@@ -3,6 +3,7 @@ package gatewaysvc
 import (
 	"errors"
 
+	"github.com/quarkloop/pkg/boundary"
 	"github.com/quarkloop/pkg/plugin"
 	"github.com/quarkloop/pkg/serviceapi/serviceerrors"
 )
@@ -27,6 +28,10 @@ func canFallbackAfter(err error) bool {
 func providerServiceError(err error) error {
 	if err == nil {
 		return nil
+	}
+	var boundaryErr *boundary.Error
+	if errors.As(err, &boundaryErr) {
+		return err
 	}
 	var providerErr *plugin.ProviderError
 	if errors.As(err, &providerErr) {

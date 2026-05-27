@@ -15,6 +15,12 @@ envelopes, correlation fields, and streamed terminal delivery. Gateway owns
 only provider selection, request/response mapping, typed diagnostics, and
 redacted model usage values.
 
+`QUARK_GATEWAY_MAX_EXTERNAL_REQUESTS` optionally applies a process-wide bound
+to outbound generation and embedding requests. Gateway reserves capacity
+immediately before provider dispatch, so quota-bound deployments reject excess
+work before consuming an additional provider request. A value of `0` leaves
+the limit unset.
+
 Embedding calls require an explicitly configured real provider and embedding
 model. For OpenRouter, configure `QUARK_GATEWAY_EMBEDDING_PROVIDER=openrouter`
 and `OPENROUTER_EMBEDDING_MODEL` alongside its API credential. Gateway has no

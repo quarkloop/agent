@@ -13,12 +13,13 @@ import (
 )
 
 type Config struct {
-	SkillDir          string
-	NATS              natskit.Config
-	Providers         []ProviderConfig
-	Fallbacks         map[string][]string
-	EmbeddingProvider string
-	Logger            *slog.Logger
+	SkillDir            string
+	NATS                natskit.Config
+	Providers           []ProviderConfig
+	Fallbacks           map[string][]string
+	EmbeddingProvider   string
+	MaxExternalRequests int64
+	Logger              *slog.Logger
 }
 
 type ProviderConfig struct {
@@ -36,10 +37,11 @@ func Run(ctx context.Context, cfg Config) error {
 		cfg.Logger = slog.Default()
 	}
 	server, err := gatewaysvc.NewServer(gatewaysvc.Config{
-		Providers:         providerConfigs(cfg.Providers),
-		Fallbacks:         cfg.Fallbacks,
-		EmbeddingProvider: cfg.EmbeddingProvider,
-		Logger:            cfg.Logger,
+		Providers:           providerConfigs(cfg.Providers),
+		Fallbacks:           cfg.Fallbacks,
+		EmbeddingProvider:   cfg.EmbeddingProvider,
+		MaxExternalRequests: cfg.MaxExternalRequests,
+		Logger:              cfg.Logger,
 	})
 	if err != nil {
 		return err

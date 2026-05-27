@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/quarkloop/pkg/boundary"
@@ -51,6 +52,37 @@ func TestEmbedUsesConfiguredProviderModelAndReturnsUsage(t *testing.T) {
 	}
 	if resp.GetUsage().GetEmbeddingTokens() == 0 || resp.GetUsage().GetRequestId() == "" {
 		t.Fatalf("missing embedding usage: %#v", resp.GetUsage())
+	}
+}
+
+func TestStreamGeneratePublishesUsageOnlyOnTerminalResponse(t *testing.T) {
+	srv := newConfiguredGatewayServer(t, nil)
+	events, err := srv.StreamGenerateEvents(context.Background(), &gatewayv1.StreamGenerateRequest{
+		Provider: "fixture",
+		Model:    "fixture/chat",
+		Messages: []*gatewayv1.ModelMessage{gatewayTextMessage("user", "summarize this")},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var responses []*gatewayv1.StreamGenerateResponse
+	for event := range events {
+		if event.Err != nil {
+			t.Fatal(event.Err)
+		}
+		responses = append(responses, event.Response)
+	}
+	if len(responses) < 2 {
+		t.Fatalf("stream responses = %d, want content and terminal responses", len(responses))
+	}
+	for _, response := range responses[:len(responses)-1] {
+		if response.GetUsage() != nil {
+			t.Fatalf("nonterminal response leaked empty usage: %+v", response.GetUsage())
+		}
+	}
+	terminal := responses[len(responses)-1]
+	if !terminal.GetDone() || terminal.GetUsage().GetProvider() != "fixture" || terminal.GetUsage().GetInputTokens() == 0 {
+		t.Fatalf("terminal usage = %+v", terminal.GetUsage())
 	}
 }
 
@@ -123,20 +155,12 @@ func TestUsageSummaryAndReloadConfig(t *testing.T) {
 	}
 }
 
-func TestUnsupportedProviderMapsToStructuredError(t *testing.T) {
-	srv, err := NewServer(Config{
-		Providers: []ProviderConfig{{ID: "anthropic", Kind: "unsupported", Model: "claude", Enabled: true}},
+func TestUnsupportedProviderKindIsRejectedDuringConfiguration(t *testing.T) {
+	_, err := NewServer(Config{
+		Providers: []ProviderConfig{{ID: "not-configured", Kind: "unsupported", Model: "unavailable", Enabled: true}},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = srv.Generate(context.Background(), &gatewayv1.GenerateRequest{
-		Provider: "anthropic",
-		Model:    "claude",
-		Messages: []*gatewayv1.ModelMessage{gatewayTextMessage("user", "hi")},
-	})
-	if !boundary.IsCategory(err, boundary.Unavailable) {
-		t.Fatalf("error = %v, want unavailable", err)
+	if err == nil || !strings.Contains(err.Error(), "unsupported provider kind") {
+		t.Fatalf("error = %v, want unsupported provider configuration failure", err)
 	}
 }
 
@@ -145,6 +169,39 @@ func TestMissingProviderMapsToNotFoundDiagnostic(t *testing.T) {
 	_, err := srv.ProviderHealth(context.Background(), &gatewayv1.ProviderHealthRequest{Provider: "missing"})
 	if !boundary.IsCategory(err, boundary.NotFound) {
 		t.Fatalf("error = %v, want not found", err)
+	}
+}
+
+func TestExternalRequestLimitRejectsBeforeProviderDispatch(t *testing.T) {
+	var dispatched atomic.Int64
+	endpoint := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		dispatched.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"data":[{"embedding":[0.1,0.2,0.3]}]}`)
+	}))
+	t.Cleanup(endpoint.Close)
+	srv, err := NewServer(Config{
+		Providers: []ProviderConfig{{
+			ID: "fixture", Kind: "openai-compatible", APIKey: "test-key",
+			BaseURL: endpoint.URL, EmbeddingModel: "fixture/embed", Enabled: true,
+		}},
+		EmbeddingProvider:   "fixture",
+		MaxExternalRequests: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = srv.Close() })
+
+	if _, err := srv.Embed(context.Background(), &gatewayv1.EmbedRequest{Inputs: gatewayTextInputs("first")}); err != nil {
+		t.Fatalf("first embed: %v", err)
+	}
+	_, err = srv.Embed(context.Background(), &gatewayv1.EmbedRequest{Inputs: gatewayTextInputs("second")})
+	if !boundary.IsCategory(err, boundary.RateLimit) || !strings.Contains(err.Error(), "external request limit") {
+		t.Fatalf("second embed error = %v, want external request rate limit", err)
+	}
+	if got := dispatched.Load(); got != 1 {
+		t.Fatalf("outbound provider dispatches = %d, want 1", got)
 	}
 }
 

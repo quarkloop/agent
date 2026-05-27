@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -23,6 +24,7 @@ func main() {
 	var natsUser string
 	var natsPassword string
 	var natsTimeout time.Duration
+	var maxExternalRequests int64
 
 	flag.StringVar(&skillDir, "skill-dir", "", "directory containing the service SKILL.md")
 	flag.StringVar(&fallbackSpec, "fallbacks", os.Getenv("QUARK_GATEWAY_FALLBACKS"), "fallbacks as provider=fallback1,fallback2;provider2=fallback")
@@ -31,6 +33,7 @@ func main() {
 	flag.StringVar(&natsUser, "nats-user", envOrDefault("QUARK_NATS_SERVICE_USER", os.Getenv("QUARK_NATS_USER")), "NATS username for Gateway service-function endpoints")
 	flag.StringVar(&natsPassword, "nats-password", envOrDefault("QUARK_NATS_SERVICE_PASSWORD", os.Getenv("QUARK_NATS_PASSWORD")), "NATS password for Gateway service-function endpoints")
 	flag.DurationVar(&natsTimeout, "nats-timeout", durationEnvOrDefault("QUARK_GATEWAY_TIMEOUT", 30*time.Second), "Gateway service-function request timeout")
+	flag.Int64Var(&maxExternalRequests, "max-external-requests", int64EnvOrDefault("QUARK_GATEWAY_MAX_EXTERNAL_REQUESTS", 0), "maximum outbound provider model/embedding requests before Gateway rejects further dispatches; zero is unlimited")
 	flag.Parse()
 
 	fallbacks := parseFallbacks(fallbackSpec)
@@ -52,10 +55,11 @@ func main() {
 			TelemetryPrefix: os.Getenv("QUARK_NATS_TELEMETRY_PREFIX"),
 			AuditPolicy:     natskit.DefaultAuditPolicy(),
 		},
-		Providers:         providerConfigsFromEnv(),
-		Fallbacks:         fallbacks,
-		EmbeddingProvider: strings.TrimSpace(embeddingProvider),
-		Logger:            logger,
+		Providers:           providerConfigsFromEnv(),
+		Fallbacks:           fallbacks,
+		EmbeddingProvider:   strings.TrimSpace(embeddingProvider),
+		MaxExternalRequests: maxExternalRequests,
+		Logger:              logger,
 	}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -74,6 +78,18 @@ func durationEnvOrDefault(key string, fallback time.Duration) time.Duration {
 	return duration
 }
 
+func int64EnvOrDefault(key string, fallback int64) int64 {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	n, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || n < 0 {
+		return fallback
+	}
+	return n
+}
+
 func providerConfigsFromEnv() []app.ProviderConfig {
 	var configs []app.ProviderConfig
 	if key := strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY")); key != "" {
@@ -83,7 +99,7 @@ func providerConfigsFromEnv() []app.ProviderConfig {
 			Kind:           kind,
 			APIKey:         key,
 			BaseURL:        envOrDefault("OPENROUTER_BASE_URL", openRouterBaseURL(kind)),
-			Model:          envOrDefault("OPENROUTER_MODEL", "openai/gpt-4o-mini"),
+			Model:          envOrDefault("OPENROUTER_MODEL", "openrouter/owl-alpha"),
 			EmbeddingModel: strings.TrimSpace(os.Getenv("OPENROUTER_EMBEDDING_MODEL")),
 			Enabled:        true,
 		})
@@ -105,15 +121,6 @@ func providerConfigsFromEnv() []app.ProviderConfig {
 			Kind:    "bifrost",
 			APIKey:  key,
 			Model:   envOrDefault("ANTHROPIC_MODEL", "claude-sonnet-4-5"),
-			Enabled: true,
-		})
-	}
-	if key := strings.TrimSpace(os.Getenv("ZHIPU_API_KEY")); key != "" {
-		configs = append(configs, app.ProviderConfig{
-			ID:      "zhipu",
-			Kind:    "unsupported",
-			APIKey:  key,
-			Model:   envOrDefault("ZHIPU_MODEL", "glm-4.5"),
 			Enabled: true,
 		})
 	}

@@ -7,10 +7,11 @@ import (
 )
 
 type Config struct {
-	Providers         []ProviderConfig
-	Fallbacks         map[string][]string
-	EmbeddingProvider string
-	Logger            logger
+	Providers           []ProviderConfig
+	Fallbacks           map[string][]string
+	EmbeddingProvider   string
+	MaxExternalRequests int64
+	Logger              logger
 }
 
 type ProviderConfig struct {

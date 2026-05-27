@@ -23,6 +23,9 @@ func (s *Server) generate(ctx context.Context, primary string, cmd generateComma
 			failures = append(failures, plugin.NewProviderError(plugin.ProviderErrorModelUnavailable, providerID, cmd.Model, 0, fmt.Errorf("provider unavailable")))
 			continue
 		}
+		if err := s.reserveExternalRequest(providerID, cmd.Model, "generate"); err != nil {
+			return "", nil, modelUsage{}, err
+		}
 		started := time.Now()
 		stream, err := p.StreamGenerate(ctx, cmd)
 		if err != nil {

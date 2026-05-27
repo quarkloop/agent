@@ -45,6 +45,17 @@ func TestDurationEnvOrDefaultParsesPositiveDuration(t *testing.T) {
 	}
 }
 
+func TestInt64EnvOrDefaultAcceptsNonNegativeLimit(t *testing.T) {
+	t.Setenv("QUARK_GATEWAY_MAX_EXTERNAL_REQUESTS", "7")
+	if got := int64EnvOrDefault("QUARK_GATEWAY_MAX_EXTERNAL_REQUESTS", 0); got != 7 {
+		t.Fatalf("external request limit = %d", got)
+	}
+	t.Setenv("QUARK_GATEWAY_MAX_EXTERNAL_REQUESTS", "-1")
+	if got := int64EnvOrDefault("QUARK_GATEWAY_MAX_EXTERNAL_REQUESTS", 0); got != 0 {
+		t.Fatalf("negative external request limit = %d, want fallback", got)
+	}
+}
+
 func setProviderEnv(t *testing.T) {
 	t.Helper()
 	for _, key := range []string{
@@ -55,7 +66,6 @@ func setProviderEnv(t *testing.T) {
 		"QUARK_OPENROUTER_PROVIDER_KIND",
 		"OPENAI_API_KEY",
 		"ANTHROPIC_API_KEY",
-		"ZHIPU_API_KEY",
 	} {
 		t.Setenv(key, "")
 	}
