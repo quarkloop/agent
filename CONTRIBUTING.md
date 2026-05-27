@@ -4,7 +4,9 @@ Thank you for your interest in contributing. This guide covers everything you ne
 
 ## Prerequisites
 
-- **Go 1.26+** — Quark uses Go workspace mode; all 14 modules resolve locally
+- **Go 1.26+** - Quark uses Go workspace mode
+- **Rust and Cargo** - required for the Harness service
+- **Docker Compose** - required for E2E service stacks
 - An LLM provider API key if you want to run E2E tests (optional for unit tests)
 
 ## Getting started
@@ -12,7 +14,7 @@ Thank you for your interest in contributing. This guide covers everything you ne
 ```bash
 git clone https://github.com/quarkloop/quark
 cd quark
-make build        # builds all 7 binaries into ./bin/
+make build        # builds Go binaries and the Rust Harness service
 export PATH="$PWD/bin:$PATH"
 ```
 
@@ -26,31 +28,43 @@ make fmt          # gofmt all modules in-place
 
 ### E2E tests
 
-E2E tests start real agent, bash, and fs processes and drive them through the shared HTTP client. They require an API key:
+Provider-independent E2E contract scenarios use Docker Compose and do not
+make model-provider requests:
+
+```bash
+make test-e2e-local
+```
+
+Provider-backed E2E starts real NATS-native services and runtime workers
+through Docker Compose, sends user-style prompts, and observes Gateway usage.
+It requires an OpenRouter key and an approved E2E model:
 
 ```bash
 cp .env.example .env
-# edit .env — set OPENROUTER_API_KEY or ZHIPU_API_KEY
+# edit .env - set OPENROUTER_API_KEY and OPENROUTER_E2E_MODEL
 
 make test-e2e
 ```
 
-E2E tests run with a 10-minute timeout. See `agent/e2e/` for details.
+See `e2e/` for scenarios and `DEVELOPMENT.md` for verification prerequisites.
 
 ## Module structure
 
-Quark is a Go workspace (`go.work`) containing 14 independent modules. The dependency graph is strict — no circular imports:
+Quark is a Go workspace with an additional Rust Harness service. Major
+ownership boundaries are strict:
 
 ```
-pkg/plugin → supervisor/pkg/pluginmanager, plugins/tools/*
-pkg/space → supervisor/pkg/space, cli/pkg/commands/*
-supervisor → cli (via supervisor/pkg/client)
-runtime → cli (via runtime/pkg/client)
+pkg/natskit -> shared Go NATS transport and subject contracts
+services/* -> durable domain behavior exposed as NATS service functions
+supervisor -> embedded NATS, catalogs, spaces, sessions, and discovery control
+runtime -> agent loops and service-function tool execution
+cli -> NATS client for supervisor/runtime operations
 ```
 
-When adding code, place it in the lowest-level module that needs it. Shared types go in `core` or `agent-api`. Agent logic goes in the appropriate `agent/pkg/<package>`. New tools follow the pattern in `tools/bash` or `tools/read`.
+When adding code, keep domain behavior in its owning service and use shared
+packages only for cross-boundary contracts or transport mechanics.
 
-See `AGENTS.md` for a full breakdown of each module's role and the agent package structure.
+See `AGENTS.md` and `ARCHITECTURE.md` for current ownership rules.
 
 ## Code style
 

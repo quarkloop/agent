@@ -129,15 +129,31 @@ test: legacy-embedding-check
 
 ## Run contract and service E2E tests that do not require model providers
 test-e2e-local:
-		go test -tags e2e -v -timeout 12m -run '^(TestLongE2EPromptsAreOwnedByBuilders|TestPDFPromptBuildersExposeAgentWorkflowContract|TestMarkdownPromptBuildersExposeAgentWorkflowContract|TestDevOpsReleasePromptBuilderUsesServiceFunctionContract|TestSupervisorSessionEventReachesAgent|TestIndexerServiceWithRealDgraph)$$' ./e2e
+		go test -count=1 -tags e2e -v -timeout 12m -run '^(TestLongE2EPromptsAreOwnedByBuilders|TestPDFPromptBuildersExposeAgentWorkflowContract|TestDevOpsReleasePromptBuilderUsesServiceFunctionContract|TestServicePluginInventoryHasE2ECoveragePlan|TestAgentRunArtifactsAreRedactedAndStructured|TestAgentRunArtifactsIncludeToolFailureDiagnostics|TestRuntimeSpaceLeaseConflict|TestWorkflowServiceNATSContract|TestSecretsServiceNATSContract)$$' ./e2e
 
 E2E_TIMEOUT ?= 20m
 E2E_PDF_TIMEOUT ?= 20m
+E2E_DAILY_PROVIDER_REQUESTS ?= 50
+E2E_PDF_PROVIDER_REQUESTS ?= 22
+E2E_DEVOPS_RELEASE_PROVIDER_REQUESTS ?= 7
+E2E_DEVOPS_FAILURE_PROVIDER_REQUESTS ?= 7
+E2E_SYSTEM_PROVIDER_REQUESTS ?= 11
+E2E_IO_PROVIDER_REQUESTS ?= 3
+E2E_PROVIDER_TEST_PATTERN := ^(TestAgentIndexesUploadedPDFDataset|TestAgentUsesDevOpsReleaseServiceFunction|TestAgentUsesDevOpsServiceForTestFailureExplanation|TestAgentUsesSystemServiceForReadOnlyInspection|TestIOExecute)$$
 
-## Run E2E tests (requires OPENROUTER_API_KEY or ZHIPU_API_KEY; loads quark/.env when present)
+## Run provider-backed E2E tests (requires OPENROUTER_API_KEY; loads quark/.env when present)
 test-e2e:
-		go test -tags e2e -v -timeout $(E2E_PDF_TIMEOUT) -run '^TestAgentIndexesUploadedPDFDataset$$' ./e2e
-		go test -tags e2e -v -timeout $(E2E_TIMEOUT) -skip '^TestAgentIndexesUploadedPDFDataset$$' ./e2e
+		@total=$$(($(E2E_PDF_PROVIDER_REQUESTS) + $(E2E_DEVOPS_RELEASE_PROVIDER_REQUESTS) + $(E2E_DEVOPS_FAILURE_PROVIDER_REQUESTS) + $(E2E_SYSTEM_PROVIDER_REQUESTS) + $(E2E_IO_PROVIDER_REQUESTS))); \
+		if [ "$$total" -gt "$(E2E_DAILY_PROVIDER_REQUESTS)" ]; then \
+			echo "provider request allocations ($$total) exceed the daily gate budget ($(E2E_DAILY_PROVIDER_REQUESTS))"; exit 1; \
+		fi; \
+		echo "provider request allocations: total=$$total daily_budget=$(E2E_DAILY_PROVIDER_REQUESTS)"
+		QUARK_E2E_MAX_PROVIDER_REQUESTS=$(E2E_PDF_PROVIDER_REQUESTS) go test -count=1 -tags e2e -v -timeout $(E2E_PDF_TIMEOUT) -run '^TestAgentIndexesUploadedPDFDataset$$' ./e2e
+		QUARK_E2E_MAX_PROVIDER_REQUESTS=$(E2E_DEVOPS_RELEASE_PROVIDER_REQUESTS) go test -count=1 -tags e2e -v -timeout $(E2E_TIMEOUT) -run '^TestAgentUsesDevOpsReleaseServiceFunction$$' ./e2e
+		QUARK_E2E_MAX_PROVIDER_REQUESTS=$(E2E_DEVOPS_FAILURE_PROVIDER_REQUESTS) go test -count=1 -tags e2e -v -timeout $(E2E_TIMEOUT) -run '^TestAgentUsesDevOpsServiceForTestFailureExplanation$$' ./e2e
+		QUARK_E2E_MAX_PROVIDER_REQUESTS=$(E2E_SYSTEM_PROVIDER_REQUESTS) go test -count=1 -tags e2e -v -timeout $(E2E_TIMEOUT) -run '^TestAgentUsesSystemServiceForReadOnlyInspection$$' ./e2e
+		QUARK_E2E_MAX_PROVIDER_REQUESTS=$(E2E_IO_PROVIDER_REQUESTS) go test -count=1 -tags e2e -v -timeout $(E2E_TIMEOUT) -run '^TestIOExecute$$' ./e2e
+		go test -count=1 -tags e2e -v -timeout 12m -skip '$(E2E_PROVIDER_TEST_PATTERN)' ./e2e
 
 ## Refresh the code-owned service implementation map
 service-inventory:

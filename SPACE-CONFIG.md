@@ -21,7 +21,7 @@ services, models, and permissions for that space.
   "updated_at": "2026-05-25T00:00:00Z",
   "model": {
     "provider": "openrouter",
-    "name": "openai/gpt-4o-mini",
+    "name": "openrouter/owl-alpha",
     "env": ["OPENROUTER_API_KEY"]
   },
   "plugins": [

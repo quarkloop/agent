@@ -37,11 +37,15 @@ make build
 export PATH="$PWD/bin:$PATH"
 ```
 
-Start the Space service and supervisor:
+Start the NATS control plane and the base services:
 
 ```bash
-space-service --root ~/.quarkloop/spaces
-supervisor start --port 7200
+cp .env.example .env
+# set OPENROUTER_API_KEY in .env before model-backed agent runs
+docker compose -f deploy/compose/quark.yml --profile services --profile gateway --profile runtime up --build -d
+export QUARK_NATS_URL=nats://127.0.0.1:4222
+export QUARK_NATS_USER=quark-control
+export QUARK_NATS_PASSWORD=quark-control-dev
 ```
 
 Create a space and select it for subsequent CLI requests:
@@ -92,7 +96,7 @@ Read the deeper architecture notes in [ARCHITECTURE.md](ARCHITECTURE.md).
 make build           # cli, supervisor, runtime, tools, services
 make build-plugins   # tool plugin build targets
 make test            # unit tests across workspace modules
-make test-e2e-local  # configured local E2E scenarios
+make test-e2e-local  # provider-independent contract E2E
 make test-e2e        # provider-backed E2E suite
 make check           # fmt-check, vet, test, arch-check, dead-code-check
 make release-check   # release readiness gate

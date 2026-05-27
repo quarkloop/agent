@@ -35,5 +35,5 @@ jobs:
       - name: Dead-code check
         run: make dead-code-check
 
-      - name: Local deterministic E2E
+      - name: Provider-independent contract E2E
         run: make test-e2e-local
