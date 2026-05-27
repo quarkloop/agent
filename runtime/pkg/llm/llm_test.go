@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/quarkloop/pkg/plugin"
 	"github.com/quarkloop/runtime/pkg/runcontext"
@@ -77,20 +78,82 @@ func TestInferStopsEndlessFinalGuardLoop(t *testing.T) {
 		},
 	}
 	client := NewClientWithLimits(provider, "test-model", 0, InferenceLimits{MaxTurns: 10, MaxFinalGuardRetries: 2})
+	var rejectedFinalTurns int
 
 	_, err := client.Infer(
 		context.Background(),
 		[]plugin.Message{{Role: "user", Content: "start"}},
 		nil,
 		nil,
-		nil,
-		func(string) (string, bool) { return "try again", true },
+		func(kind string, data any) {
+			if kind == "progress" && data.(map[string]string)["phase"] == "final_response_validation" {
+				rejectedFinalTurns++
+			}
+		},
+		func(string) (string, bool) { return `{"reason":"finalization_incomplete"}`, true },
 	)
 	if err == nil {
 		t.Fatal("expected endless finalization guard loop to fail")
 	}
 	if !strings.Contains(err.Error(), "finalization guard exceeded 2 retries") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	if rejectedFinalTurns != 2 {
+		t.Fatalf("reported rejected final turns = %d, want 2", rejectedFinalTurns)
+	}
+}
+
+func TestInferDoesNotRetainRejectedFinalProtocolMarkup(t *testing.T) {
+	providerCalls := 0
+	var retryMessages []plugin.Message
+	provider := fakeProvider{
+		stream: func(_ context.Context, req *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+			providerCalls++
+			if providerCalls == 1 {
+				return streamEvents(
+					plugin.StreamEvent{Delta: `I will call a tool. <longcat_tool_call>{"name":"extra"}</longcat_tool_call>`},
+					plugin.StreamEvent{Done: true},
+				), nil
+			}
+			retryMessages = append([]plugin.Message(nil), req.Messages...)
+			return streamEvents(
+				plugin.StreamEvent{Delta: "The indexed documents are ready for questions."},
+				plugin.StreamEvent{Done: true},
+			), nil
+		},
+	}
+	client := NewClientWithLimits(provider, "test-model", 0, InferenceLimits{MaxTurns: 2, MaxFinalGuardRetries: 1})
+
+	result, err := client.Infer(
+		context.Background(),
+		[]plugin.Message{{Role: "user", Content: "index these documents"}},
+		nil,
+		nil,
+		nil,
+		func(content string) (string, bool) {
+			if strings.Contains(content, "<longcat_tool_call>") {
+				return `{"type":"runtime.workflow.validation","status":"blocked","reason":"internal_tool_markup_in_final_response","response_mode":"user_answer_only"}`, true
+			}
+			return "", false
+		},
+	)
+	if err != nil {
+		t.Fatalf("Infer returned error: %v", err)
+	}
+	if result != "The indexed documents are ready for questions." {
+		t.Fatalf("result = %q", result)
+	}
+	var correctionSeen bool
+	for _, message := range retryMessages {
+		if message.Role == "assistant" && strings.Contains(message.Content, "<longcat_tool_call>") {
+			t.Fatalf("rejected protocol markup retained in retry context: %#v", retryMessages)
+		}
+		if message.Role == "system" && strings.Contains(message.Content, `"response_mode":"user_answer_only"`) {
+			correctionSeen = true
+		}
+	}
+	if !correctionSeen {
+		t.Fatalf("retry context is missing final correction: %#v", retryMessages)
 	}
 }
 
@@ -168,6 +231,122 @@ func TestInferStreamsTraceableToolEvents(t *testing.T) {
 	}
 }
 
+func TestInferPublishesProgressWhileWaitingForModelTurn(t *testing.T) {
+	provider := fakeProvider{
+		stream: func(context.Context, *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+			ch := make(chan plugin.StreamEvent, 1)
+			go func() {
+				time.Sleep(15 * time.Millisecond)
+				ch <- plugin.StreamEvent{Delta: "ready"}
+				ch <- plugin.StreamEvent{Done: true}
+				close(ch)
+			}()
+			return ch, nil
+		},
+	}
+	client := NewClient(provider, "test-model", 0)
+	client.progressEvery = time.Millisecond
+	var progress bool
+
+	response, err := client.Infer(context.Background(), nil, nil, nil, func(kind string, _ any) {
+		if kind == "progress" {
+			progress = true
+		}
+	}, nil)
+	if err != nil {
+		t.Fatalf("infer: %v", err)
+	}
+	if response != "ready" || !progress {
+		t.Fatalf("response = %q progress = %t", response, progress)
+	}
+}
+
+func TestInferRetriesTransientUncommittedModelTurn(t *testing.T) {
+	providerCalls := 0
+	provider := fakeProvider{
+		stream: func(context.Context, *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+			providerCalls++
+			if providerCalls == 1 {
+				return streamEvents(plugin.StreamEvent{Err: context.DeadlineExceeded}), nil
+			}
+			return streamEvents(plugin.StreamEvent{Delta: "recovered"}, plugin.StreamEvent{Done: true}), nil
+		},
+	}
+	client := NewClientWithLimits(provider, "test-model", 0, InferenceLimits{
+		MaxTurns:                  3,
+		MaxFinalGuardRetries:      1,
+		MaxTransientStreamRetries: 1,
+	})
+
+	var retry map[string]string
+	result, err := client.Infer(context.Background(), nil, nil, nil, func(kind string, data any) {
+		if kind == "progress" {
+			event := data.(map[string]string)
+			if event["state"] == "retrying" {
+				retry = event
+			}
+		}
+	}, nil)
+	if err != nil {
+		t.Fatalf("Infer returned error: %v", err)
+	}
+	if result != "recovered" || providerCalls != 2 {
+		t.Fatalf("result = %q provider calls = %d", result, providerCalls)
+	}
+	if retry["phase"] != "model_turn" || retry["reason"] != "transient_stream_timeout" ||
+		!strings.Contains(retry["diagnostic"], "no tool call was executed") {
+		t.Fatalf("retry progress = %+v", retry)
+	}
+}
+
+func TestInferBoundsTransientUncommittedModelTurnRetries(t *testing.T) {
+	providerCalls := 0
+	provider := fakeProvider{
+		stream: func(context.Context, *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+			providerCalls++
+			return streamEvents(plugin.StreamEvent{Err: context.DeadlineExceeded}), nil
+		},
+	}
+	client := NewClientWithLimits(provider, "test-model", 0, InferenceLimits{
+		MaxTurns:                  3,
+		MaxFinalGuardRetries:      1,
+		MaxTransientStreamRetries: 1,
+	})
+
+	_, err := client.Infer(context.Background(), nil, nil, nil, nil, nil)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("error = %v, want deadline exceeded", err)
+	}
+	if providerCalls != 2 {
+		t.Fatalf("provider calls = %d, want one original attempt and one retry", providerCalls)
+	}
+}
+
+func TestInferDoesNotRetryAfterRequestContextEnds(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	providerCalls := 0
+	provider := fakeProvider{
+		stream: func(context.Context, *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+			providerCalls++
+			return streamEvents(plugin.StreamEvent{Err: context.DeadlineExceeded}), nil
+		},
+	}
+	client := NewClientWithLimits(provider, "test-model", 0, InferenceLimits{
+		MaxTurns:                  3,
+		MaxFinalGuardRetries:      1,
+		MaxTransientStreamRetries: 1,
+	})
+
+	_, err := client.Infer(ctx, nil, nil, nil, nil, nil)
+	if err == nil {
+		t.Fatal("expected cancelled request to fail")
+	}
+	if providerCalls != 1 {
+		t.Fatalf("provider calls = %d, want no retry after request cancellation", providerCalls)
+	}
+}
+
 func TestServiceCallFieldsFromResultUsesServiceEnvelopeReferences(t *testing.T) {
 	fields := serviceCallFieldsFromResult(`{"_serviceCall":{"serviceCallId":"svc-call-1","referenceId":"svc-ref-1","auditRef":"urn:quark:audit:service-call:svc-ref-1","traceId":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","subject":"svc.gateway.v1.embed"}}`)
 	if fields["service_call_id"] != "svc-call-1" || fields["reference_id"] != "svc-ref-1" || fields["audit_ref"] == "" || fields["trace_id"] == "" || fields["subject"] != "svc.gateway.v1.embed" {
@@ -227,6 +406,156 @@ func TestInferNormalizesToolCallArgumentsBeforeTraceAndExecution(t *testing.T) {
 		if !strings.Contains(got, `"citations"`) {
 			t.Fatalf("%s arguments were not normalized: %s", label, got)
 		}
+	}
+}
+
+func TestInferRetriesArgumentNormalizationFailuresAsStructuredValidation(t *testing.T) {
+	providerCalls := 0
+	var retryInstruction string
+	provider := fakeProvider{
+		stream: func(_ context.Context, req *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+			providerCalls++
+			switch providerCalls {
+			case 1:
+				return streamEvents(
+					plugin.StreamEvent{ToolCalls: []plugin.ToolCall{{
+						ID: "bad-inputs",
+						Function: plugin.ToolCallFunction{
+							Name:      "gateway_Embed",
+							Arguments: `{"inputs":"[]"}`,
+						},
+					}}},
+					plugin.StreamEvent{Done: true},
+				), nil
+			case 2:
+				retryInstruction = req.Messages[len(req.Messages)-1].Content
+				return streamEvents(
+					plugin.StreamEvent{ToolCalls: []plugin.ToolCall{{
+						ID: "valid-inputs",
+						Function: plugin.ToolCallFunction{
+							Name:      "gateway_Embed",
+							Arguments: `{"inputs":[]}`,
+						},
+					}}},
+					plugin.StreamEvent{Done: true},
+				), nil
+			case 3:
+				return streamEvents(plugin.StreamEvent{Delta: "done"}, plugin.StreamEvent{Done: true}), nil
+			default:
+				return nil, fmt.Errorf("unexpected provider call %d", providerCalls)
+			}
+		},
+	}
+	client := NewClientWithLimits(provider, "test-model", 0, InferenceLimits{MaxTurns: 3, MaxFinalGuardRetries: 1})
+	ctx := WithToolCallArgumentNormalizer(context.Background(), func(_ context.Context, _ string, arguments string) (string, error) {
+		if strings.Contains(arguments, `"inputs":"`) {
+			return "", errors.New("inputs must be an array")
+		}
+		return arguments, nil
+	})
+
+	var executedArguments string
+	result, err := client.Infer(
+		ctx,
+		[]plugin.Message{{Role: "user", Content: "embed"}},
+		[]plugin.ToolSchema{{Name: "gateway_Embed"}},
+		func(_ context.Context, _ string, arguments string) (string, error) {
+			executedArguments = arguments
+			return `{}`, nil
+		},
+		nil,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("Infer returned error: %v", err)
+	}
+	if result != "done" || executedArguments != `{"inputs":[]}` {
+		t.Fatalf("result = %q executed arguments = %q", result, executedArguments)
+	}
+	if !strings.Contains(retryInstruction, `"reason":"invalid_arguments"`) ||
+		!strings.Contains(retryInstruction, `"function":"gateway_Embed"`) {
+		t.Fatalf("retry instruction = %q", retryInstruction)
+	}
+	if !strings.Contains(retryInstruction, "inputs must be an array") {
+		t.Fatalf("retry instruction did not tell the model how to repair the request: %q", retryInstruction)
+	}
+}
+
+func TestInferRedactsArgumentValidationFeedback(t *testing.T) {
+	secret := "sk-or-v1-test-validation-secret"
+	t.Setenv("OPENROUTER_API_KEY", secret)
+	providerCalls := 0
+	var retryInstruction string
+	provider := fakeProvider{
+		stream: func(_ context.Context, req *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+			providerCalls++
+			if providerCalls == 1 {
+				return streamEvents(
+					plugin.StreamEvent{ToolCalls: []plugin.ToolCall{{
+						ID:       "bad-input",
+						Function: plugin.ToolCallFunction{Name: "gateway_Embed", Arguments: `{}`},
+					}}},
+					plugin.StreamEvent{Done: true},
+				), nil
+			}
+			retryInstruction = req.Messages[len(req.Messages)-1].Content
+			return streamEvents(plugin.StreamEvent{Delta: "done"}, plugin.StreamEvent{Done: true}), nil
+		},
+	}
+	client := NewClientWithLimits(provider, "test-model", 0, InferenceLimits{MaxTurns: 2, MaxFinalGuardRetries: 1})
+	ctx := WithToolCallArgumentNormalizer(context.Background(), func(context.Context, string, string) (string, error) {
+		return "", fmt.Errorf("authorization bearer %s is invalid", secret)
+	})
+	_, err := client.Infer(ctx, []plugin.Message{{Role: "user", Content: "embed"}}, []plugin.ToolSchema{{Name: "gateway_Embed"}}, func(context.Context, string, string) (string, error) {
+		t.Fatal("invalid tool call executed")
+		return "", nil
+	}, nil, nil)
+	if err != nil {
+		t.Fatalf("Infer returned error: %v", err)
+	}
+	if strings.Contains(retryInstruction, secret) || !strings.Contains(retryInstruction, "[redacted]") {
+		t.Fatalf("validation feedback was not redacted: %q", retryInstruction)
+	}
+}
+
+func TestInferBoundsRepeatedArgumentNormalizationFailures(t *testing.T) {
+	providerCalls := 0
+	provider := fakeProvider{
+		stream: func(context.Context, *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+			providerCalls++
+			return streamEvents(
+				plugin.StreamEvent{ToolCalls: []plugin.ToolCall{{
+					ID: "bad-inputs",
+					Function: plugin.ToolCallFunction{
+						Name:      "gateway_Embed",
+						Arguments: `{"inputs":"[]"}`,
+					},
+				}}},
+				plugin.StreamEvent{Done: true},
+			), nil
+		},
+	}
+	client := NewClientWithLimits(provider, "test-model", 0, InferenceLimits{MaxTurns: 4, MaxFinalGuardRetries: 1})
+	ctx := WithToolCallArgumentNormalizer(context.Background(), func(_ context.Context, _ string, _ string) (string, error) {
+		return "", errors.New("invalid arguments")
+	})
+
+	_, err := client.Infer(
+		ctx,
+		[]plugin.Message{{Role: "user", Content: "embed"}},
+		[]plugin.ToolSchema{{Name: "gateway_Embed"}},
+		func(context.Context, string, string) (string, error) {
+			t.Fatal("invalid normalized tool call should not execute")
+			return "", nil
+		},
+		nil,
+		nil,
+	)
+	if err == nil || !strings.Contains(err.Error(), "tool-call argument validation exceeded 1 retries") {
+		t.Fatalf("expected bounded argument-validation error, got %v", err)
+	}
+	if providerCalls != 2 {
+		t.Fatalf("provider calls = %d, want 2", providerCalls)
 	}
 }
 
@@ -408,6 +737,64 @@ func TestInferWithToolResultGateAcceptsTerminalWorkflowContentAfterToolExecution
 	}
 }
 
+func TestInferStreamsOnlyFinalUserFacingContentAfterToolTurns(t *testing.T) {
+	providerCalls := 0
+	provider := fakeProvider{
+		stream: func(context.Context, *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+			providerCalls++
+			switch providerCalls {
+			case 1:
+				return streamEvents(
+					plugin.StreamEvent{Delta: "I will search now."},
+					plugin.StreamEvent{ToolCalls: []plugin.ToolCall{{
+						Index: 0,
+						ID:    "call-1",
+						Type:  "function",
+						Function: plugin.ToolCallFunction{
+							Name:      "indexer_QueryContext",
+							Arguments: `{}`,
+						},
+					}}},
+					plugin.StreamEvent{Done: true},
+				), nil
+			case 2:
+				return streamEvents(
+					plugin.StreamEvent{Delta: "The indexed answer is ready."},
+					plugin.StreamEvent{Done: true},
+				), nil
+			default:
+				return nil, fmt.Errorf("unexpected provider call %d", providerCalls)
+			}
+		},
+	}
+	client := NewClientWithLimits(provider, "test-model", 0, InferenceLimits{MaxTurns: 3, MaxFinalGuardRetries: 1})
+
+	var streamed strings.Builder
+	result, err := client.Infer(
+		context.Background(),
+		[]plugin.Message{{Role: "user", Content: "search"}},
+		[]plugin.ToolSchema{{Name: "indexer_QueryContext"}},
+		func(context.Context, string, string) (string, error) {
+			return `{"chunks":[{"text":"evidence"}]}`, nil
+		},
+		func(kind string, value any) {
+			if kind == "token" {
+				streamed.WriteString(value.(string))
+			}
+		},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("Infer returned error: %v", err)
+	}
+	if result != "The indexed answer is ready." {
+		t.Fatalf("result = %q", result)
+	}
+	if got := streamed.String(); got != result {
+		t.Fatalf("streamed content = %q, want only final answer %q", got, result)
+	}
+}
+
 func TestInferAppendsToolResultContinuationInstruction(t *testing.T) {
 	providerCalls := 0
 	var continuationSeen bool
@@ -469,6 +856,387 @@ func TestInferAppendsToolResultContinuationInstruction(t *testing.T) {
 	}
 	if result != "continued" {
 		t.Fatalf("result = %q", result)
+	}
+}
+
+func TestInferRemovesSupersededRuntimeValidationAndStatusFactsAfterProgress(t *testing.T) {
+	providerCalls := 0
+	var finalMessages []plugin.Message
+	provider := fakeProvider{
+		stream: func(_ context.Context, req *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+			providerCalls++
+			switch providerCalls {
+			case 1, 2:
+				return streamEvents(
+					plugin.StreamEvent{ToolCalls: []plugin.ToolCall{{
+						ID: "call-1",
+						Function: plugin.ToolCallFunction{
+							Name:      "gateway_Embed",
+							Arguments: `{}`,
+						},
+					}}},
+					plugin.StreamEvent{Done: true},
+				), nil
+			case 3:
+				finalMessages = append([]plugin.Message(nil), req.Messages...)
+				return streamEvents(plugin.StreamEvent{Delta: "done"}, plugin.StreamEvent{Done: true}), nil
+			default:
+				return nil, fmt.Errorf("unexpected provider call %d", providerCalls)
+			}
+		},
+	}
+	client := NewClientWithLimits(provider, "test-model", 0, InferenceLimits{MaxTurns: 4, MaxFinalGuardRetries: 2})
+	guardCalls := 0
+	var progressReason string
+
+	result, err := client.InferWithToolCallPolicyAndContinuation(
+		context.Background(),
+		[]plugin.Message{
+			{Role: "system", Content: "installed agent prompt material"},
+			{Role: "user", Content: "index this"},
+			{Role: "system", Content: `{"type":"runtime.workflow.status","status":"old"}`},
+		},
+		[]plugin.ToolSchema{{Name: "gateway_Embed"}},
+		func(context.Context, string, string) (string, error) { return `{"success":true}`, nil },
+		func(kind string, data any) {
+			if kind == "progress" {
+				progressReason = data.(map[string]string)["reason"]
+			}
+		},
+		nil,
+		nil,
+		func(string, []plugin.ToolCall) (string, bool) {
+			guardCalls++
+			if guardCalls == 1 {
+				return `{"type":"runtime.workflow.validation","status":"blocked","reason":"incomplete_canonical_record"}`, true
+			}
+			return "", false
+		},
+		nil,
+		func() string { return `{"type":"runtime.workflow.status","status":"current"}` },
+	)
+	if err != nil {
+		t.Fatalf("InferWithToolCallPolicyAndContinuation returned error: %v", err)
+	}
+	if result != "done" {
+		t.Fatalf("result = %q", result)
+	}
+	if progressReason != "incomplete_canonical_record" {
+		t.Fatalf("progress reason = %q", progressReason)
+	}
+	var promptFound, currentStatusFound, staleFactFound, pairedHistoryFound bool
+	for _, message := range finalMessages {
+		switch {
+		case message.Role == "system" && message.Content == "installed agent prompt material":
+			promptFound = true
+		case message.Role == "system" && strings.Contains(message.Content, `"status":"current"`):
+			currentStatusFound = true
+		case message.Role == "system" && (strings.Contains(message.Content, `"status":"old"`) || strings.Contains(message.Content, `"type":"runtime.workflow.validation"`)):
+			staleFactFound = true
+		case message.Role == "assistant" && len(message.ToolCalls) == 1:
+			pairedHistoryFound = true
+		}
+	}
+	if !promptFound || !currentStatusFound || staleFactFound || !pairedHistoryFound {
+		t.Fatalf("final model messages did not preserve only current state and tool history: %#v", finalMessages)
+	}
+}
+
+func TestInferRetainsOnlyCurrentWorkflowCorrectionDuringRejectedTurns(t *testing.T) {
+	providerCalls := 0
+	var retryMessages []plugin.Message
+	provider := fakeProvider{
+		stream: func(_ context.Context, req *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+			providerCalls++
+			switch providerCalls {
+			case 1, 2:
+				return streamEvents(
+					plugin.StreamEvent{Delta: "unaccepted narration"},
+					plugin.StreamEvent{ToolCalls: []plugin.ToolCall{{
+						ID:       "call-retry",
+						Function: plugin.ToolCallFunction{Name: "indexer_UpsertChunk", Arguments: `{}`},
+					}}},
+					plugin.StreamEvent{Done: true},
+				), nil
+			case 3:
+				retryMessages = append([]plugin.Message(nil), req.Messages...)
+				return streamEvents(plugin.StreamEvent{Delta: "done"}, plugin.StreamEvent{Done: true}), nil
+			default:
+				return nil, fmt.Errorf("unexpected provider call %d", providerCalls)
+			}
+		},
+	}
+	client := NewClientWithLimits(provider, "test-model", 0, InferenceLimits{MaxTurns: 3, MaxFinalGuardRetries: 2})
+	guardCalls := 0
+	result, err := client.InferWithToolCallPolicyAndContinuation(
+		context.Background(),
+		[]plugin.Message{{Role: "user", Content: "index source"}},
+		[]plugin.ToolSchema{{Name: "indexer_UpsertChunk"}},
+		func(context.Context, string, string) (string, error) { return `{"success":true}`, nil },
+		nil,
+		nil,
+		nil,
+		func(string, []plugin.ToolCall) (string, bool) {
+			guardCalls++
+			return fmt.Sprintf(`{"type":"runtime.workflow.validation","status":"blocked","reason":"invalid_chunk_%d"}`, guardCalls), true
+		},
+		nil,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("InferWithToolCallPolicyAndContinuation returned error: %v", err)
+	}
+	if result != "done" {
+		t.Fatalf("result = %q", result)
+	}
+	validationFacts := 0
+	for _, message := range retryMessages {
+		if message.Role == "assistant" && strings.Contains(message.Content, "unaccepted narration") {
+			t.Fatalf("rejected assistant narration retained in retry context: %#v", retryMessages)
+		}
+		if message.Role == "system" && strings.Contains(message.Content, `"type":"runtime.workflow.validation"`) {
+			validationFacts++
+			if !strings.Contains(message.Content, `"reason":"invalid_chunk_2"`) {
+				t.Fatalf("stale correction retained in retry context: %#v", retryMessages)
+			}
+		}
+	}
+	if validationFacts != 1 {
+		t.Fatalf("validation facts = %d, want exactly one current correction: %#v", validationFacts, retryMessages)
+	}
+}
+
+func TestInferAppliesToolSurfaceForEachModelTurn(t *testing.T) {
+	providerCalls := 0
+	var seen [][]string
+	provider := fakeProvider{
+		stream: func(_ context.Context, req *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+			names := make([]string, 0, len(req.Tools))
+			for _, tool := range req.Tools {
+				names = append(names, tool.Name)
+			}
+			seen = append(seen, names)
+			providerCalls++
+			if providerCalls == 1 {
+				return streamEvents(
+					plugin.StreamEvent{ToolCalls: []plugin.ToolCall{{
+						ID:       "call-1",
+						Function: plugin.ToolCallFunction{Name: "step_one", Arguments: `{}`},
+					}}},
+					plugin.StreamEvent{Done: true},
+				), nil
+			}
+			return streamEvents(plugin.StreamEvent{Delta: "done"}, plugin.StreamEvent{Done: true}), nil
+		},
+	}
+	client := NewClientWithLimits(provider, "test-model", 0, InferenceLimits{MaxTurns: 3, MaxFinalGuardRetries: 1})
+	surfaceCall := 0
+	result, err := client.InferWithPreparedContextAndToolSurface(
+		context.Background(),
+		[]plugin.Message{{Role: "user", Content: "run"}},
+		[]plugin.ToolSchema{{Name: "step_one"}, {Name: "step_two"}},
+		func(context.Context, string, string) (string, error) { return `{"success":true}`, nil },
+		nil,
+		nil,
+		func(tools []plugin.ToolSchema) []plugin.ToolSchema {
+			surfaceCall++
+			if surfaceCall == 1 {
+				return tools[:1]
+			}
+			return tools[1:]
+		},
+		nil, nil, nil, nil, nil,
+	)
+	if err != nil {
+		t.Fatalf("InferWithPreparedContextAndToolSurface returned error: %v", err)
+	}
+	if result != "done" {
+		t.Fatalf("result = %q", result)
+	}
+	if len(seen) != 2 || len(seen[0]) != 1 || seen[0][0] != "step_one" ||
+		len(seen[1]) != 1 || seen[1][0] != "step_two" {
+		t.Fatalf("turn tool surfaces = %v", seen)
+	}
+}
+
+func TestInferDoesNotParseTextToolCallsWhenSurfaceIsClosed(t *testing.T) {
+	providerCalls := 0
+	parseCalls := 0
+	executed := 0
+	provider := fakeProvider{
+		stream: func(_ context.Context, _ *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+			providerCalls++
+			if providerCalls == 1 {
+				return streamEvents(plugin.StreamEvent{ToolCalls: []plugin.ToolCall{{
+					ID: "terminal", Type: "function", Function: plugin.ToolCallFunction{Name: "runstate_MarkComplete", Arguments: `{}`},
+				}}}, plugin.StreamEvent{Done: true}), nil
+			}
+			return streamEvents(plugin.StreamEvent{Delta: "Indexed documents are ready."}, plugin.StreamEvent{Done: true}), nil
+		},
+		parse: func(content string) ([]plugin.ToolCall, string) {
+			parseCalls++
+			return []plugin.ToolCall{{Function: plugin.ToolCallFunction{Name: "invented_Persist", Arguments: `{}`}}}, ""
+		},
+	}
+	client := NewClientWithLimits(provider, "test-model", 0, InferenceLimits{MaxTurns: 3, MaxFinalGuardRetries: 1})
+	surfaceCalls := 0
+	result, err := client.InferWithPreparedContextAndToolSurface(
+		context.Background(),
+		[]plugin.Message{{Role: "user", Content: "index"}},
+		[]plugin.ToolSchema{{Name: "runstate_MarkComplete"}},
+		func(context.Context, string, string) (string, error) {
+			executed++
+			return `{"success":true}`, nil
+		},
+		nil,
+		nil,
+		func(tools []plugin.ToolSchema) []plugin.ToolSchema {
+			surfaceCalls++
+			if surfaceCalls == 1 {
+				return tools
+			}
+			return nil
+		},
+		nil, nil, nil, nil, nil,
+	)
+	if err != nil {
+		t.Fatalf("InferWithPreparedContextAndToolSurface returned error: %v", err)
+	}
+	if result != "Indexed documents are ready." || executed != 1 {
+		t.Fatalf("result = %q executed = %d", result, executed)
+	}
+	if parseCalls != 0 {
+		t.Fatalf("text parser called %d times after answer-only surface was established", parseCalls)
+	}
+}
+
+func TestInferExecutesRequiredToolContinuationBeforeNextModelTurn(t *testing.T) {
+	providerCalls := 0
+	indexed := false
+	continuationIssued := false
+	var executed []string
+	var continuationProgress map[string]string
+	provider := fakeProvider{
+		stream: func(_ context.Context, _ *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+			providerCalls++
+			if providerCalls == 1 {
+				return streamEvents(plugin.StreamEvent{ToolCalls: []plugin.ToolCall{{
+					ID: "chunk", Type: "function", Function: plugin.ToolCallFunction{Name: "indexer_UpsertChunk", Arguments: `{}`},
+				}}}, plugin.StreamEvent{Done: true}), nil
+			}
+			return streamEvents(plugin.StreamEvent{Delta: "Ready."}, plugin.StreamEvent{Done: true}), nil
+		},
+	}
+	client := NewClientWithLimits(provider, "test-model", 0, InferenceLimits{MaxTurns: 2, MaxFinalGuardRetries: 1})
+	result, err := client.InferWithPreparedContextAndToolContinuation(
+		context.Background(),
+		[]plugin.Message{{Role: "user", Content: "index"}},
+		[]plugin.ToolSchema{{Name: "indexer_UpsertChunk"}, {Name: "runstate_MarkComplete"}},
+		func(_ context.Context, name, _ string) (string, error) {
+			executed = append(executed, name)
+			if name == "indexer_UpsertChunk" {
+				indexed = true
+			}
+			return `{"success":true}`, nil
+		},
+		func(kind string, data any) {
+			if kind == "progress" {
+				event := data.(map[string]string)
+				if event["state"] == "executing_required_action" {
+					continuationProgress = event
+				}
+			}
+		},
+		nil,
+		nil,
+		func() []plugin.ToolCall {
+			if !indexed || continuationIssued {
+				return nil
+			}
+			continuationIssued = true
+			return []plugin.ToolCall{{
+				ID: "runtime-complete", Type: "function",
+				Function: plugin.ToolCallFunction{Name: "runstate_MarkComplete", Arguments: `{"runId":"run-1"}`},
+			}}
+		},
+		nil, nil, nil, nil, nil,
+	)
+	if err != nil {
+		t.Fatalf("InferWithPreparedContextAndToolContinuation returned error: %v", err)
+	}
+	if result != "Ready." || providerCalls != 2 {
+		t.Fatalf("result = %q provider calls = %d", result, providerCalls)
+	}
+	if strings.Join(executed, ",") != "indexer_UpsertChunk,runstate_MarkComplete" {
+		t.Fatalf("executed = %v", executed)
+	}
+	if continuationProgress["function"] != "runstate_MarkComplete" ||
+		!strings.Contains(continuationProgress["diagnostic"], "runtime.workflow") {
+		t.Fatalf("continuation progress = %+v", continuationProgress)
+	}
+}
+
+func TestInferRejectsToolCallsOutsideCurrentSurfaceBeforeExecution(t *testing.T) {
+	providerCalls := 0
+	executed := 0
+	var rejectionReason string
+	correctionIncludedAllowedFunction := false
+	provider := fakeProvider{
+		stream: func(_ context.Context, req *plugin.ChatRequest) (<-chan plugin.StreamEvent, error) {
+			providerCalls++
+			switch providerCalls {
+			case 1:
+				return streamEvents(plugin.StreamEvent{ToolCalls: []plugin.ToolCall{
+					{Index: 0, ID: "allowed", Type: "function", Function: plugin.ToolCallFunction{Name: "step_one", Arguments: `{}`}},
+					{Index: 1, ID: "hidden", Type: "function", Function: plugin.ToolCallFunction{Name: "step_two", Arguments: `{}`}},
+				}}, plugin.StreamEvent{Done: true}), nil
+			case 2:
+				for _, message := range req.Messages {
+					if message.Role == "system" &&
+						strings.Contains(message.Content, `"reason":"function_not_exposed_this_turn"`) &&
+						strings.Contains(message.Content, `"allowed_functions":["step_one"]`) {
+						correctionIncludedAllowedFunction = true
+					}
+				}
+				return streamEvents(plugin.StreamEvent{ToolCalls: []plugin.ToolCall{{
+					ID: "allowed", Type: "function", Function: plugin.ToolCallFunction{Name: "step_one", Arguments: `{}`},
+				}}}, plugin.StreamEvent{Done: true}), nil
+			case 3:
+				return streamEvents(plugin.StreamEvent{Delta: "done"}, plugin.StreamEvent{Done: true}), nil
+			default:
+				return nil, fmt.Errorf("unexpected provider call %d", providerCalls)
+			}
+		},
+	}
+	client := NewClientWithLimits(provider, "test-model", 0, InferenceLimits{MaxTurns: 4, MaxFinalGuardRetries: 2})
+	result, err := client.InferWithPreparedContextAndToolSurface(
+		context.Background(),
+		[]plugin.Message{{Role: "user", Content: "run"}},
+		[]plugin.ToolSchema{{Name: "step_one"}, {Name: "step_two"}},
+		func(context.Context, string, string) (string, error) {
+			executed++
+			return `{"success":true}`, nil
+		},
+		func(kind string, data any) {
+			if kind == "progress" {
+				rejectionReason = data.(map[string]string)["reason"]
+			}
+		},
+		nil,
+		func(tools []plugin.ToolSchema) []plugin.ToolSchema { return tools[:1] },
+		nil, nil, nil, nil, nil,
+	)
+	if err != nil {
+		t.Fatalf("InferWithPreparedContextAndToolSurface returned error: %v", err)
+	}
+	if result != "done" || executed != 1 {
+		t.Fatalf("result = %q executed = %d", result, executed)
+	}
+	if rejectionReason != "function_not_exposed_this_turn" {
+		t.Fatalf("rejection reason = %q", rejectionReason)
+	}
+	if !correctionIncludedAllowedFunction {
+		t.Fatal("surface rejection did not expose the callable function contract for the retry")
 	}
 }
 

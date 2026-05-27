@@ -10,11 +10,13 @@ package llm
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
 	"time"
 
+	"github.com/quarkloop/pkg/boundary/redaction"
 	"github.com/quarkloop/pkg/plugin"
 	"github.com/quarkloop/runtime/pkg/runcontext"
 )
@@ -25,6 +27,7 @@ type Client struct {
 	model         string
 	ContextWindow int // token limit from the model entry (0 = unknown)
 	limits        InferenceLimits
+	progressEvery time.Duration
 }
 
 type FinalGuard func(content string) (instruction string, retry bool)
@@ -54,6 +57,15 @@ type ToolResultContext func() string
 // turn. Harness supplies this boundary in production.
 type ContextPreparer func(context.Context, []plugin.Message) ([]plugin.Message, error)
 
+// ToolSurface selects the function schemas exposed for one model turn.
+// Workflow owners use it to align callable operations with current progress.
+type ToolSurface func([]plugin.ToolSchema) []plugin.ToolSchema
+
+// RequiredToolContinuation returns a runtime-required tool call after prior
+// accepted tool results make the action mechanical. The call still executes
+// through the ordinary traced tool envelope.
+type RequiredToolContinuation func() []plugin.ToolCall
+
 // ToolCallArgumentNormalizer can rewrite tool-call arguments before workflow
 // guards, trace events, and execution. Runtime service adapters use it for
 // deterministic argument normalization that should not depend on provider
@@ -64,6 +76,10 @@ const (
 	toolCallHistoryArgumentMaxRunes = 4000
 	toolCallHistoryStringMaxRunes   = 600
 	toolCallHistoryArrayMaxItems    = 3
+	defaultModelProgressInterval    = 15 * time.Second
+	runtimeToolValidationFactType   = "runtime.tool_call.validation"
+	runtimeWorkflowValidationType   = "runtime.workflow.validation"
+	runtimeWorkflowStatusType       = "runtime.workflow.status"
 )
 
 type toolCallArgumentNormalizerKey struct{}
@@ -81,14 +97,16 @@ func WithToolCallArgumentNormalizer(ctx context.Context, normalizer ToolCallArgu
 // InferenceLimits bounds one user-visible inference request. They prevent a
 // provider from keeping the runtime in an endless tool/finalization loop.
 type InferenceLimits struct {
-	MaxTurns             int
-	MaxFinalGuardRetries int
+	MaxTurns                  int
+	MaxFinalGuardRetries      int
+	MaxTransientStreamRetries int
 }
 
 func defaultInferenceLimits() InferenceLimits {
 	return InferenceLimits{
-		MaxTurns:             48,
-		MaxFinalGuardRetries: 8,
+		MaxTurns:                  48,
+		MaxFinalGuardRetries:      8,
+		MaxTransientStreamRetries: 1,
 	}
 }
 
@@ -99,6 +117,9 @@ func normalizeInferenceLimits(limits InferenceLimits) InferenceLimits {
 	}
 	if limits.MaxFinalGuardRetries <= 0 {
 		limits.MaxFinalGuardRetries = defaults.MaxFinalGuardRetries
+	}
+	if limits.MaxTransientStreamRetries <= 0 {
+		limits.MaxTransientStreamRetries = defaults.MaxTransientStreamRetries
 	}
 	return limits
 }
@@ -115,6 +136,7 @@ func NewClientWithLimits(p Provider, model string, contextWindow int, limits Inf
 		model:         model,
 		ContextWindow: contextWindow,
 		limits:        normalizeInferenceLimits(limits),
+		progressEvery: defaultModelProgressInterval,
 	}
 }
 
@@ -122,7 +144,7 @@ func NewClientWithLimits(p Provider, model string, contextWindow int, limits Inf
 //
 //	context → LLM call → tool handling → response streaming.
 //
-// It fires onMessage for streamed text and tool execution data.
+// It fires onMessage for accepted user-facing text and tool execution data.
 // If onTool is nil, tool calls are ignored.
 func (c *Client) Infer(ctx context.Context, messages []plugin.Message, tools []plugin.ToolSchema, onTool plugin.ToolHandler, onMessage func(msgType string, data any), finalGuard FinalGuard) (string, error) {
 	return c.InferWithToolCallGate(ctx, messages, tools, onTool, onMessage, finalGuard, nil)
@@ -141,62 +163,83 @@ func (c *Client) InferWithToolCallPolicy(ctx context.Context, messages []plugin.
 // InferWithToolCallPolicyAndContinuation runs Infer with workflow-owned
 // pre-tool policies and post-tool continuation instructions.
 func (c *Client) InferWithToolCallPolicyAndContinuation(ctx context.Context, messages []plugin.Message, tools []plugin.ToolSchema, onTool plugin.ToolHandler, onMessage func(msgType string, data any), finalGuard FinalGuard, toolCallGate ToolCallGate, toolCallGuard ToolCallGuard, toolResultGate ToolResultGate, toolResultContext ToolResultContext) (string, error) {
-	return c.inferWithPolicy(ctx, messages, tools, onTool, onMessage, nil, finalGuard, toolCallGate, toolCallGuard, toolResultGate, toolResultContext)
+	return c.inferWithPolicy(ctx, messages, tools, onTool, onMessage, nil, nil, nil, finalGuard, toolCallGate, toolCallGuard, toolResultGate, toolResultContext)
 }
 
 // InferWithPreparedContextAndPolicy runs the bounded model/tool loop while
 // delegating each outgoing context package to Harness.
 func (c *Client) InferWithPreparedContextAndPolicy(ctx context.Context, messages []plugin.Message, tools []plugin.ToolSchema, onTool plugin.ToolHandler, onMessage func(msgType string, data any), prepare ContextPreparer, finalGuard FinalGuard, toolCallGate ToolCallGate, toolCallGuard ToolCallGuard, toolResultGate ToolResultGate, toolResultContext ToolResultContext) (string, error) {
-	return c.inferWithPolicy(ctx, messages, tools, onTool, onMessage, prepare, finalGuard, toolCallGate, toolCallGuard, toolResultGate, toolResultContext)
+	return c.inferWithPolicy(ctx, messages, tools, onTool, onMessage, prepare, nil, nil, finalGuard, toolCallGate, toolCallGuard, toolResultGate, toolResultContext)
 }
 
-func (c *Client) inferWithPolicy(ctx context.Context, messages []plugin.Message, tools []plugin.ToolSchema, onTool plugin.ToolHandler, onMessage func(msgType string, data any), prepare ContextPreparer, finalGuard FinalGuard, toolCallGate ToolCallGate, toolCallGuard ToolCallGuard, toolResultGate ToolResultGate, toolResultContext ToolResultContext) (string, error) {
+// InferWithPreparedContextAndToolSurface runs the bounded loop with Harness
+// context packaging and a workflow-owned per-turn callable surface.
+func (c *Client) InferWithPreparedContextAndToolSurface(ctx context.Context, messages []plugin.Message, tools []plugin.ToolSchema, onTool plugin.ToolHandler, onMessage func(msgType string, data any), prepare ContextPreparer, surface ToolSurface, finalGuard FinalGuard, toolCallGate ToolCallGate, toolCallGuard ToolCallGuard, toolResultGate ToolResultGate, toolResultContext ToolResultContext) (string, error) {
+	return c.inferWithPolicy(ctx, messages, tools, onTool, onMessage, prepare, surface, nil, finalGuard, toolCallGate, toolCallGuard, toolResultGate, toolResultContext)
+}
+
+// InferWithPreparedContextAndToolContinuation runs the bounded loop with a
+// workflow-owned per-turn surface and required mechanical tool continuations.
+func (c *Client) InferWithPreparedContextAndToolContinuation(ctx context.Context, messages []plugin.Message, tools []plugin.ToolSchema, onTool plugin.ToolHandler, onMessage func(msgType string, data any), prepare ContextPreparer, surface ToolSurface, requiredTools RequiredToolContinuation, finalGuard FinalGuard, toolCallGate ToolCallGate, toolCallGuard ToolCallGuard, toolResultGate ToolResultGate, toolResultContext ToolResultContext) (string, error) {
+	return c.inferWithPolicy(ctx, messages, tools, onTool, onMessage, prepare, surface, requiredTools, finalGuard, toolCallGate, toolCallGuard, toolResultGate, toolResultContext)
+}
+
+func (c *Client) inferWithPolicy(ctx context.Context, messages []plugin.Message, tools []plugin.ToolSchema, onTool plugin.ToolHandler, onMessage func(msgType string, data any), prepare ContextPreparer, surface ToolSurface, requiredTools RequiredToolContinuation, finalGuard FinalGuard, toolCallGate ToolCallGate, toolCallGuard ToolCallGuard, toolResultGate ToolResultGate, toolResultContext ToolResultContext) (string, error) {
 	turns := 0
 	finalGuardRetries := 0
+	toolCallValidationRetries := 0
+	transientStreamRetries := 0
 	for {
-		turns++
-		if turns > c.limits.MaxTurns {
-			return "", fmt.Errorf("inference loop exceeded %d model turns for model %q", c.limits.MaxTurns, c.model)
+		turnTools := tools
+		if surface != nil {
+			turnTools = surface(append([]plugin.ToolSchema(nil), tools...))
 		}
-
-		turnMessages := messages
-		if prepare != nil {
-			var err error
-			turnMessages, err = prepare(ctx, append([]plugin.Message(nil), messages...))
-			if err != nil {
-				return "", fmt.Errorf("prepare model context: %w", err)
-			}
-		}
-		stream, err := c.provider.ChatCompletionStream(ctx, &plugin.ChatRequest{
-			Model:    c.model,
-			Messages: turnMessages,
-			Tools:    tools,
-		})
-		if err != nil {
-			return "", fmt.Errorf("llm call: %w", err)
-		}
-
 		var fullContent string
 		var toolCalls []plugin.ToolCall
-
-		for ev := range stream {
-			if ev.Err != nil {
-				return "", fmt.Errorf("stream: %w", ev.Err)
+		if requiredTools != nil {
+			toolCalls = requiredTools()
+		}
+		if len(toolCalls) > 0 {
+			emitRequiredToolContinuationProgress(onMessage, toolCalls)
+		} else {
+			turns++
+			if turns > c.limits.MaxTurns {
+				return "", fmt.Errorf("inference loop exceeded %d model turns for model %q", c.limits.MaxTurns, c.model)
 			}
-			if ev.Done {
-				break
-			}
-			if ev.Delta != "" {
-				fullContent += ev.Delta
-				if onMessage != nil {
-					onMessage("token", ev.Delta)
+			turnMessages := messages
+			if prepare != nil {
+				var err error
+				turnMessages, err = prepare(ctx, append([]plugin.Message(nil), messages...))
+				if err != nil {
+					return "", fmt.Errorf("prepare model context: %w", err)
 				}
 			}
-			toolCalls = mergeToolCalls(toolCalls, ev.ToolCalls)
+			stream, err := c.provider.ChatCompletionStream(ctx, &plugin.ChatRequest{
+				Model:    c.model,
+				Messages: turnMessages,
+				Tools:    turnTools,
+			})
+			if err != nil {
+				return "", fmt.Errorf("llm call: %w", err)
+			}
+
+			fullContent, toolCalls, err = c.readModelTurn(ctx, stream, onMessage)
+			if err != nil {
+				if transientStreamRetries < c.limits.MaxTransientStreamRetries && retryableUncommittedStreamError(ctx, err) {
+					transientStreamRetries++
+					emitModelTurnRetryProgress(onMessage, transientStreamRetries)
+					continue
+				}
+				return "", err
+			}
+			transientStreamRetries = 0
 		}
 
-		// No native tool calls — try parsing from text output
-		if len(toolCalls) == 0 && c.provider != nil {
+		// Some providers express callable functions in text rather than native
+		// tool events. Parse that fallback only while a function surface is
+		// exposed; once a workflow enters its answer-only turn, text must stay
+		// text and cannot re-enter execution as a fabricated call.
+		if len(toolCalls) == 0 && c.provider != nil && len(turnTools) > 0 {
 			parsedTools, cleaned := c.provider.ParseToolCalls(fullContent)
 			if len(parsedTools) > 0 {
 				toolCalls = parsedTools
@@ -208,12 +251,38 @@ func (c *Client) inferWithPolicy(ctx context.Context, messages []plugin.Message,
 			slog.Warn("dropped malformed tool calls", "count", droppedToolCalls)
 		}
 		toolCalls = normalizedToolCalls
+		if unavailable := unexposedToolCallNames(toolCalls, turnTools); len(unavailable) > 0 {
+			toolCallValidationRetries++
+			if toolCallValidationRetries > c.limits.MaxFinalGuardRetries {
+				return "", fmt.Errorf("tool-call surface validation exceeded %d retries for model %q", c.limits.MaxFinalGuardRetries, c.model)
+			}
+			emitToolValidationProgress(onMessage, unavailable[0], "function_not_exposed_this_turn")
+			messages = pruneTransientRuntimeFacts(messages, false)
+			messages = append(messages, plugin.Message{
+				Role:    "system",
+				Content: unexposedToolCallsInstruction(unavailable, turnTools),
+			})
+			fullContent = ""
+			continue
+		}
 		if len(toolCalls) > 0 {
-			normalized, err := normalizeToolCallArgumentsFromContext(ctx, toolCalls)
+			normalized, functionName, err := normalizeToolCallArgumentsFromContext(ctx, toolCalls)
 			if err != nil {
-				return "", err
+				toolCallValidationRetries++
+				if toolCallValidationRetries > c.limits.MaxFinalGuardRetries {
+					return "", fmt.Errorf("tool-call argument validation exceeded %d retries for model %q: %w", c.limits.MaxFinalGuardRetries, c.model, err)
+				}
+				emitToolArgumentValidationProgress(onMessage, functionName, err)
+				messages = pruneTransientRuntimeFacts(messages, false)
+				messages = append(messages, plugin.Message{
+					Role:    "system",
+					Content: invalidToolArgumentsInstruction(functionName, err),
+				})
+				fullContent = ""
+				continue
 			}
 			toolCalls = normalized
+			toolCallValidationRetries = 0
 		}
 		if len(toolCalls) > 0 && toolCallGuard != nil {
 			instruction, retry := toolCallGuard(fullContent, toolCalls)
@@ -222,9 +291,8 @@ func (c *Client) inferWithPolicy(ctx context.Context, messages []plugin.Message,
 				if finalGuardRetries > c.limits.MaxFinalGuardRetries {
 					return "", fmt.Errorf("tool-call guard exceeded %d retries for model %q", c.limits.MaxFinalGuardRetries, c.model)
 				}
-				if strings.TrimSpace(fullContent) != "" {
-					messages = append(messages, plugin.Message{Role: "assistant", Content: fullContent})
-				}
+				emitToolValidationProgress(onMessage, firstToolCallName(toolCalls), runtimeValidationReason(instruction))
+				messages = pruneTransientRuntimeFacts(messages, false)
 				messages = append(messages, plugin.Message{Role: "system", Content: instruction})
 				fullContent = ""
 				continue
@@ -238,23 +306,27 @@ func (c *Client) inferWithPolicy(ctx context.Context, messages []plugin.Message,
 					if finalGuardRetries > c.limits.MaxFinalGuardRetries {
 						return "", fmt.Errorf("finalization guard exceeded %d retries for model %q", c.limits.MaxFinalGuardRetries, c.model)
 					}
-					messages = append(messages,
-						plugin.Message{Role: "assistant", Content: fullContent},
-						plugin.Message{Role: "system", Content: instruction},
-					)
+					emitFinalValidationProgress(onMessage, runtimeValidationReason(instruction))
+					// Invalid final output is not conversation history. In
+					// particular, retaining protocol markup gives a model an
+					// example of the exact representation it must stop using.
+					messages = pruneTransientRuntimeFacts(messages, false)
+					messages = append(messages, plugin.Message{Role: "system", Content: instruction})
 					fullContent = ""
 					continue
 				}
 			}
+			emitFinalContent(onMessage, fullContent)
 			return fullContent, nil
 		}
 
 		// No tool calls at all — we're done
 		if len(toolCalls) == 0 {
 			if droppedToolCalls > 0 {
+				emitToolValidationProgress(onMessage, "", "malformed_tool_calls")
 				messages = append(messages, plugin.Message{
 					Role:    "system",
-					Content: `{"type":"runtime.tool_call.validation","status":"rejected","reason":"malformed_tool_calls"}`,
+					Content: `{"type":"` + runtimeToolValidationFactType + `","status":"rejected","reason":"malformed_tool_calls"}`,
 				})
 				continue
 			}
@@ -265,26 +337,34 @@ func (c *Client) inferWithPolicy(ctx context.Context, messages []plugin.Message,
 					if finalGuardRetries > c.limits.MaxFinalGuardRetries {
 						return "", fmt.Errorf("finalization guard exceeded %d retries for model %q", c.limits.MaxFinalGuardRetries, c.model)
 					}
-					messages = append(messages,
-						plugin.Message{Role: "assistant", Content: fullContent},
-						plugin.Message{Role: "system", Content: instruction},
-					)
+					emitFinalValidationProgress(onMessage, runtimeValidationReason(instruction))
+					// Do not feed rejected answer text or internal protocol
+					// markup back into an answer-only model turn.
+					messages = pruneTransientRuntimeFacts(messages, false)
+					messages = append(messages, plugin.Message{Role: "system", Content: instruction})
 					fullContent = ""
 					continue
 				}
 			}
+			emitFinalContent(onMessage, fullContent)
 			return fullContent, nil
 		}
 		finalGuardRetries = 0
 
 		// No handler — return what we have
 		if onTool == nil {
+			emitFinalContent(onMessage, fullContent)
 			return fullContent, nil
 		}
 
 		sessionID := runcontext.SessionID(ctx)
 		runID := runcontext.RunID(ctx)
 		slog.Info("tool calls", "count", len(toolCalls), "names", toolCallNames(toolCalls), "session_id", sessionID, "run_id", runID)
+
+		// Validation facts are corrective input for one retry only. Once a
+		// valid tool batch advances the workflow, keeping them in later turns
+		// increases context size and can contradict the current status fact.
+		messages = pruneTransientRuntimeFacts(messages, false)
 
 		// Append assistant message with tool calls
 		messages = append(messages, plugin.Message{
@@ -349,16 +429,19 @@ func (c *Client) inferWithPolicy(ctx context.Context, messages []plugin.Message,
 					if finalGuardRetries > c.limits.MaxFinalGuardRetries {
 						return "", fmt.Errorf("finalization guard exceeded %d retries for model %q", c.limits.MaxFinalGuardRetries, c.model)
 					}
+					emitFinalValidationProgress(onMessage, runtimeValidationReason(instruction))
 					messages = append(messages, plugin.Message{Role: "system", Content: instruction})
 					fullContent = ""
 					continue
 				}
 			}
+			emitFinalContent(onMessage, fullContent)
 			return fullContent, nil
 		}
 
 		if toolResultContext != nil {
 			if fact := strings.TrimSpace(toolResultContext()); fact != "" {
+				messages = pruneTransientRuntimeFacts(messages, true)
 				messages = append(messages, plugin.Message{Role: "system", Content: fact})
 			}
 		}
@@ -366,6 +449,166 @@ func (c *Client) inferWithPolicy(ctx context.Context, messages []plugin.Message,
 		// Reset for next LLM call
 		fullContent = ""
 	}
+}
+
+func (c *Client) readModelTurn(ctx context.Context, stream <-chan plugin.StreamEvent, onMessage func(msgType string, data any)) (string, []plugin.ToolCall, error) {
+	var fullContent string
+	var toolCalls []plugin.ToolCall
+	progressEvery := c.progressEvery
+	if progressEvery <= 0 {
+		progressEvery = defaultModelProgressInterval
+	}
+	ticker := time.NewTicker(progressEvery)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return "", nil, ctx.Err()
+		case <-ticker.C:
+			if onMessage != nil {
+				onMessage("progress", map[string]string{
+					"phase": "model_turn",
+					"state": "waiting",
+				})
+			}
+		case ev, ok := <-stream:
+			if !ok {
+				return fullContent, toolCalls, nil
+			}
+			if ev.Err != nil {
+				return "", nil, fmt.Errorf("stream: %w", ev.Err)
+			}
+			if ev.Done {
+				return fullContent, toolCalls, nil
+			}
+			if ev.Delta != "" {
+				fullContent += ev.Delta
+			}
+			toolCalls = mergeToolCalls(toolCalls, ev.ToolCalls)
+		}
+	}
+}
+
+func emitFinalContent(onMessage func(msgType string, data any), content string) {
+	if onMessage != nil && content != "" {
+		onMessage("token", content)
+	}
+}
+
+func retryableUncommittedStreamError(ctx context.Context, err error) bool {
+	if err == nil || ctx.Err() != nil {
+		return false
+	}
+	return errors.Is(err, context.DeadlineExceeded)
+}
+
+func emitModelTurnRetryProgress(onMessage func(msgType string, data any), attempt int) {
+	if onMessage == nil {
+		return
+	}
+	onMessage("progress", map[string]string{
+		"phase":      "model_turn",
+		"state":      "retrying",
+		"reason":     "transient_stream_timeout",
+		"diagnostic": fmt.Sprintf("retry=%d; no tool call was executed for the failed model turn", attempt),
+	})
+}
+
+func emitRequiredToolContinuationProgress(onMessage func(msgType string, data any), calls []plugin.ToolCall) {
+	if onMessage == nil || len(calls) == 0 {
+		return
+	}
+	onMessage("progress", map[string]string{
+		"phase":      "workflow",
+		"state":      "executing_required_action",
+		"function":   strings.TrimSpace(calls[0].Function.Name),
+		"diagnostic": "origin=runtime.workflow; prerequisite service results were accepted",
+	})
+}
+
+func emitFinalValidationProgress(onMessage func(msgType string, data any), reason string) {
+	if onMessage == nil {
+		return
+	}
+	onMessage("progress", map[string]string{
+		"phase":  "final_response_validation",
+		"state":  "rejected",
+		"reason": reason,
+	})
+}
+
+func emitToolValidationProgress(onMessage func(msgType string, data any), functionName, reason string) {
+	if onMessage == nil {
+		return
+	}
+	event := map[string]string{"phase": "tool_call_validation", "state": "rejected"}
+	if functionName != "" {
+		event["function"] = functionName
+	}
+	if reason != "" {
+		event["reason"] = reason
+	}
+	onMessage("progress", event)
+}
+
+func emitToolArgumentValidationProgress(onMessage func(msgType string, data any), functionName string, err error) {
+	if onMessage == nil {
+		return
+	}
+	event := map[string]string{
+		"phase":      "tool_call_validation",
+		"state":      "rejected",
+		"function":   functionName,
+		"reason":     "invalid_arguments",
+		"diagnostic": redaction.RedactString(err.Error()),
+	}
+	onMessage("progress", event)
+}
+
+func runtimeValidationReason(instruction string) string {
+	var fact struct {
+		Reason string `json:"reason"`
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(instruction)), &fact) != nil {
+		return ""
+	}
+	return strings.TrimSpace(fact.Reason)
+}
+
+func firstToolCallName(calls []plugin.ToolCall) string {
+	if len(calls) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(calls[0].Function.Name)
+}
+
+// pruneTransientRuntimeFacts removes only runtime-authored facts that have
+// been superseded by accepted progress. Plugin prompt material and complete
+// assistant/tool execution pairs are never changed here.
+func pruneTransientRuntimeFacts(messages []plugin.Message, removeStatus bool) []plugin.Message {
+	filtered := make([]plugin.Message, 0, len(messages))
+	for _, message := range messages {
+		factType := runtimeFactType(message)
+		if factType == runtimeToolValidationFactType || factType == runtimeWorkflowValidationType ||
+			(removeStatus && factType == runtimeWorkflowStatusType) {
+			continue
+		}
+		filtered = append(filtered, message)
+	}
+	return filtered
+}
+
+func runtimeFactType(message plugin.Message) string {
+	if message.Role != "system" {
+		return ""
+	}
+	var fact struct {
+		Type string `json:"type"`
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(message.Content)), &fact) != nil {
+		return ""
+	}
+	return fact.Type
 }
 
 func serviceCallFieldsFromResult(result string) map[string]string {
@@ -395,21 +638,78 @@ func serviceCallFieldsFromResult(result string) map[string]string {
 	return out
 }
 
-func normalizeToolCallArgumentsFromContext(ctx context.Context, calls []plugin.ToolCall) ([]plugin.ToolCall, error) {
+func normalizeToolCallArgumentsFromContext(ctx context.Context, calls []plugin.ToolCall) ([]plugin.ToolCall, string, error) {
 	normalizer, ok := ctx.Value(toolCallArgumentNormalizerKey{}).(ToolCallArgumentNormalizer)
 	if !ok || normalizer == nil {
-		return calls, nil
+		return calls, "", nil
 	}
 	out := make([]plugin.ToolCall, len(calls))
 	copy(out, calls)
 	for i, call := range out {
 		arguments, err := normalizer(ctx, call.Function.Name, call.Function.Arguments)
 		if err != nil {
-			return nil, fmt.Errorf("normalize tool call %s arguments: %w", call.Function.Name, err)
+			return nil, call.Function.Name, fmt.Errorf("normalize tool call %s arguments: %w", call.Function.Name, err)
 		}
 		out[i].Function.Arguments = arguments
 	}
-	return out, nil
+	return out, "", nil
+}
+
+func invalidToolArgumentsInstruction(functionName string, err error) string {
+	payload := map[string]string{
+		"type":        runtimeToolValidationFactType,
+		"status":      "rejected",
+		"reason":      "invalid_arguments",
+		"function":    functionName,
+		"requirement": "Arguments must satisfy the declared JSON schema; arrays and objects must be native JSON values, not encoded strings.",
+	}
+	if err != nil {
+		payload["validation_error"] = redaction.RedactString(err.Error())
+	}
+	data, _ := json.Marshal(payload)
+	return string(data)
+}
+
+func unexposedToolCallNames(calls []plugin.ToolCall, tools []plugin.ToolSchema) []string {
+	if len(calls) == 0 {
+		return nil
+	}
+	available := make(map[string]struct{}, len(tools))
+	for _, tool := range tools {
+		available[tool.Name] = struct{}{}
+	}
+	var unavailable []string
+	seen := make(map[string]struct{})
+	for _, call := range calls {
+		name := strings.TrimSpace(call.Function.Name)
+		if _, ok := available[name]; ok {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		unavailable = append(unavailable, name)
+	}
+	return unavailable
+}
+
+func unexposedToolCallsInstruction(functions []string, tools []plugin.ToolSchema) string {
+	allowed := make([]string, 0, len(tools))
+	for _, tool := range tools {
+		if name := strings.TrimSpace(tool.Name); name != "" {
+			allowed = append(allowed, name)
+		}
+	}
+	payload := map[string]any{
+		"type":              runtimeToolValidationFactType,
+		"status":            "rejected",
+		"reason":            "function_not_exposed_this_turn",
+		"functions":         append([]string(nil), functions...),
+		"allowed_functions": allowed,
+	}
+	data, _ := json.Marshal(payload)
+	return string(data)
 }
 
 func compactToolCallsForHistory(calls []plugin.ToolCall) []plugin.ToolCall {
