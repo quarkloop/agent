@@ -32,8 +32,8 @@ request/reply subjects. The subject for a function is
 | `build_DryRunRelease` | `quark.devops.v1.BuildService/DryRunRelease` | `DryRunReleaseRequest` | `DryRunReleaseResponse` | Preview release version and artifact matrix without compiling or publishing. |
 | `build_RunRelease` | `quark.devops.v1.BuildService/RunRelease` | `RunReleaseRequest` | `RunReleaseResponse` | Run an approved release pipeline and return generated artifacts. |
 | `test_DiscoverTests` | `quark.devops.v1.TestService/DiscoverTests` | `DiscoverTestsRequest` | `DiscoverTestsResponse` | Discover project test targets. |
-| `test_RunTests` | `quark.devops.v1.TestService/RunTests` | `RunTestsRequest` | `RunTestsResponse` | Run selected tests or produce a dry-run test plan. |
-| `test_ExplainFailure` | `quark.devops.v1.TestService/ExplainFailure` | `ExplainFailureRequest` | `ExplainFailureResponse` | Summarize structured test failure evidence. |
+| `test_RunTests` | `quark.devops.v1.TestService/RunTests` | `RunTestsRequest` | `RunTestsResponse` | Run discovered target IDs, or the default target, and return bounded failure evidence. |
+| `test_ExplainFailure` | `quark.devops.v1.TestService/ExplainFailure` | `ExplainFailureRequest` | `ExplainFailureResponse` | Summarize bounded structured test failure evidence. |
 | `container_BuildImage` | `quark.devops.v1.ContainerService/BuildImage` | `BuildImageRequest` | `BuildImageResponse` | Build or plan a container image. |
 | `container_ListImages` | `quark.devops.v1.ContainerService/ListImages` | `ListImagesRequest` | `ListImagesResponse` | List local container images. |
 | `container_PlanRun` | `quark.devops.v1.ContainerService/PlanRun` | `PlanRunRequest` | `PlanRunResponse` | Prepare an approval-gated container run plan. |
@@ -59,6 +59,13 @@ request/reply subjects. The subject for a function is
 
 - `--nats-url`: NATS server URL used for service-function subjects.
 - `--skill-dir`: directory containing the service plugin `SKILL.md`.
+
+## Deployment Runtime
+
+The Docker Compose DevOps service uses `deploy/docker/Dockerfile.devops`
+rather than the minimal generic service image. Its execution image includes
+the Go toolchain and Docker client required by the exported typed build, test,
+release, and container service functions.
 
 ## Health And Readiness
 

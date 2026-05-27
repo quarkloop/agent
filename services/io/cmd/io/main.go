@@ -15,12 +15,10 @@ import (
 
 func main() {
 	var skillDir string
-	var pdftotextPath string
 	var natsURL string
 	var natsUser string
 	var natsPassword string
 	flag.StringVar(&skillDir, "skill-dir", "", "directory containing the service SKILL.md")
-	flag.StringVar(&pdftotextPath, "pdftotext", os.Getenv("QUARK_PDFTOTEXT_PATH"), "pdftotext executable path; empty resolves from PATH")
 	flag.StringVar(&natsURL, "nats-url", os.Getenv("QUARK_NATS_URL"), "NATS URL for service-function endpoints")
 	flag.StringVar(&natsUser, "nats-user", envOrDefault("QUARK_NATS_SERVICE_USER", os.Getenv("QUARK_NATS_USER")), "NATS username")
 	flag.StringVar(&natsPassword, "nats-password", envOrDefault("QUARK_NATS_SERVICE_PASSWORD", os.Getenv("QUARK_NATS_PASSWORD")), "NATS password")
@@ -34,8 +32,7 @@ func main() {
 	defer stop()
 
 	if err := app.Run(ctx, app.Config{
-		SkillDir:  skillDir,
-		PDFToText: pdftotextPath,
+		SkillDir: skillDir,
 		NATS: natskit.Config{
 			URL:             natsURL,
 			Username:        natsUser,

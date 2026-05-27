@@ -4,16 +4,26 @@ import (
 	"strings"
 )
 
-func failureLines(logs string) []string {
-	out := make([]string, 0)
-	for _, line := range nonEmptyLines(logs) {
-		lower := strings.ToLower(line)
-		if strings.Contains(lower, "fail") || strings.Contains(lower, "error") || strings.Contains(lower, "panic") {
-			out = append(out, line)
+const (
+	maxEvidenceLines     = 20
+	maxEvidenceLineRunes = 512
+)
+
+func boundedEvidence(values []string) []string {
+	out := make([]string, 0, min(len(values), maxEvidenceLines))
+	for _, line := range values {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
 		}
-	}
-	if len(out) > 20 {
-		return out[:20]
+		runes := []rune(line)
+		if len(runes) > maxEvidenceLineRunes {
+			line = string(runes[:maxEvidenceLineRunes]) + "...[truncated]"
+		}
+		out = append(out, line)
+		if len(out) == maxEvidenceLines {
+			break
+		}
 	}
 	return out
 }

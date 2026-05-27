@@ -16,12 +16,11 @@ func inputFromProto(input *documentv1.DocumentInput) documentInput {
 		return documentInput{}
 	}
 	return documentInput{
-		SourceURI:  strings.TrimSpace(input.GetSourceUri()),
-		ContentRef: strings.TrimSpace(input.GetContentRef()),
-		Content:    cloneBytes(input.GetContent()),
-		Filename:   strings.TrimSpace(input.GetFilename()),
-		MIMEType:   strings.TrimSpace(input.GetMimeType()),
-		Metadata:   cloneMap(input.GetMetadata()),
+		SourceURI: strings.TrimSpace(input.GetSourceUri()),
+		Content:   cloneBytes(input.GetContent()),
+		Filename:  strings.TrimSpace(input.GetFilename()),
+		MIMEType:  strings.TrimSpace(input.GetMimeType()),
+		Metadata:  cloneMap(input.GetMetadata()),
 	}
 }
 
@@ -54,9 +53,6 @@ func resolveSource(_ context.Context, input documentInput) (sourceDocument, erro
 			source.Filename = filepath.Base(path)
 		}
 		return source, nil
-	}
-	if input.ContentRef != "" {
-		return sourceDocument{}, errContentRefOnly
 	}
 	return sourceDocument{}, errEmptyInput
 }

@@ -24,8 +24,6 @@ create embeddings, write index records, call another service, or answer users.
 
 - `content`: request bytes for small sources.
 - `source_uri`: local path or `file://` URI owned by the caller.
-- `content_ref`: reserved for runtime artifact references; this service returns
-  an explicit unimplemented error until artifact resolution is wired.
 
 ## Supported Formats
 

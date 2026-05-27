@@ -12,10 +12,9 @@ import (
 )
 
 type Config struct {
-	SkillDir  string
-	PDFToText string
-	NATS      natskit.Config
-	Logger    *slog.Logger
+	SkillDir string
+	NATS     natskit.Config
+	Logger   *slog.Logger
 }
 
 func Run(ctx context.Context, cfg Config) error {
@@ -24,8 +23,7 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 
 	ioServer := iosvc.NewServer(iosvc.Config{
-		PDFToText: cfg.PDFToText,
-		Logger:    cfg.Logger,
+		Logger: cfg.Logger,
 	})
 
 	skillPath, err := resolveSkillPath(cfg.SkillDir)

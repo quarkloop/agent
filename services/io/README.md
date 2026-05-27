@@ -3,7 +3,7 @@
 `services/io` implements Quark's mechanical host I/O service. It exposes the
 `quark.io.v1.IOService` service-function contract for the NATS-native architecture and is the
 single owner of filesystem, approved shell, bounded web fetch, web search, and
-legacy PDF text extraction behavior.
+typed media reads.
 
 ## Service Functions
 
@@ -13,7 +13,6 @@ legacy PDF text extraction behavior.
 | `io_List` | List directory entries with optional recursion and hashes. |
 | `io_Stat` | Return metadata and optional file hash. |
 | `io_ReadMedia` | Read bounded media bytes and typed source metadata for runtime-managed references. |
-| `io_ExtractPdf` | Extract plain PDF text through `pdftotext`; use document service functions for indexing workflows. |
 | `io_SearchWeb` | Search via Brave or SerpAPI when configured. |
 | `io_Fetch` | Fetch HTTP/HTTPS content with size, timeout, redirect, and private-network guards. |
 | `io_Write` | Atomically overwrite a file after approval. |

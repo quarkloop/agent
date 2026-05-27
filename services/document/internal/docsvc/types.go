@@ -1,12 +1,11 @@
 package docsvc
 
 type documentInput struct {
-	SourceURI  string
-	ContentRef string
-	Content    []byte
-	Filename   string
-	MIMEType   string
-	Metadata   map[string]string
+	SourceURI string
+	Content   []byte
+	Filename  string
+	MIMEType  string
+	Metadata  map[string]string
 }
 
 type sourceDocument struct {

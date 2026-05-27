@@ -24,7 +24,6 @@ func Descriptor(skill *servicev1.SkillDescriptor) *servicev1.ServiceDescriptor {
 			rpc(serviceName, "Replace", "quark.io.v1.ReplaceRequest", "quark.io.v1.ReplaceResponse", "Replace text in a file after explicit approval."),
 			rpc(serviceName, "Remove", "quark.io.v1.RemoveRequest", "quark.io.v1.RemoveResponse", "Remove a file or directory after explicit approval."),
 			rpc(serviceName, "ReadMedia", "quark.io.v1.ReadMediaRequest", "quark.io.v1.ReadMediaResponse", "Read bounded media bytes and source metadata for runtime-managed references."),
-			rpc(serviceName, "ExtractPdf", "quark.io.v1.ExtractPdfRequest", "quark.io.v1.ExtractPdfResponse", "Extract PDF text with pdftotext."),
 			rpc(serviceName, "Execute", "quark.io.v1.ExecuteRequest", "quark.io.v1.ExecuteResponse", "Execute a shell command via bash -c after explicit approval."),
 			rpc(serviceName, "SearchWeb", "quark.io.v1.SearchWebRequest", "quark.io.v1.SearchWebResponse", "Search the web using Brave or SerpAPI."),
 			rpc(serviceName, "Fetch", "quark.io.v1.FetchRequest", "quark.io.v1.FetchResponse", "Fetch a URL over HTTP or HTTPS with size and timeout limits."),

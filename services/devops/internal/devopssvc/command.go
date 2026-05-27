@@ -51,6 +51,9 @@ func (osCommands) Run(ctx context.Context, root, name string, args ...string) (*
 		if cmd.ProcessState != nil {
 			exitCode = int32(cmd.ProcessState.ExitCode())
 		}
+		if len(logs) == 0 {
+			logs = []string{err.Error()}
+		}
 		return &devopsv1.TaskResult{Status: taskStatusFailed, ExitCode: exitCode, Summary: fmt.Sprintf("%s failed", name), Logs: logs}, nil
 	}
 	return &devopsv1.TaskResult{Status: taskStatusPassed, Summary: fmt.Sprintf("%s completed", name), Logs: logs}, nil

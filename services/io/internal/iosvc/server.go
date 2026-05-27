@@ -15,20 +15,18 @@ import (
 )
 
 type Config struct {
-	PDFToText string
-	Logger    *slog.Logger
+	Logger *slog.Logger
 }
 
 type Server struct {
-	pdfToText string
-	logger    *slog.Logger
+	logger *slog.Logger
 }
 
 func NewServer(cfg Config) *Server {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
-	return &Server{pdfToText: cfg.PDFToText, logger: cfg.Logger}
+	return &Server{logger: cfg.Logger}
 }
 
 func (s *Server) Read(_ context.Context, req *iov1.ReadRequest) (*iov1.ReadResponse, error) {
@@ -103,20 +101,6 @@ func (s *Server) ReadMedia(_ context.Context, req *iov1.ReadMediaRequest) (*iov1
 	return &iov1.ReadMediaResponse{
 		Source:  mediaReferenceToProto(result.Source),
 		Content: append([]byte(nil), result.Content...),
-	}, nil
-}
-
-func (s *Server) ExtractPdf(ctx context.Context, req *iov1.ExtractPdfRequest) (*iov1.ExtractPdfResponse, error) {
-	result, err := iofs.ExtractPdf(ctx, req.GetPath(), req.GetMaxChars(), s.pdfToText)
-	if err != nil {
-		return nil, serviceError(err)
-	}
-	return &iov1.ExtractPdfResponse{
-		Content:       result.Content,
-		Chars:         result.Chars,
-		OriginalChars: result.OriginalChars,
-		Truncated:     result.Truncated,
-		Source:        mediaReferenceToProto(result.Source),
 	}, nil
 }
 

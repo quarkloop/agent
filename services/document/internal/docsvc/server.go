@@ -170,8 +170,6 @@ func serviceError(err error) error {
 	switch {
 	case errors.Is(err, errEmptyInput):
 		return serviceerrors.InvalidArgument(err.Error())
-	case errors.Is(err, errContentRefOnly):
-		return serviceerrors.Unimplemented(err.Error())
 	case errors.Is(err, errUnsupportedType):
 		return serviceerrors.InvalidArgument(err.Error())
 	case errors.Is(err, errPDFBackendMissing):
@@ -288,21 +286,18 @@ func imagesToProto(images []image) []*documentv1.Image {
 
 func sourceReference(input *documentv1.DocumentInput, parsed parsedDocument, pageNumber int32, modality string) *documentv1.SourceReference {
 	sourceURI := ""
-	artifactRef := ""
 	metadata := map[string]string(nil)
 	if input != nil {
 		sourceURI = input.GetSourceUri()
-		artifactRef = input.GetContentRef()
 		metadata = cloneMap(input.GetMetadata())
 	}
 	return &documentv1.SourceReference{
-		SourceUri:   sourceURI,
-		SourceHash:  parsed.SourceHash,
-		MimeType:    parsed.MIMEType,
-		Modality:    modality,
-		PageNumber:  pageNumber,
-		ArtifactRef: artifactRef,
-		Metadata:    metadata,
+		SourceUri:  sourceURI,
+		SourceHash: parsed.SourceHash,
+		MimeType:   parsed.MIMEType,
+		Modality:   modality,
+		PageNumber: pageNumber,
+		Metadata:   metadata,
 	}
 }
 

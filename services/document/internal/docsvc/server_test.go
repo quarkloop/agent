@@ -204,13 +204,3 @@ func TestEmptyUnsupportedAndImageOCRFailures(t *testing.T) {
 		t.Fatalf("image OCR error = %v, want FailedPrecondition", err)
 	}
 }
-
-func TestContentRefOnlyIsExplicitlyUnimplemented(t *testing.T) {
-	srv := testServer(fakePDFExtractor{})
-	_, err := srv.ExtractText(context.Background(), &documentv1.ExtractTextRequest{
-		Input: &documentv1.DocumentInput{ContentRef: "artifact://source/1"},
-	})
-	if !boundary.IsCategory(err, boundary.Unavailable) {
-		t.Fatalf("error = %v, want Unimplemented", err)
-	}
-}

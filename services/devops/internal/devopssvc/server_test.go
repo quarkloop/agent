@@ -141,11 +141,11 @@ func TestTestsContainersDeployAndFailureExplanation(t *testing.T) {
 		t.Fatalf("dry-run tests = %+v", run)
 	}
 
-	explained, err := server.ExplainFailure(context.Background(), &devopsv1.ExplainFailureRequest{Logs: "panic: boom\nok"})
+	explained, err := server.ExplainFailure(context.Background(), &devopsv1.ExplainFailureRequest{Evidence: []string{"--- FAIL: TestBroken", "panic: boom"}})
 	if err != nil {
 		t.Fatalf("explain failure: %v", err)
 	}
-	if len(explained.GetEvidence()) != 1 || !strings.Contains(explained.GetEvidence()[0], "panic") {
+	if len(explained.GetEvidence()) != 2 || !strings.Contains(explained.GetEvidence()[0], "TestBroken") {
 		t.Fatalf("failure explanation = %+v", explained)
 	}
 
@@ -179,6 +179,47 @@ func TestTestsContainersDeployAndFailureExplanation(t *testing.T) {
 	applied, err := server.Apply(context.Background(), &devopsv1.ApplyRequest{PlanId: "plan", ApprovalId: "approved"})
 	if err != nil || applied.GetResult().GetStatus() != taskStatusPlanned {
 		t.Fatalf("approved deployment response=%+v error=%v", applied, err)
+	}
+}
+
+func TestRunTestsReturnsBoundedFailureEvidenceWithoutRawAggregateLogs(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "go.mod"), "module example.com/app\n\ngo 1.26\n")
+	lines := []string{"--- FAIL: TestBroken (0.00s)", "main_test.go:7: expected stable behavior"}
+	for i := 0; i < maxEvidenceLines+5; i++ {
+		lines = append(lines, "diagnostic line")
+	}
+	server := newServer(localWorkspace{}, stubCommands{result: &devopsv1.TaskResult{
+		Status:   taskStatusFailed,
+		ExitCode: 1,
+		Summary:  "go failed",
+		Logs:     lines,
+	}}, buildrelease.NewRunner())
+
+	run, err := server.RunTests(context.Background(), &devopsv1.RunTestsRequest{Path: dir})
+	if err != nil {
+		t.Fatalf("run tests: %v", err)
+	}
+	if got := run.GetResult().GetLogs(); len(got) != 0 {
+		t.Fatalf("aggregate response exposed raw logs: %+v", got)
+	}
+	evidence := run.GetTests()[0].GetEvidence()
+	if len(evidence) != maxEvidenceLines || !strings.Contains(evidence[0], "TestBroken") || !strings.Contains(evidence[1], "expected stable behavior") {
+		t.Fatalf("bounded evidence = %+v", evidence)
+	}
+}
+
+func TestRunTestsRejectsCommandTextAsATargetIDBeforeExecution(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "go.mod"), "module example.com/app\n\ngo 1.26\n")
+	server := newServer(localWorkspace{}, stubCommands{result: &devopsv1.TaskResult{Status: taskStatusPassed}}, buildrelease.NewRunner())
+
+	_, err := server.RunTests(context.Background(), &devopsv1.RunTestsRequest{Path: dir, Targets: []string{"./..."}})
+	assertCategory(t, err, boundary.InvalidArgument)
+	if err == nil || !strings.Contains(err.Error(), "available ids: test") {
+		t.Fatalf("invalid target diagnostic = %v", err)
 	}
 }
 
@@ -282,6 +323,17 @@ func TestCommandCancellationAndDeadlineRemainDiagnosticCategories(t *testing.T) 
 	timedOut := newServer(localWorkspace{}, stubCommands{runErr: context.DeadlineExceeded}, buildrelease.NewRunner())
 	_, err = timedOut.RunTask(context.Background(), &devopsv1.RunTaskRequest{Path: dir, Task: "test"})
 	assertCategory(t, err, boundary.Deadline)
+}
+
+func TestCommandStartFailurePreservesDiagnosticEvidence(t *testing.T) {
+	t.Parallel()
+	result, err := (osCommands{}).Run(context.Background(), t.TempDir(), "quark-command-that-does-not-exist")
+	if err != nil {
+		t.Fatalf("run missing executable: %v", err)
+	}
+	if result.GetStatus() != taskStatusFailed || len(result.GetLogs()) != 1 || !strings.Contains(result.GetLogs()[0], "executable file not found") {
+		t.Fatalf("missing executable evidence = %+v", result)
+	}
 }
 
 func TestContainerInventoryUsesCommandAdapterOutput(t *testing.T) {
