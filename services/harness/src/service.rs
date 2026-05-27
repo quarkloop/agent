@@ -5,6 +5,7 @@ use std::collections::HashSet;
 use anyhow::{Context, bail};
 use chrono::Utc;
 use sha2::{Digest, Sha256};
+use std::ops::Range;
 use uuid::Uuid;
 
 use crate::proto::harness::{
@@ -60,8 +61,11 @@ impl Harness {
                 role: "system".into(),
                 content: system.join("\n\n"),
                 source_id: "harness.system_materials".into(),
+                tool_calls: Vec::new(),
+                tool_call_id: String::new(),
             });
         }
+        let protected_prefix_len = messages.len();
         messages.extend(request.history.clone());
 
         let mut omitted = Vec::new();
@@ -71,13 +75,12 @@ impl Harness {
             0
         };
         while should_compact(&messages, char_budget) {
-            let removable = messages
-                .iter()
-                .position(|message| message.role != "system")
-                .context("context window is too small for required system material")?;
-            let removed = messages.remove(removable);
-            if !removed.source_id.trim().is_empty() {
-                omitted.push(removed.source_id);
+            let removable = oldest_removable_history_unit(&messages, protected_prefix_len)
+                .context("context window is too small for required prompt material and the current history unit")?;
+            for removed in messages.drain(removable) {
+                if !removed.source_id.trim().is_empty() {
+                    omitted.push(removed.source_id);
+                }
             }
         }
         for message in &messages {
@@ -218,8 +221,60 @@ fn should_compact(messages: &[ContextMessage], char_budget: i64) -> bool {
 
 fn character_count(messages: &[ContextMessage]) -> i64 {
     messages.iter().fold(0_i64, |total, message| {
-        total.saturating_add(i64::try_from(message.content.len()).unwrap_or(i64::MAX))
+        let content = i64::try_from(message.content.len()).unwrap_or(i64::MAX);
+        let tool_call_id = i64::try_from(message.tool_call_id.len()).unwrap_or(i64::MAX);
+        let tool_calls = message.tool_calls.iter().fold(0_i64, |subtotal, call| {
+            subtotal
+                .saturating_add(i64::try_from(call.id.len()).unwrap_or(i64::MAX))
+                .saturating_add(i64::try_from(call.r#type.len()).unwrap_or(i64::MAX))
+                .saturating_add(i64::try_from(call.name.len()).unwrap_or(i64::MAX))
+                .saturating_add(i64::try_from(call.arguments_json.len()).unwrap_or(i64::MAX))
+        });
+        total
+            .saturating_add(content)
+            .saturating_add(tool_call_id)
+            .saturating_add(tool_calls)
     })
+}
+
+// Model APIs require assistant tool calls and their matching tool responses to
+// remain adjacent. Context compaction therefore removes history units rather
+// than individual messages and keeps the newest unit as the active turn.
+fn oldest_removable_history_unit(
+    messages: &[ContextMessage],
+    protected_prefix_len: usize,
+) -> Option<Range<usize>> {
+    let units = history_units(&messages[protected_prefix_len..]);
+    if units.len() <= 1 {
+        return None;
+    }
+    let first = units.first()?;
+    Some((protected_prefix_len + first.start)..(protected_prefix_len + first.end))
+}
+
+fn history_units(history: &[ContextMessage]) -> Vec<Range<usize>> {
+    let mut units = Vec::new();
+    let mut index = 0;
+    while index < history.len() {
+        let start = index;
+        index += 1;
+        if history[start].role == "assistant" && !history[start].tool_calls.is_empty() {
+            let call_ids: HashSet<&str> = history[start]
+                .tool_calls
+                .iter()
+                .map(|call| call.id.as_str())
+                .filter(|id| !id.is_empty())
+                .collect();
+            while index < history.len()
+                && history[index].role == "tool"
+                && call_ids.contains(history[index].tool_call_id.as_str())
+            {
+                index += 1;
+            }
+        }
+        units.push(start..index);
+    }
+    units
 }
 
 fn require(value: &str, name: &str) -> anyhow::Result<()> {
@@ -258,7 +313,7 @@ fn deduplicate(values: Vec<String>) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::proto::harness::PromptMaterial;
+    use crate::proto::harness::{ContextToolCall, PromptMaterial};
 
     #[tokio::test]
     async fn composes_and_reports_context_without_authoring_prompt_material() {
@@ -282,11 +337,13 @@ mod tests {
                         role: "user".into(),
                         content: "old content that is removed due to budget".into(),
                         source_id: "session.1".into(),
+                        ..ContextMessage::default()
                     },
                     ContextMessage {
                         role: "user".into(),
                         content: "new".into(),
                         source_id: "session.2".into(),
+                        ..ContextMessage::default()
                     },
                 ],
             })
@@ -312,6 +369,97 @@ mod tests {
                 .id,
             report.id
         );
+    }
+
+    #[tokio::test]
+    async fn preserves_structured_tool_execution_history() {
+        let root = tempfile::tempdir().unwrap();
+        let harness = Harness::new(Store::open(root.path()).await.unwrap());
+        let result = harness
+            .compose_context(ComposeContextRequest {
+                space: "docs".into(),
+                session_id: "s1".into(),
+                context_window: 100,
+                history: vec![
+                    ContextMessage {
+                        role: "assistant".into(),
+                        source_id: "session.1".into(),
+                        tool_calls: vec![ContextToolCall {
+                            index: 0,
+                            id: "call-index".into(),
+                            r#type: "function".into(),
+                            name: "indexer_UpsertChunk".into(),
+                            arguments_json: "{\"document\":{\"sourceUri\":\"a.pdf\"}}".into(),
+                        }],
+                        ..ContextMessage::default()
+                    },
+                    ContextMessage {
+                        role: "tool".into(),
+                        content: "{\"referenceId\":\"ref-1\"}".into(),
+                        source_id: "session.2".into(),
+                        tool_call_id: "call-index".into(),
+                        ..ContextMessage::default()
+                    },
+                ],
+                ..ComposeContextRequest::default()
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(result.messages[0].tool_calls[0].id, "call-index");
+        assert_eq!(result.messages[1].tool_call_id, "call-index");
+    }
+
+    #[tokio::test]
+    async fn compaction_removes_tool_call_and_results_as_one_history_unit() {
+        let root = tempfile::tempdir().unwrap();
+        let harness = Harness::new(Store::open(root.path()).await.unwrap());
+        let result = harness
+            .compose_context(ComposeContextRequest {
+                space: "docs".into(),
+                session_id: "s1".into(),
+                context_window: 16,
+                history: vec![
+                    ContextMessage {
+                        role: "assistant".into(),
+                        source_id: "session.tool-call".into(),
+                        tool_calls: vec![ContextToolCall {
+                            id: "call-index".into(),
+                            name: "indexer_UpsertChunk".into(),
+                            arguments_json: "{\"large\":\"this older tool argument must be budgeted and removed atomically\"}".into(),
+                            ..ContextToolCall::default()
+                        }],
+                        ..ContextMessage::default()
+                    },
+                    ContextMessage {
+                        role: "tool".into(),
+                        content: "{\"referenceId\":\"ref-1\"}".into(),
+                        source_id: "session.tool-result".into(),
+                        tool_call_id: "call-index".into(),
+                        ..ContextMessage::default()
+                    },
+                    ContextMessage {
+                        role: "user".into(),
+                        content: "latest request".into(),
+                        source_id: "session.current".into(),
+                        ..ContextMessage::default()
+                    },
+                ],
+                ..ComposeContextRequest::default()
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(result.messages.len(), 1);
+        assert_eq!(result.messages[0].content, "latest request");
+        let report = result.report.unwrap();
+        assert!(report.omitted_sources.contains(&"session.tool-call".into()));
+        assert!(
+            report
+                .omitted_sources
+                .contains(&"session.tool-result".into())
+        );
+        assert!(report.included_sources.contains(&"session.current".into()));
     }
 
     #[tokio::test]
