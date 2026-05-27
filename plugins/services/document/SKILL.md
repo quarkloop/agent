@@ -11,9 +11,12 @@ plain filesystem reads.
 
 1. Call `document_DetectType` or `document_ParseBytes` to identify the source
    mechanically.
-2. Call `document_ExtractText`, `document_GetPages`, `document_ExtractLayout`,
-   `document_ExtractTables`, `document_ExtractImages`, or `document_RunOCR` as
-   needed for source evidence.
+2. For PDF knowledge indexing, call `document_ExtractText` first: it returns
+   bounded text evidence and page references needed by Gateway and the
+   indexer. Use `document_GetPages`, `document_ExtractLayout`,
+   `document_ExtractTables`, `document_ExtractImages`, or `document_RunOCR`
+   only when the user's task needs additional page, layout, table, image, or
+   OCR evidence.
 3. Keep semantic work in the agent LLM loop: classify the document, infer an
    extraction schema, normalize fields, choose chunks, extract facts, extract
    entities and relations, and select citations.
@@ -29,7 +32,10 @@ plain filesystem reads.
 - `ExtractText(ExtractTextRequest) -> ExtractTextResponse`
   - Generated service function: `document_ExtractText`
   - Returns source/page provenance; runtime exposes opaque content/page
-    references for subsequent Gateway and indexer calls.
+    references for subsequent Gateway and indexer calls. Runtime presents a
+    bounded readable page/reference projection so an indexed chunk is selected
+    only from evidence visible to the agent; additional evidence requires an
+    explicit document extraction operation.
 - `ExtractLayout(ExtractLayoutRequest) -> ExtractLayoutResponse`
   - Generated service function: `document_ExtractLayout`
 - `GetPages(GetPagesRequest) -> GetPagesResponse`
@@ -48,5 +54,9 @@ plain filesystem reads.
 - The service returns source evidence only. It does not call LLMs.
 - The service does not create embeddings, facts, entities, relations,
   citations, chunks, or index records.
+- Runtime-issued page references identify bounded evidence pages visible in
+  the extraction result. For searchable indexing, use at most one visible
+  page reference in an embedding input and reuse that reference when
+  persisting the corresponding chunk.
 - Large bytes should flow through approved runtime artifacts or content
   references when available. Do not paste binary data into prompts.

@@ -48,16 +48,6 @@ service:
       approval_required: false
       streaming: false
       idempotent: true
-    - name: io_ExtractPdf
-      service: quark.io.v1.IOService
-      method: ExtractPdf
-      request: quark.io.v1.ExtractPdfRequest
-      response: quark.io.v1.ExtractPdfResponse
-      description: "Extract PDF text with pdftotext; prefer document_ExtractText for knowledge indexing."
-      risk_level: read
-      approval_required: false
-      streaming: false
-      idempotent: true
     - name: io_ReadMedia
       service: quark.io.v1.IOService
       method: ReadMedia

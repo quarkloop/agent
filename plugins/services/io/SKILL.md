@@ -8,7 +8,6 @@ Mechanical filesystem, shell, web search, and HTTP fetch. Does not call LLMs or 
 - `io_List` — list directory; `recursive`, `include_hash`
 - `io_Stat` — metadata; set `include_hash` for sha256 on regular files
 - `io_ReadMedia` — read bounded image/document bytes; runtime exposes only an opaque media reference to the agent
-- `io_ExtractPdf` — legacy PDF text via pdftotext; for knowledge indexing prefer `document_ExtractText`
 - `io_Write`, `io_Append`, `io_Replace` — atomic file mutations; require `approved: true` after explicit user approval
 - `io_Remove` — admin-risk file or directory removal; requires `approved: true` after explicit user approval
 
@@ -23,4 +22,4 @@ Mechanical filesystem, shell, web search, and HTTP fetch. Does not call LLMs or 
 
 ## Indexing
 
-For directory discovery use `io_List` / `io_Stat` / `io_Read`. For PDF or layout-aware extraction use document service functions, not `io_ExtractPdf`, when building knowledge indexes.
+For directory discovery use `io_List` / `io_Stat`. When a source is being indexed, its content evidence belongs to document service functions rather than `io_Read`.

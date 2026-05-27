@@ -168,7 +168,7 @@ service:
       method: RunTests
       request: quark.devops.v1.RunTestsRequest
       response: quark.devops.v1.RunTestsResponse
-      description: "Run selected test targets or produce a dry-run test plan."
+      description: "Run target IDs discovered by test_DiscoverTests and return bounded failure evidence, or run the default when targets are omitted."
       risk_level: write
       approval_required: true
       approval_requirements:
@@ -179,7 +179,7 @@ service:
       method: ExplainFailure
       request: quark.devops.v1.ExplainFailureRequest
       response: quark.devops.v1.ExplainFailureResponse
-      description: "Summarize structured test failure evidence."
+      description: "Summarize bounded structured test failure evidence."
       risk_level: read
       idempotent: true
     - name: container_BuildImage

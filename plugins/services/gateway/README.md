@@ -10,6 +10,11 @@ other services do not call provider APIs directly.
 `gateway_Embed` requires a configured embedding provider and embedding model;
 there is no local synthetic embedding fallback.
 
+Deployments can set `QUARK_GATEWAY_MAX_EXTERNAL_REQUESTS` to bound outbound
+generation and embedding dispatch. Gateway reserves each request before
+calling a provider, which prevents quota-bound workloads from issuing excess
+external requests.
+
 ## Service Functions
 
 | Function | NATS subject | RPC method | Risk | Approval | Streaming | Purpose |

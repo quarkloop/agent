@@ -49,3 +49,10 @@ execution layer.
 `container_BuildImage`, `container_PlanRun`, `deploy_Plan`, and `deploy_Apply`
 require approval. Do not describe those actions as completed until the approved
 execution result is available.
+
+When an approved `test_RunTests` result fails, use its bounded
+`tests[].evidence` lines when calling `test_ExplainFailure`. Do not invent
+missing failure detail or substitute the aggregate status summary for evidence.
+When selecting tests, pass only target IDs returned by `test_DiscoverTests`
+such as `test`, or omit `targets` to run the default. Commands and glob
+arguments such as `./...` are not target IDs.

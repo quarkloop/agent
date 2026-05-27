@@ -39,3 +39,7 @@ For release automation, use the DevOps release functions:
 Do not use release service functions for test-failure analysis,
 repository status, or build-debugging prompts unless the user explicitly asks
 for release/package/artifact planning.
+
+For test analysis, use only target IDs returned by `test_DiscoverTests` when
+calling `test_RunTests`, or omit targets for its default test target. Ground
+the explanation in the bounded failure evidence returned by the test result.

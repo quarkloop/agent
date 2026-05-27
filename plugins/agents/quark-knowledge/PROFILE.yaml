@@ -14,7 +14,6 @@ permissions:
     - io_Read
     - io_List
     - io_Stat
-    - io_ExtractPdf
     - io_ReadMedia
     - io_Write
     - io_Append
@@ -41,6 +40,7 @@ permissions:
     - runstate_ListIncompleteItems
     - runstate_ListArtifacts
     - gateway_Embed
+    - indexer_UpsertDocument
     - indexer_UpsertChunk
     - indexer_UpsertFact
     - indexer_UpsertEntity

@@ -34,10 +34,16 @@ mechanical evidence service, not an answer generator.
 ## Contract Notes
 
 - The agent chooses claims and evidence candidates.
+- `citation_VerifyGrounding.claims` and `citation_ScoreCoverage.claims` are
+  JSON arrays of claim objects, not strings containing serialized JSON. Each
+  claim includes `id`, `claim`, and a `citations` array.
 - `CitationSpan` objects use exactly `id`, `sourceUri`, `textSpan`,
   `startOffset`, `endOffset`, and `confidence`. Do not send `chunkId`,
   `filename`, `source`, `sourceText`, or arbitrary metadata inside a citation
   span.
+- Mechanical verification requires a non-empty `textSpan` obtained from
+  evidence; if retrieved context supplies only source references, use
+  `citation_RenderReferences` instead of inventing spans.
 - `citation_ResolveSpans` requires exact `sourceText`. Use it while source
   text is available during extraction/indexing; for retrieved index context,
   prefer `citation_VerifyGrounding` or `citation_RenderReferences` with

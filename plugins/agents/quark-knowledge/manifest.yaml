@@ -13,7 +13,6 @@ agent:
     - io_Read
     - io_List
     - io_Stat
-    - io_ExtractPdf
     - io_ReadMedia
     - io_Write
     - io_Append

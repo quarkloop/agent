@@ -2,8 +2,7 @@
 
 Declares the `io` NATS service-function surface (`bin/io-service`). Implementation lives in
 `services/io`. The service owns mechanical host I/O only: filesystem reads and
-approved mutations, approved shell execution, bounded HTTP fetch, web search,
-and legacy PDF text extraction.
+approved mutations, approved shell execution, bounded HTTP fetch, and web search.
 
 ## Service Functions
 
@@ -13,7 +12,6 @@ and legacy PDF text extraction.
 | `io_List` | `quark.io.v1.IOService/List` | read | no | yes | List directory entries with optional recursion and sha256 hashes. |
 | `io_Stat` | `quark.io.v1.IOService/Stat` | read | no | yes | Return file metadata and optional sha256 for regular files. |
 | `io_ReadMedia` | `quark.io.v1.IOService/ReadMedia` | read | no | yes | Read bounded media bytes for a runtime-managed media reference. |
-| `io_ExtractPdf` | `quark.io.v1.IOService/ExtractPdf` | read | no | yes | Extract PDF text with `pdftotext`; document service functions are preferred for knowledge indexing. |
 | `io_SearchWeb` | `quark.io.v1.IOService/SearchWeb` | read | no | yes | Search the web through Brave or SerpAPI when API keys are configured. |
 | `io_Fetch` | `quark.io.v1.IOService/Fetch` | read | no | yes | Fetch an HTTP/HTTPS URL with bounded size, timeout, redirect, and private-network guards. |
 | `io_Write` | `quark.io.v1.IOService/Write` | write | yes | no | Atomically overwrite a file after explicit user approval. |
@@ -26,7 +24,6 @@ and legacy PDF text extraction.
 
 - Service functions are reached through their canonical `svc.io.v1.*` NATS
   subjects; no per-service endpoint is configured.
-- `QUARK_PDFTOTEXT_PATH`: optional path to the `pdftotext` executable.
 - `BRAVE_API_KEY` / `SERPAPI_KEY`: optional web search provider credentials.
 
 ## Boundaries

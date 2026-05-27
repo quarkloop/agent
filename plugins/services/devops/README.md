@@ -30,8 +30,8 @@ plugin: `svc.devops.v1.<function_name_in_snake_case>`, such as
 | `build_DryRunRelease` | `quark.devops.v1.BuildService/DryRunRelease` | read | no | yes | Preview release version and artifact matrix without compiling or publishing. |
 | `build_RunRelease` | `quark.devops.v1.BuildService/RunRelease` | admin | yes | no | Run an approved release pipeline and return generated artifacts. |
 | `test_DiscoverTests` | `quark.devops.v1.TestService/DiscoverTests` | read | no | yes | Discover project test targets. |
-| `test_RunTests` | `quark.devops.v1.TestService/RunTests` | write | yes | no | Run selected tests or produce a dry-run test plan. |
-| `test_ExplainFailure` | `quark.devops.v1.TestService/ExplainFailure` | read | no | yes | Summarize structured test failure evidence. |
+| `test_RunTests` | `quark.devops.v1.TestService/RunTests` | write | yes | no | Run discovered target IDs, or the default target, and return bounded failure evidence. |
+| `test_ExplainFailure` | `quark.devops.v1.TestService/ExplainFailure` | read | no | yes | Summarize bounded structured test failure evidence. |
 | `container_BuildImage` | `quark.devops.v1.ContainerService/BuildImage` | write | yes | no | Build or plan a container image. |
 | `container_ListImages` | `quark.devops.v1.ContainerService/ListImages` | read | no | yes | List local container images. |
 | `container_PlanRun` | `quark.devops.v1.ContainerService/PlanRun` | write | yes | no | Prepare an approval-gated container run plan. |

@@ -75,9 +75,23 @@ providers directly.
   response usage accounting, provider diagnostics, and provider error mapping.
 - Embedding requests use the configured Gateway embedding provider and model;
   do not request local or synthetic vectors.
-- For extracted content or media, pass runtime-issued `inputRef`, `contentRef`,
-  `pageRef`, or `imageRef` values instead of copying source text or media
-  bytes into a service call.
+- To query indexed knowledge, pass one non-empty retrieval query in the exposed
+  literal `text` parameter. It must faithfully represent the user's request. Do not pass a runtime
+  reference or generate separate vectors for individual subquestions.
+- For extracted content or media, pass runtime-issued references instead of
+  copying binary media into a service call. For canonical knowledge indexing,
+  use one bounded `pageRef` for a PDF that exposes page references; do not
+  copy PDF text or embed a whole-document `contentRef` as a searchable chunk.
+  For a batch of PDFs, call `gateway_Embed` with `pageRefs` containing one
+  exact page reference returned by extraction for each source and omit
+  `inputs`; runtime restores the source provenance for those references.
+  For non-PDF text, a short agent-authored text chunk is permitted. Prepare the
+  canonical chunk before embedding: each multi-source batch input represents
+  one source and must be reused unchanged in the matching index write after
+  embedding succeeds.
+  Detailed canonical chunk records are persisted one complete record per
+  source; independent records may be issued in the same tool-call batch.
+  Gateway only supplies their previously prepared embeddings.
 - The OpenRouter-compatible adapter supports mixed text/image embedding
   content. Adapters that cannot represent media inputs reject them explicitly.
 - Runtime owns session/run accumulation and persistence through runtime/Core

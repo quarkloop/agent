@@ -13,11 +13,14 @@ does not call LLMs, read raw files, or perform OCR.
 
 When the user asks to index PDFs or other documents:
 
-1. Use file tools for plain text files and the document service for parser
-   backed sources. For PDFs, call `document_ExtractText` or `document_GetPages`
-   with the source path so PDF parsing stays in the document service.
-2. Extract a useful, compact chunk for each document or section. Preserve the
-   important facts needed for later Q&A.
+1. Use IO tools only to enumerate or stat approved sources. Extract indexable
+   source content through the document service for every supported document
+   format. For PDFs, call `document_ExtractText` with the source path first so
+   PDF parsing and page-reference creation stay in the document service. Use
+   additional page/layout extraction only when evidence needs it.
+2. Extract a useful, compact first chunk for each document or section. Preserve
+   the important facts needed for later Q&A and decide its canonical fields
+   before requesting its embedding.
 3. Use the runtime/model LLM path to perform semantic extraction from the
    source evidence: document classification, schema inference, field
    normalization, chunk decisions, stable entities, relationships, facts,
@@ -25,27 +28,45 @@ When the user asks to index PDFs or other documents:
    entity names and relation endpoints must reuse the same IDs as the entity
    list.
 4. Use `gateway_Embed` on each chunk and pass its returned `embeddingRef` as
-   `embeddingRef`.
-5. Call canonical indexer functions. Use `indexer_UpsertDocument` for source
-   document records and `indexer_UpsertChunk` for each searchable text chunk.
-   Include `document`, `embeddingMetadata`, `facts`, `citations`,
+   `embeddingRef`. For a PDF with extracted page references, the embedding
+   content must be one selected `pageRef`, not copied PDF text. When a bounded
+   `pageRef` supplied the embedding content,
+   pass that same runtime reference as `textContentRef` on the chunk; when a
+   bounded text passage supplied it, pass that exact passage as `textContent`
+   on the chunk; when a bounded text content reference supplied it, reuse that
+   text content reference. For a multi-source PDF batch, use Gateway's
+   `pageRefs` argument with one extracted page reference per source and omit
+   `inputs`; for non-PDF bounded content, use one embedding input per source.
+   Do not pair an embedding with a different or whole-document
+   reference, and do not reread content after an embedding already succeeded.
+5. Call `indexer_UpsertChunk` for each ordinary searchable document chunk. It
+   persists its nested `document` metadata and chunk evidence in one canonical
+   mutation. Include `document`, `embeddingMetadata`, `facts`, `citations`,
    `provenance`, `entities`, `relations`, and source metadata whenever those
-   records are known. Use `indexer_UpsertFact`, `indexer_UpsertEntity`,
-   `indexer_UpsertRelation`, and `indexer_UpsertCitation` when updating one
-   canonical record independently of a chunk upsert.
+   records are known. Each payload is an independently auditable record.
+   After embedding a prepared multi-source batch, issue one complete bounded
+   chunk call per source in one independent tool-call batch when all matching
+   embeddings are already available. Use `indexer_UpsertDocument` only
+   when the user explicitly requests a metadata-only document write. Use
+   `indexer_UpsertFact`,
+   `indexer_UpsertEntity`, `indexer_UpsertRelation`, and
+   `indexer_UpsertCitation` when updating one canonical record independently of
+   a chunk upsert.
 
 Indexing is not complete after extraction or embedding. Only tell the user a
-document is indexed after `UpsertDocument` and at least one related
-`UpsertChunk` return successful responses from the indexer service. When
+document is indexed after at least one canonical `UpsertChunk` containing that
+document's nested metadata returns a successful response. When
 multiple documents are listed, keep the filenames aligned with successful
 canonical upserts and do not finish until every listed document has a successful
 persistence result.
 
 When the user asks questions about indexed documents:
 
-1. Use `gateway_Embed` on the user question.
-2. Call `indexer_QueryContext` with the query vector, a reasonable limit, and
-   graph depth.
+1. Use `gateway_Embed` once with only its exposed literal `text` parameter,
+   containing one non-empty retrieval query that faithfully represents the user's request; do not use runtime references or
+   create one vector per requested fact.
+2. Call `indexer_QueryContext` once with that query vector, a reasonable limit
+   covering the requested answer, and graph depth.
 3. Answer from the returned `reasoning_context` and cite source metadata when
    available.
 
@@ -57,7 +78,8 @@ when the indexer service is available.
 - `UpsertDocument(UpsertDocumentRequest) -> IndexStatus`
   - Generated service function: `indexer_UpsertDocument`
   - Required JSON fields: `document.id`
-  - Persists one canonical source document record.
+  - Persists one standalone canonical source document metadata record; use for
+    explicit metadata-only document updates, not routine chunk indexing.
 
 - `UpsertChunk(UpsertChunkRequest) -> IndexStatus`
   - Generated service function: `indexer_UpsertChunk`
