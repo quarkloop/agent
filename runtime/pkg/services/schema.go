@@ -27,16 +27,28 @@ func applyRuntimeReferenceFields(typeName string, schema map[string]any) {
 	if !ok {
 		return
 	}
+	if isDocumentInputRequest(typeName) {
+		applyAgentDocumentSourceConstraints(schema, properties)
+		return
+	}
 	switch typeName {
 	case "quark.gateway.v1.EmbedRequest":
 		delete(properties, "provider")
 		delete(properties, "model")
 		delete(properties, "dimensions")
 		delete(properties, "options")
-		properties["inputRef"] = map[string]any{"type": "string"}
-		properties["contentRef"] = map[string]any{"type": "string"}
-		properties["pageRef"] = map[string]any{"type": "string"}
-		properties["imageRef"] = map[string]any{"type": "string"}
+		properties["inputs"].(map[string]any)["description"] = "Typed embedding inputs for text or media. For a user question about indexed knowledge, use exactly one non-empty inline text retrieval query representing that request and no reference shortcut. For extracted PDF pages used during indexing, use pageRefs instead."
+		properties["text"] = map[string]any{"type": "string", "description": "One literal text query when the active workflow exposes a text-only retrieval embedding."}
+		properties["inputRef"] = map[string]any{"type": "string", "description": "One runtime-issued text content reference from earlier tool output; never a user-question label."}
+		properties["contentRef"] = map[string]any{"type": "string", "description": "One runtime-issued text content reference from earlier tool output; never a user-question label."}
+		properties["pageRef"] = map[string]any{"type": "string", "description": "One pageRef exactly as returned by document extraction."}
+		properties["pageRefs"] = map[string]any{
+			"type":        "array",
+			"minItems":    1,
+			"items":       map[string]any{"type": "string"},
+			"description": "Page references exactly as returned by document extraction; use one pageRef per PDF source when embedding a document batch. Set pageRefs alone and omit inputs.",
+		}
+		properties["imageRef"] = map[string]any{"type": "string", "description": "One runtime-issued image reference."}
 		removeGatewayInlineImageBytes(properties)
 	case "quark.gateway.v1.GenerateRequest", "quark.gateway.v1.StreamGenerateRequest":
 		removeGatewayMessageInlineImageBytes(properties)
@@ -45,10 +57,34 @@ func applyRuntimeReferenceFields(typeName string, schema map[string]any) {
 		applyCanonicalUpsertChunkConstraints(properties)
 		properties["embeddingRef"] = map[string]any{"type": "string"}
 		properties["textContentRef"] = map[string]any{"type": "string"}
+	case "quark.indexer.v1.UpsertDocumentRequest":
+		applyCanonicalUpsertDocumentConstraints(properties)
 	case "quark.indexer.v1.QueryRequest":
 		delete(properties, "queryVector")
 		properties["queryVectorRef"] = map[string]any{"type": "string"}
+	case "quark.citation.v1.VerifyGroundingRequest", "quark.citation.v1.ScoreCoverageRequest":
+		applyGroundedClaimConstraints(properties)
+	case "quark.citation.v1.RenderReferencesRequest":
+		applyCitationListConstraints(properties, "citations", "Normalized source spans to render. Each span must include sourceUri and should include textSpan and offsets when retrieved evidence provides them.", false)
 	}
+}
+
+func applyAgentDocumentSourceConstraints(schema map[string]any, properties map[string]any) {
+	input, ok := properties["input"].(map[string]any)
+	if !ok {
+		return
+	}
+	inputProperties, ok := input["properties"].(map[string]any)
+	if !ok {
+		return
+	}
+	// Agents identify user-approved documents by source URI. Inline bytes are
+	// a programmatic service input and must not be copied through LLM calls.
+	delete(inputProperties, "content")
+	delete(inputProperties, "contentRef")
+	input["required"] = []string{"sourceUri"}
+	input["description"] = "A user-approved local document source. Provide input.sourceUri exactly as discovered; do not invent artifact or content references."
+	schema["required"] = []string{"input"}
 }
 
 func removeGatewayInlineImageBytes(properties map[string]any) {
@@ -86,6 +122,48 @@ func applyCanonicalUpsertChunkConstraints(properties map[string]any) {
 			values["minItems"] = 1
 		}
 	}
+}
+
+func applyCanonicalUpsertDocumentConstraints(properties map[string]any) {
+	document, ok := properties["document"].(map[string]any)
+	if !ok {
+		return
+	}
+	document["required"] = []string{"id", "sourceUri"}
+}
+
+func applyGroundedClaimConstraints(properties map[string]any) {
+	claims, ok := properties["claims"].(map[string]any)
+	if !ok {
+		return
+	}
+	claims["minItems"] = 1
+	claims["description"] = "Array of claims selected from retrieved evidence; do not JSON-encode this array as a string."
+	items, _ := claims["items"].(map[string]any)
+	if items == nil {
+		return
+	}
+	items["required"] = []string{"id", "claim", "citations"}
+	claimProperties, _ := items["properties"].(map[string]any)
+	applyCitationListConstraints(claimProperties, "citations", "Evidence spans supporting this claim. textSpan is required for mechanical grounding verification and must be copied from retrieved evidence.", true)
+}
+
+func applyCitationListConstraints(properties map[string]any, fieldName, description string, requireTextSpan bool) {
+	citations, ok := properties[fieldName].(map[string]any)
+	if !ok {
+		return
+	}
+	citations["minItems"] = 1
+	citations["description"] = description
+	items, _ := citations["items"].(map[string]any)
+	if items == nil {
+		return
+	}
+	required := []string{"id", "sourceUri"}
+	if requireTextSpan {
+		required = append(required, "textSpan")
+	}
+	items["required"] = required
 }
 
 func messageJSONSchema(desc protoreflect.MessageDescriptor, depth int) map[string]any {
@@ -168,12 +246,18 @@ func requiredJSONFields(typeName string) []string {
 			"relations",
 			"citations",
 		}
+	case "quark.indexer.v1.UpsertDocumentRequest":
+		return []string{"document"}
 	case "quark.indexer.v1.QueryRequest":
 		return []string{"queryVectorRef"}
 	case "quark.indexer.v1.DeleteDocumentRequest":
 		return []string{"documentId"}
 	case "quark.indexer.v1.DeleteChunkRequest":
 		return []string{"chunkId"}
+	case "quark.citation.v1.VerifyGroundingRequest", "quark.citation.v1.ScoreCoverageRequest":
+		return []string{"claims"}
+	case "quark.citation.v1.RenderReferencesRequest":
+		return []string{"citations"}
 	default:
 		return nil
 	}

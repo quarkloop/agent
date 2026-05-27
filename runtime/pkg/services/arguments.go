@@ -51,7 +51,6 @@ func normalizeDocumentInputArguments(typeName, arguments string) (string, error)
 		}
 	}
 	promoteDocumentInputString(payload, input, "sourceUri", "sourceUri", "source_uri", "uri", "url", "path", "filePath", "file_path", "source", "sourcePath", "source_path")
-	promoteDocumentInputString(payload, input, "contentRef", "contentRef", "content_ref", "inputRef", "input_ref")
 	promoteDocumentInputString(payload, input, "filename", "filename", "fileName", "file_name", "name")
 	promoteDocumentInputString(payload, input, "mimeType", "mimeType", "mime_type", "mediaType", "media_type")
 	if _, ok := input["filename"]; !ok {
@@ -382,20 +381,57 @@ func normalizeStringMapValue(raw json.RawMessage) (json.RawMessage, error) {
 }
 
 func normalizeMessageList(desc protoreflect.MessageDescriptor, raw json.RawMessage) (json.RawMessage, error) {
-	var items []map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &items); err != nil {
+	raw = unwrapJSONEncodedCollection(raw)
+	var rawItems []json.RawMessage
+	if err := json.Unmarshal(raw, &rawItems); err != nil {
 		return raw, err
 	}
-	for _, item := range items {
+	items := make([]map[string]json.RawMessage, 0, len(rawItems))
+	for _, rawItem := range rawItems {
+		var item map[string]json.RawMessage
+		if err := json.Unmarshal(unwrapJSONEncodedObject(rawItem), &item); err != nil {
+			return raw, err
+		}
 		if err := normalizeStringMapMessage(desc, item); err != nil {
 			return nil, err
 		}
+		items = append(items, item)
 	}
 	data, err := json.Marshal(items)
 	if err != nil {
 		return nil, err
 	}
 	return data, nil
+}
+
+// unwrapJSONEncodedCollection accepts a collection encoded once as a JSON
+// string by a model tool call. It does not coerce arbitrary strings: the
+// normal collection decoder remains authoritative for validation.
+func unwrapJSONEncodedCollection(raw json.RawMessage) json.RawMessage {
+	var encoded string
+	if err := json.Unmarshal(raw, &encoded); err != nil {
+		return raw
+	}
+	encoded = strings.TrimSpace(encoded)
+	if !strings.HasPrefix(encoded, "[") || !strings.HasSuffix(encoded, "]") {
+		return raw
+	}
+	return json.RawMessage(encoded)
+}
+
+// unwrapJSONEncodedObject accepts an individual structured item encoded once
+// as a JSON string by a model tool call. The message decoder still validates
+// the resulting object against the protobuf contract.
+func unwrapJSONEncodedObject(raw json.RawMessage) json.RawMessage {
+	var encoded string
+	if err := json.Unmarshal(raw, &encoded); err != nil {
+		return raw
+	}
+	encoded = strings.TrimSpace(encoded)
+	if !strings.HasPrefix(encoded, "{") || !strings.HasSuffix(encoded, "}") {
+		return raw
+	}
+	return json.RawMessage(encoded)
 }
 
 func normalizeMessageField(desc protoreflect.MessageDescriptor, raw json.RawMessage) (json.RawMessage, error) {

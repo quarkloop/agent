@@ -21,23 +21,24 @@ import (
 
 type ServiceFunctionSchema = plugin.ToolSchema
 type Executor struct {
-	descriptors   []*servicev1.ServiceDescriptor
-	caller        serviceFunctionCaller
-	mu            sync.RWMutex
-	refTTL        time.Duration
-	nextEmbedding int
-	embeddings    map[string][]float32
-	embeddingInfo map[string]map[string]any
-	embeddingBorn map[string]time.Time
-	nextContent   int
-	contents      map[string]string
-	contentInfo   map[string]map[string]any
-	contentBorn   map[string]time.Time
-	nextMedia     int
-	media         map[string][]byte
-	mediaInfo     map[string]map[string]any
-	mediaBorn     map[string]time.Time
-	pending       map[string]struct{}
+	descriptors         []*servicev1.ServiceDescriptor
+	caller              serviceFunctionCaller
+	mu                  sync.RWMutex
+	refTTL              time.Duration
+	nextEmbedding       int
+	embeddings          map[string][]float32
+	embeddingInfo       map[string]map[string]any
+	embeddingBorn       map[string]time.Time
+	embeddingSourceHash map[string]string
+	embeddingSourceURI  map[string]string
+	nextContent         int
+	contents            map[string]string
+	contentInfo         map[string]map[string]any
+	contentBorn         map[string]time.Time
+	nextMedia           int
+	media               map[string][]byte
+	mediaInfo           map[string]map[string]any
+	mediaBorn           map[string]time.Time
 }
 
 type resolvedRPC struct {
@@ -54,19 +55,20 @@ func NewExecutorWithCaller(descriptors []*servicev1.ServiceDescriptor, caller se
 		out = append(out, servicekit.CloneDescriptor(desc))
 	}
 	return &Executor{
-		descriptors:   out,
-		caller:        caller,
-		refTTL:        defaultReferenceTTL,
-		embeddings:    make(map[string][]float32),
-		embeddingInfo: make(map[string]map[string]any),
-		embeddingBorn: make(map[string]time.Time),
-		contents:      make(map[string]string),
-		contentInfo:   make(map[string]map[string]any),
-		contentBorn:   make(map[string]time.Time),
-		media:         make(map[string][]byte),
-		mediaInfo:     make(map[string]map[string]any),
-		mediaBorn:     make(map[string]time.Time),
-		pending:       make(map[string]struct{}),
+		descriptors:         out,
+		caller:              caller,
+		refTTL:              defaultReferenceTTL,
+		embeddings:          make(map[string][]float32),
+		embeddingInfo:       make(map[string]map[string]any),
+		embeddingBorn:       make(map[string]time.Time),
+		embeddingSourceHash: make(map[string]string),
+		embeddingSourceURI:  make(map[string]string),
+		contents:            make(map[string]string),
+		contentInfo:         make(map[string]map[string]any),
+		contentBorn:         make(map[string]time.Time),
+		media:               make(map[string][]byte),
+		mediaInfo:           make(map[string]map[string]any),
+		mediaBorn:           make(map[string]time.Time),
 	}
 }
 
@@ -75,9 +77,14 @@ const (
 	largeResultReferenceMin = 2048
 	documentTextPreviewMax  = 500
 	documentPagePreviewMax  = 1
-	documentPageTextMax     = 120
-	contextTextPreviewMax   = 1600
-	reasoningPreviewMax     = 9000
+	documentPageTextMax     = 2000
+	documentPageBlockMax    = 4
+	documentBlockTextMax    = 120
+	documentPageTableMax    = 1
+	documentTableRowMax     = 2
+	documentTableTextMax    = 100
+	contextTextPreviewMax   = 800
+	reasoningPreviewMax     = 1200
 )
 
 func (e *Executor) ToolSchemas() []ServiceFunctionSchema {
@@ -164,7 +171,7 @@ func (e *Executor) Execute(ctx context.Context, functionName, arguments string) 
 	}
 	var result string
 	if rpc.GetResponse() == "quark.gateway.v1.EmbedResponse" {
-		result, err = e.embeddingToolResult(out)
+		result, err = e.embeddingToolResult(out, arguments)
 	} else if rpc.GetResponse() == "quark.document.v1.ExtractTextResponse" {
 		result, err = e.documentExtractTextToolResult(out, arguments)
 	} else if rpc.GetResponse() == "quark.document.v1.ExtractImagesResponse" || rpc.GetResponse() == "quark.document.v1.GetPagesResponse" {

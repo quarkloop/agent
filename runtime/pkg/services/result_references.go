@@ -9,11 +9,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/quarkloop/runtime/pkg/sourceid"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func (e *Executor) embeddingToolResult(msg protoreflect.ProtoMessage) (string, error) {
+func (e *Executor) embeddingToolResult(msg protoreflect.ProtoMessage, requestArguments string) (string, error) {
 	reflected := msg.ProtoReflect()
 	embeddingsField := reflected.Descriptor().Fields().ByName("embeddings")
 	if embeddingsField == nil || !embeddingsField.IsList() {
@@ -24,9 +25,19 @@ func (e *Executor) embeddingToolResult(msg protoreflect.ProtoMessage) (string, e
 	if embeddings.Len() == 0 {
 		return "", fmt.Errorf("gateway embedding response did not include embeddings")
 	}
+	sourceHashes := embeddingInputContentHashes(requestArguments)
+	sourceURIs := embeddingInputSourceURIs(requestArguments)
 	results := make([]map[string]any, 0, embeddings.Len())
 	for i := 0; i < embeddings.Len(); i++ {
-		result, err := e.registerEmbeddingResult(embeddings.Get(i).Message())
+		sourceHash := ""
+		if i < len(sourceHashes) {
+			sourceHash = sourceHashes[i]
+		}
+		sourceURI := ""
+		if i < len(sourceURIs) {
+			sourceURI = sourceURIs[i]
+		}
+		result, err := e.registerEmbeddingResult(embeddings.Get(i).Message(), sourceHash, sourceURI)
 		if err != nil {
 			return "", err
 		}
@@ -44,7 +55,7 @@ func (e *Executor) embeddingToolResult(msg protoreflect.ProtoMessage) (string, e
 	return string(data), nil
 }
 
-func (e *Executor) registerEmbeddingResult(reflected protoreflect.Message) (map[string]any, error) {
+func (e *Executor) registerEmbeddingResult(reflected protoreflect.Message, sourceHash, sourceURI string) (map[string]any, error) {
 	fields := reflected.Descriptor().Fields()
 	vectorField := fields.ByName("vector")
 	hashField := fields.ByName("content_hash")
@@ -81,7 +92,15 @@ func (e *Executor) registerEmbeddingResult(reflected protoreflect.Message) (map[
 	e.embeddingInfo[contentHash] = cloneMetadata(metadata)
 	e.embeddingBorn[ref] = now
 	e.embeddingBorn[contentHash] = now
-	e.pending[ref] = struct{}{}
+	if sourceHash != "" {
+		e.embeddingSourceHash[ref] = sourceHash
+		e.embeddingSourceHash[contentHash] = sourceHash
+	}
+	if sourceURI != "" {
+		sourceURI = sourceid.Canonical(sourceURI)
+		e.embeddingSourceURI[ref] = sourceURI
+		e.embeddingSourceURI[contentHash] = sourceURI
+	}
 	e.mu.Unlock()
 
 	return map[string]any{
@@ -91,6 +110,55 @@ func (e *Executor) registerEmbeddingResult(reflected protoreflect.Message) (map[
 		"model":        metadata["model"],
 		"provider":     metadata["provider"],
 	}, nil
+}
+
+func embeddingInputContentHashes(arguments string) []string {
+	var request struct {
+		Inputs []struct {
+			Content []struct {
+				Kind string `json:"kind"`
+				Text string `json:"text"`
+			} `json:"content"`
+		} `json:"inputs"`
+	}
+	if json.Unmarshal([]byte(arguments), &request) != nil {
+		return nil
+	}
+	hashes := make([]string, len(request.Inputs))
+	for i, input := range request.Inputs {
+		var text strings.Builder
+		hasText := false
+		hasOtherContent := false
+		for _, content := range input.Content {
+			if content.Kind == "CONTENT_KIND_TEXT" && content.Text != "" {
+				hasText = true
+				text.WriteString(content.Text)
+				continue
+			}
+			hasOtherContent = true
+		}
+		if hasText && !hasOtherContent {
+			sum := sha256.Sum256([]byte(text.String()))
+			hashes[i] = hex.EncodeToString(sum[:])
+		}
+	}
+	return hashes
+}
+
+func embeddingInputSourceURIs(arguments string) []string {
+	var request struct {
+		Inputs []struct {
+			Metadata map[string]string `json:"metadata"`
+		} `json:"inputs"`
+	}
+	if json.Unmarshal([]byte(arguments), &request) != nil {
+		return nil
+	}
+	uris := make([]string, len(request.Inputs))
+	for i, input := range request.Inputs {
+		uris[i] = sourceid.Canonical(firstNonEmptyString(input.Metadata["sourceUri"], input.Metadata["source_uri"]))
+	}
+	return uris
 }
 
 func (e *Executor) documentExtractTextToolResult(msg protoreflect.ProtoMessage, requestArguments string) (string, error) {
@@ -121,14 +189,18 @@ func (e *Executor) documentExtractTextToolResult(msg protoreflect.ProtoMessage, 
 	sourceInfo := documentExtractionSourceInfo(requestArguments)
 	sourceInfo["serviceFunction"] = "document_ExtractText"
 	sourceInfo["sourceHash"] = sourceHash
-	ref, info := e.registerContent(text, sourceInfo)
-	payload["contentRef"] = mustJSONRaw(ref)
 	payload["contentChars"] = mustJSONRaw(len([]rune(text)))
-	payload["contentHash"] = mustJSONRaw(info["contentHash"])
 	if sourceHash != "" {
 		payload["sourceHash"] = mustJSONRaw(sourceHash)
 	}
-	registerPageReferences(e, payload, sourceInfo)
+	if registerPageReferences(e, payload, sourceInfo) {
+		addPageReferenceIndexingPolicy(payload)
+		payload["wholeDocumentReferenceOmitted"] = mustJSONRaw(true)
+	} else {
+		ref, info := e.registerContent(text, sourceInfo)
+		payload["contentRef"] = mustJSONRaw(ref)
+		payload["contentHash"] = mustJSONRaw(info["contentHash"])
+	}
 	compactDocumentExtractTextPayload(payload)
 	out, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
@@ -137,15 +209,16 @@ func (e *Executor) documentExtractTextToolResult(msg protoreflect.ProtoMessage, 
 	return string(out), nil
 }
 
-func registerPageReferences(e *Executor, payload map[string]json.RawMessage, sourceInfo map[string]any) {
+func registerPageReferences(e *Executor, payload map[string]json.RawMessage, sourceInfo map[string]any) bool {
 	raw, ok := payload["pages"]
 	if !ok {
-		return
+		return false
 	}
 	var pages []map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &pages); err != nil {
-		return
+		return false
 	}
+	registered := false
 	for _, page := range pages {
 		text := rawStringArgument(page, "text")
 		if strings.TrimSpace(text) == "" {
@@ -161,8 +234,18 @@ func registerPageReferences(e *Executor, payload map[string]json.RawMessage, sou
 		info["modality"] = "text"
 		ref, _ := e.registerContent(text, info)
 		page["pageRef"] = mustJSONRaw(ref)
+		registered = true
 	}
 	payload["pages"] = mustJSONRaw(pages)
+	return registered
+}
+
+func addPageReferenceIndexingPolicy(payload map[string]json.RawMessage) {
+	payload["indexingReferencePolicy"] = mustJSONRaw(map[string]any{
+		"referenceField":               "pages[].pageRef",
+		"maxPageRefsPerEmbeddingInput": 1,
+		"reuseAsTextContentRef":        true,
+	})
 }
 
 func (e *Executor) ioReadToolResult(msg protoreflect.ProtoMessage, requestArguments string) (string, error) {
@@ -231,7 +314,7 @@ func (e *Executor) ioReadMediaToolResult(msg protoreflect.ProtoMessage, _ string
 	return string(out), nil
 }
 
-func (e *Executor) documentMediaToolResult(msg protoreflect.ProtoMessage, _ string) (string, error) {
+func (e *Executor) documentMediaToolResult(msg protoreflect.ProtoMessage, requestArguments string) (string, error) {
 	data, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(msg)
 	if err != nil {
 		return "", fmt.Errorf("encode document media response: %w", err)
@@ -253,6 +336,17 @@ func (e *Executor) documentMediaToolResult(msg protoreflect.ProtoMessage, _ stri
 			}
 			payload["pages"] = mustJSONRaw(pages)
 		}
+	}
+	if string(msg.ProtoReflect().Descriptor().FullName()) == "quark.document.v1.GetPagesResponse" {
+		sourceInfo := documentExtractionSourceInfo(requestArguments)
+		sourceInfo["serviceFunction"] = "document_GetPages"
+		if registerPageReferences(e, payload, sourceInfo) {
+			addPageReferenceIndexingPolicy(payload)
+		}
+		compactDocumentPageTextArray(payload, "pages")
+		compactDocumentPageBlockArray(payload, "pages")
+		compactDocumentPageTableArray(payload, "pages")
+		payload["resultCompacted"] = mustJSONRaw(true)
 	}
 	out, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
@@ -472,25 +566,135 @@ func compactDocumentPageTextArray(payload map[string]json.RawMessage, key string
 	}
 	originalCount := len(pages)
 	if originalCount > documentPagePreviewMax {
-		pages = pages[:documentPagePreviewMax]
 		payload[key+"Count"] = mustJSONRaw(originalCount)
-		payload[key+"Truncated"] = mustJSONRaw(true)
+		payload[key+"TextPreviewCount"] = mustJSONRaw(documentPagePreviewMax)
+		payload[key+"TextCompacted"] = mustJSONRaw(true)
+		payload[key+"ReferencesOmitted"] = mustJSONRaw(true)
+		payload[key+"OmittedCount"] = mustJSONRaw(originalCount - documentPagePreviewMax)
 	}
-	for i := range pages {
+	visibleCount := len(pages)
+	if visibleCount > documentPagePreviewMax {
+		visibleCount = documentPagePreviewMax
+	}
+	for i := 0; i < visibleCount; i++ {
 		compactTextField(pages[i], "text", documentPageTextMax)
 	}
+	payload[key] = mustJSONRaw(pages[:visibleCount])
+}
+
+func compactDocumentPageBlockArray(payload map[string]json.RawMessage, key string) {
+	raw, ok := payload[key]
+	if !ok {
+		return
+	}
+	var pages []map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &pages); err != nil {
+		return
+	}
+	for i := range pages {
+		rawBlocks, ok := pages[i]["blocks"]
+		if !ok {
+			continue
+		}
+		var blocks []map[string]json.RawMessage
+		if err := json.Unmarshal(rawBlocks, &blocks); err != nil {
+			continue
+		}
+		pages[i]["blocksCount"] = mustJSONRaw(len(blocks))
+		if i >= documentPagePreviewMax {
+			delete(pages[i], "blocks")
+			pages[i]["blocksOmitted"] = mustJSONRaw(true)
+			continue
+		}
+		if len(blocks) > documentPageBlockMax {
+			blocks = blocks[:documentPageBlockMax]
+			pages[i]["blocksCompacted"] = mustJSONRaw(true)
+		}
+		for _, block := range blocks {
+			compactTextField(block, "text", documentBlockTextMax)
+		}
+		pages[i]["blocks"] = mustJSONRaw(blocks)
+	}
 	payload[key] = mustJSONRaw(pages)
+}
+
+func compactDocumentPageTableArray(payload map[string]json.RawMessage, key string) {
+	raw, ok := payload[key]
+	if !ok {
+		return
+	}
+	var pages []map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &pages); err != nil {
+		return
+	}
+	for i := range pages {
+		rawTables, ok := pages[i]["tables"]
+		if !ok {
+			continue
+		}
+		var tables []map[string]json.RawMessage
+		if err := json.Unmarshal(rawTables, &tables); err != nil {
+			continue
+		}
+		pages[i]["tablesCount"] = mustJSONRaw(len(tables))
+		if i >= documentPagePreviewMax {
+			delete(pages[i], "tables")
+			pages[i]["tablesOmitted"] = mustJSONRaw(true)
+			continue
+		}
+		if len(tables) > documentPageTableMax {
+			tables = tables[:documentPageTableMax]
+			pages[i]["tablesCompacted"] = mustJSONRaw(true)
+		}
+		for _, table := range tables {
+			compactStringArrayField(table, "headers", documentTableTextMax)
+			rawRows, ok := table["rows"]
+			if !ok {
+				continue
+			}
+			var rows []map[string]json.RawMessage
+			if err := json.Unmarshal(rawRows, &rows); err != nil {
+				continue
+			}
+			table["rowsCount"] = mustJSONRaw(len(rows))
+			if len(rows) > documentTableRowMax {
+				rows = rows[:documentTableRowMax]
+				table["rowsCompacted"] = mustJSONRaw(true)
+			}
+			for _, row := range rows {
+				compactStringArrayField(row, "cells", documentTableTextMax)
+			}
+			table["rows"] = mustJSONRaw(rows)
+		}
+		pages[i]["tables"] = mustJSONRaw(tables)
+	}
+	payload[key] = mustJSONRaw(pages)
+}
+
+func compactStringArrayField(payload map[string]json.RawMessage, key string, maxRunes int) {
+	raw, ok := payload[key]
+	if !ok {
+		return
+	}
+	var values []string
+	if err := json.Unmarshal(raw, &values); err != nil {
+		return
+	}
+	for i, value := range values {
+		runes := []rune(value)
+		if len(runes) > maxRunes {
+			values[i] = string(runes[:maxRunes]) + "...[truncated]"
+		}
+	}
+	payload[key] = mustJSONRaw(values)
 }
 
 func compactContextResponsePayload(payload map[string]json.RawMessage) {
 	compactTextField(payload, "reasoningContext", reasoningPreviewMax)
 	compactChunkArrayField(payload, "chunks")
-	if raw, ok := payload["contextPackage"]; ok {
-		var contextPackage map[string]json.RawMessage
-		if err := json.Unmarshal(raw, &contextPackage); err == nil {
-			compactChunkArrayField(contextPackage, "chunks")
-			payload["contextPackage"] = mustJSONRaw(contextPackage)
-		}
+	if _, ok := payload["contextPackage"]; ok {
+		delete(payload, "contextPackage")
+		payload["contextPackageOmitted"] = mustJSONRaw(true)
 	}
 	payload["resultCompacted"] = mustJSONRaw(true)
 }
@@ -571,7 +775,8 @@ func (e *Executor) CleanupExpiredReferences(now time.Time) {
 		delete(e.embeddingBorn, ref)
 		delete(e.embeddings, ref)
 		delete(e.embeddingInfo, ref)
-		delete(e.pending, ref)
+		delete(e.embeddingSourceHash, ref)
+		delete(e.embeddingSourceURI, ref)
 	}
 	for ref, born := range e.mediaBorn {
 		if now.Sub(born) <= e.refTTL {

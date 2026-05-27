@@ -74,10 +74,3 @@ func (c *Catalog) NormalizeToolCallArguments(ctx context.Context, name, argument
 	}
 	return c.executor.NormalizeToolCallArguments(ctx, name, arguments)
 }
-
-func (c *Catalog) PendingEmbeddingRefs() []string {
-	if c == nil || c.executor == nil {
-		return nil
-	}
-	return c.executor.PendingEmbeddingRefs()
-}

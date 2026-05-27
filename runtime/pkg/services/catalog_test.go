@@ -2,6 +2,7 @@ package services
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
@@ -65,7 +66,7 @@ func TestServiceFunctionSchemaUsesRuntimeEmbeddingReferences(t *testing.T) {
 	if !ok {
 		t.Fatalf("embedding properties missing: %+v", embedParams)
 	}
-	for _, want := range []string{"inputs", "inputRef", "contentRef", "pageRef", "imageRef"} {
+	for _, want := range []string{"inputs", "text", "inputRef", "contentRef", "pageRef", "pageRefs", "imageRef"} {
 		if _, ok := embedProperties[want]; !ok {
 			t.Fatalf("embedding schema missing %q: %+v", want, embedProperties)
 		}
@@ -149,6 +150,52 @@ func TestServiceFunctionSchemasIncludeKnowledgeContracts(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestDocumentServiceFunctionSchemaRequiresDiscoveredSourceURI(t *testing.T) {
+	t.Parallel()
+
+	params := requestParameters("quark.document.v1.ExtractTextRequest")
+	required, ok := params["required"].([]string)
+	if !ok || !containsString(required, "input") {
+		t.Fatalf("document request must require input: %+v", params)
+	}
+	properties := params["properties"].(map[string]any)
+	input := properties["input"].(map[string]any)
+	inputRequired, ok := input["required"].([]string)
+	if !ok || !containsString(inputRequired, "sourceUri") {
+		t.Fatalf("document input must require sourceUri: %+v", input)
+	}
+	inputProperties := input["properties"].(map[string]any)
+	if _, ok := inputProperties["content"]; ok {
+		t.Fatalf("agent schema exposes inline bytes: %+v", inputProperties)
+	}
+	if _, ok := inputProperties["contentRef"]; ok {
+		t.Fatalf("agent schema exposes unsupported content reference: %+v", inputProperties)
+	}
+}
+
+func TestCitationSchemasRequireStructuredGroundingCollections(t *testing.T) {
+	params := requestParameters("quark.citation.v1.VerifyGroundingRequest")
+	required, ok := params["required"].([]string)
+	if !ok || !containsString(required, "claims") {
+		t.Fatalf("citation required fields = %+v", params)
+	}
+	properties := params["properties"].(map[string]any)
+	claims := properties["claims"].(map[string]any)
+	if claims["minItems"] != 1 {
+		t.Fatalf("claims constraints = %+v", claims)
+	}
+	if description, _ := claims["description"].(string); !strings.Contains(description, "do not JSON-encode") {
+		t.Fatalf("claims guidance = %+v", claims)
+	}
+	claimItem := claims["items"].(map[string]any)
+	claimRequired, _ := claimItem["required"].([]string)
+	for _, field := range []string{"id", "claim", "citations"} {
+		if !containsString(claimRequired, field) {
+			t.Fatalf("grounded claim required fields = %+v", claimRequired)
+		}
 	}
 }
 

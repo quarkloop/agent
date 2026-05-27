@@ -16,6 +16,7 @@ import (
 	gatewayv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/gateway/v1"
 	indexerv1 "github.com/quarkloop/pkg/serviceapi/gen/quark/indexer/v1"
 	iov1 "github.com/quarkloop/pkg/serviceapi/gen/quark/io/v1"
+	runstatev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/runstate/v1"
 	servicev1 "github.com/quarkloop/pkg/serviceapi/gen/quark/service/v1"
 	"github.com/quarkloop/runtime/pkg/runcontext"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -114,6 +115,51 @@ func TestServiceRequestUnmarshalDiscardsUnknownGeneratedFields(t *testing.T) {
 	}
 	if got := citations[0].GetTextSpan(); got != "Total due: EUR 18,450.00" {
 		t.Fatalf("textSpan = %q", got)
+	}
+}
+
+func TestNormalizeStringMapArgumentsUnwrapsEncodedRepeatedMessages(t *testing.T) {
+	encodedClaims, err := json.Marshal(`[{"id":"claim-1","claim":"The invoice total is due.","citations":[{"id":"cite-1","sourceUri":"invoice.md","textSpan":"total is due","startOffset":4,"endOffset":16,"confidence":0.9}]}]`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := `{"claims":` + string(encodedClaims) + `}`
+	normalized, err := normalizeStringMapArguments("quark.citation.v1.VerifyGroundingRequest", raw)
+	if err != nil {
+		t.Fatalf("normalize encoded claims: %v", err)
+	}
+	var req citationv1.VerifyGroundingRequest
+	if err := protojson.Unmarshal([]byte(normalized), &req); err != nil {
+		t.Fatalf("decode normalized claims: %v\n%s", err, normalized)
+	}
+	if len(req.GetClaims()) != 1 || req.GetClaims()[0].GetId() != "claim-1" ||
+		len(req.GetClaims()[0].GetCitations()) != 1 {
+		t.Fatalf("claims = %+v", req.GetClaims())
+	}
+}
+
+func TestNormalizeStringMapArgumentsUnwrapsEncodedRepeatedMessageElements(t *testing.T) {
+	first, err := json.Marshal(`{"id":"doc-1","kind":"document","resourceUri":"/tmp/one.md"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := json.Marshal(`{"id":"doc-2","kind":"document","resourceUri":"/tmp/two.md"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := `{"title":"Index documents","items":[` + string(first) + `,` + string(second) + `]}`
+
+	normalized, err := normalizeStringMapArguments("quark.runstate.v1.StartRunRequest", raw)
+	if err != nil {
+		t.Fatalf("normalize encoded items: %v", err)
+	}
+	var req runstatev1.StartRunRequest
+	if err := protojson.Unmarshal([]byte(normalized), &req); err != nil {
+		t.Fatalf("decode normalized items: %v\n%s", err, normalized)
+	}
+	if len(req.GetItems()) != 2 || req.GetItems()[0].GetId() != "doc-1" ||
+		req.GetItems()[1].GetResourceUri() != "/tmp/two.md" {
+		t.Fatalf("items = %+v", req.GetItems())
 	}
 }
 
@@ -241,7 +287,7 @@ func TestExecutorExpandsRuntimeRefsForCanonicalUpsertChunkRequests(t *testing.T)
 			Provider:    "fixture",
 			ContentHash: "sha256:source",
 		}},
-	})
+	}, `{"inputs":[{"content":[{"kind":"CONTENT_KIND_TEXT","text":"Canonical text\n"}]}]}`)
 	if err != nil {
 		t.Fatalf("capture embedding result: %v", err)
 	}
@@ -269,7 +315,7 @@ func TestExecutorExpandsRuntimeRefsForCanonicalUpsertChunkRequests(t *testing.T)
 	}
 }
 
-func TestExecutorNormalizesCanonicalUpsertChunkCitationEvidence(t *testing.T) {
+func TestExecutorDoesNotSynthesizeCanonicalUpsertChunkCitationEvidence(t *testing.T) {
 	executor := NewExecutor(nil)
 	result, err := executor.documentExtractTextToolResult(&documentv1.ExtractTextResponse{
 		Text:       "Evidence line one.\nEvidence line two.",
@@ -304,21 +350,17 @@ func TestExecutorNormalizesCanonicalUpsertChunkCitationEvidence(t *testing.T) {
 		t.Fatalf("normalized payload is not JSON: %v\n%s", err, normalized)
 	}
 	citations, ok := payload["citations"].([]any)
-	if !ok || len(citations) != 1 {
-		t.Fatalf("citations = %+v", payload["citations"])
-	}
-	citation := citations[0].(map[string]any)
-	if got := citation["textSpan"].(string); !strings.Contains(got, "Evidence line one.") {
-		t.Fatalf("citation textSpan = %q", got)
+	if !ok || len(citations) != 0 {
+		t.Fatalf("runtime synthesized citations: %+v", payload["citations"])
 	}
 	facts := payload["facts"].([]any)
 	factCitations := facts[0].(map[string]any)["citations"].([]any)
-	if len(facts) != 1 || len(factCitations) != 1 {
-		t.Fatalf("fact citation evidence missing: %+v", payload["facts"])
+	if len(facts) != 1 || len(factCitations) != 0 {
+		t.Fatalf("runtime mutated agent-authored facts: %+v", payload["facts"])
 	}
 }
 
-func TestExecutorCompletesCanonicalUpsertChunkDefaultsFromRuntimeReferences(t *testing.T) {
+func TestExecutorDoesNotCompleteCanonicalUpsertFieldsFromRuntimeReferences(t *testing.T) {
 	executor := NewExecutor(nil)
 	result, err := executor.documentExtractTextToolResult(&documentv1.ExtractTextResponse{
 		Text:       "Attention Is All You Need introduced the Transformer architecture.",
@@ -339,7 +381,7 @@ func TestExecutorCompletesCanonicalUpsertChunkDefaultsFromRuntimeReferences(t *t
 			Provider:    "fixture",
 			ContentHash: "sha256:paper",
 		}},
-	})
+	}, `{"inputs":[{"content":[{"kind":"CONTENT_KIND_TEXT","text":"Attention Is All You Need introduced the Transformer architecture."}]}]}`)
 	if err != nil {
 		t.Fatalf("capture embedding result: %v", err)
 	}
@@ -360,25 +402,12 @@ func TestExecutorCompletesCanonicalUpsertChunkDefaultsFromRuntimeReferences(t *t
 		t.Fatalf("normalized payload is not JSON: %v\n%s", err, normalized)
 	}
 	for _, key := range []string{"chunkId", "document", "sourceMetadata", "provenance", "embeddingMetadata", "facts", "entities", "relations", "citations"} {
-		if _, ok := payload[key]; !ok {
-			t.Fatalf("normalized payload missing %s: %+v", key, payload)
+		if _, ok := payload[key]; ok {
+			t.Fatalf("runtime synthesized %s in agent-authored payload: %+v", key, payload)
 		}
 	}
-	document := payload["document"].(map[string]any)
-	if got := document["sourceUri"].(string); got != "/tmp/attention_is_all_you_need_paper.pdf" {
-		t.Fatalf("document sourceUri = %q", got)
-	}
-	sourceMetadata := payload["sourceMetadata"].(map[string]any)
-	if got := sourceMetadata["filename"].(string); got != "attention_is_all_you_need_paper.pdf" {
-		t.Fatalf("source metadata filename = %q", got)
-	}
-	facts := payload["facts"].([]any)
-	if len(facts) != 1 {
-		t.Fatalf("facts = %+v", payload["facts"])
-	}
-	fact := facts[0].(map[string]any)
-	if got := fact["object"].(string); !strings.Contains(got, "Transformer architecture") {
-		t.Fatalf("fallback fact object = %q", got)
+	if payload["textContentRef"] != documentPayload["contentRef"] || payload["embeddingRef"] != embeddingPayload["embeddingRef"] {
+		t.Fatalf("runtime did not preserve supplied opaque references: %+v", payload)
 	}
 }
 
@@ -415,6 +444,73 @@ func TestExecutorExpandsDocumentContentRefsForEmbeddingRequests(t *testing.T) {
 	req := decodeGatewayEmbedRequest(t, expanded)
 	if got := req.GetInputs()[0].GetContent()[0].GetText(); got != "Attention Is All You Need\n" {
 		t.Fatalf("embedded text = %q", got)
+	}
+}
+
+func TestExecutorPrefersExplicitContentRefOverInvalidGenericInputRef(t *testing.T) {
+	executor := NewExecutor(nil)
+	result, err := executor.documentExtractTextToolResult(&documentv1.ExtractTextResponse{
+		Text: "Evidence from the extracted document.\n",
+	}, "")
+	if err != nil {
+		t.Fatalf("capture document result: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("decode document result: %v", err)
+	}
+	ref := payload["contentRef"].(string)
+	expanded, err := executor.expandRuntimeReferences("quark.gateway.v1.EmbedRequest", `{"contentRef":"`+ref+`","inputRef":"/tmp/source.pdf"}`)
+	if err != nil {
+		t.Fatalf("expand refs: %v", err)
+	}
+	var normalized map[string]any
+	if err := json.Unmarshal([]byte(expanded), &normalized); err != nil {
+		t.Fatalf("decode expanded payload: %v", err)
+	}
+	if _, ok := normalized["inputRef"]; ok {
+		t.Fatalf("discarded alias remained in payload: %s", expanded)
+	}
+	if got := decodeGatewayEmbedRequest(t, expanded).GetInputs()[0].GetContent()[0].GetText(); got != "Evidence from the extracted document.\n" {
+		t.Fatalf("embedded text = %q", got)
+	}
+}
+
+func TestExecutorRejectsEmbeddingForDifferentChunkContent(t *testing.T) {
+	executor := NewExecutor(nil)
+	first, err := executor.ioReadToolResult(&iov1.ReadResponse{Content: "First document text.\n"}, `{"path":"/tmp/first.md"}`)
+	if err != nil {
+		t.Fatalf("capture first content: %v", err)
+	}
+	second, err := executor.ioReadToolResult(&iov1.ReadResponse{Content: "Second document text.\n"}, `{"path":"/tmp/second.md"}`)
+	if err != nil {
+		t.Fatalf("capture second content: %v", err)
+	}
+	var firstPayload, secondPayload map[string]any
+	if err := json.Unmarshal([]byte(first), &firstPayload); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(second), &secondPayload); err != nil {
+		t.Fatal(err)
+	}
+	embeddingResult, err := executor.embeddingToolResult(&gatewayv1.EmbedResponse{
+		Embeddings: []*gatewayv1.Embedding{{
+			Vector: []float32{0.5}, Model: "fixture/embed", Dimensions: 1, Provider: "fixture", ContentHash: "provider-hash",
+		}},
+	}, `{"inputs":[{"content":[{"kind":"CONTENT_KIND_TEXT","text":"First document text.\n"}]}]}`)
+	if err != nil {
+		t.Fatalf("capture embedding: %v", err)
+	}
+	var embeddingPayload map[string]any
+	if err := json.Unmarshal([]byte(embeddingResult), &embeddingPayload); err != nil {
+		t.Fatal(err)
+	}
+	_, err = executor.expandRuntimeReferences("quark.indexer.v1.UpsertChunkRequest", `{"chunkId":"wrong","textContentRef":"`+secondPayload["contentRef"].(string)+`","embeddingRef":"`+embeddingPayload["embeddingRef"].(string)+`"}`)
+	if err == nil || !strings.Contains(err.Error(), "different content") {
+		t.Fatalf("expected content-binding rejection, got %v", err)
+	}
+	if _, err := executor.expandRuntimeReferences("quark.indexer.v1.UpsertChunkRequest", `{"chunkId":"right","textContentRef":"`+firstPayload["contentRef"].(string)+`","embeddingRef":"`+embeddingPayload["embeddingRef"].(string)+`"}`); err != nil {
+		t.Fatalf("matching content binding rejected: %v", err)
 	}
 }
 
@@ -487,6 +583,269 @@ func TestNormalizeStringArgumentsPreservesGatewayTypedInputs(t *testing.T) {
 	}
 }
 
+func TestExecutorRestoresDocumentPageReferenceProvenanceForEmbeddingPolicy(t *testing.T) {
+	executor := NewExecutor(nil)
+	result, err := executor.documentExtractTextToolResult(&documentv1.ExtractTextResponse{
+		Text: "Page evidence.",
+		Pages: []*documentv1.PageText{{
+			PageNumber: 1,
+			Text:       "Page evidence.",
+		}},
+	}, `{"input":{"sourceUri":"/tmp/source.pdf","filename":"source.pdf"}}`)
+	if err != nil {
+		t.Fatalf("capture document result: %v", err)
+	}
+	var payload struct {
+		Pages []struct {
+			PageRef string `json:"pageRef"`
+		} `json:"pages"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("decode document result: %v\n%s", err, result)
+	}
+	if len(payload.Pages) != 1 || payload.Pages[0].PageRef == "" {
+		t.Fatalf("page reference missing: %+v", payload.Pages)
+	}
+
+	normalized, err := executor.NormalizeToolCallArguments(context.Background(), "gateway_Embed", `{"pageRef":"`+payload.Pages[0].PageRef+`"}`)
+	if err != nil {
+		t.Fatalf("normalize page reference: %v", err)
+	}
+	req := decodeGatewayEmbedRequest(t, normalized)
+	input := req.GetInputs()[0]
+	if got := input.GetMetadata()["sourceUri"]; got != "/tmp/source.pdf" {
+		t.Fatalf("restored sourceUri = %q, want /tmp/source.pdf", got)
+	}
+	part := input.GetContent()[0]
+	if part.GetKind() != gatewayv1.ContentKind_CONTENT_KIND_PAGE_REF || part.GetRef() != payload.Pages[0].PageRef {
+		t.Fatalf("normalized page content = %+v", part)
+	}
+}
+
+func TestExecutorRestoresBatchPageReferenceProvenanceFromSimpleEmbeddingArguments(t *testing.T) {
+	executor := NewExecutor(nil)
+	refs := make([]string, 0, 2)
+	for _, source := range []string{"/tmp/one.pdf", "/tmp/two.pdf"} {
+		result, err := executor.documentExtractTextToolResult(&documentv1.ExtractTextResponse{
+			Text:  "Page evidence.",
+			Pages: []*documentv1.PageText{{PageNumber: 1, Text: "Page evidence."}},
+		}, `{"input":{"sourceUri":"`+source+`"}}`)
+		if err != nil {
+			t.Fatalf("capture document result: %v", err)
+		}
+		var payload struct {
+			Pages []struct {
+				PageRef string `json:"pageRef"`
+			} `json:"pages"`
+		}
+		if err := json.Unmarshal([]byte(result), &payload); err != nil {
+			t.Fatalf("decode document result: %v", err)
+		}
+		refs = append(refs, payload.Pages[0].PageRef)
+	}
+	arguments, _ := json.Marshal(map[string]any{"pageRefs": refs})
+	normalized, err := executor.NormalizeToolCallArguments(context.Background(), "gateway_Embed", string(arguments))
+	if err != nil {
+		t.Fatalf("normalize page reference batch: %v", err)
+	}
+	var request gatewayv1.EmbedRequest
+	if err := protojson.Unmarshal([]byte(normalized), &request); err != nil {
+		t.Fatalf("decode normalized request: %v\n%s", err, normalized)
+	}
+	if len(request.GetInputs()) != 2 ||
+		request.GetInputs()[0].GetMetadata()["sourceUri"] != "/tmp/one.pdf" ||
+		request.GetInputs()[1].GetMetadata()["sourceUri"] != "/tmp/two.pdf" {
+		t.Fatalf("normalized page reference provenance = %+v", request.GetInputs())
+	}
+}
+
+func TestExecutorNormalizesTextOnlyRetrievalEmbeddingArgument(t *testing.T) {
+	executor := NewExecutor(nil)
+	normalized, err := executor.NormalizeToolCallArguments(context.Background(), "gateway_Embed", `{"text":"transformer paper architecture"}`)
+	if err != nil {
+		t.Fatalf("normalize text retrieval query: %v", err)
+	}
+	input := decodeGatewayEmbedRequest(t, normalized).GetInputs()[0]
+	if len(input.GetContent()) != 1 ||
+		input.GetContent()[0].GetKind() != gatewayv1.ContentKind_CONTENT_KIND_TEXT ||
+		input.GetContent()[0].GetText() != "transformer paper architecture" {
+		t.Fatalf("normalized retrieval input = %+v", input)
+	}
+	if _, err := executor.NormalizeToolCallArguments(context.Background(), "gateway_Embed", `{"text":"question","pageRef":"page_1"}`); err == nil {
+		t.Fatal("retrieval text was accepted with a reference shortcut")
+	}
+}
+
+func TestExecutorPageReferenceValidationNamesAvailableExtractedReferences(t *testing.T) {
+	executor := NewExecutor(nil)
+	result, err := executor.documentExtractTextToolResult(&documentv1.ExtractTextResponse{
+		Text:  "Page evidence.",
+		Pages: []*documentv1.PageText{{PageNumber: 1, Text: "Page evidence."}},
+	}, `{"input":{"sourceUri":"/tmp/source.pdf"}}`)
+	if err != nil {
+		t.Fatalf("capture document result: %v", err)
+	}
+	var payload struct {
+		Pages []struct {
+			PageRef string `json:"pageRef"`
+		} `json:"pages"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("decode document result: %v", err)
+	}
+	_, err = executor.NormalizeToolCallArguments(context.Background(), "gateway_Embed", `{"pageRef":"page_1"}`)
+	if err == nil || !strings.Contains(err.Error(), payload.Pages[0].PageRef) || !strings.Contains(err.Error(), "/tmp/source.pdf") {
+		t.Fatalf("validation did not name usable issued reference: %v", err)
+	}
+}
+
+func TestExecutorDecodesJSONEncodedGatewayPageReferenceInputs(t *testing.T) {
+	executor := NewExecutor(nil)
+	result, err := executor.documentExtractTextToolResult(&documentv1.ExtractTextResponse{
+		Text:  "Page evidence.",
+		Pages: []*documentv1.PageText{{PageNumber: 1, Text: "Page evidence."}},
+	}, `{"input":{"sourceUri":"/tmp/source.pdf","filename":"source.pdf"}}`)
+	if err != nil {
+		t.Fatalf("capture document result: %v", err)
+	}
+	var documentPayload struct {
+		Pages []struct {
+			PageRef string `json:"pageRef"`
+		} `json:"pages"`
+	}
+	if err := json.Unmarshal([]byte(result), &documentPayload); err != nil {
+		t.Fatalf("decode document result: %v", err)
+	}
+	pageRef := documentPayload.Pages[0].PageRef
+	content, _ := json.Marshal([]map[string]any{{"kind": "CONTENT_KIND_PAGE_REF", "ref": pageRef}})
+	inputs, _ := json.Marshal([]map[string]any{{"content": string(content)}})
+	arguments, _ := json.Marshal(map[string]any{"inputs": string(inputs)})
+
+	normalized, err := executor.NormalizeToolCallArguments(context.Background(), "gateway_Embed", string(arguments))
+	if err != nil {
+		t.Fatalf("normalize JSON-encoded page inputs: %v", err)
+	}
+	input := decodeGatewayEmbedRequest(t, normalized).GetInputs()[0]
+	if got := input.GetMetadata()["sourceUri"]; got != "/tmp/source.pdf" {
+		t.Fatalf("restored sourceUri = %q, want /tmp/source.pdf", got)
+	}
+	part := input.GetContent()[0]
+	if part.GetKind() != gatewayv1.ContentKind_CONTENT_KIND_PAGE_REF || part.GetRef() != pageRef {
+		t.Fatalf("normalized encoded page content = %+v", part)
+	}
+}
+
+func TestExecutorRejectsPageReferenceWithConflictingEmbeddingProvenance(t *testing.T) {
+	executor := NewExecutor(nil)
+	result, err := executor.documentExtractTextToolResult(&documentv1.ExtractTextResponse{
+		Text:  "Page evidence.",
+		Pages: []*documentv1.PageText{{PageNumber: 1, Text: "Page evidence."}},
+	}, `{"input":{"sourceUri":"/tmp/source.pdf"}}`)
+	if err != nil {
+		t.Fatalf("capture document result: %v", err)
+	}
+	var payload struct {
+		Pages []struct {
+			PageRef string `json:"pageRef"`
+		} `json:"pages"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("decode document result: %v", err)
+	}
+	_, err = executor.NormalizeToolCallArguments(context.Background(), "gateway_Embed",
+		`{"inputs":[{"content":[{"kind":"CONTENT_KIND_PAGE_REF","ref":"`+payload.Pages[0].PageRef+`"}],"metadata":{"sourceUri":"/tmp/other.pdf"}}]}`)
+	if err == nil || !strings.Contains(err.Error(), "does not match page reference sourceUri") {
+		t.Fatalf("conflicting page source provenance accepted: %v", err)
+	}
+}
+
+func TestExecutorCreatesBoundedPageReferencesForDocumentGetPages(t *testing.T) {
+	executor := NewExecutor(nil)
+	blocks := make([]*documentv1.LayoutBlock, 0, documentPageBlockMax+2)
+	for i := 0; i < documentPageBlockMax+2; i++ {
+		text := "block evidence " + strings.Repeat("detail ", i+1)
+		if i >= documentPageBlockMax {
+			text = "omitted-block-marker"
+		}
+		blocks = append(blocks, &documentv1.LayoutBlock{Kind: "text", Text: text})
+	}
+	result, err := executor.documentMediaToolResult(&documentv1.GetPagesResponse{
+		Pages: []*documentv1.Page{{
+			PageNumber: 1,
+			Text:       strings.Repeat("Layout-aware page evidence. ", 20),
+			Blocks:     blocks,
+		}},
+	}, `{"input":{"sourceUri":"/tmp/layout.pdf","filename":"layout.pdf"}}`)
+	if err != nil {
+		t.Fatalf("capture page result: %v", err)
+	}
+	var payload struct {
+		ResultCompacted bool `json:"resultCompacted"`
+		Pages           []struct {
+			PageRef string `json:"pageRef"`
+		} `json:"pages"`
+		IndexingReferencePolicy struct {
+			MaxPageRefsPerEmbeddingInput int  `json:"maxPageRefsPerEmbeddingInput"`
+			ReuseAsTextContentRef        bool `json:"reuseAsTextContentRef"`
+		} `json:"indexingReferencePolicy"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("decode page result: %v\n%s", err, result)
+	}
+	if !payload.ResultCompacted || len(payload.Pages) != 1 || payload.Pages[0].PageRef == "" {
+		t.Fatalf("bounded page result = %+v", payload)
+	}
+	if payload.IndexingReferencePolicy.MaxPageRefsPerEmbeddingInput != 1 || !payload.IndexingReferencePolicy.ReuseAsTextContentRef {
+		t.Fatalf("GetPages result did not expose page indexing policy: %s", result)
+	}
+	if strings.Contains(result, "omitted-block-marker") || !strings.Contains(result, `"blocksCompacted": true`) {
+		t.Fatalf("layout block result was not bounded:\n%s", result)
+	}
+	normalized, err := executor.NormalizeToolCallArguments(context.Background(), "gateway_Embed", `{"pageRef":"`+payload.Pages[0].PageRef+`"}`)
+	if err != nil {
+		t.Fatalf("normalize GetPages page reference: %v", err)
+	}
+	if got := decodeGatewayEmbedRequest(t, normalized).GetInputs()[0].GetMetadata()["sourceUri"]; got != "/tmp/layout.pdf" {
+		t.Fatalf("GetPages sourceUri = %q, want /tmp/layout.pdf", got)
+	}
+}
+
+func TestExecutorCompactsGetPagesTablesOutsideBoundedPreview(t *testing.T) {
+	executor := NewExecutor(nil)
+	result, err := executor.documentMediaToolResult(&documentv1.GetPagesResponse{
+		Pages: []*documentv1.Page{
+			{
+				PageNumber: 1,
+				Text:       "first page",
+				Tables: []*documentv1.Table{{
+					Headers: []string{strings.Repeat("header ", 40)},
+					Rows: []*documentv1.TableRow{
+						{Cells: []string{strings.Repeat("visible cell ", 40)}},
+						{Cells: []string{"second row"}},
+						{Cells: []string{"omitted-first-page-row-marker"}},
+					},
+				}},
+			},
+			{
+				PageNumber: 2,
+				Text:       "second page",
+				Tables: []*documentv1.Table{{
+					Rows: []*documentv1.TableRow{{Cells: []string{"omitted-page-table-marker"}}},
+				}},
+			},
+		},
+	}, `{"input":{"sourceUri":"/tmp/tables.pdf"}}`)
+	if err != nil {
+		t.Fatalf("capture page result: %v", err)
+	}
+	if strings.Contains(result, "omitted-first-page-row-marker") || strings.Contains(result, "omitted-page-table-marker") {
+		t.Fatalf("page table payload was not bounded:\n%s", result)
+	}
+	if !strings.Contains(result, `"rowsCompacted": true`) || !strings.Contains(result, `"pagesReferencesOmitted": true`) {
+		t.Fatalf("page table compaction metadata missing:\n%s", result)
+	}
+}
+
 func TestExecutorKeepsMediaOpaqueUntilGatewayReferenceExpansion(t *testing.T) {
 	executor := NewExecutor(nil)
 	result, err := executor.ioReadMediaToolResult(&iov1.ReadMediaResponse{
@@ -548,6 +907,9 @@ func TestCanonicalIndexerRequestSchemasExposeRuntimeReferenceFields(t *testing.T
 	if _, ok := embedProperties["inputRef"]; !ok {
 		t.Fatalf("EmbedRequest schema missing inputRef: %+v", embedSchema)
 	}
+	if _, ok := embedProperties["pageRefs"]; !ok {
+		t.Fatalf("EmbedRequest schema missing pageRefs batch shorthand: %+v", embedSchema)
+	}
 	if _, ok := embedProperties["model"]; ok {
 		t.Fatalf("EmbedRequest schema exposed model override: %+v", embedSchema)
 	}
@@ -594,6 +956,15 @@ func TestCanonicalIndexerRequestSchemasExposeRuntimeReferenceFields(t *testing.T
 	}
 	if got := properties["sourceMetadata"].(map[string]any)["minProperties"]; got != 1 {
 		t.Fatalf("UpsertChunk sourceMetadata should require source context: %+v", properties["sourceMetadata"])
+	}
+
+	documentSchema := requestParameters("quark.indexer.v1.UpsertDocumentRequest")
+	if got := documentSchema["required"]; !sameStrings(got, []string{"document"}) {
+		t.Fatalf("UpsertDocument required = %+v", got)
+	}
+	documentProperties := documentSchema["properties"].(map[string]any)["document"].(map[string]any)
+	if got := documentProperties["required"]; !sameStrings(got, []string{"id", "sourceUri"}) {
+		t.Fatalf("UpsertDocument document required = %+v", got)
 	}
 
 	querySchema := requestParameters("quark.indexer.v1.QueryRequest")
@@ -702,6 +1073,12 @@ func TestExecutorCompactsReferencedIndexerContextForLLM(t *testing.T) {
 	if got := chunk["text"].(string); len([]rune(got)) >= len([]rune(longText)) {
 		t.Fatalf("chunk text was not compacted")
 	}
+	if _, ok := payload["contextPackage"]; ok {
+		t.Fatalf("duplicated contextPackage was retained in model-facing payload: %+v", payload)
+	}
+	if payload["contextPackageOmitted"] != true {
+		t.Fatalf("contextPackageOmitted missing: %+v", payload)
+	}
 }
 
 func TestExecutorCompactsLargeDocumentExtractionTextForLLM(t *testing.T) {
@@ -735,6 +1112,42 @@ func TestExecutorCompactsLargeDocumentExtractionTextForLLM(t *testing.T) {
 	}
 }
 
+func TestExecutorRejectsEmbeddingForDifferentSourceURI(t *testing.T) {
+	executor := NewExecutor(nil)
+	result, err := executor.embeddingToolResult(&gatewayv1.EmbedResponse{
+		Embeddings: []*gatewayv1.Embedding{{
+			Vector:      []float32{0.1, 0.2},
+			ContentHash: "provider-content-hash",
+		}},
+	}, `{"inputs":[{"content":[{"kind":"CONTENT_KIND_TEXT","text":"Bound evidence."}],"metadata":{"sourceUri":"/tmp/expected.pdf"}}]}`)
+	if err != nil {
+		t.Fatalf("capture embedding result: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("decode embedding result: %v", err)
+	}
+	ref, ok := payload["embeddingRef"].(string)
+	if !ok || ref == "" {
+		t.Fatalf("embeddingRef missing: %+v", payload)
+	}
+	_, err = executor.expandRuntimeReferences("quark.indexer.v1.UpsertChunkRequest",
+		`{"chunkId":"bad","textContent":"Bound evidence.","embeddingRef":"`+ref+`","document":{"sourceUri":"/tmp/other.pdf"}}`)
+	if err == nil || !strings.Contains(err.Error(), "belongs to sourceUri") {
+		t.Fatalf("different source URI accepted: %v", err)
+	}
+	_, err = executor.expandRuntimeReferences("quark.indexer.v1.UpsertChunkRequest",
+		`{"chunkId":"valid","textContent":"Bound evidence.","embeddingRef":"`+ref+`","document":{"sourceUri":"/tmp/expected.pdf"}}`)
+	if err != nil {
+		t.Fatalf("matching source URI rejected: %v", err)
+	}
+	_, err = executor.expandRuntimeReferences("quark.indexer.v1.UpsertChunkRequest",
+		`{"chunkId":"valid-uri","textContent":"Bound evidence.","embeddingRef":"`+ref+`","document":{"sourceUri":"file:///tmp/expected.pdf"}}`)
+	if err != nil {
+		t.Fatalf("equivalent file source URI rejected: %v", err)
+	}
+}
+
 func TestExecutorCompactsDocumentExtractionPagesForLLM(t *testing.T) {
 	executor := NewExecutor(nil)
 	longPageText := strings.Repeat("page evidence paragraph ", 120)
@@ -763,37 +1176,40 @@ func TestExecutorCompactsDocumentExtractionPagesForLLM(t *testing.T) {
 	if payload["resultCompacted"] != true {
 		t.Fatalf("resultCompacted missing: %+v", payload)
 	}
-	if payload["pagesTruncated"] != true {
-		t.Fatalf("pagesTruncated missing: %+v", payload)
+	if _, ok := payload["contentRef"]; ok {
+		t.Fatalf("whole-document content reference exposed alongside bounded page references: %+v", payload)
+	}
+	if payload["wholeDocumentReferenceOmitted"] != true {
+		t.Fatalf("wholeDocumentReferenceOmitted missing: %+v", payload)
+	}
+	policy, ok := payload["indexingReferencePolicy"].(map[string]any)
+	if !ok || policy["maxPageRefsPerEmbeddingInput"] != float64(1) || policy["reuseAsTextContentRef"] != true {
+		t.Fatalf("page reference indexing policy missing: %+v", payload["indexingReferencePolicy"])
+	}
+	if payload["pagesTextCompacted"] != true {
+		t.Fatalf("pagesTextCompacted missing: %+v", payload)
 	}
 	if got := int(payload["pagesCount"].(float64)); got != len(pages) {
 		t.Fatalf("pagesCount = %d, want %d", got, len(pages))
 	}
-	previewPages := payload["pages"].([]any)
-	if got := len(previewPages); got != documentPagePreviewMax {
-		t.Fatalf("preview page count = %d, want %d", got, documentPagePreviewMax)
+	visiblePages := payload["pages"].([]any)
+	if got := len(visiblePages); got != documentPagePreviewMax {
+		t.Fatalf("visible page reference count = %d, want %d", got, documentPagePreviewMax)
 	}
-	for _, rawPage := range previewPages {
+	if payload["pagesReferencesOmitted"] != true || int(payload["pagesOmittedCount"].(float64)) != len(pages)-documentPagePreviewMax {
+		t.Fatalf("omitted page-reference projection metadata missing: %+v", payload)
+	}
+	for i, rawPage := range visiblePages {
 		page := rawPage.(map[string]any)
+		if page["pageRef"] == "" {
+			t.Fatalf("page %d reference missing: %+v", i, page)
+		}
 		if page["textTruncated"] != true {
-			t.Fatalf("page text was not marked truncated: %+v", page)
-		}
-		if got := page["text"].(string); len([]rune(got)) >= len([]rune(longPageText)) {
-			t.Fatalf("page text was not compacted")
+			t.Fatalf("preview page text was not marked truncated: %+v", page)
 		}
 	}
-	if len([]rune(result)) > 3000 {
+	if len([]rune(result)) > 6000 {
 		t.Fatalf("document tool result is too large for LLM replay: %d runes", len([]rune(result)))
-	}
-}
-
-func TestExecutorDoesNotCaptureFilesystemPDFExtractionAsContentSource(t *testing.T) {
-	data, err := protojson.Marshal(&iov1.ExtractPdfResponse{Content: "Attention Is All You Need\n"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(data), "contentRef") {
-		t.Fatalf("io_ExtractPdf should not produce runtime content refs: %s", data)
 	}
 }
 
