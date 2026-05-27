@@ -19,7 +19,7 @@ func Detect(prompt string, tools []plugin.ToolSchema) []Intent {
 		if steps := requiredSteps(available,
 			step("ingest-start", "durable run creation", "runstate_StartRun"),
 			stepCount("extract", "document content extraction", sourceCount, "document_ExtractText", "document_GetPages"),
-			stepCount("embed", "embedding generation", sourceCount, "gateway_Embed", "gateway_Embed"),
+			stepCount("embed", "embedding generation", sourceCount, "gateway_Embed"),
 			stepCount("index", "canonical indexing", sourceCount, "indexer_UpsertChunk"),
 			step("ingest-complete", "durable run completion", "runstate_MarkComplete"),
 		); len(steps) > 0 {
@@ -28,7 +28,7 @@ func Detect(prompt string, tools []plugin.ToolSchema) []Intent {
 	}
 	if looksLikeKnowledgeQuery(text) {
 		if steps := requiredSteps(available,
-			step("embed-query", "query embedding", "gateway_Embed", "gateway_Embed"),
+			step("embed-query", "query embedding", "gateway_Embed"),
 			step("retrieve", "context retrieval", "indexer_QueryContext"),
 			step("ground", "grounding or citation verification", "citation_VerifyGrounding", "citation_RenderReferences"),
 		); len(steps) > 0 {
@@ -89,8 +89,15 @@ func devopsSteps(text string, available map[string]struct{}) []Step {
 	if containsAny(text, " project ", " project kind ", " detect project ", " go project ", " package ") {
 		specs = append(specs, step("project-detect", "project detection", "build_DetectProject"))
 	}
-	if containsAny(text, " test ", " tests ", " failing ", " failure ") {
-		specs = append(specs, step("tests", "test execution or discovery", "test_RunTests", "test_DiscoverTests"))
+	testsRequested := containsAny(text, " test ", " tests ", " failing ", " failure ")
+	testExecutionRequested := testsRequested && containsAny(text, " run ", " execute ", " rerun ", " failing ", " failure ")
+	if testExecutionRequested {
+		specs = append(specs,
+			step("test-discovery", "test target discovery", "test_DiscoverTests"),
+			step("tests", "test execution", "test_RunTests"),
+		)
+	} else if testsRequested {
+		specs = append(specs, step("test-discovery", "test target discovery", "test_DiscoverTests", "test_RunTests"))
 	}
 	if containsAny(text, " explain ", " failure ", " failing ") {
 		specs = append(specs, step("explain-failure", "failure explanation", "test_ExplainFailure"))

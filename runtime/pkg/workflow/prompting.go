@@ -11,6 +11,7 @@ func (t *Tracker) ContinuationStatus() string {
 	fact := workflowStatusFact{Type: "runtime.workflow.status", Status: "incomplete"}
 	if !t.hasMissingSteps() {
 		fact.Status = "complete"
+		fact.ResponseMode = "user_answer_only"
 	}
 	for _, state := range t.states {
 		item := workflowStateFact{Kind: state.Kind, RunID: state.RunID}
@@ -30,9 +31,10 @@ func (t *Tracker) ContinuationStatus() string {
 }
 
 type workflowStatusFact struct {
-	Type      string              `json:"type"`
-	Status    string              `json:"status"`
-	Workflows []workflowStateFact `json:"workflows"`
+	Type         string              `json:"type"`
+	Status       string              `json:"status"`
+	ResponseMode string              `json:"response_mode,omitempty"`
+	Workflows    []workflowStateFact `json:"workflows"`
 }
 
 type workflowStateFact struct {

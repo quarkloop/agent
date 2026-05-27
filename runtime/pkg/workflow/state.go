@@ -41,12 +41,14 @@ type State struct {
 }
 
 type Event struct {
-	Type       string `json:"type"`
-	WorkflowID string `json:"workflow_id"`
-	SessionID  string `json:"session_id"`
-	Kind       Kind   `json:"kind"`
-	StepID     string `json:"step_id,omitempty"`
-	Tool       string `json:"tool,omitempty"`
+	Type       string         `json:"type"`
+	WorkflowID string         `json:"workflow_id"`
+	SessionID  string         `json:"session_id"`
+	Kind       Kind           `json:"kind"`
+	StepID     string         `json:"step_id,omitempty"`
+	Tool       string         `json:"tool,omitempty"`
+	Reason     string         `json:"reason,omitempty"`
+	Details    map[string]any `json:"details,omitempty"`
 }
 
 type Intent struct {

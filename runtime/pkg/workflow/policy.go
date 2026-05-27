@@ -2,30 +2,91 @@ package workflow
 
 import (
 	"encoding/json"
+	"net/url"
+	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/quarkloop/pkg/plugin"
 )
 
-func (t *Tracker) FinalGuard(string) (string, bool) {
+const maxCanonicalEmbeddingTextRunes = 2000
+
+func (t *Tracker) FinalGuard(content string) (string, bool) {
 	if t == nil {
 		return "", false
 	}
+	if containsInternalToolMarkup(content) {
+		for _, state := range t.states {
+			t.emit(Event{Type: "blocked_final", WorkflowID: state.ID, SessionID: state.SessionID, Kind: state.Kind, Reason: "internal_tool_markup_in_final_response"})
+		}
+		details := map[string]any{
+			"requirement": "return only a user-facing answer; do not render function calls or internal tool directives as text",
+		}
+		if !t.hasMissingSteps() {
+			details["workflow_status"] = "complete"
+			details["response_mode"] = "user_answer_only"
+			details["functions_available"] = false
+		}
+		return t.blockedStatus("internal_tool_markup_in_final_response", details), true
+	}
 	if !t.hasMissingSteps() {
+		if t.completedKnowledgeIndexResponseInvalid(content) {
+			for _, state := range t.states {
+				if state.Kind == KindKnowledgeIndex {
+					t.emit(Event{Type: "blocked_final", WorkflowID: state.ID, SessionID: state.SessionID, Kind: state.Kind, Reason: "completed_index_status_mismatch"})
+				}
+			}
+			return t.blockedStatus("completed_index_status_mismatch", map[string]any{
+				"workflow_status": "complete",
+				"response_mode":   "user_answer_only",
+				"requirement":     "state that indexing completed successfully; do not describe completed extraction, embedding, indexing, or run completion as pending work",
+			}), true
+		}
 		return "", false
 	}
 	for _, state := range t.states {
-		t.emit(Event{Type: "blocked_final", WorkflowID: state.ID, SessionID: state.SessionID, Kind: state.Kind})
+		t.emit(Event{Type: "blocked_final", WorkflowID: state.ID, SessionID: state.SessionID, Kind: state.Kind, Reason: "finalization_incomplete"})
 	}
 	return t.blockedStatus("finalization_incomplete", nil), true
 }
 
-func (t *Tracker) AcceptFinalBeforeToolCalls(content string, toolCalls []plugin.ToolCall) bool {
-	return t.acceptFinalWithCompletedStepCalls(content, toolCalls)
+func (t *Tracker) completedKnowledgeIndexResponseInvalid(content string) bool {
+	hasCompletedIndex := false
+	for _, state := range t.states {
+		if state.Kind == KindKnowledgeIndex {
+			hasCompletedIndex = true
+			break
+		}
+	}
+	if !hasCompletedIndex {
+		return false
+	}
+	lower := strings.ToLower(strings.TrimSpace(content))
+	acknowledgesCompletion := false
+	for _, marker := range []string{"indexed", "indexing complete", "indexing is complete", "indexing has completed", "indexing completed"} {
+		if strings.Contains(lower, marker) {
+			acknowledgesCompletion = true
+			break
+		}
+	}
+	for _, contradiction := range []string{
+		"ready to proceed",
+		"continue the indexing run",
+		"still need to",
+		"not indexed",
+		"indexing is incomplete",
+		"indexing incomplete",
+		"unable to complete",
+	} {
+		if strings.Contains(lower, contradiction) {
+			return true
+		}
+	}
+	return !acknowledgesCompletion
 }
 
-func (t *Tracker) AcceptFinalAfterToolCalls(content string, toolCalls []plugin.ToolCall) bool {
+func (t *Tracker) AcceptFinalBeforeToolCalls(content string, toolCalls []plugin.ToolCall) bool {
 	return t.acceptFinalWithCompletedStepCalls(content, toolCalls)
 }
 
@@ -39,6 +100,9 @@ func (t *Tracker) GuardToolCalls(content string, toolCalls []plugin.ToolCall) (s
 	if instruction, retry := t.guardInvalidKnowledgeCalls(toolCalls); retry {
 		return instruction, retry
 	}
+	if instruction, retry := t.guardInvalidKnowledgeQueryCalls(toolCalls); retry {
+		return instruction, retry
+	}
 	if instruction, retry := t.guardOutOfOrderCalls(toolCalls); retry {
 		return instruction, retry
 	}
@@ -47,13 +111,60 @@ func (t *Tracker) GuardToolCalls(content string, toolCalls []plugin.ToolCall) (s
 			return "", false
 		}
 	}
+	// Content emitted beside evidence-preparation tool calls is intermediate
+	// model narration, not a final response. Keep completion-text enforcement
+	// for administrative support calls at terminal stages.
+	if t.callsAdvanceOrSupportCurrentStep(toolCalls) &&
+		(strings.TrimSpace(content) == "" || t.callsAreKnowledgeEvidencePreparation(toolCalls)) {
+		return "", false
+	}
 	if strings.TrimSpace(content) == "" && !t.shouldBlockNonAdvancingCalls() {
 		return "", false
 	}
-	for _, state := range t.states {
-		t.emit(Event{Type: "blocked_tool_calls", WorkflowID: state.ID, SessionID: state.SessionID, Kind: state.Kind})
+	return t.blockAllToolCalls("non_advancing_tool_calls", map[string]any{"allowed_functions": t.missingToolNames()})
+}
+
+func (t *Tracker) callsAdvanceOrSupportCurrentStep(toolCalls []plugin.ToolCall) bool {
+	if t == nil || len(toolCalls) == 0 {
+		return false
 	}
-	return t.blockedStatus("non_advancing_tool_calls", map[string]any{"allowed_functions": t.missingToolNames()}), true
+	for _, call := range toolCalls {
+		if t.missingStepTool(call.Function.Name) {
+			continue
+		}
+		supported := false
+		for _, state := range t.states {
+			current, ok := currentMissingStep(state)
+			if ok && workflowSupportToolAllowed(state.Kind, current.ID, call.Function.Name) {
+				supported = true
+				break
+			}
+		}
+		if !supported {
+			return false
+		}
+	}
+	return true
+}
+
+func (t *Tracker) callsAreKnowledgeEvidencePreparation(toolCalls []plugin.ToolCall) bool {
+	if t == nil || len(toolCalls) == 0 {
+		return false
+	}
+	for _, call := range toolCalls {
+		matched := false
+		for _, state := range t.states {
+			current, ok := currentMissingStep(state)
+			if ok && state.Kind == KindKnowledgeIndex && knowledgeEvidencePreparationToolAllowed(current.ID, call.Function.Name) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return false
+		}
+	}
+	return true
 }
 
 func (t *Tracker) completedStepTool(name string) bool {
@@ -137,14 +248,14 @@ func (t *Tracker) guardCallsAfterWorkflowCompletion(content string, toolCalls []
 	if strings.TrimSpace(content) != "" {
 		for _, call := range toolCalls {
 			if t.workflowRelatedTool(call.Function.Name) && !t.completedStepTool(call.Function.Name) {
-				return t.blockedStatus("tool_call_after_completion", map[string]any{"function": call.Function.Name}), true
+				return t.blockAllToolCalls("tool_call_after_completion", map[string]any{"function": call.Function.Name})
 			}
 		}
 		return "", false
 	}
 	for _, call := range toolCalls {
 		if t.workflowRelatedTool(call.Function.Name) {
-			return t.blockedStatus("tool_call_after_completion", map[string]any{"function": call.Function.Name}), true
+			return t.blockAllToolCalls("tool_call_after_completion", map[string]any{"function": call.Function.Name})
 		}
 	}
 	return "", false
@@ -207,8 +318,33 @@ func (t *Tracker) guardInvalidKnowledgeCalls(toolCalls []plugin.ToolCall) (strin
 				if call.Function.Name != "runstate_StartRun" || startRunHasItems(call.Function.Arguments) {
 					continue
 				}
-				t.emit(Event{Type: "blocked_tool_calls", WorkflowID: state.ID, SessionID: state.SessionID, Kind: state.Kind})
-				return t.blockedStatus("missing_run_items", map[string]any{"function": call.Function.Name}), true
+				return t.blockToolCalls(state, "missing_run_items", map[string]any{"function": call.Function.Name})
+			}
+		case "embed":
+			for _, call := range toolCalls {
+				if call.Function.Name != "gateway_Embed" {
+					continue
+				}
+				if !embeddingInputsHaveSourceIdentity(call.Function.Arguments) {
+					return t.blockToolCalls(state, "missing_embedding_source_identity", map[string]any{
+						"function":       call.Function.Name,
+						"required_field": "inputs[].metadata.sourceUri",
+					})
+				}
+				if !embeddingInputsAreBoundedChunks(call.Function.Arguments) {
+					return t.blockToolCalls(state, "unbounded_embedding_content", map[string]any{
+						"function": call.Function.Name,
+						"requirement": "embed one bounded canonical text passage or one pageRef per indexed chunk; " +
+							"do not embed a whole-document contentRef or combine an entire document from pageRefs",
+						"batching": "for multiple sources use one input per source, with exactly one bounded passage or one pageRef in each input",
+					})
+				}
+				if !pdfEmbeddingInputsUsePageReferences(call.Function.Arguments) {
+					return t.blockToolCalls(state, "pdf_embedding_requires_page_reference", map[string]any{
+						"function":    call.Function.Name,
+						"requirement": "for PDF sources, embed one extracted pageRef and persist that same pageRef as textContentRef; do not copy PDF text into embedding input",
+					})
+				}
 			}
 		case "index":
 			for _, call := range toolCalls {
@@ -216,13 +352,179 @@ func (t *Tracker) guardInvalidKnowledgeCalls(toolCalls []plugin.ToolCall) (strin
 					continue
 				}
 				if missing := canonicalUpsertChunkMissingFields(call.Function.Arguments); len(missing) > 0 {
-					t.emit(Event{Type: "blocked_tool_calls", WorkflowID: state.ID, SessionID: state.SessionID, Kind: state.Kind})
-					return t.blockedStatus("incomplete_canonical_record", map[string]any{"function": call.Function.Name, "missing_fields": missing}), true
+					return t.blockToolCalls(state, "incomplete_canonical_record", map[string]any{"function": call.Function.Name, "missing_fields": missing})
 				}
 			}
 		}
+		if instruction, blocked := t.guardRepeatedOrUnprovenSourceWork(state, current.ID, toolCalls); blocked {
+			return instruction, true
+		}
 	}
 	return "", false
+}
+
+func (t *Tracker) guardInvalidKnowledgeQueryCalls(toolCalls []plugin.ToolCall) (string, bool) {
+	for _, state := range t.states {
+		if state.Kind != KindKnowledgeQuery {
+			continue
+		}
+		current, ok := currentMissingStep(state)
+		if !ok || current.ID != "embed-query" {
+			continue
+		}
+		for _, call := range toolCalls {
+			if call.Function.Name != "gateway_Embed" || queryEmbeddingUsesSingleInlineText(call.Function.Arguments) {
+				continue
+			}
+			return t.blockToolCalls(state, "query_embedding_requires_inline_text", map[string]any{
+				"function": call.Function.Name,
+				"requirement": "embed exactly one non-empty inline text retrieval query that represents the current request; " +
+					"do not use runtime content, page, image, or shorthand references, or split one question into multiple embeddings",
+			})
+		}
+	}
+	return "", false
+}
+
+func queryEmbeddingUsesSingleInlineText(arguments string) bool {
+	var raw map[string]json.RawMessage
+	if json.Unmarshal([]byte(strings.TrimSpace(arguments)), &raw) != nil {
+		return false
+	}
+	for _, key := range []string{"inputRef", "contentRef", "pageRef", "pageRefs", "imageRef"} {
+		value, exists := raw[key]
+		if exists && string(value) != "null" {
+			return false
+		}
+	}
+	var inputs []struct {
+		Content []struct {
+			Kind string `json:"kind"`
+			Text string `json:"text"`
+			Ref  string `json:"ref"`
+		} `json:"content"`
+	}
+	if json.Unmarshal(raw["inputs"], &inputs) != nil || len(inputs) != 1 || len(inputs[0].Content) != 1 {
+		return false
+	}
+	content := inputs[0].Content[0]
+	return strings.TrimSpace(content.Kind) == "CONTENT_KIND_TEXT" &&
+		strings.TrimSpace(content.Text) != "" &&
+		strings.TrimSpace(content.Ref) == ""
+}
+
+func containsInternalToolMarkup(content string) bool {
+	lower := strings.ToLower(content)
+	return strings.Contains(lower, "<longcat_tool_call>") ||
+		strings.Contains(lower, "<tool_call>") ||
+		strings.Contains(lower, "</tool_call>")
+}
+
+func embeddingInputsHaveSourceIdentity(arguments string) bool {
+	var payload struct {
+		Inputs []struct {
+			Metadata map[string]string `json:"metadata"`
+		} `json:"inputs"`
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(arguments)), &payload) != nil || len(payload.Inputs) == 0 {
+		return false
+	}
+	for _, input := range payload.Inputs {
+		if strings.TrimSpace(firstNonEmptyMetadataValue(input.Metadata, "sourceUri", "source_uri")) == "" {
+			return false
+		}
+	}
+	return true
+}
+
+func embeddingInputsAreBoundedChunks(arguments string) bool {
+	var payload struct {
+		Inputs []struct {
+			Content []struct {
+				Kind string `json:"kind"`
+				Ref  string `json:"ref"`
+				Text string `json:"text"`
+			} `json:"content"`
+		} `json:"inputs"`
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(arguments)), &payload) != nil || len(payload.Inputs) == 0 {
+		return false
+	}
+	for _, input := range payload.Inputs {
+		if len(input.Content) == 0 {
+			return false
+		}
+		textRunes := 0
+		pageRefs := 0
+		for _, content := range input.Content {
+			switch strings.TrimSpace(content.Kind) {
+			case "CONTENT_KIND_TEXT":
+				if strings.TrimSpace(content.Text) == "" {
+					return false
+				}
+				textRunes += len([]rune(content.Text))
+			case "CONTENT_KIND_PAGE_REF":
+				if strings.TrimSpace(content.Ref) == "" {
+					return false
+				}
+				pageRefs++
+			default:
+				return false
+			}
+		}
+		if textRunes > maxCanonicalEmbeddingTextRunes || pageRefs > 1 || (pageRefs > 0 && textRunes > 0) {
+			return false
+		}
+	}
+	return true
+}
+
+func pdfEmbeddingInputsUsePageReferences(arguments string) bool {
+	var payload struct {
+		Inputs []struct {
+			Content []struct {
+				Kind string `json:"kind"`
+				Ref  string `json:"ref"`
+			} `json:"content"`
+			Metadata map[string]string `json:"metadata"`
+		} `json:"inputs"`
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(arguments)), &payload) != nil || len(payload.Inputs) == 0 {
+		return false
+	}
+	for _, input := range payload.Inputs {
+		source := firstNonEmptyMetadataValue(input.Metadata, "sourceUri", "source_uri")
+		if !isPDFSourceURI(source) {
+			continue
+		}
+		if len(input.Content) != 1 ||
+			strings.TrimSpace(input.Content[0].Kind) != "CONTENT_KIND_PAGE_REF" ||
+			strings.TrimSpace(input.Content[0].Ref) == "" {
+			return false
+		}
+	}
+	return true
+}
+
+func isPDFSourceURI(source string) bool {
+	source = strings.TrimSpace(source)
+	if source == "" {
+		return false
+	}
+	path := source
+	if parsed, err := url.Parse(source); err == nil && parsed.Path != "" {
+		path = parsed.Path
+	}
+	return strings.EqualFold(filepath.Ext(path), ".pdf")
+}
+
+func firstNonEmptyMetadataValue(metadata map[string]string, keys ...string) string {
+	for _, key := range keys {
+		if value := strings.TrimSpace(metadata[key]); value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func canonicalUpsertChunkMissingFields(arguments string) []string {
@@ -249,6 +551,9 @@ func canonicalUpsertChunkMissingFields(arguments string) []string {
 	if !rawObjectField(payload, "provenance") {
 		missing = append(missing, "provenance")
 	}
+	if canonicalUpsertSourceURI(arguments) == "" {
+		missing = append(missing, "sourceUri in document, sourceMetadata, or provenance")
+	}
 	if !rawNonEmptyArrayField(payload, "facts") {
 		missing = append(missing, "non-empty facts")
 	}
@@ -262,6 +567,80 @@ func canonicalUpsertChunkMissingFields(arguments string) []string {
 		missing = append(missing, "non-empty citations")
 	}
 	return missing
+}
+
+func canonicalUpsertSourceURI(arguments string) string {
+	var payload any
+	if json.Unmarshal([]byte(arguments), &payload) != nil {
+		return ""
+	}
+	return firstStringByKeys(payload, "sourceUri", "source_uri")
+}
+
+func (t *Tracker) guardRepeatedOrUnprovenSourceWork(state State, stepID string, toolCalls []plugin.ToolCall) (string, bool) {
+	if stepID != "extract" && stepID != "embed" && stepID != "index" {
+		return "", false
+	}
+	seen := make(map[string]struct{})
+	for _, call := range toolCalls {
+		var identities []string
+		switch {
+		case stepID == "extract" && (call.Function.Name == "document_ExtractText" || call.Function.Name == "document_GetPages"):
+			identities = []string{workflowCompletionIdentity(stepID, call.Function.Name, call.Function.Arguments)}
+		case stepID == "embed" && knowledgeEvidencePreparationToolAllowed(stepID, call.Function.Name):
+			identity := evidencePreparationSourceIdentity(call.Function.Arguments)
+			if identity == "" || !t.hasObserved(state.ID, "extract", identity) {
+				return t.blockToolCalls(state, "unextracted_evidence_refinement_source", map[string]any{
+					"function":    call.Function.Name,
+					"requirement": "refine evidence only for a source already returned by successful document extraction",
+				})
+			}
+			if _, duplicate := seen[identity]; duplicate || t.hasObserved(state.ID, "embed-evidence", identity) {
+				return t.blockToolCalls(state, "duplicate_evidence_refinement", map[string]any{
+					"function": call.Function.Name, "source_identity": identity,
+					"requirement": "use the bounded evidence already returned for this source, or embed it; do not repeat page refinement",
+				})
+			}
+			seen[identity] = struct{}{}
+			continue
+		case stepID == "embed" && call.Function.Name == "gateway_Embed":
+			identities = embeddingInputIdentities(call.Function.Arguments)
+		case stepID == "index" && call.Function.Name == "indexer_UpsertChunk":
+			identities = []string{workflowCompletionIdentity(stepID, call.Function.Name, call.Function.Arguments)}
+		default:
+			continue
+		}
+		for _, identity := range identities {
+			if identity == "" {
+				continue
+			}
+			if _, duplicate := seen[identity]; duplicate || t.hasObserved(state.ID, stepID, identity) {
+				return t.blockToolCalls(state, "duplicate_source_operation", map[string]any{
+					"function": call.Function.Name, "source_identity": identity,
+					"requirement": "advance the remaining unprocessed source rather than repeating completed source work",
+				})
+			}
+			seen[identity] = struct{}{}
+			switch stepID {
+			case "embed":
+				sourceURI := strings.TrimPrefix(identity, "source:")
+				if identity == sourceURI || !t.hasObserved(state.ID, "extract", sourceURI) {
+					return t.blockToolCalls(state, "unextracted_embedding_source", map[string]any{
+						"function": call.Function.Name, "source_identity": identity,
+						"requirement": "embed only source evidence returned by successful document extraction",
+					})
+				}
+			case "index":
+				if !t.hasObserved(state.ID, "embed", identity) {
+					return t.blockToolCalls(state, "unembedded_index_source", map[string]any{
+						"function": call.Function.Name, "source_identity": identity,
+						"requirement": "persist only a source whose matching canonical chunk embedding succeeded",
+					})
+				}
+			}
+		}
+	}
+	return "", false
 }
 
 func rawStringField(payload map[string]json.RawMessage, key string) bool {
@@ -305,15 +684,14 @@ func (t *Tracker) guardOutOfOrderCalls(toolCalls []plugin.ToolCall) (string, boo
 		if stateComplete(state) {
 			continue
 		}
-		if instruction, blocked := t.orderedBatchGuardInstruction(state, toolCalls); blocked {
-			t.emit(Event{Type: "blocked_tool_calls", WorkflowID: state.ID, SessionID: state.SessionID, Kind: state.Kind})
-			return instruction, true
+		if reason, details, blocked := t.orderedBatchGuardDecision(state, toolCalls); blocked {
+			return t.blockToolCalls(state, reason, details)
 		}
 	}
 	return "", false
 }
 
-func (t *Tracker) orderedBatchGuardInstruction(state State, toolCalls []plugin.ToolCall) (string, bool) {
+func (t *Tracker) orderedBatchGuardDecision(state State, toolCalls []plugin.ToolCall) (string, map[string]any, bool) {
 	simulated := cloneState(state)
 	for _, call := range toolCalls {
 		name := strings.TrimSpace(call.Function.Name)
@@ -336,20 +714,33 @@ func (t *Tracker) orderedBatchGuardInstruction(state State, toolCalls []plugin.T
 		if workflowSupportToolAllowed(simulated.Kind, current.ID, name) {
 			continue
 		}
+		if simulated.Kind == KindKnowledgeQuery {
+			if step := completedStepSatisfiedBy(simulated, name); step.ID != "" {
+				return "duplicate_completed_step_call", map[string]any{
+					"function":       name,
+					"completed_step": step.Label,
+					"requirement":    "the completed operation already satisfies this step; advance to the current step instead of repeating it",
+				}, true
+			}
+		}
 		if step := futureMissingStepSatisfiedBy(simulated, name); step.ID != "" {
-			return t.blockedStatus("out_of_order_tool_call", map[string]any{
+			return "out_of_order_tool_call", map[string]any{
 				"function": name, "current_step": current.Label, "future_step": step.Label,
 				"allowed_functions": append([]string(nil), current.AnyOf...),
-			}), true
+			}, true
 		}
 		if simulated.Kind == KindKnowledgeIndex && (current.ID != "ingest-start" || knowledgeIndexServiceFunction(name)) {
-			return t.blockedStatus("tool_call_not_in_current_step", map[string]any{
+			details := map[string]any{
 				"function": name, "current_step": current.Label,
 				"allowed_functions": append([]string(nil), current.AnyOf...),
-			}), true
+			}
+			if current.ID == "index" {
+				details["requirement"] = "persist each prepared canonical chunk using the bounded text or page reference already embedded for its source; do not reread source content"
+			}
+			return "tool_call_not_in_current_step", details, true
 		}
 	}
-	return "", false
+	return "", nil, false
 }
 
 func currentMissingStep(state State) (Step, bool) {
@@ -378,20 +769,47 @@ func futureMissingStepSatisfiedBy(state State, tool string) Step {
 	return Step{}
 }
 
+func completedStepSatisfiedBy(state State, tool string) Step {
+	for _, step := range state.Steps {
+		if stepComplete(step) && stepSatisfiedBy(step, tool) {
+			return step
+		}
+	}
+	return Step{}
+}
+
 func workflowSupportToolAllowed(kind Kind, currentStepID, tool string) bool {
 	switch kind {
 	case KindKnowledgeIndex:
 		switch tool {
-		case "io_Read", "io_List", "io_Stat":
+		case "io_List", "io_Stat":
 			if currentStepID == "ingest-start" {
 				return true
 			}
+		}
+		if knowledgeEvidencePreparationToolAllowed(currentStepID, tool) {
+			return true
 		}
 		if strings.HasPrefix(tool, "runstate_") && tool != "runstate_StartRun" && tool != "runstate_MarkComplete" {
 			return true
 		}
 	}
 	return false
+}
+
+func knowledgeEvidencePreparationToolAllowed(currentStepID, tool string) bool {
+	switch currentStepID {
+	case "extract", "embed":
+		switch tool {
+		case "document_GetPages", "document_ExtractLayout", "document_ExtractTables", "document_ExtractImages", "document_RunOCR":
+			return true
+		}
+	}
+	return false
+}
+
+func evidencePreparationSourceIdentity(arguments string) string {
+	return workflowCompletionIdentity("extract", "document_GetPages", arguments)
 }
 
 func knowledgeIndexServiceFunction(name string) bool {
@@ -448,4 +866,46 @@ func (t *Tracker) blockedStatus(reason string, details map[string]any) string {
 		return `{"type":"runtime.workflow.validation","status":"blocked"}`
 	}
 	return string(data)
+}
+
+func (t *Tracker) blockToolCalls(state State, reason string, details map[string]any) (string, bool) {
+	t.emit(Event{
+		Type:       "blocked_tool_calls",
+		WorkflowID: state.ID,
+		SessionID:  state.SessionID,
+		Kind:       state.Kind,
+		Reason:     reason,
+		Details:    cloneEventDetails(details),
+	})
+	return t.blockedStatus(reason, details), true
+}
+
+func (t *Tracker) blockAllToolCalls(reason string, details map[string]any) (string, bool) {
+	for _, state := range t.states {
+		t.emit(Event{
+			Type:       "blocked_tool_calls",
+			WorkflowID: state.ID,
+			SessionID:  state.SessionID,
+			Kind:       state.Kind,
+			Reason:     reason,
+			Details:    cloneEventDetails(details),
+		})
+	}
+	return t.blockedStatus(reason, details), true
+}
+
+func cloneEventDetails(details map[string]any) map[string]any {
+	if len(details) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(details))
+	for key, value := range details {
+		switch typed := value.(type) {
+		case []string:
+			out[key] = append([]string(nil), typed...)
+		default:
+			out[key] = typed
+		}
+	}
+	return out
 }
