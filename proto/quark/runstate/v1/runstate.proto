@@ -45,7 +45,9 @@ message ItemInput {
   map<string, string> metadata = 6;
 }
 
-message GetRunRequest { string run_id = 1; }
+message GetRunRequest {
+  string run_id = 1;
+}
 
 message ListRunsRequest {
   string space = 1;
@@ -54,7 +56,9 @@ message ListRunsRequest {
   string kind = 4;
 }
 
-message ResumeRunRequest { string run_id = 1; }
+message ResumeRunRequest {
+  string run_id = 1;
+}
 
 message UpdateItemStateRequest {
   string run_id = 1;
@@ -116,18 +120,42 @@ message ListIncompleteItemsRequest {
   bool include_pending = 3;
 }
 
-message ListIncompleteItemsResponse { repeated ItemState items = 1; }
-message ListArtifactsResponse { repeated Artifact artifacts = 1; }
-message StartRunResponse { Run run = 1; }
-message GetRunResponse { Run run = 1; }
-message ListRunsResponse { repeated Run runs = 1; }
-message ResumeRunResponse { Run run = 1; }
-message UpdateItemStateResponse { ItemState item = 1; }
-message AppendArtifactResponse { Artifact artifact = 1; }
-message AppendReferenceResponse { Reference reference = 1; }
-message MarkFailedResponse { Run run = 1; }
-message MarkCompleteResponse { Run run = 1; }
-message CancelRunResponse { Run run = 1; }
+message ListIncompleteItemsResponse {
+  repeated ItemState items = 1;
+}
+message ListArtifactsResponse {
+  repeated Artifact artifacts = 1;
+}
+message StartRunResponse {
+  Run run = 1;
+}
+message GetRunResponse {
+  Run run = 1;
+}
+message ListRunsResponse {
+  repeated Run runs = 1;
+}
+message ResumeRunResponse {
+  Run run = 1;
+}
+message UpdateItemStateResponse {
+  ItemState item = 1;
+}
+message AppendArtifactResponse {
+  Artifact artifact = 1;
+}
+message AppendReferenceResponse {
+  Reference reference = 1;
+}
+message MarkFailedResponse {
+  Run run = 1;
+}
+message MarkCompleteResponse {
+  Run run = 1;
+}
+message CancelRunResponse {
+  Run run = 1;
+}
 
 message Run {
   string id = 1;
@@ -198,7 +226,9 @@ message AcquireLeaseRequest {
   int32 ttl_seconds = 4;
 }
 
-message AcquireLeaseResponse { Lease lease = 1; }
+message AcquireLeaseResponse {
+  Lease lease = 1;
+}
 
 message RenewLeaseRequest {
   string key = 1;
@@ -207,7 +237,9 @@ message RenewLeaseRequest {
   int32 ttl_seconds = 4;
 }
 
-message RenewLeaseResponse { Lease lease = 1; }
+message RenewLeaseResponse {
+  Lease lease = 1;
+}
 
 message ReleaseLeaseRequest {
   string key = 1;
@@ -215,7 +247,9 @@ message ReleaseLeaseRequest {
   uint64 revision = 3;
 }
 
-message ReleaseLeaseResponse { string key = 1; }
+message ReleaseLeaseResponse {
+  string key = 1;
+}
 
 message Lease {
   string key = 1;

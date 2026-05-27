@@ -91,18 +91,99 @@ func (x *PromptMaterial) GetRequired() bool {
 	return false
 }
 
+// `ContextToolCall` preserves structured agent execution history while
+// Harness packages context. It is Harness-owned context data, not a Gateway
+// transport DTO.
+type ContextToolCall struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Index         int32                  `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty"`
+	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	Name          string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	ArgumentsJson string                 `protobuf:"bytes,5,opt,name=arguments_json,json=argumentsJson,proto3" json:"arguments_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ContextToolCall) Reset() {
+	*x = ContextToolCall{}
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ContextToolCall) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ContextToolCall) ProtoMessage() {}
+
+func (x *ContextToolCall) ProtoReflect() protoreflect.Message {
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ContextToolCall.ProtoReflect.Descriptor instead.
+func (*ContextToolCall) Descriptor() ([]byte, []int) {
+	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ContextToolCall) GetIndex() int32 {
+	if x != nil {
+		return x.Index
+	}
+	return 0
+}
+
+func (x *ContextToolCall) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ContextToolCall) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *ContextToolCall) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ContextToolCall) GetArgumentsJson() string {
+	if x != nil {
+		return x.ArgumentsJson
+	}
+	return ""
+}
+
 type ContextMessage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Role          string                 `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
 	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
 	SourceId      string                 `protobuf:"bytes,3,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
+	ToolCalls     []*ContextToolCall     `protobuf:"bytes,4,rep,name=tool_calls,json=toolCalls,proto3" json:"tool_calls,omitempty"`
+	ToolCallId    string                 `protobuf:"bytes,5,opt,name=tool_call_id,json=toolCallId,proto3" json:"tool_call_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ContextMessage) Reset() {
 	*x = ContextMessage{}
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[1]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -114,7 +195,7 @@ func (x *ContextMessage) String() string {
 func (*ContextMessage) ProtoMessage() {}
 
 func (x *ContextMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[1]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -127,7 +208,7 @@ func (x *ContextMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContextMessage.ProtoReflect.Descriptor instead.
 func (*ContextMessage) Descriptor() ([]byte, []int) {
-	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{1}
+	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ContextMessage) GetRole() string {
@@ -151,6 +232,20 @@ func (x *ContextMessage) GetSourceId() string {
 	return ""
 }
 
+func (x *ContextMessage) GetToolCalls() []*ContextToolCall {
+	if x != nil {
+		return x.ToolCalls
+	}
+	return nil
+}
+
+func (x *ContextMessage) GetToolCallId() string {
+	if x != nil {
+		return x.ToolCallId
+	}
+	return ""
+}
+
 type ComposeContextRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Space           string                 `protobuf:"bytes,1,opt,name=space,proto3" json:"space,omitempty"`
@@ -166,7 +261,7 @@ type ComposeContextRequest struct {
 
 func (x *ComposeContextRequest) Reset() {
 	*x = ComposeContextRequest{}
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[2]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -178,7 +273,7 @@ func (x *ComposeContextRequest) String() string {
 func (*ComposeContextRequest) ProtoMessage() {}
 
 func (x *ComposeContextRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[2]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -191,7 +286,7 @@ func (x *ComposeContextRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ComposeContextRequest.ProtoReflect.Descriptor instead.
 func (*ComposeContextRequest) Descriptor() ([]byte, []int) {
-	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{2}
+	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ComposeContextRequest) GetSpace() string {
@@ -253,7 +348,7 @@ type ComposeContextResponse struct {
 
 func (x *ComposeContextResponse) Reset() {
 	*x = ComposeContextResponse{}
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[3]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -265,7 +360,7 @@ func (x *ComposeContextResponse) String() string {
 func (*ComposeContextResponse) ProtoMessage() {}
 
 func (x *ComposeContextResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[3]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -278,7 +373,7 @@ func (x *ComposeContextResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ComposeContextResponse.ProtoReflect.Descriptor instead.
 func (*ComposeContextResponse) Descriptor() ([]byte, []int) {
-	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{3}
+	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ComposeContextResponse) GetMessages() []*ContextMessage {
@@ -314,7 +409,7 @@ type ContextReport struct {
 
 func (x *ContextReport) Reset() {
 	*x = ContextReport{}
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[4]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -326,7 +421,7 @@ func (x *ContextReport) String() string {
 func (*ContextReport) ProtoMessage() {}
 
 func (x *ContextReport) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[4]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -339,7 +434,7 @@ func (x *ContextReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContextReport.ProtoReflect.Descriptor instead.
 func (*ContextReport) Descriptor() ([]byte, []int) {
-	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{4}
+	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ContextReport) GetId() string {
@@ -429,7 +524,7 @@ type GetContextReportRequest struct {
 
 func (x *GetContextReportRequest) Reset() {
 	*x = GetContextReportRequest{}
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[5]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -441,7 +536,7 @@ func (x *GetContextReportRequest) String() string {
 func (*GetContextReportRequest) ProtoMessage() {}
 
 func (x *GetContextReportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[5]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -454,7 +549,7 @@ func (x *GetContextReportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetContextReportRequest.ProtoReflect.Descriptor instead.
 func (*GetContextReportRequest) Descriptor() ([]byte, []int) {
-	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{5}
+	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetContextReportRequest) GetSpace() string {
@@ -482,7 +577,7 @@ type StreamContextReportsRequest struct {
 
 func (x *StreamContextReportsRequest) Reset() {
 	*x = StreamContextReportsRequest{}
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[6]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -494,7 +589,7 @@ func (x *StreamContextReportsRequest) String() string {
 func (*StreamContextReportsRequest) ProtoMessage() {}
 
 func (x *StreamContextReportsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[6]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -507,7 +602,7 @@ func (x *StreamContextReportsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamContextReportsRequest.ProtoReflect.Descriptor instead.
 func (*StreamContextReportsRequest) Descriptor() ([]byte, []int) {
-	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{6}
+	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *StreamContextReportsRequest) GetSpace() string {
@@ -545,7 +640,7 @@ type PutMemoryRequest struct {
 
 func (x *PutMemoryRequest) Reset() {
 	*x = PutMemoryRequest{}
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[7]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -557,7 +652,7 @@ func (x *PutMemoryRequest) String() string {
 func (*PutMemoryRequest) ProtoMessage() {}
 
 func (x *PutMemoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[7]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -570,7 +665,7 @@ func (x *PutMemoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PutMemoryRequest.ProtoReflect.Descriptor instead.
 func (*PutMemoryRequest) Descriptor() ([]byte, []int) {
-	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{7}
+	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *PutMemoryRequest) GetSpace() string {
@@ -631,7 +726,7 @@ type MemoryRecord struct {
 
 func (x *MemoryRecord) Reset() {
 	*x = MemoryRecord{}
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[8]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -643,7 +738,7 @@ func (x *MemoryRecord) String() string {
 func (*MemoryRecord) ProtoMessage() {}
 
 func (x *MemoryRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[8]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -656,7 +751,7 @@ func (x *MemoryRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemoryRecord.ProtoReflect.Descriptor instead.
 func (*MemoryRecord) Descriptor() ([]byte, []int) {
-	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{8}
+	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *MemoryRecord) GetId() string {
@@ -724,7 +819,7 @@ type PutMemoryResponse struct {
 
 func (x *PutMemoryResponse) Reset() {
 	*x = PutMemoryResponse{}
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[9]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -736,7 +831,7 @@ func (x *PutMemoryResponse) String() string {
 func (*PutMemoryResponse) ProtoMessage() {}
 
 func (x *PutMemoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[9]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -749,7 +844,7 @@ func (x *PutMemoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PutMemoryResponse.ProtoReflect.Descriptor instead.
 func (*PutMemoryResponse) Descriptor() ([]byte, []int) {
-	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{9}
+	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *PutMemoryResponse) GetRecord() *MemoryRecord {
@@ -770,7 +865,7 @@ type GetMemoryRequest struct {
 
 func (x *GetMemoryRequest) Reset() {
 	*x = GetMemoryRequest{}
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[10]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -782,7 +877,7 @@ func (x *GetMemoryRequest) String() string {
 func (*GetMemoryRequest) ProtoMessage() {}
 
 func (x *GetMemoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[10]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -795,7 +890,7 @@ func (x *GetMemoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMemoryRequest.ProtoReflect.Descriptor instead.
 func (*GetMemoryRequest) Descriptor() ([]byte, []int) {
-	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{10}
+	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetMemoryRequest) GetSpace() string {
@@ -828,7 +923,7 @@ type GetMemoryResponse struct {
 
 func (x *GetMemoryResponse) Reset() {
 	*x = GetMemoryResponse{}
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[11]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -840,7 +935,7 @@ func (x *GetMemoryResponse) String() string {
 func (*GetMemoryResponse) ProtoMessage() {}
 
 func (x *GetMemoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[11]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -853,7 +948,7 @@ func (x *GetMemoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMemoryResponse.ProtoReflect.Descriptor instead.
 func (*GetMemoryResponse) Descriptor() ([]byte, []int) {
-	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{11}
+	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetMemoryResponse) GetRecord() *MemoryRecord {
@@ -876,7 +971,7 @@ type SearchMemoryRequest struct {
 
 func (x *SearchMemoryRequest) Reset() {
 	*x = SearchMemoryRequest{}
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[12]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -888,7 +983,7 @@ func (x *SearchMemoryRequest) String() string {
 func (*SearchMemoryRequest) ProtoMessage() {}
 
 func (x *SearchMemoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[12]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -901,7 +996,7 @@ func (x *SearchMemoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchMemoryRequest.ProtoReflect.Descriptor instead.
 func (*SearchMemoryRequest) Descriptor() ([]byte, []int) {
-	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{12}
+	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *SearchMemoryRequest) GetSpace() string {
@@ -948,7 +1043,7 @@ type SearchMemoryResponse struct {
 
 func (x *SearchMemoryResponse) Reset() {
 	*x = SearchMemoryResponse{}
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[13]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -960,7 +1055,7 @@ func (x *SearchMemoryResponse) String() string {
 func (*SearchMemoryResponse) ProtoMessage() {}
 
 func (x *SearchMemoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[13]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -973,7 +1068,7 @@ func (x *SearchMemoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchMemoryResponse.ProtoReflect.Descriptor instead.
 func (*SearchMemoryResponse) Descriptor() ([]byte, []int) {
-	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{13}
+	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *SearchMemoryResponse) GetRecords() []*MemoryRecord {
@@ -994,7 +1089,7 @@ type DeleteMemoryRequest struct {
 
 func (x *DeleteMemoryRequest) Reset() {
 	*x = DeleteMemoryRequest{}
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[14]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1006,7 +1101,7 @@ func (x *DeleteMemoryRequest) String() string {
 func (*DeleteMemoryRequest) ProtoMessage() {}
 
 func (x *DeleteMemoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[14]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1019,7 +1114,7 @@ func (x *DeleteMemoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteMemoryRequest.ProtoReflect.Descriptor instead.
 func (*DeleteMemoryRequest) Descriptor() ([]byte, []int) {
-	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{14}
+	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *DeleteMemoryRequest) GetSpace() string {
@@ -1052,7 +1147,7 @@ type DeleteMemoryResponse struct {
 
 func (x *DeleteMemoryResponse) Reset() {
 	*x = DeleteMemoryResponse{}
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[15]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1064,7 +1159,7 @@ func (x *DeleteMemoryResponse) String() string {
 func (*DeleteMemoryResponse) ProtoMessage() {}
 
 func (x *DeleteMemoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_harness_v1_harness_proto_msgTypes[15]
+	mi := &file_quark_harness_v1_harness_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1077,7 +1172,7 @@ func (x *DeleteMemoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteMemoryResponse.ProtoReflect.Descriptor instead.
 func (*DeleteMemoryResponse) Descriptor() ([]byte, []int) {
-	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{15}
+	return file_quark_harness_v1_harness_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *DeleteMemoryResponse) GetDeleted() bool {
@@ -1097,11 +1192,21 @@ const file_quark_harness_v1_harness_proto_rawDesc = "" +
 	"\vsource_kind\x18\x02 \x01(\tR\n" +
 	"sourceKind\x12\x18\n" +
 	"\acontent\x18\x03 \x01(\tR\acontent\x12\x1a\n" +
-	"\brequired\x18\x04 \x01(\bR\brequired\"[\n" +
+	"\brequired\x18\x04 \x01(\bR\brequired\"\x86\x01\n" +
+	"\x0fContextToolCall\x12\x14\n" +
+	"\x05index\x18\x01 \x01(\x05R\x05index\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
+	"\x04type\x18\x03 \x01(\tR\x04type\x12\x12\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\x12%\n" +
+	"\x0earguments_json\x18\x05 \x01(\tR\rargumentsJson\"\xbf\x01\n" +
 	"\x0eContextMessage\x12\x12\n" +
 	"\x04role\x18\x01 \x01(\tR\x04role\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\x12\x1b\n" +
-	"\tsource_id\x18\x03 \x01(\tR\bsourceId\"\xda\x02\n" +
+	"\tsource_id\x18\x03 \x01(\tR\bsourceId\x12@\n" +
+	"\n" +
+	"tool_calls\x18\x04 \x03(\v2!.quark.harness.v1.ContextToolCallR\ttoolCalls\x12 \n" +
+	"\ftool_call_id\x18\x05 \x01(\tR\n" +
+	"toolCallId\"\xda\x02\n" +
 	"\x15ComposeContextRequest\x12\x14\n" +
 	"\x05space\x18\x01 \x01(\tR\x05space\x12\x1d\n" +
 	"\n" +
@@ -1210,59 +1315,61 @@ func file_quark_harness_v1_harness_proto_rawDescGZIP() []byte {
 	return file_quark_harness_v1_harness_proto_rawDescData
 }
 
-var file_quark_harness_v1_harness_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_quark_harness_v1_harness_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_quark_harness_v1_harness_proto_goTypes = []any{
 	(*PromptMaterial)(nil),              // 0: quark.harness.v1.PromptMaterial
-	(*ContextMessage)(nil),              // 1: quark.harness.v1.ContextMessage
-	(*ComposeContextRequest)(nil),       // 2: quark.harness.v1.ComposeContextRequest
-	(*ComposeContextResponse)(nil),      // 3: quark.harness.v1.ComposeContextResponse
-	(*ContextReport)(nil),               // 4: quark.harness.v1.ContextReport
-	(*GetContextReportRequest)(nil),     // 5: quark.harness.v1.GetContextReportRequest
-	(*StreamContextReportsRequest)(nil), // 6: quark.harness.v1.StreamContextReportsRequest
-	(*PutMemoryRequest)(nil),            // 7: quark.harness.v1.PutMemoryRequest
-	(*MemoryRecord)(nil),                // 8: quark.harness.v1.MemoryRecord
-	(*PutMemoryResponse)(nil),           // 9: quark.harness.v1.PutMemoryResponse
-	(*GetMemoryRequest)(nil),            // 10: quark.harness.v1.GetMemoryRequest
-	(*GetMemoryResponse)(nil),           // 11: quark.harness.v1.GetMemoryResponse
-	(*SearchMemoryRequest)(nil),         // 12: quark.harness.v1.SearchMemoryRequest
-	(*SearchMemoryResponse)(nil),        // 13: quark.harness.v1.SearchMemoryResponse
-	(*DeleteMemoryRequest)(nil),         // 14: quark.harness.v1.DeleteMemoryRequest
-	(*DeleteMemoryResponse)(nil),        // 15: quark.harness.v1.DeleteMemoryResponse
-	nil,                                 // 16: quark.harness.v1.PutMemoryRequest.MetadataEntry
-	nil,                                 // 17: quark.harness.v1.MemoryRecord.MetadataEntry
-	nil,                                 // 18: quark.harness.v1.SearchMemoryRequest.FiltersEntry
+	(*ContextToolCall)(nil),             // 1: quark.harness.v1.ContextToolCall
+	(*ContextMessage)(nil),              // 2: quark.harness.v1.ContextMessage
+	(*ComposeContextRequest)(nil),       // 3: quark.harness.v1.ComposeContextRequest
+	(*ComposeContextResponse)(nil),      // 4: quark.harness.v1.ComposeContextResponse
+	(*ContextReport)(nil),               // 5: quark.harness.v1.ContextReport
+	(*GetContextReportRequest)(nil),     // 6: quark.harness.v1.GetContextReportRequest
+	(*StreamContextReportsRequest)(nil), // 7: quark.harness.v1.StreamContextReportsRequest
+	(*PutMemoryRequest)(nil),            // 8: quark.harness.v1.PutMemoryRequest
+	(*MemoryRecord)(nil),                // 9: quark.harness.v1.MemoryRecord
+	(*PutMemoryResponse)(nil),           // 10: quark.harness.v1.PutMemoryResponse
+	(*GetMemoryRequest)(nil),            // 11: quark.harness.v1.GetMemoryRequest
+	(*GetMemoryResponse)(nil),           // 12: quark.harness.v1.GetMemoryResponse
+	(*SearchMemoryRequest)(nil),         // 13: quark.harness.v1.SearchMemoryRequest
+	(*SearchMemoryResponse)(nil),        // 14: quark.harness.v1.SearchMemoryResponse
+	(*DeleteMemoryRequest)(nil),         // 15: quark.harness.v1.DeleteMemoryRequest
+	(*DeleteMemoryResponse)(nil),        // 16: quark.harness.v1.DeleteMemoryResponse
+	nil,                                 // 17: quark.harness.v1.PutMemoryRequest.MetadataEntry
+	nil,                                 // 18: quark.harness.v1.MemoryRecord.MetadataEntry
+	nil,                                 // 19: quark.harness.v1.SearchMemoryRequest.FiltersEntry
 }
 var file_quark_harness_v1_harness_proto_depIdxs = []int32{
-	0,  // 0: quark.harness.v1.ComposeContextRequest.system_materials:type_name -> quark.harness.v1.PromptMaterial
-	0,  // 1: quark.harness.v1.ComposeContextRequest.runtime_facts:type_name -> quark.harness.v1.PromptMaterial
-	1,  // 2: quark.harness.v1.ComposeContextRequest.history:type_name -> quark.harness.v1.ContextMessage
-	1,  // 3: quark.harness.v1.ComposeContextResponse.messages:type_name -> quark.harness.v1.ContextMessage
-	4,  // 4: quark.harness.v1.ComposeContextResponse.report:type_name -> quark.harness.v1.ContextReport
-	16, // 5: quark.harness.v1.PutMemoryRequest.metadata:type_name -> quark.harness.v1.PutMemoryRequest.MetadataEntry
-	17, // 6: quark.harness.v1.MemoryRecord.metadata:type_name -> quark.harness.v1.MemoryRecord.MetadataEntry
-	8,  // 7: quark.harness.v1.PutMemoryResponse.record:type_name -> quark.harness.v1.MemoryRecord
-	8,  // 8: quark.harness.v1.GetMemoryResponse.record:type_name -> quark.harness.v1.MemoryRecord
-	18, // 9: quark.harness.v1.SearchMemoryRequest.filters:type_name -> quark.harness.v1.SearchMemoryRequest.FiltersEntry
-	8,  // 10: quark.harness.v1.SearchMemoryResponse.records:type_name -> quark.harness.v1.MemoryRecord
-	2,  // 11: quark.harness.v1.HarnessService.ComposeContext:input_type -> quark.harness.v1.ComposeContextRequest
-	5,  // 12: quark.harness.v1.HarnessService.GetContextReport:input_type -> quark.harness.v1.GetContextReportRequest
-	6,  // 13: quark.harness.v1.HarnessService.StreamContextReports:input_type -> quark.harness.v1.StreamContextReportsRequest
-	7,  // 14: quark.harness.v1.HarnessService.PutMemory:input_type -> quark.harness.v1.PutMemoryRequest
-	10, // 15: quark.harness.v1.HarnessService.GetMemory:input_type -> quark.harness.v1.GetMemoryRequest
-	12, // 16: quark.harness.v1.HarnessService.SearchMemory:input_type -> quark.harness.v1.SearchMemoryRequest
-	14, // 17: quark.harness.v1.HarnessService.DeleteMemory:input_type -> quark.harness.v1.DeleteMemoryRequest
-	3,  // 18: quark.harness.v1.HarnessService.ComposeContext:output_type -> quark.harness.v1.ComposeContextResponse
-	4,  // 19: quark.harness.v1.HarnessService.GetContextReport:output_type -> quark.harness.v1.ContextReport
-	4,  // 20: quark.harness.v1.HarnessService.StreamContextReports:output_type -> quark.harness.v1.ContextReport
-	9,  // 21: quark.harness.v1.HarnessService.PutMemory:output_type -> quark.harness.v1.PutMemoryResponse
-	11, // 22: quark.harness.v1.HarnessService.GetMemory:output_type -> quark.harness.v1.GetMemoryResponse
-	13, // 23: quark.harness.v1.HarnessService.SearchMemory:output_type -> quark.harness.v1.SearchMemoryResponse
-	15, // 24: quark.harness.v1.HarnessService.DeleteMemory:output_type -> quark.harness.v1.DeleteMemoryResponse
-	18, // [18:25] is the sub-list for method output_type
-	11, // [11:18] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	1,  // 0: quark.harness.v1.ContextMessage.tool_calls:type_name -> quark.harness.v1.ContextToolCall
+	0,  // 1: quark.harness.v1.ComposeContextRequest.system_materials:type_name -> quark.harness.v1.PromptMaterial
+	0,  // 2: quark.harness.v1.ComposeContextRequest.runtime_facts:type_name -> quark.harness.v1.PromptMaterial
+	2,  // 3: quark.harness.v1.ComposeContextRequest.history:type_name -> quark.harness.v1.ContextMessage
+	2,  // 4: quark.harness.v1.ComposeContextResponse.messages:type_name -> quark.harness.v1.ContextMessage
+	5,  // 5: quark.harness.v1.ComposeContextResponse.report:type_name -> quark.harness.v1.ContextReport
+	17, // 6: quark.harness.v1.PutMemoryRequest.metadata:type_name -> quark.harness.v1.PutMemoryRequest.MetadataEntry
+	18, // 7: quark.harness.v1.MemoryRecord.metadata:type_name -> quark.harness.v1.MemoryRecord.MetadataEntry
+	9,  // 8: quark.harness.v1.PutMemoryResponse.record:type_name -> quark.harness.v1.MemoryRecord
+	9,  // 9: quark.harness.v1.GetMemoryResponse.record:type_name -> quark.harness.v1.MemoryRecord
+	19, // 10: quark.harness.v1.SearchMemoryRequest.filters:type_name -> quark.harness.v1.SearchMemoryRequest.FiltersEntry
+	9,  // 11: quark.harness.v1.SearchMemoryResponse.records:type_name -> quark.harness.v1.MemoryRecord
+	3,  // 12: quark.harness.v1.HarnessService.ComposeContext:input_type -> quark.harness.v1.ComposeContextRequest
+	6,  // 13: quark.harness.v1.HarnessService.GetContextReport:input_type -> quark.harness.v1.GetContextReportRequest
+	7,  // 14: quark.harness.v1.HarnessService.StreamContextReports:input_type -> quark.harness.v1.StreamContextReportsRequest
+	8,  // 15: quark.harness.v1.HarnessService.PutMemory:input_type -> quark.harness.v1.PutMemoryRequest
+	11, // 16: quark.harness.v1.HarnessService.GetMemory:input_type -> quark.harness.v1.GetMemoryRequest
+	13, // 17: quark.harness.v1.HarnessService.SearchMemory:input_type -> quark.harness.v1.SearchMemoryRequest
+	15, // 18: quark.harness.v1.HarnessService.DeleteMemory:input_type -> quark.harness.v1.DeleteMemoryRequest
+	4,  // 19: quark.harness.v1.HarnessService.ComposeContext:output_type -> quark.harness.v1.ComposeContextResponse
+	5,  // 20: quark.harness.v1.HarnessService.GetContextReport:output_type -> quark.harness.v1.ContextReport
+	5,  // 21: quark.harness.v1.HarnessService.StreamContextReports:output_type -> quark.harness.v1.ContextReport
+	10, // 22: quark.harness.v1.HarnessService.PutMemory:output_type -> quark.harness.v1.PutMemoryResponse
+	12, // 23: quark.harness.v1.HarnessService.GetMemory:output_type -> quark.harness.v1.GetMemoryResponse
+	14, // 24: quark.harness.v1.HarnessService.SearchMemory:output_type -> quark.harness.v1.SearchMemoryResponse
+	16, // 25: quark.harness.v1.HarnessService.DeleteMemory:output_type -> quark.harness.v1.DeleteMemoryResponse
+	19, // [19:26] is the sub-list for method output_type
+	12, // [12:19] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_quark_harness_v1_harness_proto_init() }
@@ -1276,7 +1383,7 @@ func file_quark_harness_v1_harness_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_quark_harness_v1_harness_proto_rawDesc), len(file_quark_harness_v1_harness_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   19,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

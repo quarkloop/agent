@@ -22,7 +22,6 @@ service DocumentService {
 
 message DocumentInput {
   string source_uri = 1;
-  string content_ref = 2;
   bytes content = 3;
   string filename = 4;
   string mime_type = 5;

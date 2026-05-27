@@ -1053,134 +1053,6 @@ func (x *MediaReference) GetMetadata() map[string]string {
 	return nil
 }
 
-type ExtractPdfRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
-	MaxChars      int32                  `protobuf:"varint,2,opt,name=max_chars,json=maxChars,proto3" json:"max_chars,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ExtractPdfRequest) Reset() {
-	*x = ExtractPdfRequest{}
-	mi := &file_quark_io_v1_io_proto_msgTypes[18]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ExtractPdfRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ExtractPdfRequest) ProtoMessage() {}
-
-func (x *ExtractPdfRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_io_v1_io_proto_msgTypes[18]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ExtractPdfRequest.ProtoReflect.Descriptor instead.
-func (*ExtractPdfRequest) Descriptor() ([]byte, []int) {
-	return file_quark_io_v1_io_proto_rawDescGZIP(), []int{18}
-}
-
-func (x *ExtractPdfRequest) GetPath() string {
-	if x != nil {
-		return x.Path
-	}
-	return ""
-}
-
-func (x *ExtractPdfRequest) GetMaxChars() int32 {
-	if x != nil {
-		return x.MaxChars
-	}
-	return 0
-}
-
-type ExtractPdfResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Content       string                 `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
-	Chars         int32                  `protobuf:"varint,2,opt,name=chars,proto3" json:"chars,omitempty"`
-	OriginalChars int32                  `protobuf:"varint,3,opt,name=original_chars,json=originalChars,proto3" json:"original_chars,omitempty"`
-	Truncated     bool                   `protobuf:"varint,4,opt,name=truncated,proto3" json:"truncated,omitempty"`
-	Source        *MediaReference        `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ExtractPdfResponse) Reset() {
-	*x = ExtractPdfResponse{}
-	mi := &file_quark_io_v1_io_proto_msgTypes[19]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ExtractPdfResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ExtractPdfResponse) ProtoMessage() {}
-
-func (x *ExtractPdfResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_io_v1_io_proto_msgTypes[19]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ExtractPdfResponse.ProtoReflect.Descriptor instead.
-func (*ExtractPdfResponse) Descriptor() ([]byte, []int) {
-	return file_quark_io_v1_io_proto_rawDescGZIP(), []int{19}
-}
-
-func (x *ExtractPdfResponse) GetContent() string {
-	if x != nil {
-		return x.Content
-	}
-	return ""
-}
-
-func (x *ExtractPdfResponse) GetChars() int32 {
-	if x != nil {
-		return x.Chars
-	}
-	return 0
-}
-
-func (x *ExtractPdfResponse) GetOriginalChars() int32 {
-	if x != nil {
-		return x.OriginalChars
-	}
-	return 0
-}
-
-func (x *ExtractPdfResponse) GetTruncated() bool {
-	if x != nil {
-		return x.Truncated
-	}
-	return false
-}
-
-func (x *ExtractPdfResponse) GetSource() *MediaReference {
-	if x != nil {
-		return x.Source
-	}
-	return nil
-}
-
 type ExecuteRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Command       string                 `protobuf:"bytes,1,opt,name=command,proto3" json:"command,omitempty"`
@@ -1191,7 +1063,7 @@ type ExecuteRequest struct {
 
 func (x *ExecuteRequest) Reset() {
 	*x = ExecuteRequest{}
-	mi := &file_quark_io_v1_io_proto_msgTypes[20]
+	mi := &file_quark_io_v1_io_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1203,7 +1075,7 @@ func (x *ExecuteRequest) String() string {
 func (*ExecuteRequest) ProtoMessage() {}
 
 func (x *ExecuteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_io_v1_io_proto_msgTypes[20]
+	mi := &file_quark_io_v1_io_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1216,7 +1088,7 @@ func (x *ExecuteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteRequest.ProtoReflect.Descriptor instead.
 func (*ExecuteRequest) Descriptor() ([]byte, []int) {
-	return file_quark_io_v1_io_proto_rawDescGZIP(), []int{20}
+	return file_quark_io_v1_io_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ExecuteRequest) GetCommand() string {
@@ -1243,7 +1115,7 @@ type ExecuteResponse struct {
 
 func (x *ExecuteResponse) Reset() {
 	*x = ExecuteResponse{}
-	mi := &file_quark_io_v1_io_proto_msgTypes[21]
+	mi := &file_quark_io_v1_io_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1255,7 +1127,7 @@ func (x *ExecuteResponse) String() string {
 func (*ExecuteResponse) ProtoMessage() {}
 
 func (x *ExecuteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_io_v1_io_proto_msgTypes[21]
+	mi := &file_quark_io_v1_io_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1268,7 +1140,7 @@ func (x *ExecuteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteResponse.ProtoReflect.Descriptor instead.
 func (*ExecuteResponse) Descriptor() ([]byte, []int) {
-	return file_quark_io_v1_io_proto_rawDescGZIP(), []int{21}
+	return file_quark_io_v1_io_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ExecuteResponse) GetOutput() string {
@@ -1295,7 +1167,7 @@ type SearchWebRequest struct {
 
 func (x *SearchWebRequest) Reset() {
 	*x = SearchWebRequest{}
-	mi := &file_quark_io_v1_io_proto_msgTypes[22]
+	mi := &file_quark_io_v1_io_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1307,7 +1179,7 @@ func (x *SearchWebRequest) String() string {
 func (*SearchWebRequest) ProtoMessage() {}
 
 func (x *SearchWebRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_io_v1_io_proto_msgTypes[22]
+	mi := &file_quark_io_v1_io_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1320,7 +1192,7 @@ func (x *SearchWebRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchWebRequest.ProtoReflect.Descriptor instead.
 func (*SearchWebRequest) Descriptor() ([]byte, []int) {
-	return file_quark_io_v1_io_proto_rawDescGZIP(), []int{22}
+	return file_quark_io_v1_io_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *SearchWebRequest) GetQuery() string {
@@ -1348,7 +1220,7 @@ type WebResult struct {
 
 func (x *WebResult) Reset() {
 	*x = WebResult{}
-	mi := &file_quark_io_v1_io_proto_msgTypes[23]
+	mi := &file_quark_io_v1_io_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1360,7 +1232,7 @@ func (x *WebResult) String() string {
 func (*WebResult) ProtoMessage() {}
 
 func (x *WebResult) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_io_v1_io_proto_msgTypes[23]
+	mi := &file_quark_io_v1_io_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1373,7 +1245,7 @@ func (x *WebResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WebResult.ProtoReflect.Descriptor instead.
 func (*WebResult) Descriptor() ([]byte, []int) {
-	return file_quark_io_v1_io_proto_rawDescGZIP(), []int{23}
+	return file_quark_io_v1_io_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *WebResult) GetTitle() string {
@@ -1408,7 +1280,7 @@ type SearchWebResponse struct {
 
 func (x *SearchWebResponse) Reset() {
 	*x = SearchWebResponse{}
-	mi := &file_quark_io_v1_io_proto_msgTypes[24]
+	mi := &file_quark_io_v1_io_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1420,7 +1292,7 @@ func (x *SearchWebResponse) String() string {
 func (*SearchWebResponse) ProtoMessage() {}
 
 func (x *SearchWebResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_io_v1_io_proto_msgTypes[24]
+	mi := &file_quark_io_v1_io_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1433,7 +1305,7 @@ func (x *SearchWebResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchWebResponse.ProtoReflect.Descriptor instead.
 func (*SearchWebResponse) Descriptor() ([]byte, []int) {
-	return file_quark_io_v1_io_proto_rawDescGZIP(), []int{24}
+	return file_quark_io_v1_io_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *SearchWebResponse) GetQuery() string {
@@ -1470,7 +1342,7 @@ type FetchRequest struct {
 
 func (x *FetchRequest) Reset() {
 	*x = FetchRequest{}
-	mi := &file_quark_io_v1_io_proto_msgTypes[25]
+	mi := &file_quark_io_v1_io_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1482,7 +1354,7 @@ func (x *FetchRequest) String() string {
 func (*FetchRequest) ProtoMessage() {}
 
 func (x *FetchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_io_v1_io_proto_msgTypes[25]
+	mi := &file_quark_io_v1_io_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1495,7 +1367,7 @@ func (x *FetchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FetchRequest.ProtoReflect.Descriptor instead.
 func (*FetchRequest) Descriptor() ([]byte, []int) {
-	return file_quark_io_v1_io_proto_rawDescGZIP(), []int{25}
+	return file_quark_io_v1_io_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *FetchRequest) GetUrl() string {
@@ -1548,7 +1420,7 @@ type FetchResponse struct {
 
 func (x *FetchResponse) Reset() {
 	*x = FetchResponse{}
-	mi := &file_quark_io_v1_io_proto_msgTypes[26]
+	mi := &file_quark_io_v1_io_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1560,7 +1432,7 @@ func (x *FetchResponse) String() string {
 func (*FetchResponse) ProtoMessage() {}
 
 func (x *FetchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_quark_io_v1_io_proto_msgTypes[26]
+	mi := &file_quark_io_v1_io_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1573,7 +1445,7 @@ func (x *FetchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FetchResponse.ProtoReflect.Descriptor instead.
 func (*FetchResponse) Descriptor() ([]byte, []int) {
-	return file_quark_io_v1_io_proto_rawDescGZIP(), []int{26}
+	return file_quark_io_v1_io_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *FetchResponse) GetUrl() string {
@@ -1702,16 +1574,7 @@ const file_quark_io_v1_io_proto_rawDesc = "" +
 	"\bmetadata\x18\x06 \x03(\v2).quark.io.v1.MediaReference.MetadataEntryR\bmetadata\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"D\n" +
-	"\x11ExtractPdfRequest\x12\x12\n" +
-	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1b\n" +
-	"\tmax_chars\x18\x02 \x01(\x05R\bmaxChars\"\xbe\x01\n" +
-	"\x12ExtractPdfResponse\x12\x18\n" +
-	"\acontent\x18\x01 \x01(\tR\acontent\x12\x14\n" +
-	"\x05chars\x18\x02 \x01(\x05R\x05chars\x12%\n" +
-	"\x0eoriginal_chars\x18\x03 \x01(\x05R\roriginalChars\x12\x1c\n" +
-	"\ttruncated\x18\x04 \x01(\bR\ttruncated\x123\n" +
-	"\x06source\x18\x05 \x01(\v2\x1b.quark.io.v1.MediaReferenceR\x06source\"F\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"F\n" +
 	"\x0eExecuteRequest\x12\x18\n" +
 	"\acommand\x18\x01 \x01(\tR\acommand\x12\x1a\n" +
 	"\bapproved\x18\x02 \x01(\bR\bapproved\"F\n" +
@@ -1745,7 +1608,7 @@ const file_quark_io_v1_io_proto_rawDesc = "" +
 	"\ttruncated\x18\x05 \x01(\bR\ttruncated\x12\x1d\n" +
 	"\n" +
 	"body_bytes\x18\x06 \x01(\x05R\tbodyBytes\x12\x14\n" +
-	"\x05error\x18\a \x01(\tR\x05error2\xbb\x06\n" +
+	"\x05error\x18\a \x01(\tR\x05error2\xec\x05\n" +
 	"\tIOService\x12;\n" +
 	"\x04Read\x12\x18.quark.io.v1.ReadRequest\x1a\x19.quark.io.v1.ReadResponse\x12;\n" +
 	"\x04List\x12\x18.quark.io.v1.ListRequest\x1a\x19.quark.io.v1.ListResponse\x12;\n" +
@@ -1754,9 +1617,7 @@ const file_quark_io_v1_io_proto_rawDesc = "" +
 	"\x06Append\x12\x1a.quark.io.v1.AppendRequest\x1a\x1b.quark.io.v1.AppendResponse\x12D\n" +
 	"\aReplace\x12\x1b.quark.io.v1.ReplaceRequest\x1a\x1c.quark.io.v1.ReplaceResponse\x12A\n" +
 	"\x06Remove\x12\x1a.quark.io.v1.RemoveRequest\x1a\x1b.quark.io.v1.RemoveResponse\x12J\n" +
-	"\tReadMedia\x12\x1d.quark.io.v1.ReadMediaRequest\x1a\x1e.quark.io.v1.ReadMediaResponse\x12M\n" +
-	"\n" +
-	"ExtractPdf\x12\x1e.quark.io.v1.ExtractPdfRequest\x1a\x1f.quark.io.v1.ExtractPdfResponse\x12D\n" +
+	"\tReadMedia\x12\x1d.quark.io.v1.ReadMediaRequest\x1a\x1e.quark.io.v1.ReadMediaResponse\x12D\n" +
 	"\aExecute\x12\x1b.quark.io.v1.ExecuteRequest\x1a\x1c.quark.io.v1.ExecuteResponse\x12J\n" +
 	"\tSearchWeb\x12\x1d.quark.io.v1.SearchWebRequest\x1a\x1e.quark.io.v1.SearchWebResponse\x12>\n" +
 	"\x05Fetch\x12\x19.quark.io.v1.FetchRequest\x1a\x1a.quark.io.v1.FetchResponseB:Z8github.com/quarkloop/pkg/serviceapi/gen/quark/io/v1;iov1b\x06proto3"
@@ -1773,73 +1634,68 @@ func file_quark_io_v1_io_proto_rawDescGZIP() []byte {
 	return file_quark_io_v1_io_proto_rawDescData
 }
 
-var file_quark_io_v1_io_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_quark_io_v1_io_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_quark_io_v1_io_proto_goTypes = []any{
-	(*FileEntry)(nil),          // 0: quark.io.v1.FileEntry
-	(*ReadRequest)(nil),        // 1: quark.io.v1.ReadRequest
-	(*ReadResponse)(nil),       // 2: quark.io.v1.ReadResponse
-	(*ListRequest)(nil),        // 3: quark.io.v1.ListRequest
-	(*ListResponse)(nil),       // 4: quark.io.v1.ListResponse
-	(*StatRequest)(nil),        // 5: quark.io.v1.StatRequest
-	(*StatResponse)(nil),       // 6: quark.io.v1.StatResponse
-	(*WriteRequest)(nil),       // 7: quark.io.v1.WriteRequest
-	(*WriteResponse)(nil),      // 8: quark.io.v1.WriteResponse
-	(*AppendRequest)(nil),      // 9: quark.io.v1.AppendRequest
-	(*AppendResponse)(nil),     // 10: quark.io.v1.AppendResponse
-	(*ReplaceRequest)(nil),     // 11: quark.io.v1.ReplaceRequest
-	(*ReplaceResponse)(nil),    // 12: quark.io.v1.ReplaceResponse
-	(*RemoveRequest)(nil),      // 13: quark.io.v1.RemoveRequest
-	(*RemoveResponse)(nil),     // 14: quark.io.v1.RemoveResponse
-	(*ReadMediaRequest)(nil),   // 15: quark.io.v1.ReadMediaRequest
-	(*ReadMediaResponse)(nil),  // 16: quark.io.v1.ReadMediaResponse
-	(*MediaReference)(nil),     // 17: quark.io.v1.MediaReference
-	(*ExtractPdfRequest)(nil),  // 18: quark.io.v1.ExtractPdfRequest
-	(*ExtractPdfResponse)(nil), // 19: quark.io.v1.ExtractPdfResponse
-	(*ExecuteRequest)(nil),     // 20: quark.io.v1.ExecuteRequest
-	(*ExecuteResponse)(nil),    // 21: quark.io.v1.ExecuteResponse
-	(*SearchWebRequest)(nil),   // 22: quark.io.v1.SearchWebRequest
-	(*WebResult)(nil),          // 23: quark.io.v1.WebResult
-	(*SearchWebResponse)(nil),  // 24: quark.io.v1.SearchWebResponse
-	(*FetchRequest)(nil),       // 25: quark.io.v1.FetchRequest
-	(*FetchResponse)(nil),      // 26: quark.io.v1.FetchResponse
-	nil,                        // 27: quark.io.v1.MediaReference.MetadataEntry
+	(*FileEntry)(nil),         // 0: quark.io.v1.FileEntry
+	(*ReadRequest)(nil),       // 1: quark.io.v1.ReadRequest
+	(*ReadResponse)(nil),      // 2: quark.io.v1.ReadResponse
+	(*ListRequest)(nil),       // 3: quark.io.v1.ListRequest
+	(*ListResponse)(nil),      // 4: quark.io.v1.ListResponse
+	(*StatRequest)(nil),       // 5: quark.io.v1.StatRequest
+	(*StatResponse)(nil),      // 6: quark.io.v1.StatResponse
+	(*WriteRequest)(nil),      // 7: quark.io.v1.WriteRequest
+	(*WriteResponse)(nil),     // 8: quark.io.v1.WriteResponse
+	(*AppendRequest)(nil),     // 9: quark.io.v1.AppendRequest
+	(*AppendResponse)(nil),    // 10: quark.io.v1.AppendResponse
+	(*ReplaceRequest)(nil),    // 11: quark.io.v1.ReplaceRequest
+	(*ReplaceResponse)(nil),   // 12: quark.io.v1.ReplaceResponse
+	(*RemoveRequest)(nil),     // 13: quark.io.v1.RemoveRequest
+	(*RemoveResponse)(nil),    // 14: quark.io.v1.RemoveResponse
+	(*ReadMediaRequest)(nil),  // 15: quark.io.v1.ReadMediaRequest
+	(*ReadMediaResponse)(nil), // 16: quark.io.v1.ReadMediaResponse
+	(*MediaReference)(nil),    // 17: quark.io.v1.MediaReference
+	(*ExecuteRequest)(nil),    // 18: quark.io.v1.ExecuteRequest
+	(*ExecuteResponse)(nil),   // 19: quark.io.v1.ExecuteResponse
+	(*SearchWebRequest)(nil),  // 20: quark.io.v1.SearchWebRequest
+	(*WebResult)(nil),         // 21: quark.io.v1.WebResult
+	(*SearchWebResponse)(nil), // 22: quark.io.v1.SearchWebResponse
+	(*FetchRequest)(nil),      // 23: quark.io.v1.FetchRequest
+	(*FetchResponse)(nil),     // 24: quark.io.v1.FetchResponse
+	nil,                       // 25: quark.io.v1.MediaReference.MetadataEntry
 }
 var file_quark_io_v1_io_proto_depIdxs = []int32{
 	0,  // 0: quark.io.v1.ListResponse.files:type_name -> quark.io.v1.FileEntry
 	0,  // 1: quark.io.v1.StatResponse.entry:type_name -> quark.io.v1.FileEntry
 	17, // 2: quark.io.v1.ReadMediaResponse.source:type_name -> quark.io.v1.MediaReference
-	27, // 3: quark.io.v1.MediaReference.metadata:type_name -> quark.io.v1.MediaReference.MetadataEntry
-	17, // 4: quark.io.v1.ExtractPdfResponse.source:type_name -> quark.io.v1.MediaReference
-	23, // 5: quark.io.v1.SearchWebResponse.results:type_name -> quark.io.v1.WebResult
-	1,  // 6: quark.io.v1.IOService.Read:input_type -> quark.io.v1.ReadRequest
-	3,  // 7: quark.io.v1.IOService.List:input_type -> quark.io.v1.ListRequest
-	5,  // 8: quark.io.v1.IOService.Stat:input_type -> quark.io.v1.StatRequest
-	7,  // 9: quark.io.v1.IOService.Write:input_type -> quark.io.v1.WriteRequest
-	9,  // 10: quark.io.v1.IOService.Append:input_type -> quark.io.v1.AppendRequest
-	11, // 11: quark.io.v1.IOService.Replace:input_type -> quark.io.v1.ReplaceRequest
-	13, // 12: quark.io.v1.IOService.Remove:input_type -> quark.io.v1.RemoveRequest
-	15, // 13: quark.io.v1.IOService.ReadMedia:input_type -> quark.io.v1.ReadMediaRequest
-	18, // 14: quark.io.v1.IOService.ExtractPdf:input_type -> quark.io.v1.ExtractPdfRequest
-	20, // 15: quark.io.v1.IOService.Execute:input_type -> quark.io.v1.ExecuteRequest
-	22, // 16: quark.io.v1.IOService.SearchWeb:input_type -> quark.io.v1.SearchWebRequest
-	25, // 17: quark.io.v1.IOService.Fetch:input_type -> quark.io.v1.FetchRequest
-	2,  // 18: quark.io.v1.IOService.Read:output_type -> quark.io.v1.ReadResponse
-	4,  // 19: quark.io.v1.IOService.List:output_type -> quark.io.v1.ListResponse
-	6,  // 20: quark.io.v1.IOService.Stat:output_type -> quark.io.v1.StatResponse
-	8,  // 21: quark.io.v1.IOService.Write:output_type -> quark.io.v1.WriteResponse
-	10, // 22: quark.io.v1.IOService.Append:output_type -> quark.io.v1.AppendResponse
-	12, // 23: quark.io.v1.IOService.Replace:output_type -> quark.io.v1.ReplaceResponse
-	14, // 24: quark.io.v1.IOService.Remove:output_type -> quark.io.v1.RemoveResponse
-	16, // 25: quark.io.v1.IOService.ReadMedia:output_type -> quark.io.v1.ReadMediaResponse
-	19, // 26: quark.io.v1.IOService.ExtractPdf:output_type -> quark.io.v1.ExtractPdfResponse
-	21, // 27: quark.io.v1.IOService.Execute:output_type -> quark.io.v1.ExecuteResponse
-	24, // 28: quark.io.v1.IOService.SearchWeb:output_type -> quark.io.v1.SearchWebResponse
-	26, // 29: quark.io.v1.IOService.Fetch:output_type -> quark.io.v1.FetchResponse
-	18, // [18:30] is the sub-list for method output_type
-	6,  // [6:18] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	25, // 3: quark.io.v1.MediaReference.metadata:type_name -> quark.io.v1.MediaReference.MetadataEntry
+	21, // 4: quark.io.v1.SearchWebResponse.results:type_name -> quark.io.v1.WebResult
+	1,  // 5: quark.io.v1.IOService.Read:input_type -> quark.io.v1.ReadRequest
+	3,  // 6: quark.io.v1.IOService.List:input_type -> quark.io.v1.ListRequest
+	5,  // 7: quark.io.v1.IOService.Stat:input_type -> quark.io.v1.StatRequest
+	7,  // 8: quark.io.v1.IOService.Write:input_type -> quark.io.v1.WriteRequest
+	9,  // 9: quark.io.v1.IOService.Append:input_type -> quark.io.v1.AppendRequest
+	11, // 10: quark.io.v1.IOService.Replace:input_type -> quark.io.v1.ReplaceRequest
+	13, // 11: quark.io.v1.IOService.Remove:input_type -> quark.io.v1.RemoveRequest
+	15, // 12: quark.io.v1.IOService.ReadMedia:input_type -> quark.io.v1.ReadMediaRequest
+	18, // 13: quark.io.v1.IOService.Execute:input_type -> quark.io.v1.ExecuteRequest
+	20, // 14: quark.io.v1.IOService.SearchWeb:input_type -> quark.io.v1.SearchWebRequest
+	23, // 15: quark.io.v1.IOService.Fetch:input_type -> quark.io.v1.FetchRequest
+	2,  // 16: quark.io.v1.IOService.Read:output_type -> quark.io.v1.ReadResponse
+	4,  // 17: quark.io.v1.IOService.List:output_type -> quark.io.v1.ListResponse
+	6,  // 18: quark.io.v1.IOService.Stat:output_type -> quark.io.v1.StatResponse
+	8,  // 19: quark.io.v1.IOService.Write:output_type -> quark.io.v1.WriteResponse
+	10, // 20: quark.io.v1.IOService.Append:output_type -> quark.io.v1.AppendResponse
+	12, // 21: quark.io.v1.IOService.Replace:output_type -> quark.io.v1.ReplaceResponse
+	14, // 22: quark.io.v1.IOService.Remove:output_type -> quark.io.v1.RemoveResponse
+	16, // 23: quark.io.v1.IOService.ReadMedia:output_type -> quark.io.v1.ReadMediaResponse
+	19, // 24: quark.io.v1.IOService.Execute:output_type -> quark.io.v1.ExecuteResponse
+	22, // 25: quark.io.v1.IOService.SearchWeb:output_type -> quark.io.v1.SearchWebResponse
+	24, // 26: quark.io.v1.IOService.Fetch:output_type -> quark.io.v1.FetchResponse
+	16, // [16:27] is the sub-list for method output_type
+	5,  // [5:16] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_quark_io_v1_io_proto_init() }
@@ -1853,7 +1709,7 @@ func file_quark_io_v1_io_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_quark_io_v1_io_proto_rawDesc), len(file_quark_io_v1_io_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   28,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -1818,7 +1818,7 @@ type ExplainFailureRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
 	TestId        string                 `protobuf:"bytes,2,opt,name=test_id,json=testId,proto3" json:"test_id,omitempty"`
-	Logs          string                 `protobuf:"bytes,3,opt,name=logs,proto3" json:"logs,omitempty"`
+	Evidence      []string               `protobuf:"bytes,3,rep,name=evidence,proto3" json:"evidence,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1867,11 +1867,11 @@ func (x *ExplainFailureRequest) GetTestId() string {
 	return ""
 }
 
-func (x *ExplainFailureRequest) GetLogs() string {
+func (x *ExplainFailureRequest) GetEvidence() []string {
 	if x != nil {
-		return x.Logs
+		return x.Evidence
 	}
-	return ""
+	return nil
 }
 
 type ExplainFailureResponse struct {
@@ -2935,6 +2935,7 @@ type TestResult struct {
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
 	Summary       string                 `protobuf:"bytes,3,opt,name=summary,proto3" json:"summary,omitempty"`
+	Evidence      []string               `protobuf:"bytes,4,rep,name=evidence,proto3" json:"evidence,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2988,6 +2989,13 @@ func (x *TestResult) GetSummary() string {
 		return x.Summary
 	}
 	return ""
+}
+
+func (x *TestResult) GetEvidence() []string {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
 }
 
 type Artifact struct {
@@ -3449,11 +3457,11 @@ const file_quark_devops_v1_devops_proto_rawDesc = "" +
 	"\adry_run\x18\x03 \x01(\bR\x06dryRun\"z\n" +
 	"\x10RunTestsResponse\x123\n" +
 	"\x06result\x18\x01 \x01(\v2\x1b.quark.devops.v1.TaskResultR\x06result\x121\n" +
-	"\x05tests\x18\x02 \x03(\v2\x1b.quark.devops.v1.TestResultR\x05tests\"X\n" +
+	"\x05tests\x18\x02 \x03(\v2\x1b.quark.devops.v1.TestResultR\x05tests\"`\n" +
 	"\x15ExplainFailureRequest\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x17\n" +
-	"\atest_id\x18\x02 \x01(\tR\x06testId\x12\x12\n" +
-	"\x04logs\x18\x03 \x01(\tR\x04logs\"\x80\x01\n" +
+	"\atest_id\x18\x02 \x01(\tR\x06testId\x12\x1a\n" +
+	"\bevidence\x18\x03 \x03(\tR\bevidence\"\x80\x01\n" +
 	"\x16ExplainFailureResponse\x12\x18\n" +
 	"\asummary\x18\x01 \x01(\tR\asummary\x12\x1a\n" +
 	"\bevidence\x18\x02 \x03(\tR\bevidence\x120\n" +
@@ -3531,12 +3539,13 @@ const file_quark_devops_v1_devops_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x12\n" +
 	"\x04path\x18\x03 \x01(\tR\x04path\x12\x18\n" +
-	"\acommand\x18\x04 \x01(\tR\acommand\"N\n" +
+	"\acommand\x18\x04 \x01(\tR\acommand\"j\n" +
 	"\n" +
 	"TestResult\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n" +
-	"\asummary\x18\x03 \x01(\tR\asummary\"\\\n" +
+	"\asummary\x18\x03 \x01(\tR\asummary\x12\x1a\n" +
+	"\bevidence\x18\x04 \x03(\tR\bevidence\"\\\n" +
 	"\bArtifact\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x10\n" +

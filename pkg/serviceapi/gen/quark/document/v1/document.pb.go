@@ -24,7 +24,6 @@ const (
 type DocumentInput struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SourceUri     string                 `protobuf:"bytes,1,opt,name=source_uri,json=sourceUri,proto3" json:"source_uri,omitempty"`
-	ContentRef    string                 `protobuf:"bytes,2,opt,name=content_ref,json=contentRef,proto3" json:"content_ref,omitempty"`
 	Content       []byte                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
 	Filename      string                 `protobuf:"bytes,4,opt,name=filename,proto3" json:"filename,omitempty"`
 	MimeType      string                 `protobuf:"bytes,5,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
@@ -66,13 +65,6 @@ func (*DocumentInput) Descriptor() ([]byte, []int) {
 func (x *DocumentInput) GetSourceUri() string {
 	if x != nil {
 		return x.SourceUri
-	}
-	return ""
-}
-
-func (x *DocumentInput) GetContentRef() string {
-	if x != nil {
-		return x.ContentRef
 	}
 	return ""
 }
@@ -1611,12 +1603,10 @@ var File_quark_document_v1_document_proto protoreflect.FileDescriptor
 
 const file_quark_document_v1_document_proto_rawDesc = "" +
 	"\n" +
-	" quark/document/v1/document.proto\x12\x11quark.document.v1\"\xab\x02\n" +
+	" quark/document/v1/document.proto\x12\x11quark.document.v1\"\x8a\x02\n" +
 	"\rDocumentInput\x12\x1d\n" +
 	"\n" +
-	"source_uri\x18\x01 \x01(\tR\tsourceUri\x12\x1f\n" +
-	"\vcontent_ref\x18\x02 \x01(\tR\n" +
-	"contentRef\x12\x18\n" +
+	"source_uri\x18\x01 \x01(\tR\tsourceUri\x12\x18\n" +
 	"\acontent\x18\x03 \x01(\fR\acontent\x12\x1a\n" +
 	"\bfilename\x18\x04 \x01(\tR\bfilename\x12\x1b\n" +
 	"\tmime_type\x18\x05 \x01(\tR\bmimeType\x12J\n" +

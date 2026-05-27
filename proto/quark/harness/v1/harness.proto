@@ -25,10 +25,23 @@ message PromptMaterial {
   bool required = 4;
 }
 
+// `ContextToolCall` preserves structured agent execution history while
+// Harness packages context. It is Harness-owned context data, not a Gateway
+// transport DTO.
+message ContextToolCall {
+  int32 index = 1;
+  string id = 2;
+  string type = 3;
+  string name = 4;
+  string arguments_json = 5;
+}
+
 message ContextMessage {
   string role = 1;
   string content = 2;
   string source_id = 3;
+  repeated ContextToolCall tool_calls = 4;
+  string tool_call_id = 5;
 }
 
 message ComposeContextRequest {
