@@ -91,9 +91,9 @@ func validateModel(model Model) error {
 	if model.Name == "" {
 		return fmt.Errorf("model section present but missing name")
 	}
-	validProviders := map[string]bool{"anthropic": true, "openai": true, "openrouter": true, "zhipu": true, "noop": true}
+	validProviders := map[string]bool{"anthropic": true, "openai": true, "openrouter": true}
 	if !validProviders[model.Provider] {
-		return fmt.Errorf("invalid model provider %q (supported: anthropic, openai, openrouter, zhipu, noop)", model.Provider)
+		return fmt.Errorf("invalid model provider %q (supported: anthropic, openai, openrouter)", model.Provider)
 	}
 	return nil
 }

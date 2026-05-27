@@ -41,9 +41,11 @@ func toContractSession(sess sessions.Session) clientcontract.SessionInfo {
 	}
 }
 
-func toContractCredential(url string, credential natshub.Credential) clientcontract.NATSCredential {
+// toContractCredential exports authorization only. The requester already has
+// a reachable NATS endpoint; a supervisor bind address may be container-local
+// or otherwise unsuitable from the requester's network.
+func toContractCredential(credential natshub.Credential) clientcontract.NATSCredential {
 	return clientcontract.NATSCredential{
-		URL:       url,
 		Username:  credential.Username,
 		Password:  credential.Password,
 		Account:   credential.Account,

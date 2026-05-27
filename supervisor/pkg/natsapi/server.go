@@ -85,7 +85,6 @@ func WithAuditReader(reader AuditReader) Option {
 
 type Server struct {
 	client           *natskit.Client
-	url              string
 	store            space.Store
 	sessions         *sessions.Repository
 	events           *events.Bus
@@ -125,7 +124,6 @@ func Start(ctx context.Context, cfg Config, store space.Store, bus *events.Bus, 
 	}
 	server := &Server{
 		client:           client,
-		url:              cfg.URL,
 		store:            store,
 		sessions:         sessionRepository,
 		events:           bus,

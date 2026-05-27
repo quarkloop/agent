@@ -114,7 +114,7 @@ func validateRuntimeAgentProfiles(entries []runtimePluginCatalogEntry, catalog a
 
 func validateProviderRef(owner, provider string, catalog agentPluginValidationCatalog) error {
 	provider = strings.TrimSpace(provider)
-	if provider == "" || provider == "noop" {
+	if provider == "" {
 		return nil
 	}
 	if _, hasGateway := catalog.services["gateway"]; !hasGateway {

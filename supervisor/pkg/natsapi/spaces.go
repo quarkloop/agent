@@ -146,7 +146,7 @@ func (s *Server) spaceCredential(req clientcontract.RequestEnvelope) (any, error
 		return nil, err
 	}
 	return clientcontract.SpaceCredentialResponse{
-		Credential: toContractCredential(s.url, credential),
+		Credential: toContractCredential(credential),
 	}, nil
 }
 
@@ -166,6 +166,6 @@ func (s *Server) runtimeCredential(req clientcontract.RequestEnvelope) (any, err
 		return nil, err
 	}
 	return clientcontract.SpaceCredentialResponse{
-		Credential: toContractCredential(s.url, credential),
+		Credential: toContractCredential(credential),
 	}, nil
 }

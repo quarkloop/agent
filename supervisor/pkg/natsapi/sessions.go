@@ -70,7 +70,7 @@ func (s *Server) sessionCredential(req clientcontract.RequestEnvelope) (any, err
 		return nil, err
 	}
 	return clientcontract.SessionCredentialResponse{
-		Credential: toContractCredential(s.url, credential),
+		Credential: toContractCredential(credential),
 	}, nil
 }
 

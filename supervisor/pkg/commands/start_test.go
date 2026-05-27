@@ -14,8 +14,11 @@ func TestStartNATSConfigBuildsEmbeddedConfig(t *testing.T) {
 
 	natsMode = string(natshub.ModeEmbedded)
 	natsStateDir = filepath.Join(t.TempDir(), "nats")
+	natsClientHost = "0.0.0.0"
 	natsClientPort = 14222
+	natsWebSocketHost = "0.0.0.0"
 	natsWebSocketPort = 19222
+	natsMonitorHost = "0.0.0.0"
 	natsMonitorPort = 18222
 	natsAuditRetention = 48 * time.Hour
 	natsAuditMaxMessages = 2048
@@ -29,6 +32,9 @@ func TestStartNATSConfigBuildsEmbeddedConfig(t *testing.T) {
 	}
 	if cfg.StateDir != natsStateDir {
 		t.Fatalf("state dir = %q", cfg.StateDir)
+	}
+	if cfg.Client.Host != natsClientHost || cfg.WebSocket.Host != natsWebSocketHost || cfg.Monitoring.Host != natsMonitorHost {
+		t.Fatalf("hosts = client:%s ws:%s monitoring:%s", cfg.Client.Host, cfg.WebSocket.Host, cfg.Monitoring.Host)
 	}
 	if cfg.Client.Port != natsClientPort || cfg.WebSocket.Port != natsWebSocketPort || cfg.Monitoring.Port != natsMonitorPort {
 		t.Fatalf("ports = client:%d ws:%d monitoring:%d", cfg.Client.Port, cfg.WebSocket.Port, cfg.Monitoring.Port)
@@ -68,8 +74,11 @@ func captureStartNATSFlags() func() {
 	oldMode := natsMode
 	oldURL := natsExternalURL
 	oldStateDir := natsStateDir
+	oldClientHost := natsClientHost
 	oldClientPort := natsClientPort
+	oldWebSocketHost := natsWebSocketHost
 	oldWebSocketPort := natsWebSocketPort
+	oldMonitorHost := natsMonitorHost
 	oldMonitorPort := natsMonitorPort
 	oldAuditRetention := natsAuditRetention
 	oldAuditMaxMessages := natsAuditMaxMessages
@@ -79,8 +88,11 @@ func captureStartNATSFlags() func() {
 		natsMode = oldMode
 		natsExternalURL = oldURL
 		natsStateDir = oldStateDir
+		natsClientHost = oldClientHost
 		natsClientPort = oldClientPort
+		natsWebSocketHost = oldWebSocketHost
 		natsWebSocketPort = oldWebSocketPort
+		natsMonitorHost = oldMonitorHost
 		natsMonitorPort = oldMonitorPort
 		natsAuditRetention = oldAuditRetention
 		natsAuditMaxMessages = oldAuditMaxMessages

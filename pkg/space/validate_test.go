@@ -60,13 +60,21 @@ func TestValidateConfigModel(t *testing.T) {
 	cfg.Model.Provider = "made-up-provider"
 	assertInvalid(t, cfg, "provider")
 
-	for _, provider := range []string{"anthropic", "openai", "openrouter", "zhipu", "noop"} {
+	for _, provider := range []string{"anthropic", "openai", "openrouter"} {
 		cfg := base()
 		cfg.Model.Provider = provider
 		if err := space.ValidateConfig(cfg); err != nil {
 			t.Errorf("provider %q should be valid, got: %v", provider, err)
 		}
 	}
+
+	cfg = base()
+	cfg.Model.Provider = "noop"
+	assertInvalid(t, cfg, "provider")
+
+	cfg = base()
+	cfg.Model.Provider = "zhipu"
+	assertInvalid(t, cfg, "provider")
 }
 
 func TestValidateConfigOptionalModel(t *testing.T) {

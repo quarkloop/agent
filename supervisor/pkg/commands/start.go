@@ -15,8 +15,11 @@ import (
 var natsMode string
 var natsExternalURL string
 var natsStateDir string
+var natsClientHost string
 var natsClientPort int
+var natsWebSocketHost string
 var natsWebSocketPort int
+var natsMonitorHost string
 var natsMonitorPort int
 var natsAuditRetention time.Duration
 var natsAuditMaxMessages int64
@@ -39,8 +42,11 @@ Example:
 	cmd.Flags().StringVar(&natsMode, "nats-mode", string(natshub.ModeEmbedded), "NATS mode: embedded or external")
 	cmd.Flags().StringVar(&natsExternalURL, "nats-url", "", "External NATS URL when --nats-mode=external")
 	cmd.Flags().StringVar(&natsStateDir, "nats-state-dir", "", "Supervisor-owned embedded NATS state directory")
+	cmd.Flags().StringVar(&natsClientHost, "nats-client-host", "127.0.0.1", "Embedded NATS client listen host")
 	cmd.Flags().IntVar(&natsClientPort, "nats-client-port", 4222, "Embedded NATS client listen port")
+	cmd.Flags().StringVar(&natsWebSocketHost, "nats-websocket-host", "127.0.0.1", "Embedded NATS WebSocket listen host")
 	cmd.Flags().IntVar(&natsWebSocketPort, "nats-websocket-port", 9222, "Embedded NATS WebSocket listen port")
+	cmd.Flags().StringVar(&natsMonitorHost, "nats-monitor-host", "127.0.0.1", "Embedded NATS HTTP monitoring listen host")
 	cmd.Flags().IntVar(&natsMonitorPort, "nats-monitor-port", 8222, "Embedded NATS HTTP monitoring listen port")
 	cmd.Flags().DurationVar(&natsAuditRetention, "nats-audit-retention", 0, "Retain redacted service-call audit records for this duration; 0 uses the supervisor default")
 	cmd.Flags().Int64Var(&natsAuditMaxMessages, "nats-audit-max-messages", 0, "Maximum retained audit records; 0 uses the supervisor default")
@@ -80,8 +86,11 @@ func startNATSConfig() (natshub.Config, error) {
 			stateDir = defaultDir
 		}
 		cfg := natshub.DefaultConfig(stateDir)
+		cfg.Client.Host = strings.TrimSpace(natsClientHost)
 		cfg.Client.Port = natsClientPort
+		cfg.WebSocket.Host = strings.TrimSpace(natsWebSocketHost)
 		cfg.WebSocket.Port = natsWebSocketPort
+		cfg.Monitoring.Host = strings.TrimSpace(natsMonitorHost)
 		cfg.Monitoring.Port = natsMonitorPort
 		if natsAuditRetention > 0 {
 			cfg.JetStream.AuditRetention = natsAuditRetention

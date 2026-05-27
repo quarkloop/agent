@@ -43,6 +43,9 @@ func TestSpaceAndSessionContracts(t *testing.T) {
 	if spaceCredential.Credential.Username == "" || spaceCredential.Credential.Password == "" {
 		t.Fatalf("space credential = %#v", spaceCredential.Credential)
 	}
+	if spaceCredential.Credential.URL != "" {
+		t.Fatalf("space credential leaks supervisor-local endpoint = %q", spaceCredential.Credential.URL)
+	}
 	spaceClient, err := nats.Connect(
 		fixture.hub.Endpoints().ClientURL,
 		nats.UserInfo(spaceCredential.Credential.Username, spaceCredential.Credential.Password),
@@ -75,6 +78,9 @@ func TestSpaceAndSessionContracts(t *testing.T) {
 	runtimeCredential := requestPayload[clientcontract.SpaceCredentialResponse](t, fixture.client, clientcontract.SubjectRuntimeCredential, clientcontract.SpaceCredentialRequest{SpaceID: "docs"})
 	if runtimeCredential.Credential.Username == "" || runtimeCredential.Credential.Role != "runtime" {
 		t.Fatalf("runtime credential = %#v", runtimeCredential.Credential)
+	}
+	if runtimeCredential.Credential.URL != "" {
+		t.Fatalf("runtime credential leaks supervisor-local endpoint = %q", runtimeCredential.Credential.URL)
 	}
 
 	listSpaces := requestPayload[clientcontract.ListSpacesResponse](t, fixture.client, clientcontract.SubjectSpaceList, struct{}{})
