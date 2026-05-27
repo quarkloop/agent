@@ -1,11 +1,8 @@
 package llm
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 	"sync"
 
 	"github.com/quarkloop/pkg/plugin"
@@ -23,27 +20,6 @@ func NewRegistry() *Registry {
 	return &Registry{
 		models: make(map[string]*Client),
 	}
-}
-
-// LoadFromURL fetches a model list from a remote URL and initializes clients.
-func (r *Registry) LoadFromURL(url string, providers map[string]Provider) error {
-	resp, err := http.Get(url)
-	if err != nil {
-		return fmt.Errorf("fetch model list: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("fetch model list: %d %s", resp.StatusCode, string(body))
-	}
-
-	var entries []plugin.ModelEntry
-	if err := json.NewDecoder(resp.Body).Decode(&entries); err != nil {
-		return fmt.Errorf("parse model list: %w", err)
-	}
-
-	return r.LoadEntries(entries, providers)
 }
 
 // LoadEntries initializes clients from models and their Gateway client

@@ -1,7 +1,6 @@
 package iofs
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -9,13 +8,11 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
 
 const (
-	DefaultPDFMaxChars       = 30000
 	DefaultMediaMaxBytes     = 20 << 20
 	MutationApprovalRequired = "workspace mutation requires explicit user approval"
 )
@@ -45,14 +42,6 @@ type ReadResult struct {
 type ListResult struct {
 	Entries []string
 	Files   []FileEntry
-}
-
-type ExtractPdfResult struct {
-	Content       string
-	Chars         int32
-	OriginalChars int32
-	Truncated     bool
-	Source        MediaReference
 }
 
 type MediaReference struct {
@@ -243,48 +232,6 @@ func ReadMedia(path string, maxBytes int64) (ReadMediaResult, error) {
 	return ReadMediaResult{
 		Source:  mediaReference(path, data),
 		Content: append([]byte(nil), data...),
-	}, nil
-}
-
-func ExtractPdf(ctx context.Context, path string, maxChars int32, pdftotext string) (ExtractPdfResult, error) {
-	path, err := cleanPath(path)
-	if err != nil {
-		return ExtractPdfResult{}, err
-	}
-	if maxChars <= 0 {
-		maxChars = DefaultPDFMaxChars
-	}
-	bin := pdftotext
-	if strings.TrimSpace(bin) == "" {
-		bin = "pdftotext"
-	}
-	cmd := exec.CommandContext(ctx, bin, path, "-")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		msg := strings.TrimSpace(string(out))
-		if msg != "" {
-			return ExtractPdfResult{}, fmt.Errorf("pdftotext %s: %w: %s", path, err, msg)
-		}
-		return ExtractPdfResult{}, fmt.Errorf("pdftotext %s: %w", path, err)
-	}
-	content := strings.TrimSpace(string(out))
-	runes := []rune(content)
-	original := int32(len(runes))
-	truncated := false
-	if maxChars > 0 && original > maxChars {
-		content = string(runes[:maxChars])
-		truncated = true
-	}
-	sourceData, err := os.ReadFile(path)
-	if err != nil {
-		return ExtractPdfResult{}, fmt.Errorf("read extracted PDF source %s: %w", path, err)
-	}
-	return ExtractPdfResult{
-		Content:       content,
-		Chars:         int32(len([]rune(content))),
-		OriginalChars: original,
-		Truncated:     truncated,
-		Source:        mediaReference(path, sourceData),
 	}, nil
 }
 

@@ -29,7 +29,6 @@ func TestPDFPromptBuildersExposeAgentWorkflowContract(t *testing.T) {
 	)
 	assertPromptExcludes(t, indexPrompt,
 		"io_Read",
-		"io_ExtractPdf",
 		"extract_pdf",
 		"document_ExtractText",
 		"gateway_Embed",
@@ -51,49 +50,6 @@ func TestPDFPromptBuildersExposeAgentWorkflowContract(t *testing.T) {
 		"Which document is a resume?",
 		"indexed",
 		"source filename",
-	)
-	assertPromptExcludes(t, queryPrompt,
-		"gateway_Embed",
-		"indexer_QueryContext",
-		"queryVectorRef",
-		"reasoningContext",
-	)
-}
-
-func TestMarkdownPromptBuildersExposeAgentWorkflowContract(t *testing.T) {
-	indexPrompt := indexMarkdownDirectoryPrompt("/uploads/company-records", 4)
-	assertPromptContains(t, indexPrompt,
-		"/uploads/company-records",
-		"find every Markdown file",
-		"business record",
-		"important facts",
-		"source evidence",
-		"knowledge index",
-		"do not rename",
-		"sidecar files",
-	)
-	assertPromptExcludes(t, indexPrompt,
-		"io_List",
-		"io_Read",
-		"gateway_Embed",
-		"indexer_UpsertChunk",
-		"indexer_UpsertDocument",
-		"textContentRef",
-		"inputRef",
-		"queryVectorRef",
-		"service function",
-		`"chunkId"`,
-		`"facts":`,
-		`"entities":`,
-		`"relations":`,
-	)
-
-	queryPrompt := indexedMarkdownQuestionPrompt()
-	assertPromptContains(t, queryPrompt,
-		"Search the indexed IT company documents",
-		"Northwind Retail GmbH",
-		"ByteWorks Supply GmbH",
-		"source filenames",
 	)
 	assertPromptExcludes(t, queryPrompt,
 		"gateway_Embed",
