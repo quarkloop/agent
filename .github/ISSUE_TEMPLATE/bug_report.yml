@@ -4,7 +4,9 @@ labels: [bug]
 body:
   - type: markdown
     attributes:
-      value: Please fill out the sections below to help us reproduce and fix the issue.
+      value: |
+        Please fill out the sections below to help us reproduce and fix the issue.
+        The more detail you provide, the faster we can triage.
 
   - type: textarea
     id: description
@@ -18,9 +20,11 @@ body:
     id: steps
     attributes:
       label: Steps to reproduce
+      description: Provide a minimal reproducer. If possible, include the exact commands you ran.
       placeholder: |
-        1. Run `quark run my-space`
+        1. Run `...`
         2. ...
+        3. See error
     validations:
       required: true
 
@@ -28,6 +32,7 @@ body:
     id: expected
     attributes:
       label: Expected behaviour
+      description: What did you expect to happen?
     validations:
       required: true
 
@@ -35,22 +40,25 @@ body:
     id: actual
     attributes:
       label: Actual behaviour
+      description: What actually happened? Include error messages, logs, or screenshots if relevant.
     validations:
       required: true
 
   - type: input
     id: version
     attributes:
-      label: Quark version
-      placeholder: output of `quark version`
+      label: Project version
+      description: The version of the quarkloop project you're using.
+      placeholder: e.g. output of `quark version`, `npm ls @quarkloop/quark-js`, or commit SHA
     validations:
       required: true
 
   - type: input
-    id: go-version
+    id: runtime-version
     attributes:
-      label: Go version
-      placeholder: output of `go version`
+      label: Runtime version
+      description: The language runtime you're using.
+      placeholder: e.g. Go 1.26.2, Node 22.4.0, Bun 1.1.0, JDK 21.0.5
     validations:
       required: true
 

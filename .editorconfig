@@ -1,0 +1,90 @@
+# EditorConfig — canonical configuration for all quarkloop repositories.
+#
+# Copy this file to the repo root as `.editorconfig` (no changes needed —
+# it is language-aware and works for all repos).
+#
+# @see https://github.com/quarkloop/guidelines/blob/main/github/SPEC.md
+# @see https://editorconfig.org
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Go — gofmt requires tabs
+[*.go]
+indent_style = tab
+indent_size = 4
+
+# Rust — rustfmt default is tabs
+[*.rs]
+indent_style = tab
+indent_size = 4
+
+# Java — Maven/Java convention is 4 spaces
+[*.java]
+indent_style = space
+indent_size = 4
+
+# TypeScript, JavaScript, JSX, TSX — Prettier convention is 2 spaces
+[*.{ts,tsx,js,jsx,mjs,cjs}]
+indent_style = space
+indent_size = 2
+
+# CSS, SCSS, Less — 2 spaces
+[*.{css,scss,less,sass}]
+indent_style = space
+indent_size = 2
+
+# HTML — 2 spaces
+[*.html]
+indent_style = space
+indent_size = 2
+
+# YAML, JSON — 2 spaces
+[*.{yml,yaml,json,jsonc,json5}]
+indent_style = space
+indent_size = 2
+
+# TOML — 2 spaces
+[*.toml]
+indent_style = space
+indent_size = 2
+
+# Markdown, MDX — 2 spaces (but don't trim trailing whitespace —
+# markdown uses two trailing spaces for line breaks)
+[*.{md,mdx}]
+indent_style = space
+indent_size = 2
+trim_trailing_whitespace = false
+
+# Shell scripts — 2 spaces
+[*.sh]
+indent_style = space
+indent_size = 2
+
+# Makefile — MUST use tabs (make requires it)
+[Makefile]
+indent_style = tab
+
+# Proto — 2 spaces
+[*.proto]
+indent_style = space
+indent_size = 2
+
+# Properties files — 2 spaces
+[*.properties]
+indent_style = space
+indent_size = 2
+
+# Env files — 2 spaces
+[.env]
+indent_style = space
+indent_size = 2
+
+# Git submodules config — tabs (git convention)
+[.gitmodules]
+indent_style = tab

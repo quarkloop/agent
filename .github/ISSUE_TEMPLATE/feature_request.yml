@@ -2,11 +2,18 @@ name: Feature Request
 description: Propose a new feature or improvement
 labels: [enhancement]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to propose a feature! Please describe the
+        problem you're trying to solve — this helps us understand the
+        motivation before evaluating the solution.
+
   - type: textarea
     id: problem
     attributes:
       label: Problem
-      description: What problem does this feature solve?
+      description: What problem does this feature solve? What are you trying to do that currently isn't possible or is painful?
     validations:
       required: true
 
@@ -14,6 +21,7 @@ body:
     id: solution
     attributes:
       label: Proposed solution
+      description: What would you like to happen? Be as specific as you can — API sketches, CLI examples, or pseudocode are helpful.
     validations:
       required: true
 
@@ -21,3 +29,4 @@ body:
     id: alternatives
     attributes:
       label: Alternatives considered
+      description: Have you tried any workarounds or alternative approaches? Why didn't they work?
