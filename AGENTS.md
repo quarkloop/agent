@@ -116,7 +116,6 @@ filesystem discovery for supervisor-launched agents.
 
 ## Strict Redlines
 
-- Follow `docs/stricts.md` for data-flow ownership.
 - Do not pass ingress DTOs into domain packages.
 - Do not import another package only to reuse a data shape.
 - Copy maps and slices when crossing ownership boundaries.
