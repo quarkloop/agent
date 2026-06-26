@@ -4,7 +4,7 @@
 
 **Do not open a public GitHub issue for security vulnerabilities.**
 
-Please report security issues via [GitHub's private security advisory](https://github.com/quarkloop/quark/security/advisories/new). We will acknowledge your report within 72 hours and work with you on a fix before any public disclosure.
+Please report security issues via [GitHub's private security advisory](https://github.com/quarkloop/agent/security/advisories/new). We will acknowledge your report within 72 hours and work with you on a fix before any public disclosure.
 
 ## Scope
 

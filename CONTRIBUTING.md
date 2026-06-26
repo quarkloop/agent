@@ -12,7 +12,7 @@ Thank you for your interest in contributing. This guide covers everything you ne
 ## Getting started
 
 ```bash
-git clone https://github.com/quarkloop/quark
+git clone https://github.com/quarkloop/agent
 cd quark
 make build        # builds Go binaries and the Rust Harness service
 export PATH="$PWD/bin:$PATH"

@@ -1,6 +1,6 @@
 # Quark
 
-[![CI](https://github.com/quarkloop/quark/actions/workflows/ci.yml/badge.svg)](https://github.com/quarkloop/quark/actions/workflows/ci.yml)
+[![CI](https://github.com/quarkloop/agent/actions/workflows/ci.yml/badge.svg)](https://github.com/quarkloop/agent/actions/workflows/ci.yml)
 [![Go 1.26+](https://img.shields.io/badge/go-1.26+-00ADD8.svg)](https://go.dev/dl/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
@@ -31,7 +31,7 @@ execute typed deterministic work; supervisor owns discovery and lifecycle.
 ## Quickstart
 
 ```bash
-git clone https://github.com/quarkloop/quark
+git clone https://github.com/quarkloop/agent
 cd quark
 make build
 export PATH="$PWD/bin:$PATH"
