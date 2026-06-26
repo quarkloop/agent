@@ -32,7 +32,7 @@ make build
 export PATH="$PWD/bin:$PATH"
 ```
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for full prerequisites (Go 1.26+, Rust/Cargo for the Harness service, Docker Compose for E2E stacks).
+See [Development](docs/development.mdx) for full prerequisites (Go 1.26+, Rust/Cargo for the Harness service, Docker Compose for E2E stacks).
 
 ## Quick start
 
@@ -57,14 +57,14 @@ export OPENROUTER_API_KEY=sk-or-v1-...
 quark session create --title "Demo"
 ```
 
-See [SPACE-CONFIG.md](SPACE-CONFIG.md) for Knowledge, DevOps, System, and Gateway configuration examples.
+See [Space configuration](docs/space-config.mdx) for Knowledge, DevOps, System, and Gateway configuration examples.
 
 ## Documentation
 
-- [Architecture](ARCHITECTURE.md) — process model, plugin types, services, catalogs, and strict boundaries
-- [Development](DEVELOPMENT.md) — build, test, E2E, provider keys, and debugging
-- [Space configuration](SPACE-CONFIG.md) — authoritative `space.json` configuration examples
-- [Release readiness](RELEASE.md) — release gates and manual checks
+- [Architecture](docs/architecture.mdx) — process model, plugin types, services, catalogs, and strict boundaries
+- [Development](docs/development.mdx) — build, test, E2E, provider keys, and debugging
+- [Space configuration](docs/space-config.mdx) — authoritative `space.json` configuration examples
+- [Release readiness](docs/release.mdx) — release gates and manual checks
 - [Agent guide](AGENTS.md) — coding-agent instructions and repository rules
 - [Contributing](CONTRIBUTING.md) — contribution expectations and code style
 - [Security](SECURITY.md) — vulnerability reporting policy

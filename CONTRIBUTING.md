@@ -46,7 +46,7 @@ cp .env.example .env
 make test-e2e
 ```
 
-See `e2e/` for scenarios and `DEVELOPMENT.md` for verification prerequisites.
+See `e2e/` for scenarios and [Development](docs/development.mdx) for verification prerequisites.
 
 ## Module structure
 
@@ -64,7 +64,7 @@ cli -> NATS client for supervisor/runtime operations
 When adding code, keep domain behavior in its owning service and use shared
 packages only for cross-boundary contracts or transport mechanics.
 
-See `AGENTS.md` and `ARCHITECTURE.md` for current ownership rules.
+See `AGENTS.md` and [Architecture](docs/architecture.mdx) for current ownership rules.
 
 ## Code style
 
