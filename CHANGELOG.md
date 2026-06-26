@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Corrected repository URLs in README, CONTRIBUTING, and SECURITY from `quarkloop/quark` to `quarkloop/agent`.
+- Updated SECURITY.md scope section to match the current architecture (supervisor/, runtime/, cli/, services/, plugins/, web/) — was referencing stale directories (agent/, api-server/, tools/).
+- Removed Zhipu from the third-party LLM provider list in SECURITY.md — the provider was removed in a prior commit.
+- Removed broken reference to non-existent `docs/stricts.md` in AGENTS.md — the strict data-flow rules are already documented in the "Strict Redlines" section of AGENTS.md itself.
+- Removed stale `ci.yml.disabled` — a duplicate of the active CI workflow with fewer steps.
+
+### Changed
+
+- Unified README to follow the org-wide template (Overview → Features → Installation → Quick start → Documentation → Compatibility → Contributing → License).
+
 ## [0.1.0] - 2026-04-01
 
 ### Added
