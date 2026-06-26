@@ -1,0 +1,59 @@
+# Pre-commit hooks for quarkloop repositories.
+#
+# This file is the canonical template. Copy it to .pre-commit-config.yaml
+# in each repo and adjust the `QUARK_GUIDELINES_PATH` env var to point
+# to your local checkout of the guidelines repo.
+#
+# Usage:
+#   1. Install pre-commit: pip install pre-commit
+#   2. Copy this file to .pre-commit-config.yaml in your repo
+#   3. Set QUARK_GUIDELINES_PATH to your guidelines repo path
+#   4. Run: pre-commit install
+#   5. Run: pre-commit install --hook-type commit-msg
+#
+# To run all hooks manually:
+#   pre-commit run --all-files
+#   pre-commit run --all-files --hook-stage commit-msg
+#
+# To update hooks after guidelines changes:
+#   pre-commit autoupdate  # updates the local hooks from the guidelines repo
+#   pre-commit run --all-files  # re-run on all files
+
+repos:
+  # ─── Quarkloop guidelines checks ──────────────────────────────────
+  # Local hooks that call our repo.py tool.
+  # Adjust the path to point to your guidelines checkout.
+  - repo: local
+    hooks:
+      # Check commit message format (Conventional Commits)
+      - id: quark-check-commits
+        name: "quarkloop: commit message format"
+        entry: bash -c 'python3 "$QUARK_GUIDELINES_PATH/tool/repo.py" check-commits --repo . --count 1'
+        language: system
+        stages: [commit-msg]
+        always_run: true
+
+      # Check repo health (files exist, AGENTS.md/README.md structure)
+      - id: quark-doctor
+        name: "quarkloop: repo doctor"
+        entry: bash -c 'python3 "$QUARK_GUIDELINES_PATH/tool/repo.py" doctor --repo . --quiet'
+        language: system
+        always_run: true
+        pass_filenames: false
+
+  # ─── Standard hooks ───────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: '\.md$'  # markdown uses trailing whitespace for line breaks
+      - id: end-of-file-fixer
+        exclude: '\.md$'
+      - id: check-yaml
+        exclude: '\.github/ISSUE_TEMPLATE/.*\.yml$'  # GitHub issue forms use non-standard YAML
+      - id: check-json
+        exclude: '(package-lock\.json|skills-lock\.json|\.source/.*)'
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=500']
